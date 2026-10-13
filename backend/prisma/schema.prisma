@@ -1,0 +1,2188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// A one-time SMS login code for a phone number. Not linked to User by FK
+// since a brand-new phone number won't have a User row yet — request/
+// verify/complete-profile all key off the raw phone string instead.
+model PhoneOtp {
+  id         String    @id @default(uuid())
+  phone      String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  /// Who asked for the code (first X-Forwarded-For hop), for the daily per-IP limit.
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone])
+  @@index([ip, createdAt])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum KycStatus {
+  NOT_STARTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  BET_STAKE
+  BET_PAYOUT
+  BET_REFUND
+  GAME_STAKE
+  GAME_PAYOUT
+  BONUS
+  DEPOSIT_BONUS
+  WITHDRAWAL_REVERSAL
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum EventStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  CANCELLED
+}
+
+enum MarketStatus {
+  OPEN
+  SUSPENDED
+  SETTLED
+}
+
+enum BetStatus {
+  PENDING
+  WON
+  LOST
+  VOID
+}
+
+enum SupportTicketStatus {
+  OPEN
+  RESOLVED
+}
+
+enum ChatSender {
+  USER
+  ADMIN
+}
+
+enum ColorGameBetType {
+  NUMBER
+  COLOR
+  SIZE
+}
+
+enum ColorGameColor {
+  GREEN
+  RED
+  VIOLET
+}
+
+enum ColorGameSize {
+  BIG
+  SMALL
+}
+
+enum ChickenRoadDifficulty {
+  EASY
+  MEDIUM
+  HARD
+  HARDCORE
+}
+
+model User {
+  id           String    @id @default(uuid())
+  // Short public-facing account number shown to the player (mobile UI's
+  // "UID") — kept separate from `id` (the internal uuid every other
+  // table's foreign keys point at) so this can be short/numeric without
+  // touching any relation. Nullable so `prisma db push` can add the
+  // column without a default; every create path generates one, and any
+  // pre-existing row without one gets backfilled by prisma/seed.ts.
+  uid          Int?      @unique
+  email        String?   @unique
+  passwordHash String?
+  phone        String?   @unique
+  firstName    String
+  lastName     String
+  dateOfBirth  DateTime
+  country      String
+  role         Role      @default(USER)
+  kycStatus    KycStatus @default(NOT_STARTED)
+
+  // Admin-initiated ban (distinct from the user's own isSelfExcluded) —
+  // for rule violations. Checked in middleware/auth.ts's requireAuth so a
+  // ban takes effect immediately, not just on the next login.
+  isBanned  Boolean   @default(false)
+  banReason String?
+  bannedAt  DateTime?
+
+  // Responsible gambling
+  isSelfExcluded      Boolean   @default(false)
+  selfExclusionUntil  DateTime?
+  depositLimitDaily   Decimal?  @db.Decimal(12, 2)
+  depositLimitWeekly  Decimal?  @db.Decimal(12, 2)
+  depositLimitMonthly Decimal?  @db.Decimal(12, 2)
+
+  // Daily login bonus (server-authoritative — see gameEngineService)
+  dailyStreak      Int       @default(0)
+  lastDailyClaimAt DateTime?
+
+  // Provably-fair game RNG state — see fairnessService.ts. serverSeed is
+  // never exposed to the client until rotated; serverSeedHash is shown
+  // upfront so a player can verify, after rotation, that it wasn't
+  // changed mid-play.
+  fairnessServerSeed     String?
+  fairnessServerSeedHash String?
+  fairnessClientSeed     String?
+  fairnessNonce          Int     @default(0)
+  /// When a round last took a nonce; the server seed is not rotated (revealed) right after, so a round still starting can't have its seed exposed.
+  fairnessNonceUsedAt    DateTime?
+
+  // Payout bank account for withdrawals. Required before a withdrawal is
+  // accepted — see the check in wallet.routes.ts POST /withdraw.
+  payoutAccountHolderName String?
+  payoutAccountNumber     String?
+  payoutIfsc              String?
+
+  // One-time first-deposit bonus, see paymentService.ts / wallet.routes.ts.
+  firstDepositBonusClaimed Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wallet             Wallet?
+  revealedSeeds      RevealedServerSeed[]
+  transactions       Transaction[]
+  bets               Bet[]
+  gameRounds         GameRound[]
+  kycVerifications   KycVerification[]
+  supportTickets     SupportTicket[]
+  colorGameBets      ColorGameBet[]
+  aviatorBets        AviatorBet[]
+  chickenRoadRounds  ChickenRoadRound[]
+  minesRounds        MinesRound[]
+  sevenUpDownBets    SevenUpDownBet[]
+  plinkoBets         PlinkoBet[]
+  dragonTigerBets    DragonTigerBet[]
+  vortexRounds       VortexRound[]
+  AndarBaharBet      AndarBaharBet[]
+  TeenPattiBet       TeenPattiBet[]
+  CricketXBet        CricketXBet[]
+  RocketBet          RocketBet[]
+  GoalRushBet        GoalRushBet[]
+  BigCatchBet        BigCatchBet[]
+  CosmonautBet       CosmonautBet[]
+  SkyJetBet          SkyJetBet[]
+  SkyJetJackpotWin   SkyJetJackpotWin[]
+  NightRacerBet      NightRacerBet[]
+  AirshipBet         AirshipBet[]
+  ZeusSpin           ZeusSpin[]
+  WolfMoonSpin       WolfMoonSpin[]
+  PenaltyRound       PenaltyRound[]
+  CupsRound          CupsRound[]
+  BombRound          BombRound[]
+  VaultRound         VaultRound[]
+  TreasureRound      TreasureRound[]
+  WheelSpin          WheelSpin[]
+  ScratchTicket      ScratchTicket[]
+  DiceDuelBet        DiceDuelBet[]
+  ColorBallBet       ColorBallBet[]
+  FortuneSixBet      FortuneSixBet[]
+  fruitMachineSpins  FruitMachineSpin[]
+  fishermanSpins     FishermanSpin[]
+  bookOfPharaohSpins BookOfPharaohSpin[]
+  JhandiMundaBet     JhandiMundaBet[]
+  RouletteBet        RouletteBet[]
+  K3Bet              K3Bet[]
+  WinGoBet           WinGoBet[]
+  FiveDBet           FiveDBet[]
+  TrxBet             TrxBet[]
+  BaccaratBet        BaccaratBet[]
+  SlotSpin           SlotSpin[]
+  AcesSpin           AcesSpin[]
+  DiceBet            DiceBet[]
+  LimboBet           LimboBet[]
+  BlackjackHand      BlackjackHand[]
+  KenoBet            KenoBet[]
+  HiloRound          HiloRound[]
+  DragonTowerRound   DragonTowerRound[]
+  VideoPokerRound    VideoPokerRound[]
+  DiamondsBet        DiamondsBet[]
+  PumpRound          PumpRound[]
+  CoinFlipRound      CoinFlipRound[]
+  CasinoHoldemHand   CasinoHoldemHand[]
+  ThreeCardPokerHand ThreeCardPokerHand[]
+  CandyBlastSpin     CandyBlastSpin[]
+  Neon777Spin        Neon777Spin[]
+  MoneyComingSpin    MoneyComingSpin[]
+  GiftCodeRedemption GiftCodeRedemption[]
+  VipBonusClaim      VipBonusClaim[]
+}
+
+model KycVerification {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id])
+  provider            String
+  providerReferenceId String?
+  status              KycStatus @default(PENDING)
+  rawResult           Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Wallet {
+  id       String  @id @default(uuid())
+  userId   String  @unique
+  user     User    @relation(fields: [userId], references: [id])
+  balance  Decimal @default(0) @db.Decimal(12, 2)
+  currency String  @default("GBP")
+
+  // Bonus funds already added to `balance` (so they're immediately
+  // playable) but not yet withdrawable until `wageringProgress` reaches
+  // `wageringRequired` — standard "wagering requirement" mechanic. Both
+  // reset to 0 once met. See paymentService.ts (grant) and
+  // gameEngineService.ts (progress) and wallet.routes.ts (withdraw gate).
+  lockedBonus      Decimal @default(0) @db.Decimal(12, 2)
+  wageringRequired Decimal @default(0) @db.Decimal(12, 2)
+  wageringProgress Decimal @default(0) @db.Decimal(12, 2)
+
+  // Deposited (or admin-credited) money not yet staked in a game. Only the
+  // rest — what came back as winnings — can be withdrawn. Kept by a database
+  // trigger on "Transaction" (see prisma/seed.ts, ensureUnplayedDepositTrigger):
+  // a completed DEPOSIT or admin credit adds to it, every GAME_STAKE /
+  // BET_STAKE takes from it, so every game is covered without its own code.
+  unplayedDeposit Decimal @default(0) @db.Decimal(12, 2)
+
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  id                  String            @id @default(uuid())
+  userId              String
+  user                User              @relation(fields: [userId], references: [id])
+  type                TransactionType
+  amount              Decimal           @db.Decimal(12, 2)
+  status              TransactionStatus @default(PENDING)
+  provider            String?
+  providerReferenceId String?
+  betId               String?
+  bet                 Bet?              @relation(fields: [betId], references: [id])
+  createdAt           DateTime          @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// Retired: the sportsbook (Sport / Event / Market / Selection / Bet) had no
+// screen in the app and its endpoints are gone. Kept read-only so past
+// records stay; open bets were refunded by retiredGamesCloseout.ts.
+model Sport {
+  id     String  @id @default(uuid())
+  name   String  @unique
+  slug   String  @unique
+  events Event[]
+}
+
+model Event {
+  id        String      @id @default(uuid())
+  sportId   String
+  sport     Sport       @relation(fields: [sportId], references: [id])
+  name      String
+  startTime DateTime
+  status    EventStatus @default(SCHEDULED)
+  markets   Market[]
+  createdAt DateTime    @default(now())
+}
+
+model Market {
+  id         String       @id @default(uuid())
+  eventId    String
+  event      Event        @relation(fields: [eventId], references: [id])
+  name       String
+  status     MarketStatus @default(OPEN)
+  selections Selection[]
+  createdAt  DateTime     @default(now())
+}
+
+model Selection {
+  id       String   @id @default(uuid())
+  marketId String
+  market   Market   @relation(fields: [marketId], references: [id])
+  name     String
+  odds     Decimal  @db.Decimal(8, 2)
+  isWinner Boolean?
+  bets     Bet[]
+}
+
+// One round of a real-money "game" (see gameEngineService.ts). Outcomes
+// are "provably fair" (HMAC-SHA256 of serverSeed/clientSeed/nonce — see
+// fairnessService.ts) — a player can independently recompute the result
+// once serverSeedHash's underlying seed is revealed via seed rotation.
+// This is NOT the same as accredited RNG certification, which a real
+// casino licence still requires; that is a compliance step outside this
+// codebase.
+// Retired: the old instant Dice / Coin Flip games (no screen in the app).
+// Kept read-only so past plays stay on record.
+model GameRound {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  gameKey        String
+  gameType       String // "coinflip" | "dice"
+  target         Int? // dice only: the roll-under target the player chose
+  stake          Decimal  @db.Decimal(12, 2)
+  multiplier     Decimal  @db.Decimal(8, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  won            Boolean
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+}
+
+// A server seed's value is only ever revealed once rotated out — this is
+// what lets a player verify past rounds played under its hash.
+model RevealedServerSeed {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  serverSeed     String
+  serverSeedHash String
+  createdAt      DateTime @default(now())
+}
+
+// Raised when a user's issue isn't solved by the in-app FAQ (see
+// support.routes.ts). Shown to staff on the priority support dashboard
+// (public/admin-support.html) so real escalations get a real response.
+model SupportTicket {
+  id         String              @id @default(uuid())
+  userId     String
+  user       User                @relation(fields: [userId], references: [id])
+  topic      String
+  message    String?
+  status     SupportTicketStatus @default(OPEN)
+  createdAt  DateTime            @default(now())
+  resolvedAt DateTime?
+  messages   ChatMessage[]
+}
+
+// One message in a Live Support conversation (see support.routes.ts /
+// admin.routes.ts and public/chat.html + admin-support.html). Always
+// belongs to a SupportTicket, which doubles as the conversation thread.
+model ChatMessage {
+  id        String        @id @default(uuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id])
+  sender    ChatSender
+  text      String
+  createdAt DateTime      @default(now())
+}
+
+model Bet {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  selectionId     String
+  selection       Selection     @relation(fields: [selectionId], references: [id])
+  stake           Decimal       @db.Decimal(12, 2)
+  odds            Decimal       @db.Decimal(8, 2)
+  potentialPayout Decimal       @db.Decimal(12, 2)
+  status          BetStatus     @default(PENDING)
+  createdAt       DateTime      @default(now())
+  settledAt       DateTime?
+  transactions    Transaction[]
+}
+
+// "Color Predict" — a fixed-interval number-draw game (see
+// colorGameService.ts). Unlike GameRound (per-user, per-click), a round
+// here is shared by every player and runs on a wall-clock timer per
+// duration track (30s/1m/3m/5m/10m). Provably fair via commit-reveal:
+// serverSeedHash is public the instant the round opens (before any bet
+// can be placed), and resultNumber = HMAC-SHA256(serverSeed, periodNumber)
+// mod 10 — deterministic and independently recomputable once serverSeed
+// is revealed at settlement.
+// Retired: the original Win Go. Kept (read-only) so past rounds and bets
+// stay on record; nothing places or settles bets here any more except the
+// one-time close-out in retiredGamesCloseout.ts. The live game is WinGo*.
+model ColorGameRound {
+  id              String         @id @default(uuid())
+  durationSeconds Int
+  // periodNumber (YYMMDD + that duration's 1-based round index for the
+  // day — see periodNumberFor) is only unique WITHIN a duration: e.g.
+  // 30s round #60 and 60s round #60 both land on "...000060" the same
+  // day. Only @@unique below, not a bare @unique here, or two different
+  // durations' rounds sharing a round index would collide on write and
+  // silently return the wrong duration's round (a real bug this fixed —
+  // see the commit that added this comment).
+  periodNumber    String
+  startTime       DateTime
+  endTime         DateTime
+  serverSeed      String?
+  serverSeedHash  String
+  resultNumber    Int?
+  resultSize      ColorGameSize?
+  settled         Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  bets            ColorGameBet[]
+
+  @@unique([durationSeconds, periodNumber])
+  @@index([durationSeconds, startTime])
+}
+
+model ColorGameBet {
+  id               String           @id @default(uuid())
+  roundId          String
+  round            ColorGameRound   @relation(fields: [roundId], references: [id])
+  userId           String
+  user             User             @relation(fields: [userId], references: [id])
+  betType          ColorGameBetType
+  betValue         String // "0".."9" | "GREEN"/"RED"/"VIOLET" | "BIG"/"SMALL"
+  amount           Decimal          @db.Decimal(12, 2)
+  payoutMultiplier Decimal          @db.Decimal(6, 2)
+  status           BetStatus        @default(PENDING)
+  payout           Decimal          @default(0) @db.Decimal(12, 2)
+  createdAt        DateTime         @default(now())
+
+  @@index([userId])
+  @@index([roundId])
+}
+
+// "Aviator" — a provably-fair crash-multiplier game (see aviatorService.ts).
+// Shared rounds like ColorGame, but continuous rather than slotted: each
+// round chains directly off the previous one's endTime. crashMultiplier is
+// deterministic from serverSeed the moment the round is created (commit-
+// reveal, same as ColorGameRound), but is only exposed by the API once the
+// round has actually reached it (now >= crashTime) — until then, nobody,
+// including the server operator, can act on it early.
+model AviatorRound {
+  id               String       @id @default(uuid())
+  periodNumber     String       @unique
+  bettingStartTime DateTime
+  flyStartTime     DateTime
+  crashTime        DateTime
+  endTime          DateTime
+  crashMultiplier  Decimal      @db.Decimal(10, 2)
+  serverSeed       String
+  serverSeedHash   String
+  settled          Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  bets             AviatorBet[]
+
+  @@index([bettingStartTime])
+}
+
+model AviatorBet {
+  id                String       @id @default(uuid())
+  roundId           String
+  round             AviatorRound @relation(fields: [roundId], references: [id])
+  userId            String
+  user              User         @relation(fields: [userId], references: [id])
+  amount            Decimal      @db.Decimal(12, 2)
+  autoCashoutAt     Decimal?     @db.Decimal(10, 2)
+  cashoutMultiplier Decimal?     @db.Decimal(10, 2)
+  status            BetStatus    @default(PENDING)
+  payout            Decimal      @default(0) @db.Decimal(12, 2)
+  createdAt         DateTime     @default(now())
+
+  @@index([userId])
+  @@index([roundId])
+}
+
+// One row per play — unlike Aviator/ColorGame there's no shared betting
+// window here: each player starts, steps through, and cashes out (or
+// busts) their own private round. status reuses BetStatus the same way
+// AviatorBet does: PENDING while in progress, WON once cashed out, LOST
+// once busted (VOID unused).
+model ChickenRoadRound {
+  id             String                @id @default(uuid())
+  userId         String
+  user           User                  @relation(fields: [userId], references: [id])
+  difficulty     ChickenRoadDifficulty
+  stake          Decimal               @db.Decimal(12, 2)
+  currentStep    Int                   @default(0)
+  multiplier     Decimal               @default(1) @db.Decimal(10, 2)
+  payout         Decimal               @default(0) @db.Decimal(12, 2)
+  status         BetStatus             @default(PENDING)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime              @default(now())
+  settledAt      DateTime?
+
+  @@index([userId])
+}
+
+// One private Mines round: a 5x5 board with `mineCount` hidden mines. The
+// player reveals tiles one at a time; every safe tile raises the multiplier
+// until they cash out or hit a mine. Mine positions are derived from the
+// round's provably-fair seeds at start and stored here, but never sent to
+// the client until the round has ended.
+model MinesRound {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  stake          Decimal   @db.Decimal(12, 2)
+  mineCount      Int
+  minePositions  Int[]
+  revealed       Int[]     @default([])
+  multiplier     Decimal   @default(1) @db.Decimal(14, 2)
+  payout         Decimal   @default(0) @db.Decimal(12, 2)
+  status         BetStatus @default(PENDING)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime  @default(now())
+  settledAt      DateTime?
+
+  @@index([userId])
+}
+
+// "7 Up Down" — two provably-fair dice per shared, slot-aligned round (see
+// sevenUpDownService.ts). The dice are fixed from serverSeed when the round
+// is created and only exposed once resultTime has passed.
+model SevenUpDownRound {
+  id             String           @id @default(uuid())
+  periodNumber   String           @unique
+  startTime      DateTime
+  betEndTime     DateTime
+  resultTime     DateTime
+  endTime        DateTime
+  dice1          Int
+  dice2          Int
+  serverSeed     String
+  serverSeedHash String
+  settled        Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  bets           SevenUpDownBet[]
+
+  @@index([startTime])
+  @@index([settled, resultTime])
+}
+
+// One chip stack per row. area is DOWN | SEVEN | UP | N2..N12 (no N7);
+// multiplier is the total return locked in when the bet was placed. VOID
+// marks a bet taken back (undo/clear) during the betting window.
+model SevenUpDownBet {
+  id         String           @id @default(uuid())
+  roundId    String
+  round      SevenUpDownRound @relation(fields: [roundId], references: [id])
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  area       String
+  amount     Decimal          @db.Decimal(12, 2)
+  multiplier Decimal          @db.Decimal(8, 2)
+  status     BetStatus        @default(PENDING)
+  payout     Decimal          @default(0) @db.Decimal(12, 2)
+  createdAt  DateTime         @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// "Plinko" — one row per ball dropped (see plinkoService.ts). path holds
+// one 0 (left) / 1 (right) per row, drawn from the player's provably-fair
+// seeds; slot is its sum. serverSeed is kept for audit but never sent.
+model PlinkoBet {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  rows           Int
+  risk           String
+  path           Int[]
+  slot           Int
+  multiplier     Decimal  @db.Decimal(10, 2)
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// "Dragon Tiger" — one card each to Dragon and Tiger per shared,
+// slot-aligned round (see dragonTigerService.ts). Cards are stored as
+// 0..51 (rank = index % 13 + 1, suit = index / 13), fixed from serverSeed
+// when the round is created and only exposed once resultTime has passed.
+model DragonTigerRound {
+  id             String           @id @default(uuid())
+  periodNumber   String           @unique
+  startTime      DateTime
+  betEndTime     DateTime
+  resultTime     DateTime
+  endTime        DateTime
+  dragonCard     Int
+  tigerCard      Int
+  serverSeed     String
+  serverSeedHash String
+  settled        Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  bets           DragonTigerBet[]
+
+  @@index([startTime])
+  @@index([settled, resultTime])
+}
+
+// area is DRAGON | TIE | TIGER | SUITED_TIE; multiplier is the total return
+// locked in when the bet was placed. VOID marks a bet taken back (undo /
+// clear) during the betting window.
+model DragonTigerBet {
+  id         String           @id @default(uuid())
+  roundId    String
+  round      DragonTigerRound @relation(fields: [roundId], references: [id])
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  area       String
+  amount     Decimal          @db.Decimal(12, 2)
+  multiplier Decimal          @db.Decimal(8, 2)
+  status     BetStatus        @default(PENDING)
+  payout     Decimal          @default(0) @db.Decimal(12, 2)
+  createdAt  DateTime         @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// One private Vortex round. Every spin lands the wheel on Water, Earth,
+// Fire or the vortex (crash). Each element fills a section of its ring and
+// raises the multiplier; the player cashes out whenever they like, a full
+// ring cashes out on its own, and the vortex loses the stake. `segments`
+// keeps every landed wheel segment so the round can be replayed/verified.
+model VortexRound {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  stake          Decimal   @db.Decimal(12, 2)
+  water          Int       @default(0)
+  earth          Int       @default(0)
+  fire           Int       @default(0)
+  spins          Int       @default(0)
+  segments       Int[]
+  multiplier     Decimal   @default(0) @db.Decimal(12, 2)
+  payout         Decimal   @default(0) @db.Decimal(12, 2)
+  status         BetStatus @default(PENDING)
+  endReason      String?
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime  @default(now())
+  settledAt      DateTime?
+
+  @@index([userId])
+}
+
+// One shared Andar Bahar round on a fixed wall-clock slot. `joker` and the
+// dealt `cards` (Andar, Bahar, Andar, … up to and including the first card
+// of the Joker's rank) are fixed at creation from the round's server seed
+// and only revealed once betting has closed.
+model AndarBaharRound {
+  id             String          @id @default(uuid())
+  periodNumber   String          @unique
+  startTime      DateTime
+  betEndTime     DateTime
+  resultTime     DateTime
+  endTime        DateTime
+  joker          Int
+  cards          Int[]
+  serverSeed     String
+  serverSeedHash String
+  settled        Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  bets           AndarBaharBet[]
+
+  @@index([startTime])
+  @@index([settled, resultTime])
+}
+
+// One chip stack on an Andar Bahar area, at the multiplier locked in when
+// placed. VOID marks a bet taken back during the betting window.
+model AndarBaharBet {
+  id         String          @id @default(uuid())
+  roundId    String
+  round      AndarBaharRound @relation(fields: [roundId], references: [id])
+  userId     String
+  user       User            @relation(fields: [userId], references: [id])
+  area       String
+  amount     Decimal         @db.Decimal(12, 2)
+  multiplier Decimal         @db.Decimal(8, 2)
+  status     BetStatus       @default(PENDING)
+  payout     Decimal         @default(0) @db.Decimal(12, 2)
+  createdAt  DateTime        @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// One shared Teen Patti 20-20 round on a fixed wall-clock slot. `cards`
+// holds the six cards in deal order (A, B, A, B, A, B), fixed at creation
+// from the round's server seed and only revealed once betting has closed.
+model TeenPattiRound {
+  id             String         @id @default(uuid())
+  periodNumber   String         @unique
+  startTime      DateTime
+  betEndTime     DateTime
+  resultTime     DateTime
+  endTime        DateTime
+  cards          Int[]
+  serverSeed     String
+  serverSeedHash String
+  settled        Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  bets           TeenPattiBet[]
+
+  @@index([startTime])
+  @@index([settled, resultTime])
+}
+
+// One chip stack on a Teen Patti area, at the multiplier locked in when
+// placed. VOID marks a bet taken back during the betting window.
+model TeenPattiBet {
+  id         String         @id @default(uuid())
+  roundId    String
+  round      TeenPattiRound @relation(fields: [roundId], references: [id])
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  area       String
+  amount     Decimal        @db.Decimal(12, 2)
+  multiplier Decimal        @db.Decimal(8, 2)
+  status     BetStatus      @default(PENDING)
+  payout     Decimal        @default(0) @db.Decimal(12, 2)
+  createdAt  DateTime       @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// Cricket X: the Aviator crash engine with its own rounds and bets (see
+// cricketXService.ts). Same fields and meaning as AviatorRound / AviatorBet.
+model CricketXRound {
+  id               String        @id @default(uuid())
+  periodNumber     String        @unique
+  bettingStartTime DateTime
+  flyStartTime     DateTime
+  crashTime        DateTime
+  endTime          DateTime
+  crashMultiplier  Decimal       @db.Decimal(10, 2)
+  serverSeed       String
+  serverSeedHash   String
+  settled          Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  bets             CricketXBet[]
+
+  @@index([bettingStartTime])
+}
+
+model CricketXBet {
+  id                String        @id @default(uuid())
+  roundId           String
+  round             CricketXRound @relation(fields: [roundId], references: [id])
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  amount            Decimal       @db.Decimal(12, 2)
+  autoCashoutAt     Decimal?      @db.Decimal(10, 2)
+  cashoutMultiplier Decimal?      @db.Decimal(10, 2)
+  status            BetStatus     @default(PENDING)
+  payout            Decimal       @default(0) @db.Decimal(12, 2)
+  createdAt         DateTime      @default(now())
+
+  @@index([userId])
+  @@index([roundId])
+}
+
+// One shared Jhandi Munda round on a fixed wall-clock slot. `dice` holds the
+// face (0..5) each of the six dice lands on, fixed at creation from the
+// round's server seed and only revealed once betting has closed.
+model JhandiMundaRound {
+  id             String           @id @default(uuid())
+  periodNumber   String           @unique
+  startTime      DateTime
+  betEndTime     DateTime
+  resultTime     DateTime
+  endTime        DateTime
+  dice           Int[]
+  serverSeed     String
+  serverSeedHash String
+  settled        Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  bets           JhandiMundaBet[]
+
+  @@index([startTime])
+  @@index([settled, resultTime])
+}
+
+// One chip stack on a Jhandi Munda symbol. The payout depends on how many
+// dice show the symbol (see jhandiMundaService.ts); `matches` is filled in
+// on settlement. VOID marks a bet taken back during the betting window.
+model JhandiMundaBet {
+  id        String           @id @default(uuid())
+  roundId   String
+  round     JhandiMundaRound @relation(fields: [roundId], references: [id])
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  area      String
+  amount    Decimal          @db.Decimal(12, 2)
+  matches   Int?
+  status    BetStatus        @default(PENDING)
+  payout    Decimal          @default(0) @db.Decimal(12, 2)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// One shared European roulette round on a fixed wall-clock slot. `result`
+// (0-36) is fixed at creation from the round's server seed and only
+// revealed once betting has closed.
+model RouletteRound {
+  id             String        @id @default(uuid())
+  periodNumber   String        @unique
+  startTime      DateTime
+  betEndTime     DateTime
+  resultTime     DateTime
+  endTime        DateTime
+  result         Int
+  serverSeed     String
+  serverSeedHash String
+  settled        Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  bets           RouletteBet[]
+
+  @@index([startTime])
+  @@index([settled, resultTime])
+}
+
+// One chip stack on a roulette bet spot (see SPOTS in rouletteService.ts),
+// at the multiplier locked in when placed. VOID marks a bet taken back
+// during the betting window.
+model RouletteBet {
+  id         String        @id @default(uuid())
+  roundId    String
+  round      RouletteRound @relation(fields: [roundId], references: [id])
+  userId     String
+  user       User          @relation(fields: [userId], references: [id])
+  area       String
+  amount     Decimal       @db.Decimal(12, 2)
+  multiplier Decimal       @db.Decimal(8, 2)
+  status     BetStatus     @default(PENDING)
+  payout     Decimal       @default(0) @db.Decimal(12, 2)
+  createdAt  DateTime      @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// One K3 Lottery round: three dice, on the same per-duration wall-clock
+// tracks as Win Go. `dice` is fixed at creation from the round's server
+// seed and only revealed once the round has ended.
+model K3Round {
+  id              String   @id @default(uuid())
+  durationSeconds Int
+  periodNumber    String
+  startTime       DateTime
+  endTime         DateTime
+  dice            Int[]
+  serverSeed      String
+  serverSeedHash  String
+  settled         Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  bets            K3Bet[]
+
+  @@unique([durationSeconds, periodNumber])
+  @@index([durationSeconds, startTime])
+  @@index([settled, endTime])
+}
+
+// One K3 bet on a bet key (see winsWith in k3Service.ts), at the multiplier
+// locked in when placed.
+model K3Bet {
+  id         String    @id @default(uuid())
+  roundId    String
+  round      K3Round   @relation(fields: [roundId], references: [id])
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  area       String
+  amount     Decimal   @db.Decimal(12, 2)
+  multiplier Decimal   @db.Decimal(8, 2)
+  status     BetStatus @default(PENDING)
+  payout     Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// Win Go (rebuilt): one number 0-9 per round on per-duration wall-clock
+// tracks. `result` is fixed at creation from the round's server seed and
+// only revealed once the round has ended.
+model WinGoRound {
+  id              String     @id @default(uuid())
+  durationSeconds Int
+  periodNumber    String
+  startTime       DateTime
+  endTime         DateTime
+  result          Int
+  serverSeed      String
+  serverSeedHash  String
+  settled         Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  bets            WinGoBet[]
+
+  @@unique([durationSeconds, periodNumber])
+  @@index([durationSeconds, startTime])
+  @@index([settled, endTime])
+}
+
+// One Win Go bet (area: NUM:0-9, GREEN, RED, VIOLET, BIG, SMALL). The rate
+// it pays depends on the number drawn (green/red pay less on 5/0), so it is
+// recorded at settlement in paidMultiplier.
+model WinGoBet {
+  id             String     @id @default(uuid())
+  roundId        String
+  round          WinGoRound @relation(fields: [roundId], references: [id])
+  userId         String
+  user           User       @relation(fields: [userId], references: [id])
+  area           String
+  amount         Decimal    @db.Decimal(12, 2)
+  paidMultiplier Decimal    @default(0) @db.Decimal(8, 2)
+  status         BetStatus  @default(PENDING)
+  payout         Decimal    @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime   @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// One 5D Lottery round: five digits A-E on the same per-duration wall-clock
+// tracks as Win Go / K3. `digits` is fixed at creation from the round's
+// server seed and only revealed once the round has ended.
+model FiveDRound {
+  id              String     @id @default(uuid())
+  durationSeconds Int
+  periodNumber    String
+  startTime       DateTime
+  endTime         DateTime
+  digits          Int[]
+  serverSeed      String
+  serverSeedHash  String
+  settled         Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  bets            FiveDBet[]
+
+  @@unique([durationSeconds, periodNumber])
+  @@index([durationSeconds, startTime])
+  @@index([settled, endTime])
+}
+
+// One 5D bet on a bet key (see winsWith in fiveDService.ts), at the
+// multiplier locked in when placed.
+model FiveDBet {
+  id         String     @id @default(uuid())
+  roundId    String
+  round      FiveDRound @relation(fields: [roundId], references: [id])
+  userId     String
+  user       User       @relation(fields: [userId], references: [id])
+  area       String
+  amount     Decimal    @db.Decimal(12, 2)
+  multiplier Decimal    @db.Decimal(8, 2)
+  status     BetStatus  @default(PENDING)
+  payout     Decimal    @default(0) @db.Decimal(12, 2)
+  createdAt  DateTime   @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// Trx Win Go: Win Go's bets and odds, but each round's number is the last
+// decimal digit of the hash of the first TRON block produced at or after the
+// round's end, so anyone can check it on a TRON explorer. The block (and so
+// the number) is unknown until the round is over; it is filled in at
+// settlement. If the block can't be read for an hour the round is voided and
+// every bet refunded.
+model TrxRound {
+  id              String    @id @default(uuid())
+  durationSeconds Int
+  periodNumber    String
+  startTime       DateTime
+  endTime         DateTime
+  result          Int?
+  blockNumber     Int?
+  blockHash       String?
+  blockTime       DateTime?
+  voided          Boolean   @default(false)
+  settled         Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  bets            TrxBet[]
+
+  @@unique([durationSeconds, periodNumber])
+  @@index([durationSeconds, startTime])
+  @@index([settled, endTime])
+  @@index([endTime])
+}
+
+// One Trx Win Go bet (same keys as WinGoBet: NUM:0-9, GREEN, RED, VIOLET,
+// BIG, SMALL). The rate paid depends on the number drawn, so it is recorded
+// at settlement in paidMultiplier.
+model TrxBet {
+  id             String    @id @default(uuid())
+  roundId        String
+  round          TrxRound  @relation(fields: [roundId], references: [id])
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  area           String
+  amount         Decimal   @db.Decimal(12, 2)
+  paidMultiplier Decimal   @default(0) @db.Decimal(8, 2)
+  status         BetStatus @default(PENDING)
+  payout         Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// "Baccarat" (punto banco) — shared, slot-aligned rounds (see
+// baccaratService.ts). All six possible cards are drawn from serverSeed when
+// the round is created (0..51, rank = index % 13 + 1, suit = index / 13);
+// the third-card rule then decides how many of them are used. playerCards /
+// bankerCards hold the cards actually dealt (2 or 3 each) and are only
+// exposed once resultTime has passed.
+model BaccaratRound {
+  id             String        @id @default(uuid())
+  periodNumber   String        @unique
+  startTime      DateTime
+  betEndTime     DateTime
+  resultTime     DateTime
+  endTime        DateTime
+  playerCards    Int[]
+  bankerCards    Int[]
+  serverSeed     String
+  serverSeedHash String
+  settled        Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  bets           BaccaratBet[]
+
+  @@index([startTime])
+  @@index([settled, resultTime])
+}
+
+// area is PLAYER | BANKER | TIE | PLAYER_PAIR | BANKER_PAIR; multiplier is
+// the total return locked in when the bet was placed. paidMultiplier is what
+// was actually paid: the multiplier on a win, 1 when a Player/Banker bet is
+// returned on a tie, 0 on a loss. VOID marks a bet taken back (undo /
+// clear) during the betting window.
+model BaccaratBet {
+  id             String        @id @default(uuid())
+  roundId        String
+  round          BaccaratRound @relation(fields: [roundId], references: [id])
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  area           String
+  amount         Decimal       @db.Decimal(12, 2)
+  multiplier     Decimal       @db.Decimal(8, 2)
+  paidMultiplier Decimal       @default(0) @db.Decimal(8, 2)
+  status         BetStatus     @default(PENDING)
+  payout         Decimal       @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime      @default(now())
+
+  @@index([userId])
+  @@index([roundId, userId])
+}
+
+// One spin of the "Royal Gems" slot (see slotService.ts): three 3-row reels
+// plus a multiplier reel. stops are the strip index shown on the top row of
+// each reel, grid is the 3x3 result row by row, winLines the paylines that
+// paid, baseWin the line total (x stake) before the multiplier.
+model SlotSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  stops          Int[]
+  grid           String[]
+  winLines       Int[]
+  baseWin        Decimal  @db.Decimal(10, 2)
+  multiplier     Int
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// One spin of "Golden Aces" (see acesService.ts / acesEngine.ts). The full
+// cascade sequence is not stored: it replays exactly from the seeds, so a
+// row keeps the stake, the result and what is needed to verify it.
+model AcesSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  totalWin       Decimal  @db.Decimal(12, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  cascades       Int
+  freeGames      Int
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model DiceBet {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  target         Decimal  @db.Decimal(5, 2)
+  rollOver       Boolean
+  multiplier     Decimal  @db.Decimal(12, 4)
+  result         Decimal  @db.Decimal(5, 2)
+  won            Boolean
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model LimboBet {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  target         Decimal  @db.Decimal(12, 2)
+  result         Decimal  @db.Decimal(14, 2)
+  won            Boolean
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model BlackjackHand {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  /// First bet; totalStake adds doubles, splits and insurance.
+  stake          Decimal  @db.Decimal(12, 2)
+  totalStake     Decimal  @db.Decimal(12, 2)
+  payout         Decimal  @db.Decimal(12, 2)
+  status         String // "ACTIVE" | "SETTLED"
+  state          Json
+  version        Int      @default(0)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model KenoBet {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  picks          Int[]
+  risk           String
+  drawn          Int[]
+  hits           Int
+  multiplier     Decimal  @db.Decimal(12, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model HiloRound {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  status         String // "ACTIVE" | "WON" | "LOST"
+  state          Json
+  multiplier     Decimal  @db.Decimal(16, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  version        Int      @default(0)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model DragonTowerRound {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  difficulty     String
+  status         String // "ACTIVE" | "WON" | "LOST"
+  level          Int
+  picks          Int[]
+  /// Egg tiles on every level; only shown once the round is over.
+  layout         Json
+  multiplier     Decimal  @db.Decimal(16, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  version        Int      @default(0)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model VideoPokerRound {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  status         String // "ACTIVE" | "WON" | "LOST"
+  /// The first ten cards of the shuffled deck: 0-4 dealt, 5-9 the replacements in order. Never shown.
+  cards          Int[]
+  /// The five cards on screen: as dealt while active, the final hand after the draw.
+  hand           Int[]
+  held           Int[]
+  result         String
+  multiplier     Decimal  @db.Decimal(16, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  version        Int      @default(0)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model DiamondsBet {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// Colour (0-6) of each of the five gems, left to right.
+  gems           Int[]
+  result         String
+  multiplier     Decimal  @db.Decimal(16, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model PumpRound {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  difficulty     String
+  status         String // "ACTIVE" | "WON" | "LOST"
+  pumps          Int
+  /// The pump the balloon pops on; only shown once the round is over.
+  popAt          Int
+  multiplier     Decimal  @db.Decimal(16, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  version        Int      @default(0)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model CoinFlipRound {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  status         String // "ACTIVE" | "WON" | "LOST"
+  wins           Int
+  /// The side called on each flip and where it landed: 0 heads, 1 tails.
+  picks          Int[]
+  results        Int[]
+  multiplier     Decimal  @db.Decimal(16, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  version        Int      @default(0)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model CasinoHoldemHand {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  ante           Decimal  @db.Decimal(12, 2)
+  /// Ante plus the call, if made.
+  staked         Decimal  @db.Decimal(12, 2)
+  status         String // "ACTIVE" | "WON" | "LOST"
+  /// Player's two, flop, turn, river, dealer's two. Undealt cards are never shown while the hand is open.
+  cards          Int[]
+  action         String? // "CALL" | "FOLD"
+  outcome        String? // "FOLD" | "DEALER_NOT_QUALIFIED" | "WIN" | "TIE" | "LOSE"
+  playerHand     String?
+  dealerHand     String?
+  payout         Decimal  @db.Decimal(12, 2)
+  version        Int      @default(0)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model ThreeCardPokerHand {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  ante           Decimal  @db.Decimal(12, 2)
+  /// Pair Plus side bet, 0 if none.
+  pairPlus       Decimal  @db.Decimal(12, 2)
+  /// Ante, Pair Plus and the play bet, if made.
+  staked         Decimal  @db.Decimal(12, 2)
+  status         String // "ACTIVE" | "WON" | "LOST"
+  /// Player's three, then the dealer's three. The dealer's are never shown while the hand is open.
+  cards          Int[]
+  action         String? // "PLAY" | "FOLD"
+  outcome        String? // "FOLD" | "DEALER_NOT_QUALIFIED" | "WIN" | "TIE" | "LOSE"
+  playerHand     String?
+  dealerHand     String?
+  /// Part of the payout that came from Pair Plus.
+  pairPlusPayout Decimal  @default(0) @db.Decimal(12, 2)
+  payout         Decimal  @db.Decimal(12, 2)
+  version        Int      @default(0)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model CandyBlastSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// Whole spin's win in bets (base game and free spins), before the payout cap.
+  totalWin       Decimal  @db.Decimal(14, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  tumbles        Int
+  freeSpins      Int
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Neon777Spin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// Whole spin's win in bets (respins included), before the payout cap.
+  totalWin       Decimal  @db.Decimal(12, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  respins        Int
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model FruitMachineSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// Whole spin's win in stakes (Cash Ladder included), before the payout cap.
+  totalWin       Decimal  @db.Decimal(12, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  /// Nudges awarded (0 on a spin that won before any nudge).
+  nudges         Int
+  /// Cash Ladder rung reached (index into LADDER), or -1 if it didn't start.
+  ladderRung     Int
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model FishermanSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// Whole spin's win in stakes (free spins included), before the payout cap.
+  totalWin       Decimal  @db.Decimal(12, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  /// Free spins played (0 when the boats didn't start them).
+  freeSpins      Int
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model BookOfPharaohSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// Whole spin's win in stakes (free spins included), before the payout cap.
+  totalWin       Decimal  @db.Decimal(12, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  /// Free spins played (0 when the books didn't start them).
+  freeSpins      Int
+  /// The free spins' expanding special symbol, if they started.
+  special        String?
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// Home-screen popups the admin manages from the panel: each is one image,
+// shown in sortOrder when the app opens. Deleting only marks the row (and
+// drops its image) so the seeded popup isn't re-created on the next deploy.
+model Popup {
+  id        String    @id @default(uuid())
+  title     String
+  image     Bytes
+  mimeType  String
+  width     Int
+  height    Int
+  sortOrder Int
+  active    Boolean   @default(true)
+  // "POPUP" = shown once on app open; "SLIDER" = auto-sliding banner at the top of Home;
+  // "CATEGORY_SLIDER" = auto-sliding banner at the top of the game category screen.
+  kind      String    @default("POPUP")
+  // Sliders only: optional button text, and the game it opens.
+  buttonText   String?
+  buttonTarget String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([deletedAt, sortOrder])
+}
+
+// Rocket (JetX / Spaceman style crash): same shape as AviatorRound/AviatorBet.
+model RocketRound {
+  id               String      @id @default(uuid())
+  periodNumber     String      @unique
+  bettingStartTime DateTime
+  flyStartTime     DateTime
+  crashTime        DateTime
+  endTime          DateTime
+  crashMultiplier  Decimal     @db.Decimal(10, 2)
+  serverSeed       String
+  serverSeedHash   String
+  settled          Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  bets             RocketBet[]
+
+  @@index([bettingStartTime])
+}
+
+model RocketBet {
+  id                String      @id @default(uuid())
+  roundId           String
+  round             RocketRound @relation(fields: [roundId], references: [id])
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  amount            Decimal     @db.Decimal(12, 2)
+  autoCashoutAt     Decimal?    @db.Decimal(10, 2)
+  cashoutMultiplier Decimal?    @db.Decimal(10, 2)
+  status            BetStatus   @default(PENDING)
+  payout            Decimal     @default(0) @db.Decimal(12, 2)
+  createdAt         DateTime    @default(now())
+
+  @@index([userId])
+  @@index([roundId])
+}
+
+// Goal Rush (football-themed crash): same shape as AviatorRound/AviatorBet.
+model GoalRushRound {
+  id               String        @id @default(uuid())
+  periodNumber     String        @unique
+  bettingStartTime DateTime
+  flyStartTime     DateTime
+  crashTime        DateTime
+  endTime          DateTime
+  crashMultiplier  Decimal       @db.Decimal(10, 2)
+  serverSeed       String
+  serverSeedHash   String
+  settled          Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  bets             GoalRushBet[]
+
+  @@index([bettingStartTime])
+}
+
+model GoalRushBet {
+  id                String        @id @default(uuid())
+  roundId           String
+  round             GoalRushRound @relation(fields: [roundId], references: [id])
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  amount            Decimal       @db.Decimal(12, 2)
+  autoCashoutAt     Decimal?      @db.Decimal(10, 2)
+  cashoutMultiplier Decimal?      @db.Decimal(10, 2)
+  status            BetStatus     @default(PENDING)
+  payout            Decimal       @default(0) @db.Decimal(12, 2)
+  createdAt         DateTime      @default(now())
+
+  @@index([userId])
+  @@index([roundId])
+}
+
+model BigCatchRound {
+  id               String        @id @default(uuid())
+  periodNumber     String        @unique
+  bettingStartTime DateTime
+  flyStartTime     DateTime
+  crashTime        DateTime
+  endTime          DateTime
+  crashMultiplier  Decimal       @db.Decimal(10, 2)
+  serverSeed       String
+  serverSeedHash   String
+  settled          Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  bets             BigCatchBet[]
+
+  @@index([bettingStartTime])
+}
+
+model BigCatchBet {
+  id                    String        @id @default(uuid())
+  roundId               String
+  round                 BigCatchRound @relation(fields: [roundId], references: [id])
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id])
+  amount                Decimal       @db.Decimal(12, 2)
+  autoCashoutAt         Decimal?      @db.Decimal(10, 2)
+  cashoutMultiplier     Decimal?      @db.Decimal(10, 2)
+  // Half Reel: the multiplier half the stake was taken at, and what it paid.
+  halfCashoutMultiplier Decimal?      @db.Decimal(10, 2)
+  halfPayout            Decimal       @default(0) @db.Decimal(12, 2)
+  status                BetStatus     @default(PENDING)
+  // Total paid on the bet, the Half Reel included.
+  payout                Decimal       @default(0) @db.Decimal(12, 2)
+  createdAt             DateTime      @default(now())
+
+  @@index([userId])
+  @@index([roundId])
+}
+
+model CosmonautRound {
+  id               String         @id @default(uuid())
+  periodNumber     String         @unique
+  bettingStartTime DateTime
+  flyStartTime     DateTime
+  crashTime        DateTime
+  endTime          DateTime
+  crashMultiplier  Decimal        @db.Decimal(10, 2)
+  serverSeed       String
+  serverSeedHash   String
+  settled          Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  bets             CosmonautBet[]
+
+  @@index([bettingStartTime])
+}
+
+model CosmonautBet {
+  id                    String         @id @default(uuid())
+  roundId               String
+  round                 CosmonautRound @relation(fields: [roundId], references: [id])
+  userId                String
+  user                  User           @relation(fields: [userId], references: [id])
+  amount                Decimal        @db.Decimal(12, 2)
+  autoCashoutAt         Decimal?       @db.Decimal(10, 2)
+  // Auto ½: half the stake is taken by itself when the flight reaches this.
+  autoHalfAt            Decimal?       @db.Decimal(10, 2)
+  cashoutMultiplier     Decimal?       @db.Decimal(10, 2)
+  // The multiplier half the stake was taken at (by hand or Auto ½), and what it paid.
+  halfCashoutMultiplier Decimal?       @db.Decimal(10, 2)
+  halfPayout            Decimal        @default(0) @db.Decimal(12, 2)
+  status                BetStatus      @default(PENDING)
+  // Total paid on the bet, the half included.
+  payout                Decimal        @default(0) @db.Decimal(12, 2)
+  createdAt             DateTime       @default(now())
+
+  @@index([userId])
+  @@index([roundId])
+}
+
+model SkyJetRound {
+  id               String      @id @default(uuid())
+  periodNumber     String      @unique
+  bettingStartTime DateTime
+  flyStartTime     DateTime
+  crashTime        DateTime
+  endTime          DateTime
+  crashMultiplier  Decimal     @db.Decimal(10, 2)
+  serverSeed       String
+  serverSeedHash   String
+  settled          Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  bets             SkyJetBet[]
+
+  @@index([bettingStartTime])
+}
+
+model SkyJetBet {
+  id                String      @id @default(uuid())
+  roundId           String
+  round             SkyJetRound @relation(fields: [roundId], references: [id])
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  amount            Decimal     @db.Decimal(12, 2)
+  autoCashoutAt     Decimal?    @db.Decimal(10, 2)
+  cashoutMultiplier Decimal?    @db.Decimal(10, 2)
+  status            BetStatus   @default(PENDING)
+  payout            Decimal     @default(0) @db.Decimal(12, 2)
+  // The bet's jackpot draw has been made (once, after the round), and what it won.
+  jackpotChecked    Boolean     @default(false)
+  jackpotPayout     Decimal     @default(0) @db.Decimal(12, 2)
+  createdAt         DateTime    @default(now())
+
+  @@index([userId])
+  @@index([roundId, jackpotChecked])
+}
+
+// The Sky Jet jackpot pool: a single row, 1% of every stake.
+model SkyJetJackpot {
+  id        String   @id
+  amount    Decimal  @default(0) @db.Decimal(14, 2)
+  updatedAt DateTime @updatedAt
+}
+
+model SkyJetJackpotWin {
+  id           String   @id @default(uuid())
+  betId        String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  periodNumber String
+  amount       Decimal  @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model NightRacerRound {
+  id               String          @id @default(uuid())
+  periodNumber     String          @unique
+  bettingStartTime DateTime
+  flyStartTime     DateTime
+  crashTime        DateTime
+  endTime          DateTime
+  crashMultiplier  Decimal         @db.Decimal(10, 2)
+  serverSeed       String
+  serverSeedHash   String
+  settled          Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  bets             NightRacerBet[]
+
+  @@index([bettingStartTime])
+}
+
+model NightRacerBet {
+  id                String          @id @default(uuid())
+  roundId           String
+  round             NightRacerRound @relation(fields: [roundId], references: [id])
+  userId            String
+  user              User            @relation(fields: [userId], references: [id])
+  amount            Decimal         @db.Decimal(12, 2)
+  // On the bet's own multiplier (which runs faster once the nitro fires).
+  autoCashoutAt     Decimal?        @db.Decimal(10, 2)
+  // Round multiplier the nitro was fired at, and where the engine blew.
+  nitroAt           Decimal?        @db.Decimal(10, 2)
+  engineBlownAt     Decimal?        @db.Decimal(12, 2)
+  cashoutMultiplier Decimal?        @db.Decimal(12, 2)
+  status            BetStatus       @default(PENDING)
+  payout            Decimal         @default(0) @db.Decimal(12, 2)
+  createdAt         DateTime        @default(now())
+
+  @@index([userId])
+  @@index([roundId])
+}
+
+model AirshipRound {
+  id               String       @id @default(uuid())
+  periodNumber     String       @unique
+  bettingStartTime DateTime
+  flyStartTime     DateTime
+  crashTime        DateTime
+  endTime          DateTime
+  crashMultiplier  Decimal      @db.Decimal(10, 2)
+  serverSeed       String
+  serverSeedHash   String
+  settled          Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  bets             AirshipBet[]
+
+  @@index([bettingStartTime])
+}
+
+model AirshipBet {
+  id                String       @id @default(uuid())
+  roundId           String
+  round             AirshipRound @relation(fields: [roundId], references: [id])
+  userId            String
+  user              User         @relation(fields: [userId], references: [id])
+  amount            Decimal      @db.Decimal(12, 2)
+  autoCashoutAt     Decimal?     @db.Decimal(10, 2)
+  cashoutMultiplier Decimal?     @db.Decimal(10, 2)
+  status            BetStatus    @default(PENDING)
+  payout            Decimal      @default(0) @db.Decimal(12, 2)
+  createdAt         DateTime     @default(now())
+
+  @@index([userId])
+  @@index([roundId])
+}
+
+model ZeusSpin {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  stake           Decimal  @db.Decimal(12, 2)
+  /// Whole spin's win in bets (base game and free spins), before the payout cap.
+  totalWin        Decimal  @db.Decimal(14, 4)
+  payout          Decimal  @db.Decimal(12, 2)
+  tumbles         Int
+  freeSpins       Int
+  /// Running free-spin multiplier at the end of the feature (0 = none).
+  finalMultiplier Int      @default(0)
+  serverSeed      String
+  serverSeedHash  String
+  clientSeed      String
+  nonce           Int
+  createdAt       DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model WolfMoonSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// Whole spin's win in bets (lines, free spins and Money Respin), before the payout cap.
+  totalWin       Decimal  @db.Decimal(14, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  freeSpins      Int
+  moneyRespin    Boolean  @default(false)
+  /// Best jackpot won in the Money Respin: MINI, MAJOR or MEGA.
+  jackpot        String?
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// Admin-changeable settings, one row per key (e.g. "maxPayout").
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// Money Coming: one row per spin (respins included), same shape as Neon777Spin.
+model MoneyComingSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// Whole spin's win in bets (respins included), before the payout cap.
+  totalWin       Decimal  @db.Decimal(12, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  respins        Int
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// Gift codes made in the admin panel: each pays a fixed amount, to at most
+// maxUses players, once per player. Redeemed from the app's gift box.
+model GiftCode {
+  id          String               @id @default(uuid())
+  code        String               @unique
+  amount      Decimal              @db.Decimal(12, 2)
+  maxUses     Int
+  usedCount   Int                  @default(0)
+  active      Boolean              @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime             @default(now())
+  redemptions GiftCodeRedemption[]
+}
+
+model GiftCodeRedemption {
+  id         String   @id @default(uuid())
+  giftCodeId String
+  giftCode   GiftCode @relation(fields: [giftCodeId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  amount     Decimal  @db.Decimal(12, 2)
+  createdAt  DateTime @default(now())
+
+  @@unique([giftCodeId, userId])
+  @@index([userId])
+}
+
+// One row per VIP bonus a player has taken: "upgrade-<level>" once ever,
+// "weekly-<level>-<week>" once per week. The unique key stops double claims.
+model VipBonusClaim {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  claimKey  String
+  amount    Decimal  @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, claimKey])
+}
+
+// One private Penalty Hero round: up to 5 penalties against a keeper who
+// covers 1-4 of the goal's 6 zones (by difficulty). Every goal raises the
+// multiplier; a save loses the stake. Which zones the keeper covers on each
+// kick comes from the round's seeds, fixed before the player picks a zone.
+model PenaltyRound {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  /// EASY, MEDIUM, HARD or EXPERT: the keeper covers 1, 2, 3 or 4 zones.
+  difficulty     String
+  stake          Decimal   @db.Decimal(12, 2)
+  /// Goals scored so far.
+  goals          Int       @default(0)
+  multiplier     Decimal   @default(1) @db.Decimal(10, 2)
+  payout         Decimal   @default(0) @db.Decimal(12, 2)
+  status         BetStatus @default(PENDING)
+  /// Every kick taken: [{ zone, covered: number[], dive, saved }].
+  shots          Json      @default("[]")
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime  @default(now())
+  settledAt      DateTime?
+
+  @@index([userId, status])
+}
+
+// One private Lucky Cups round: up to 5 rounds of "find the ball" under one
+// of 3 cups, with 1 or 2 balls. Every find raises the multiplier; a miss
+// loses the stake. The ball cups for each round come from the round's seeds,
+// fixed before the player picks.
+model CupsRound {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  /// 1 or 2 balls under the 3 cups.
+  balls          Int
+  stake          Decimal   @db.Decimal(12, 2)
+  /// Rounds won so far.
+  wins           Int       @default(0)
+  multiplier     Decimal   @default(1) @db.Decimal(10, 2)
+  payout         Decimal   @default(0) @db.Decimal(12, 2)
+  status         BetStatus @default(PENDING)
+  /// Every pick: [{ cup, ballCups: number[], won }].
+  picks          Json      @default("[]")
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime  @default(now())
+  settledAt      DateTime?
+
+  @@index([userId, status])
+}
+
+// One private Bomb Squad round: a bomb with 8 wires, `live` of which set it
+// off. The player cuts wires one at a time; every safe cut raises the
+// multiplier until they cash out, cut a live wire, or cut every safe wire.
+// The live wires come from the round's seeds, fixed when the round starts.
+model BombRound {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  /// How many of the 8 wires are live: 2, 3 or 5.
+  live           Int
+  stake          Decimal   @db.Decimal(12, 2)
+  /// Wires cut so far, in order (0-7).
+  cuts           Json      @default("[]")
+  safeCuts       Int       @default(0)
+  multiplier     Decimal   @default(1) @db.Decimal(10, 2)
+  payout         Decimal   @default(0) @db.Decimal(12, 2)
+  status         BetStatus @default(PENDING)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime  @default(now())
+  settledAt      DateTime?
+
+  @@index([userId, status])
+}
+
+// One private Vault Heist round: a vault with 5 locks, each on a 0-9 dial
+// where `alarms` of the 10 digits trip the alarm. Every lock cracked raises
+// the multiplier; an alarm loses the stake. Each lock's alarm digits come
+// from the round's seeds, fixed before the player picks.
+model VaultRound {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  /// How many of the 10 digits trip the alarm on each lock: 2, 4 or 6.
+  alarms         Int
+  stake          Decimal   @db.Decimal(12, 2)
+  /// Locks cracked so far.
+  cracked        Int       @default(0)
+  multiplier     Decimal   @default(1) @db.Decimal(10, 2)
+  payout         Decimal   @default(0) @db.Decimal(12, 2)
+  status         BetStatus @default(PENDING)
+  /// Every try: [{ digit, alarmDigits: number[], ok }].
+  tries          Json      @default("[]")
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime  @default(now())
+  settledAt      DateTime?
+
+  @@index([userId, status])
+}
+
+// One private Treasure Dig round: an island of 16 sand mounds, `crabs` of
+// which hide a crab. The player digs mounds one at a time; every treasure
+// raises the multiplier until they cash out, dig up a crab, or clear every
+// treasure. The crab mounds come from the round's seeds, fixed at the start.
+model TreasureRound {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  /// How many of the 16 mounds hide a crab: 3, 5 or 8.
+  crabs          Int
+  stake          Decimal   @db.Decimal(12, 2)
+  /// Mounds dug so far, in order (0-15, row by row).
+  digs           Json      @default("[]")
+  treasures      Int       @default(0)
+  multiplier     Decimal   @default(1) @db.Decimal(12, 2)
+  payout         Decimal   @default(0) @db.Decimal(12, 2)
+  status         BetStatus @default(PENDING)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime  @default(now())
+  settledAt      DateTime?
+
+  @@index([userId, status])
+}
+
+// One Lucky Wheel spin: a 30-segment wheel at LOW, MEDIUM or HIGH risk; the
+// segment it stops on comes from the player's provably-fair seeds.
+model WheelSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  /// LOW, MEDIUM or HIGH.
+  risk           String
+  stake          Decimal  @db.Decimal(12, 2)
+  /// Segment the pointer stopped on (0-29, clockwise from the top).
+  segment        Int
+  multiplier     Decimal  @db.Decimal(10, 2)
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model ScratchTicket {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// The nine panels' symbols (indices into the prize table), left to right, top to bottom.
+  panels         Int[]
+  /// The symbol shown three times (index into the prize table), or -1 for no win.
+  prize          Int
+  multiplier     Decimal  @db.Decimal(10, 2)
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model DiceDuelBet {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// PLAYER, HOUSE or TIE: what the player backed.
+  pick           String
+  playerDice     Int[]
+  houseDice      Int[]
+  /// PLAYER, HOUSE or TIE: who had the higher total.
+  outcome        String
+  multiplier     Decimal  @db.Decimal(10, 2)
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model ColorBallBet {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// RED, BLUE, GREEN or GOLD: the colour the player backed.
+  pick           String
+  /// The ball drawn (1-20).
+  ball           Int
+  /// The drawn ball's colour.
+  color          String
+  multiplier     Decimal  @db.Decimal(10, 2)
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model FortuneSixBet {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// The player's 6 numbers (1-48), sorted.
+  picks          Int[]
+  /// The 35 balls in draw order.
+  drawn          Int[]
+  /// Position (6-35) of the ball that completed the ticket; null if it was not completed.
+  position       Int?
+  multiplier     Decimal  @db.Decimal(10, 2)
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

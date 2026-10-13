@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Shield outline in gold -->
+    <path
+        android:fillColor="#F0B93D"
+        android:pathData="M54,24 L76,32 V54 C76,68 66,78 54,84 C42,78 32,68 32,54 V32 Z" />
+    <!-- Inner shield cutout -->
+    <path
+        android:fillColor="#C4172C"
+        android:pathData="M54,32 L69,37.5 V54 C69,64 62,71.5 54,76 C46,71.5 39,64 39,54 V37.5 Z" />
+    <!-- Checkmark -->
+    <path
+        android:fillColor="#F0B93D"
+        android:pathData="M47,54 L52,59 L63,47 L66,50 L52,65 L44,57 Z" />
+</vector>

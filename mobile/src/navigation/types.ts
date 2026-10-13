@@ -1,0 +1,85 @@
+import { NavigatorScreenParams } from '@react-navigation/native';
+
+export type BottomTabParamList = {
+  Home: undefined;
+  Ranking: undefined;
+  Rewards: undefined;
+  Wallet: undefined;
+  Vip: undefined;
+};
+
+export type AuthStackParamList = {
+  Login: undefined;
+  Otp: { phone: string };
+};
+
+export type RootStackParamList = {
+  MainTabs: NavigatorScreenParams<BottomTabParamList>;
+  Profile: undefined;
+  Settings: undefined;
+  Help: undefined;
+  Notifications: undefined;
+  BalanceRecords: undefined;
+  /** Deposit or withdraw history; without a kind (from Wallet) the screen lets you switch. */
+  History: { kind?: 'deposit' | 'withdraw' } | undefined;
+  Deposit: undefined;
+  Withdraw: undefined;
+  Aviator: undefined;
+  ChickenRoad: undefined;
+  Mines: undefined;
+  SevenUpDown: undefined;
+  Plinko: undefined;
+  DragonTiger: undefined;
+  Vortex: undefined;
+  AndarBahar: undefined;
+  TeenPatti: undefined;
+  CricketX: undefined;
+  Rocket: undefined;
+  GoalRush: undefined;
+  BigCatch: undefined;
+  Cosmonaut: undefined;
+  SkyJet: undefined;
+  NightRacer: undefined;
+  Airship: undefined;
+  GatesOfZeus: undefined;
+  WolfMoon: undefined;
+  PenaltyHero: undefined;
+  LuckyCups: undefined;
+  BombSquad: undefined;
+  VaultHeist: undefined;
+  TreasureDig: undefined;
+  LuckyWheel: undefined;
+  ScratchCard: undefined;
+  DiceDuel: undefined;
+  ColorBall: undefined;
+  FortuneSix: undefined;
+  FruitMachine: undefined;
+  FishermansCatch: undefined;
+  BookOfPharaoh: undefined;
+  MoneyComing: undefined;
+  GiftCode: undefined;
+  JhandiMunda: undefined;
+  Roulette: undefined;
+  K3Lottery: undefined;
+  WinGo: undefined;
+  FiveDLottery: undefined;
+  TrxWin: undefined;
+  Baccarat: undefined;
+  Slot: undefined;
+  Aces: undefined;
+  Dice: undefined;
+  Limbo: undefined;
+  Blackjack: undefined;
+  Keno: undefined;
+  Hilo: undefined;
+  DragonTower: undefined;
+  VideoPoker: undefined;
+  Diamonds: undefined;
+  Pump: undefined;
+  CoinFlip: undefined;
+  CasinoHoldem: undefined;
+  ThreeCardPoker: undefined;
+  CandyBlast: undefined;
+  Neon777: undefined;
+  GameCategory: { categoryId: string };
+};

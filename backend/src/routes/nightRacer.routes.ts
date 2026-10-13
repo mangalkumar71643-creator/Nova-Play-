@@ -1,0 +1,120 @@
+import { Router } from "express";
+import { z } from "zod";
+import { asyncHandler } from "../middleware/errorHandler";
+import { requireAuth } from "../middleware/auth";
+import {
+  cashOutNightRacerBet,
+  getNightRacerConfig,
+  getCurrentRoundView,
+  getHistory,
+  getMyBets,
+  getMyCurrentBet,
+  getRoundBets,
+  getTopBets,
+  fireNitro,
+  nitroStatus,
+  placeNightRacerBet,
+} from "../services/nightRacerService";
+
+const router = Router();
+
+router.get("/config", (_req, res) => {
+  res.json(getNightRacerConfig());
+});
+
+router.get(
+  "/current",
+  asyncHandler(async (_req, res) => {
+    res.json(await getCurrentRoundView());
+  })
+);
+
+router.get(
+  "/history",
+  asyncHandler(async (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 30, 100);
+    res.json(await getHistory(limit));
+  })
+);
+
+const betSchema = z.object({
+  amount: z.number().positive(),
+  autoCashoutAt: z.number().min(1.01).optional(),
+});
+
+router.post(
+  "/bet",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { amount, autoCashoutAt } = betSchema.parse(req.body);
+    const bet = await placeNightRacerBet(req.user!.userId, amount, autoCashoutAt);
+    res.status(201).json(bet);
+  })
+);
+
+const cashoutSchema = z.object({
+  betId: z.string().min(1),
+});
+
+router.post(
+  "/cashout",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { betId } = cashoutSchema.parse(req.body);
+    res.json(await cashOutNightRacerBet(req.user!.userId, betId));
+  })
+);
+
+router.post(
+  "/nitro",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { betId } = cashoutSchema.parse(req.body);
+    res.json(await fireNitro(req.user!.userId, betId));
+  })
+);
+
+router.get(
+  "/nitro-status",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await nitroStatus(req.user!.userId, z.string().min(1).parse(req.query.betId)));
+  })
+);
+
+router.get(
+  "/my-current-bet",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await getMyCurrentBet(req.user!.userId));
+  })
+);
+
+router.get(
+  "/my-bets",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await getMyBets(req.user!.userId));
+  })
+);
+
+router.get(
+  "/round-bets",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const periodNumber = z.string().min(1).parse(req.query.periodNumber);
+    const limit = Math.min(Number(req.query.limit) || 100, 200);
+    res.json(await getRoundBets(periodNumber, limit));
+  })
+);
+
+router.get(
+  "/top-bets",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    res.json(await getTopBets(limit));
+  })
+);
+
+export default router;
