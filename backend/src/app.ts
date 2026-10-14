@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { errorHandler } from "./middleware/errorHandler";
+import { asyncHandler, errorHandler } from "./middleware/errorHandler";
 
 import authRoutes from "./routes/auth.routes";
 import kycRoutes from "./routes/kyc.routes";
@@ -70,10 +70,22 @@ import bookOfPharaohRoutes from "./routes/bookOfPharaoh.routes";
 import moneyComingRoutes from "./routes/moneyComing.routes";
 import { closeOutRetiredGames } from "./services/retiredGamesCloseout";
 import { refreshSettingsIfStale } from "./services/settingsService";
+import { handleWebhook as handleStockpayWebhook } from "./services/stockpayService";
 
 export const app = express();
 
 app.use(cors());
+
+// StockPay's signed webhook needs the body exactly as sent, so it is read
+// raw here, before the JSON parser below.
+app.post(
+  "/webhooks/stockpay",
+  express.raw({ type: "*/*", limit: "1mb" }),
+  asyncHandler(async (req, res) => {
+    res.json(await handleStockpayWebhook(Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0), req.headers));
+  })
+);
+
 // Room for popup images uploaded from the admin panel (base64, already shrunk by the panel).
 app.use(express.json({ limit: "4mb" }));
 

@@ -2,10 +2,11 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, AppState, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import ScreenContainer from '../components/ScreenContainer';
 import { ApiClientError } from '../api/client';
+import { CardDepositStatus, confirmCardDeposits, fetchCardDepositStatus, startCardCheckout } from '../api/backend';
 import { RootStackParamList } from '../navigation/types';
 import { KYC_REQUIRED, useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
@@ -34,6 +35,47 @@ export default function DepositScreen() {
   const { backendUser } = useAuth();
   const [amountText, setAmountText] = useState(String(QUICK_AMOUNTS[1]));
   const [busy, setBusy] = useState(false);
+  const [card, setCard] = useState<CardDepositStatus | null>(null);
+  // The StockPay payment page opened from here; checked when the app comes back.
+  const pendingSession = useRef<string | null>(null);
+
+  const reportCardResults = useCallback(
+    async (sessionId?: string, quiet = false) => {
+      try {
+        const { results } = await confirmCardDeposits(sessionId);
+        const done = results.filter((r) => r.status === 'COMPLETED' && !r.alreadyCredited);
+        if (done.length > 0) {
+          await refreshWallet();
+          const total = done.reduce((s, r) => s + r.amount, 0);
+          const bonus = done.reduce((s, r) => s + r.bonus, 0);
+          Alert.alert(
+            'Deposit successful',
+            bonus > 0 ? `₹${total.toLocaleString('en-IN')} + ₹${bonus.toLocaleString('en-IN')} bonus has been added to your balance.` : `₹${total.toLocaleString('en-IN')} has been added to your balance.`
+          );
+        } else if (!quiet && results.some((r) => r.status === 'PENDING')) {
+          Alert.alert('Payment not finished', 'We have not received this payment yet. If you paid, your balance will update shortly.');
+        } else if (!quiet && results.some((r) => r.status === 'FAILED')) {
+          Alert.alert('Payment cancelled', 'No money was taken.');
+        }
+      } catch {
+        // Checked again next time the app comes back to this screen.
+      }
+    },
+    [refreshWallet]
+  );
+
+  useEffect(() => {
+    fetchCardDepositStatus().then(setCard).catch(() => setCard(null));
+    // Settle any card payment left open last time (e.g. the app was closed while paying).
+    reportCardResults(undefined, true);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || !pendingSession.current) return;
+      const sessionId = pendingSession.current;
+      pendingSession.current = null;
+      reportCardResults(sessionId);
+    });
+    return () => sub.remove();
+  }, [reportCardResults]);
 
   const kycApproved = !KYC_REQUIRED || backendUser?.kycStatus === 'APPROVED';
   const amount = Number(amountText);
@@ -46,7 +88,26 @@ export default function DepositScreen() {
       return;
     }
     if (!isValidAmount) return;
+    // A payment company is set up but not open to this account: say why,
+    // rather than falling through to the old (closed) deposit.
+    if (card && !card.enabled && card.gateway) {
+      Alert.alert('Card payment not available', card.reason ?? 'Please try again later.');
+      return;
+    }
     setBusy(true);
+    if (card?.enabled) {
+      try {
+        const { sessionId, url } = await startCardCheckout(amount);
+        pendingSession.current = sessionId;
+        await Linking.openURL(url);
+      } catch (err) {
+        pendingSession.current = null;
+        Alert.alert('Payment failed', err instanceof ApiClientError ? err.message : 'Please try again.');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     try {
       const result = await walletService.deposit(amount);
       await refreshWallet();
@@ -195,6 +256,11 @@ export default function DepositScreen() {
       </ScrollView>
 
       <View style={styles.payBar}>
+        {card?.enabled ? (
+          <Text style={{ color: colors.gold, textAlign: 'center', fontSize: 12, marginBottom: 6 }}>
+            Pay with {card.gatewayName}{card.testMode ? ' · TEST MODE (no real money)' : ''}
+          </Text>
+        ) : null}
         <Pressable
           onPress={handlePayNow}
           disabled={!isValidAmount || !kycApproved || busy}

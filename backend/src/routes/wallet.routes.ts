@@ -7,6 +7,7 @@ import { prisma } from "../db/prismaClient";
 import { paymentProvider } from "../services/paymentService";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
 import { completeDeposit } from "../services/depositService";
+import { cardDepositStatus, confirmCardDeposits, createCardCheckout } from "../services/stockpayService";
 import { env } from "../config/env";
 
 const router = Router();
@@ -103,6 +104,56 @@ router.post(
     res.json({ ...(await buildWalletView(userId)), bonusGranted: bonus });
   })
 );
+
+// --- Card deposits through StockPay's hosted checkout (see stockpayService.ts) ---
+
+router.get(
+  "/card/status",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await cardDepositStatus(req.user!.userId));
+  })
+);
+
+router.post(
+  "/card/checkout",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { amount } = amountSchema.parse(req.body);
+    const userId = req.user!.userId;
+    await assertCanTransact(userId);
+    await assertWithinDepositLimits(userId, amount);
+    // StockPay sends the player back here (https on Vercel, behind its proxy).
+    const proto = req.get("x-forwarded-proto") ?? req.protocol;
+    res.json(await createCardCheckout(userId, amount, `${proto}://${req.get("host")}`));
+  })
+);
+
+const confirmSchema = z.object({ sessionId: z.string().min(1).max(200).optional() });
+router.post(
+  "/card/confirm",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { sessionId } = confirmSchema.parse(req.body ?? {});
+    const userId = req.user!.userId;
+    const { results } = await confirmCardDeposits(userId, sessionId);
+    res.json({ results, wallet: await buildWalletView(userId) });
+  })
+);
+
+/** Where StockPay's page sends the player afterwards (it adds ?order_id=…&status=…): a plain "go back to the app" page. */
+router.get("/card/return", (req, res) => {
+  const paid = req.query.status === "paid";
+  const title = paid ? "Payment received" : "Back to NovaPlay";
+  const text = paid
+    ? "Go back to the NovaPlay app — your balance updates in a few seconds."
+    : "Go back to the NovaPlay app. If you paid, your balance updates as soon as the payment is confirmed; otherwise no money was taken.";
+  res.type("html").send(
+    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>` +
+      `<body style="margin:0;font-family:system-ui,sans-serif;background:#120a1f;color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center">` +
+      `<div style="padding:24px"><div style="font-size:56px">${paid ? "✅" : "↩️"}</div><h1 style="font-size:22px">${title}</h1><p style="opacity:.8;line-height:1.5">${text}</p></div></body></html>`
+  );
+});
 
 const payoutAccountSchema = z.object({
   accountHolderName: z.string().trim().min(2, "Enter the account holder's name").max(120),
