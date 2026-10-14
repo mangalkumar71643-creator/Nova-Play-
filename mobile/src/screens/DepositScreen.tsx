@@ -43,9 +43,11 @@ export default function DepositScreen() {
     async (sessionId?: string, quiet = false) => {
       try {
         const { results } = await confirmCardDeposits(sessionId);
-        const done = results.filter((r) => r.status === 'COMPLETED' && !r.alreadyCredited);
+        // The webhook may have credited it already (alreadyCredited): when
+        // this is the payment the player just made, still say it arrived.
+        const done = results.filter((r) => r.status === 'COMPLETED' && (sessionId ? true : !r.alreadyCredited));
+        if (results.length > 0) await refreshWallet();
         if (done.length > 0) {
-          await refreshWallet();
           const total = done.reduce((s, r) => s + r.amount, 0);
           const bonus = done.reduce((s, r) => s + r.bonus, 0);
           Alert.alert(

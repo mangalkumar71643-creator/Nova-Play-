@@ -4,8 +4,15 @@ import { ApiError } from "../middleware/errorHandler";
 import { completeDeposit } from "./depositService";
 
 /**
- * Card deposits through StockPay's hosted GBP checkout
- * (https://stockpay-in.vercel.app/docs/gbp).
+ * Card deposits through StockPay's hosted GBP checkout, written against its
+ * GBP API reference (stockpay-in.vercel.app/docs/gbp, read 2026-10-13).
+ *
+ * NOTE (2026-10-14): StockPay has since taken that page down; its docs
+ * (stockpay-in.vercel.app/docs) now say INR by UPI only, no cards, and
+ * currency "GBP" -> 400 unsupported_currency. Until StockPay accepts GBP
+ * again every checkout fails with "Payment service error: ...". Switching
+ * CURRENCY to INR would also mean UPI amounts with paise added
+ * (amount_payable) and Indian players.
  *
  * Flow: the app asks for a checkout -> POST /orders creates StockPay's
  * payment page and a PENDING DEPOSIT row is written with the order id -> the
@@ -135,23 +142,43 @@ async function settle(tx: { id: string; userId: string; amount: unknown; provide
   return { status: "PENDING" as const, amount, bonus: 0, alreadyCredited: false };
 }
 
-/** Settles this player's open card deposits (or just `sessionId`), most recent first. */
+/**
+ * Settles this player's open card deposits (or just `sessionId`), most
+ * recent first. A row the webhook already credited is reported as
+ * COMPLETED (alreadyCredited) when asked for by `sessionId`, so the app can
+ * still say the deposit arrived.
+ */
 export async function confirmCardDeposits(userId: string, sessionId?: string) {
   if (!testKey()) return { results: [] };
-  const pending = await prisma.transaction.findMany({
+  const rows = await prisma.transaction.findMany({
     where: {
       userId,
       type: "DEPOSIT",
       provider: PROVIDER,
-      status: "PENDING",
-      createdAt: { gte: new Date(Date.now() - 48 * 3600 * 1000) },
-      ...(sessionId ? { providerReferenceId: sessionId } : {}),
+      // A payment page lives 30 minutes, so an open row is settled the first
+      // time anyone looks; the window only bounds the work per request.
+      ...(sessionId
+        ? { providerReferenceId: sessionId, status: { in: ["PENDING", "COMPLETED"] } }
+        : { status: "PENDING", createdAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) } }),
     },
     orderBy: { createdAt: "desc" },
-    take: 5,
+    // One payment page = one deposit row.
+    take: sessionId ? 1 : 10,
   });
   const results = [];
-  for (const tx of pending) results.push(await settle(tx));
+  for (const tx of rows) {
+    if (tx.status === "COMPLETED") {
+      results.push({ status: "COMPLETED" as const, amount: Number(tx.amount), bonus: 0, alreadyCredited: true });
+      continue;
+    }
+    try {
+      results.push(await settle(tx));
+    } catch (err) {
+      // One bad order (e.g. a mismatch for support to look at) must not stop the others.
+      if (sessionId) throw err;
+      console.error(`[stockpay] could not settle ${tx.providerReferenceId}:`, (err as Error).message);
+    }
+  }
   return { results };
 }
 
