@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../middleware/errorHandler";
 import { getPopupImage, listLivePopups, POPUP_KINDS, type PopupKind } from "../services/popupService";
+import { getAppVersionInfo } from "../services/settingsService";
 
 // Public: the app fetches these before the player is necessarily logged in.
 const router = Router();
@@ -22,6 +23,15 @@ router.get(
     // The URL carries ?v=<updatedAt>, so a given URL's bytes never change.
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     res.send(Buffer.from(image));
+  })
+);
+
+// Public: the app checks this on startup to nudge older installs to update
+// (version and download link are set from the admin panel's Home Slider card).
+router.get(
+  "/app-version",
+  asyncHandler(async (_req, res) => {
+    res.json(await getAppVersionInfo());
   })
 );
 

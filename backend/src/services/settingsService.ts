@@ -53,3 +53,21 @@ export async function setAppDownloadUrl(url: string) {
   else await prisma.setting.upsert({ where: { key: APP_DOWNLOAD_URL_KEY }, update: { value: url }, create: { key: APP_DOWNLOAD_URL_KEY, value: url } });
   return { url: url || null };
 }
+
+// The newest released app version ("1.0.1"). The app compares its own
+// version against this on startup and nudges older installs to download
+// the update from the download URL above.
+const LATEST_APP_VERSION_KEY = "latestAppVersion";
+
+export async function getAppVersionInfo(): Promise<{ latestVersion: string | null; downloadUrl: string | null }> {
+  const rows = await prisma.setting.findMany({ where: { key: { in: [APP_DOWNLOAD_URL_KEY, LATEST_APP_VERSION_KEY] } } });
+  const get = (k: string) => rows.find((r) => r.key === k)?.value || null;
+  return { latestVersion: get(LATEST_APP_VERSION_KEY), downloadUrl: get(APP_DOWNLOAD_URL_KEY) };
+}
+
+/** An empty value clears the update nudge. */
+export async function setLatestAppVersion(version: string) {
+  if (!version) await prisma.setting.deleteMany({ where: { key: LATEST_APP_VERSION_KEY } });
+  else await prisma.setting.upsert({ where: { key: LATEST_APP_VERSION_KEY }, update: { value: version }, create: { key: LATEST_APP_VERSION_KEY, value: version } });
+  return { latestVersion: version || null };
+}

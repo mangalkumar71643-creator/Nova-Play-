@@ -101,6 +101,7 @@ export interface BackendTransaction {
     | 'WITHDRAWAL_REVERSAL';
   amount: string;
   status: 'PENDING' | 'COMPLETED' | 'FAILED';
+  provider: string | null;
   createdAt: string;
 }
 

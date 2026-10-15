@@ -108,7 +108,7 @@ Admin app: `cd admin-app && ./gradlew assembleRelease`.
 
 - **KYC (pehchaan ki jaanch):** `services/kycService.ts` me nakli provider hai.
 - **SMS/OTP:** `services/smsService.ts` nakli mode me OTP bhejta nahi, seedha jawab me de deta hai. Asli SMS ki koi company abhi judi nahi hai (Fast2SMS hata diya gaya); UK ki SMS company jodni hogi. Asli players ke saath nakli mode kabhi mat chalana.
-- **Payment:** `services/paymentService.ts` me sirf nakli provider hai, aur deposit band hai (`DEPOSITS_ENABLED`). Asli payment gateway jodne ka koi code taiyar nahi hai. Woh poora kaam developer ko likhna hoga.
+- **Payment:** StockPay (UPI, INR) ka **test-mode** integration jud gaya hai — `services/stockpayService.ts`, routes `/wallet/upi/*`, aur webhook `/webhooks/stockpay`. Sirf test key (`sk_test_...`) chalti hai, aur test mode me sirf `STOCKPAY_TEST_PHONES` wale numbers deposit kar sakte hain. Webhook secret aur setup ki jaankari `backend/README.md` me hai. Asli paisa lene se pehle gambling license aur poori compliance zaroori hai. Purana mock provider `services/paymentService.ts` me abhi bhi hai, aur woh normal deposit abhi bhi band hai (`DEPOSITS_ENABLED`).
 - **Game ka random number system (RNG):** imaandaar hai aur server pe chalta hai, par kisi testing lab ka certificate nahi hai.
 - **Desh ke hisaab se rok (geo-restriction):** bana hi nahi hai.
 

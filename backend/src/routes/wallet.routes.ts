@@ -7,7 +7,7 @@ import { prisma } from "../db/prismaClient";
 import { paymentProvider } from "../services/paymentService";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
 import { completeDeposit } from "../services/depositService";
-import { confirmUpiDeposits, createUpiCheckout, upiDepositStatus } from "../services/stockpayService";
+import { upiDepositStatus, confirmUpiDeposits, createUpiCheckout, sweepStaleUpiDeposits } from "../services/stockpayService";
 import { env } from "../config/env";
 
 const router = Router();
@@ -105,12 +105,15 @@ router.post(
   })
 );
 
-// --- INR UPI test deposits through StockPay's hosted checkout ---
+// --- UPI deposits through StockPay's hosted INR checkout (see stockpayService.ts) ---
 
 router.get(
   "/upi/status",
   requireAuth,
   asyncHandler(async (req, res) => {
+    // A missed webhook must not leave money hanging: re-check open deposits
+    // with StockPay (throttled) whenever a player opens this screen.
+    await sweepStaleUpiDeposits();
     res.json(await upiDepositStatus(req.user!.userId));
   })
 );
@@ -123,7 +126,8 @@ router.post(
     const userId = req.user!.userId;
     await assertCanTransact(userId);
     await assertWithinDepositLimits(userId, amount);
-    // Preserve the API artifact prefix when StockPay sends the player back.
+    // StockPay sends the player back here (https on Vercel, behind its proxy),
+    // keeping the /api prefix when served under one (Replit).
     const proto = req.get("x-forwarded-proto") ?? req.protocol;
     const apiPrefix = req.originalUrl.startsWith("/api/") ? "/api" : "";
     res.json(await createUpiCheckout(userId, amount, `${proto}://${req.get("host")}${apiPrefix}`));

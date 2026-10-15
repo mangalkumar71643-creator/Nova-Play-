@@ -71,7 +71,7 @@ import bookOfPharaohRoutes from "./routes/bookOfPharaoh.routes";
 import moneyComingRoutes from "./routes/moneyComing.routes";
 import { closeOutRetiredGames } from "./services/retiredGamesCloseout";
 import { refreshSettingsIfStale } from "./services/settingsService";
-import { handleWebhook as handleStockpayWebhook } from "./services/stockpayService";
+import { handleWebhook as handleStockpayWebhook, sweepStaleUpiDeposits } from "./services/stockpayService";
 
 export const app = express();
 
@@ -193,3 +193,6 @@ app.use(errorHandler);
 // Retired games (the original Win Go, the sportsbook): settle / refund
 // anything still open on them. Idempotent, so every cold start is harmless.
 closeOutRetiredGames().catch((err) => console.error("Retired games close-out failed", err));
+
+// Missed StockPay webhooks: settle open UPI deposits on every cold start too.
+sweepStaleUpiDeposits(true).catch((err) => console.error("UPI deposit sweep failed", err));

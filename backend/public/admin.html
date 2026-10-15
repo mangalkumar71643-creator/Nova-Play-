@@ -338,6 +338,7 @@
       <div class="panel active" id="panel-dashboard">
         <h1 class="page-title">Dashboard</h1>
         <div class="page-sub">Overview of your platform performance and key metrics.</div>
+        <div id="dashboardStuckAlert" style="display:none;"></div>
         <div class="stat-grid" id="dashboardStats"></div>
         <div class="card">
           <div class="card-head">
@@ -409,6 +410,20 @@
             <button class="btn secondary" id="withdrawalRefresh" style="flex:0 0 auto;">Refresh</button>
           </div>
           <div id="withdrawalsList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>StockPay UPI deposits</h2><button class="btn secondary small" id="upiDepositsRefresh">Refresh</button></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Deposits players made through StockPay's hosted UPI payment page (test mode — no real money moves). Status is confirmed by StockPay's signed webhook or a server-side re-check; PENDING means the player hasn't finished paying yet, FAILED means the payment page expired or was cancelled. A deposit still PENDING after 30 minutes is flagged red as STUCK — the player likely abandoned the payment or the webhook never arrived.</div>
+          <div class="form-row">
+            <select id="upiDepositStatus">
+              <option value="">All</option>
+              <option value="PENDING">Pending</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="FAILED">Failed / cancelled</option>
+            </select>
+          </div>
+          <div id="upiDepositsList"></div>
         </div>
       </div>
 
@@ -514,9 +529,10 @@
         </div>
         <div class="card">
           <div class="card-head"><h2>App download link</h2></div>
-          <div class="item-meta" style="margin-bottom:10px;">Slides whose button is set to "Download app" show only to people playing on the website, and their button opens this link. Players who already have the app installed never see those slides.</div>
+          <div class="item-meta" style="margin-bottom:10px;">Slides whose button is set to "Download app" show only to people playing on the website, and their button opens this link. Players who already have the app installed never see those slides. Setting a latest version also makes older installed apps show an update reminder with this download link when they open.</div>
           <div class="form-row">
             <input id="appDownloadUrl" placeholder="https://… (link to the app / APK)" maxlength="500" />
+            <input id="appLatestVersion" placeholder="Latest version, e.g. 1.0.1" maxlength="20" style="max-width:190px;" />
             <button class="btn" id="appDownloadSave" style="flex:0 0 auto;min-width:0;">Save</button>
           </div>
           <div class="item-meta" id="appDownloadStatus"></div>
@@ -947,7 +963,7 @@
   var loaders = {
     dashboard: loadDashboard,
     users: function () { loadUsers(1); loadMoneyRecent(); },
-    transactions: loadWithdrawals,
+    transactions: function () { loadWithdrawals(); loadUpiDeposits(); },
     'game-colorpredict': function () { loadColorPredictPanel(); activeGamePollInterval = setInterval(loadColorPredictPanel, 4000); },
     'game-aviator': function () { loadAviatorPanel(); activeGamePollInterval = setInterval(loadAviatorPanel, 2000); },
     support: loadTickets,
@@ -1014,6 +1030,20 @@
         statCardHtml('wallet', 'Owed to Players', fmtMoney(s.owedToPlayers),
           fmtMoney(s.playerBalanceTotal) + ' in wallets + ' + fmtMoney(s.pendingWithdrawalTotal) + ' pending withdrawal');
     }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+
+    // Stuck UPI deposits need attention fast — a red alert card on top of
+    // the dashboard while any PENDING deposit is older than 30 minutes.
+    api('/admin/upi-deposits?status=PENDING').then(function (rows) {
+      var stuck = rows.filter(function (d) { return Date.now() - new Date(d.createdAt).getTime() > 30 * 60 * 1000; });
+      var el = document.getElementById('dashboardStuckAlert');
+      if (!el) return;
+      if (stuck.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+      el.style.display = 'block';
+      el.innerHTML = '<div class="card" style="border-color:#ff6b6b;">' +
+        '<div class="item-title" style="color:#ff8a8a;">⚠ ' + stuck.length + ' stuck UPI deposit' + (stuck.length > 1 ? 's' : '') + '</div>' +
+        '<div class="item-meta">Payments pending for over 30 minutes. Open Transactions → StockPay UPI deposits to message the players.</div>' +
+        '</div>';
+    }).catch(function () { /* older server without this route — no alert */ });
 
     api('/admin/users').then(function (users) {
       allUsersCache = users;
@@ -1252,6 +1282,68 @@
   }
   document.getElementById('withdrawalRefresh').addEventListener('click', loadWithdrawals);
   document.getElementById('withdrawalStatus').addEventListener('change', loadWithdrawals);
+
+  // ---------- StockPay UPI deposits (read-only status view) ----------
+  var STUCK_AFTER_MS = 30 * 60 * 1000; // a StockPay payment page lives ~30 minutes
+  function upiDepositRowHtml(d) {
+    var u = d.user || {};
+    var name = [u.firstName, u.lastName].filter(Boolean).join(' ') || '—';
+    var contact = u.phone || u.email || '';
+    var statusClass = d.status === 'COMPLETED' ? 'approved' : d.status === 'FAILED' ? 'failed' : 'pending';
+    // A deposit still PENDING after the payment page's lifetime is stuck
+    // (player abandoned it, or the webhook never arrived) — flag it red.
+    var stuck = d.status === 'PENDING' && (Date.now() - new Date(d.createdAt).getTime()) > STUCK_AFTER_MS;
+    var actions = d.status === 'PENDING'
+      ? '<button class="icon-btn view" data-action="msg" data-user="' + escapeHtml(u.id || '') + '" data-name="' + escapeHtml(name) + '" data-amount="' + Number(d.amount) + '" data-order="' + escapeHtml(d.providerReferenceId || '') + '">Message player</button>'
+      : '';
+    return (
+      '<div class="item">' +
+        '<div class="item-top">' +
+          '<div>' +
+            '<div class="item-title">' + fmtMoney(d.amount) + ' — ' + escapeHtml(name) + '</div>' +
+            '<div class="item-meta">UID ' + (u.uid || '—') + (contact ? ' · ' + escapeHtml(contact) : '') + ' · ' + new Date(d.createdAt).toLocaleString() + '</div>' +
+            '<div class="item-meta">StockPay order: ' + escapeHtml(d.providerReferenceId || '—') + '</div>' +
+          '</div>' +
+          '<div style="text-align:right;flex:0 0 auto;">' +
+            '<span class="pill ' + statusClass + '">' + d.status + '</span>' +
+            (stuck ? '<br/><span class="pill failed" style="display:inline-block;margin-top:6px;">STUCK &gt;30m</span>' : '') +
+          '</div>' +
+        '</div>' +
+        (actions ? '<div class="item-actions">' + actions + '</div>' : '') +
+      '</div>'
+    );
+  }
+
+  function loadUpiDeposits() {
+    var status = document.getElementById('upiDepositStatus').value;
+    var qs = status ? '?status=' + status : '';
+    api('/admin/upi-deposits' + qs).then(function (rows) {
+      document.getElementById('upiDepositsList').innerHTML = rows.length
+        ? rows.map(upiDepositRowHtml).join('')
+        : '<div class="empty">No UPI deposits here.</div>';
+
+      // One-tap note to the player of a stuck deposit — opens a support
+      // conversation with a pre-filled message they can edit before sending.
+      document.querySelectorAll('#upiDepositsList button[data-action="msg"]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var text = prompt(
+            'Message to ' + btn.getAttribute('data-name') + ' about this deposit:',
+            'Aapka ₹' + btn.getAttribute('data-amount') + ' ka UPI deposit (order ' + btn.getAttribute('data-order') + ') abhi confirm nahi hua hai. Agar paisa kat gaya hai to apna UTR number yahan bhej dijiye — hum turant check karke balance jod denge.'
+          );
+          if (text === null) return;
+          text = text.trim();
+          if (!text) return;
+          btn.disabled = true;
+          api('/admin/support-tickets', { method: 'POST', body: JSON.stringify({ userId: btn.getAttribute('data-user'), topic: 'UPI deposit pending', message: text }) })
+            .then(function () { showAlert('Message sent — the player will see it in their Support screen.'); })
+            .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); })
+            .finally(function () { btn.disabled = false; });
+        });
+      });
+    }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  }
+  document.getElementById('upiDepositsRefresh').addEventListener('click', loadUpiDeposits);
+  document.getElementById('upiDepositStatus').addEventListener('change', loadUpiDeposits);
 
   // ---------- Games: live monitoring / history / bet audit ----------
 
@@ -2122,19 +2214,28 @@
   setupImageForm('slider', 'SLIDER');
   setupImageForm('catSlider', 'CATEGORY_SLIDER');
 
-  // ---------- App download link (Home slider) ----------
+  // ---------- App download link + latest version (Home slider) ----------
   function loadAppDownloadUrl() {
-    api('/admin/app-download').then(function (r) { document.getElementById('appDownloadUrl').value = r.url || ''; })
-      .catch(function (err) { if (err.authError) doLogout(); });
+    api('/admin/app-download').then(function (r) {
+      document.getElementById('appDownloadUrl').value = r.downloadUrl || r.url || '';
+      document.getElementById('appLatestVersion').value = r.latestVersion || '';
+    }).catch(function (err) { if (err.authError) doLogout(); });
   }
   document.getElementById('appDownloadSave').addEventListener('click', function () {
     var btn = this;
     var status = document.getElementById('appDownloadStatus');
     var url = document.getElementById('appDownloadUrl').value.trim();
+    var version = document.getElementById('appLatestVersion').value.trim();
     if (url && !/^https?:\/\/\S+$/i.test(url)) { status.textContent = 'The link must start with http:// or https://'; return; }
+    if (version && !/^\d+\.\d+\.\d+$/.test(version)) { status.textContent = 'Version must look like 1.0.1'; return; }
     btn.disabled = true;
-    api('/admin/app-download', { method: 'PUT', body: JSON.stringify({ url: url }) })
-      .then(function (r) { status.textContent = r.url ? 'Saved. Download buttons open this link.' : 'Cleared. Download buttons do nothing until a link is set.'; })
+    api('/admin/app-download', { method: 'PUT', body: JSON.stringify({ url: url, latestVersion: version }) })
+      .then(function (r) {
+        var parts = [];
+        parts.push(r.downloadUrl ? 'Download link saved' : 'Download link cleared');
+        parts.push(r.latestVersion ? 'apps older than ' + r.latestVersion + ' will see the update reminder' : 'update reminder off');
+        status.textContent = parts.join(' · ') + '.';
+      })
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
   });

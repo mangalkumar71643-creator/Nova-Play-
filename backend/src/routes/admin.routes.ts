@@ -6,6 +6,7 @@ import { prisma } from "../db/prismaClient";
 import { env } from "../config/env";
 import { paymentProvider } from "../services/paymentService";
 import { completeDeposit } from "../services/depositService";
+import { PROVIDER as STOCKPAY_PROVIDER } from "../services/stockpayService";
 import { FAST2SMS_ROUTES, fast2SmsFromEnv } from "../services/smsService";
 import { INTEGRATION_FIELDS, integration, integrationView, saveIntegrationSettings } from "../services/integrationSettings";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
@@ -16,7 +17,7 @@ import { getChickenRoadConfig } from "../services/chickenRoadService";
 import { getMinesConfig } from "../services/minesService";
 import * as popupService from "../services/popupService";
 import * as giftCodeService from "../services/giftCodeService";
-import { getAppDownloadUrl, getGameSettings, MAX_MAX_PAYOUT, MIN_MAX_PAYOUT, setAppDownloadUrl, setMaxPayout } from "../services/settingsService";
+import { getAppDownloadUrl, getAppVersionInfo, getGameSettings, MAX_MAX_PAYOUT, MIN_MAX_PAYOUT, setAppDownloadUrl, setLatestAppVersion, setMaxPayout } from "../services/settingsService";
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -461,6 +462,42 @@ router.get(
   })
 );
 
+/** StockPay UPI deposits (hosted checkout), newest first — read-only status view for the panel. */
+const upiDepositStatusQuery = z.enum(["PENDING", "COMPLETED", "FAILED"]).optional();
+router.get(
+  "/upi-deposits",
+  asyncHandler(async (req, res) => {
+    const status = upiDepositStatusQuery.parse(req.query.status);
+    const rows = await prisma.transaction.findMany({
+      where: { provider: STOCKPAY_PROVIDER, type: "DEPOSIT", status },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: { id: true, amount: true, status: true, providerReferenceId: true, createdAt: true, user: { select: { id: true, ...userSummarySelect } } },
+    });
+    res.json(rows);
+  })
+);
+
+/** Starts a support conversation with a player from the panel — used by the
+ * "Message player" button on a stuck UPI deposit. The admin's note becomes
+ * the first message, so the player sees it in their Support screen. */
+const createTicketSchema = z.object({
+  userId: z.string().min(1).max(64),
+  topic: z.string().trim().min(2).max(120),
+  message: z.string().trim().min(1).max(2000),
+});
+router.post(
+  "/support-tickets",
+  asyncHandler(async (req, res) => {
+    const { userId, topic, message } = createTicketSchema.parse(req.body);
+    await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true } });
+    const ticket = await prisma.supportTicket.create({
+      data: { userId, topic, message, messages: { create: { sender: "ADMIN", text: message } } },
+    });
+    res.status(201).json(ticket);
+  })
+);
+
 // --- SMS keys entered in the panel (integrationSettings.ts) ---
 
 router.get("/integrations", (_req, res) => {
@@ -525,17 +562,21 @@ router.post(
 router.get(
   "/app-download",
   asyncHandler(async (_req, res) => {
-    res.json({ url: await getAppDownloadUrl() });
+    res.json(await getAppVersionInfo());
   })
 );
 
 const appDownloadSchema = z.object({
   url: z.union([z.literal(""), z.string().trim().url().max(500).refine((u) => /^https?:\/\//i.test(u), "Link must start with http:// or https://")]),
+  latestVersion: z.union([z.literal(""), z.string().trim().regex(/^\d+\.\d+\.\d+$/, "Version must look like 1.0.1").max(20)]).optional(),
 });
 router.put(
   "/app-download",
   asyncHandler(async (req, res) => {
-    res.json(await setAppDownloadUrl(appDownloadSchema.parse(req.body).url));
+    const { url, latestVersion } = appDownloadSchema.parse(req.body);
+    await setAppDownloadUrl(url);
+    if (latestVersion !== undefined) await setLatestAppVersion(latestVersion);
+    res.json(await getAppVersionInfo());
   })
 );
 

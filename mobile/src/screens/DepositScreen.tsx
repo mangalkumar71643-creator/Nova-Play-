@@ -3,7 +3,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Animated, AppState, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import ScreenContainer from '../components/ScreenContainer';
 import { ApiClientError } from '../api/client';
 import { UpiDepositStatus, confirmUpiDeposits, fetchUpiDepositStatus, startUpiCheckout } from '../api/backend';
@@ -15,7 +15,8 @@ import { colors, gradients, radius, spacing, typography } from '../theme';
 
 const CARD_TEXT_COLOR = '#5C3A0E';
 const MIN_DEPOSIT = 100;
-const MAX_DEPOSIT = 5000;
+// Matches the backend's MAX_UPI_DEPOSIT (StockPay's per-order maximum).
+const MAX_DEPOSIT = 99999;
 const QUICK_AMOUNTS = [100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
 // Mirrors backend/src/config/env.ts's `wallet.firstDepositBonusPercent` /
@@ -36,8 +37,25 @@ export default function DepositScreen() {
   const [amountText, setAmountText] = useState(String(QUICK_AMOUNTS[1]));
   const [busy, setBusy] = useState(false);
   const [upi, setUpi] = useState<UpiDepositStatus | null>(null);
+  // Celebration overlay shown when a deposit is confirmed (replaces a plain alert).
+  const [successInfo, setSuccessInfo] = useState<{ total: number; bonus: number } | null>(null);
+  const successScale = useRef(new Animated.Value(0)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
   // The StockPay UPI payment page opened from here; checked when the app comes back.
   const pendingSession = useRef<string | null>(null);
+
+  const showSuccess = useCallback(
+    (total: number, bonus: number) => {
+      successScale.setValue(0);
+      successOpacity.setValue(0);
+      setSuccessInfo({ total, bonus });
+      Animated.parallel([
+        Animated.spring(successScale, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }),
+        Animated.timing(successOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      ]).start();
+    },
+    [successScale, successOpacity]
+  );
 
   const reportUpiResults = useCallback(
     async (sessionId?: string, quiet = false) => {
@@ -50,10 +68,7 @@ export default function DepositScreen() {
         if (done.length > 0) {
           const total = done.reduce((s, r) => s + r.amount, 0);
           const bonus = done.reduce((s, r) => s + r.bonus, 0);
-          Alert.alert(
-            'Deposit successful',
-            bonus > 0 ? `₹${total.toLocaleString('en-IN')} + ₹${bonus.toLocaleString('en-IN')} bonus has been added to your balance.` : `₹${total.toLocaleString('en-IN')} has been added to your balance.`
-          );
+          showSuccess(total, bonus);
         } else if (!quiet && results.some((r) => r.status === 'PENDING')) {
           Alert.alert('Payment not finished', 'We have not received this payment yet. If you paid, your balance will update shortly.');
         } else if (!quiet && results.some((r) => r.status === 'FAILED')) {
@@ -63,7 +78,7 @@ export default function DepositScreen() {
         // Checked again next time the app comes back to this screen.
       }
     },
-    [refreshWallet]
+    [refreshWallet, showSuccess]
   );
 
   useEffect(() => {
@@ -104,7 +119,7 @@ export default function DepositScreen() {
         await Linking.openURL(url);
       } catch (err) {
         pendingSession.current = null;
-        Alert.alert('UPI payment failed', err instanceof ApiClientError ? err.message : 'Please try again.');
+        Alert.alert('Payment failed', err instanceof ApiClientError ? err.message : 'Please try again.');
       } finally {
         setBusy(false);
       }
@@ -113,11 +128,7 @@ export default function DepositScreen() {
     try {
       const result = await walletService.deposit(amount);
       await refreshWallet();
-      const message =
-        result.bonusGranted > 0
-          ? `₹${amount.toLocaleString('en-IN')} + ₹${result.bonusGranted.toLocaleString('en-IN')} first-deposit bonus has been added to your balance.`
-          : `₹${amount.toLocaleString('en-IN')} has been added to your balance.`;
-      Alert.alert('Deposit successful', message, [{ text: 'OK', onPress: () => navigation.goBack() }]);
+      showSuccess(amount, result.bonusGranted);
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 403) {
         Alert.alert('Deposits not open yet', 'Adding money is not available right now. Please check back later.');
@@ -132,15 +143,15 @@ export default function DepositScreen() {
   return (
     <ScreenContainer scroll={false} contentStyle={{ paddingHorizontal: 0 }}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.headerButton}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.headerButton} testID="deposit-back-button">
           <MaterialCommunityIcons name="chevron-left" size={28} color={colors.gold} />
         </Pressable>
         <Text style={styles.headerTitle}>Deposit</Text>
         <View style={styles.headerRight}>
-          <Pressable onPress={() => navigation.navigate('Help')} style={styles.headerButton}>
+          <Pressable onPress={() => navigation.navigate('Help')} style={styles.headerButton} testID="deposit-help-button">
             <MaterialCommunityIcons name="headset" size={24} color={colors.gold} />
           </Pressable>
-          <Pressable onPress={() => navigation.navigate('History', { kind: 'deposit' })} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="History">
+          <Pressable onPress={() => navigation.navigate('History', { kind: 'deposit' })} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="History" testID="deposit-history-button">
             <MaterialCommunityIcons name="clock-time-four-outline" size={24} color={colors.gold} />
           </Pressable>
         </View>
@@ -156,10 +167,10 @@ export default function DepositScreen() {
               style={styles.balanceCardIcon}
             />
             <Text style={styles.balanceLabel}>Cash balance</Text>
-            <Text style={styles.balanceValue}>₹{Math.floor(coins)}</Text>
+            <Text style={styles.balanceValue} testID="deposit-cash-balance">₹{Math.floor(coins)}</Text>
           </LinearGradient>
 
-          <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Withdraw')} accessibilityRole="button" accessibilityLabel="Withdraw">
+          <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Withdraw')} accessibilityRole="button" accessibilityLabel="Withdraw" testID="deposit-withdraw-card">
             <LinearGradient colors={gradients.peachCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
               <MaterialCommunityIcons name="chevron-right" size={22} color={CARD_TEXT_COLOR} style={styles.balanceCardArrow} />
               <Text style={styles.balanceLabel}>Withdrawable</Text>
@@ -169,7 +180,7 @@ export default function DepositScreen() {
         </View>
 
         {!kycApproved ? (
-          <View style={styles.kycBanner}>
+          <View style={styles.kycBanner} testID="deposit-kyc-banner">
             <MaterialCommunityIcons name="shield-alert-outline" size={18} color={colors.gold} />
             <Text style={styles.kycBannerText}>
               Verify your identity (KYC) in Settings before you can deposit.
@@ -181,7 +192,7 @@ export default function DepositScreen() {
           <View style={styles.amountLabelRow}>
             <Text style={styles.amountLabel}>Deposit amount:</Text>
             <Text style={styles.amountLimit}>
-              Min: ₹{MIN_DEPOSIT}   Max: ₹{MAX_DEPOSIT}
+              Min: ₹{MIN_DEPOSIT}   Max: ₹{MAX_DEPOSIT.toLocaleString('en-IN')}
             </Text>
           </View>
 
@@ -194,6 +205,7 @@ export default function DepositScreen() {
               style={styles.amountInput}
               placeholder="0"
               placeholderTextColor={colors.textMuted}
+              testID="deposit-amount-input"
             />
           </View>
 
@@ -206,6 +218,7 @@ export default function DepositScreen() {
                   key={value}
                   style={[styles.quickChip, selected && styles.quickChipSelected]}
                   onPress={() => setAmountText(String(value))}
+                  testID={`deposit-quick-amount-${value}`}
                 >
                   {chipBonus > 0 ? (
                     <View style={styles.chipBonusBadge}>
@@ -222,7 +235,7 @@ export default function DepositScreen() {
         </View>
 
         {bonusPreview > 0 ? (
-          <View style={styles.promoCard}>
+          <View style={styles.promoCard} testID="deposit-bonus-preview">
             <View>
               <Text style={styles.promoTotalLabel}>Total credited</Text>
               <Text style={styles.promoTotalValue}>₹{(amount + bonusPreview).toLocaleString('en-IN')}</Text>
@@ -233,16 +246,17 @@ export default function DepositScreen() {
 
         <View style={styles.tipsBlock}>
           <Text style={styles.tipsTitle}>Deposit tips:</Text>
-          <Text style={styles.tipsText}>1. Each deposit is credited within 1-5 minutes.</Text>
+          <Text style={styles.tipsText}>1. Pay securely with any UPI app (Google Pay, PhonePe, Paytm) on the payment page.</Text>
+          <Text style={styles.tipsText}>2. Each deposit is credited within 1-5 minutes.</Text>
           <Text style={styles.tipsText}>
-            2. After the payment is successful, return here to check your updated balance.
+            3. After the payment is successful, return here to check your updated balance.
           </Text>
           <Text style={styles.tipsText}>
-            3. If your deposit doesn't arrive within 30 minutes, please contact customer support.
+            4. If your deposit doesn't arrive within 30 minutes, please contact customer support.
           </Text>
           {bonusPreview > 0 ? (
             <Text style={styles.tipsText}>
-              4. The bonus is playable immediately but only becomes withdrawable after you've staked 3x its
+              5. The bonus is playable immediately but only becomes withdrawable after you've staked 3x its
               value in games — track progress in Wallet.
             </Text>
           ) : null}
@@ -251,22 +265,23 @@ export default function DepositScreen() {
         <View style={styles.tipsBlock}>
           <Text style={styles.tipsTitle}>Important notes:</Text>
           <Text style={styles.tipsText}>
-            Please do not modify the payment amount. Avoid reusing saved payment details for
-            multiple payments.
+            Please do not modify the payment amount on the UPI payment page. Avoid reusing saved payment
+            details for multiple payments.
           </Text>
         </View>
       </ScrollView>
 
       <View style={styles.payBar}>
         {upi?.enabled ? (
-          <Text style={{ color: colors.gold, textAlign: 'center', fontSize: 12, marginBottom: 6 }}>
-            Pay with {upi.gatewayName}{upi.testMode ? ' · TEST MODE (no real money)' : ''}
+          <Text style={{ color: colors.gold, textAlign: 'center', fontSize: 12, marginBottom: 6 }} testID="deposit-gateway-note">
+            Pay by UPI with {upi.gatewayName}{upi.testMode ? ' · TEST MODE (no real money)' : ''}
           </Text>
         ) : null}
         <Pressable
           onPress={handlePayNow}
           disabled={!isValidAmount || !kycApproved || busy}
           style={{ opacity: !isValidAmount || !kycApproved || busy ? 0.5 : 1 }}
+          testID="deposit-pay-now-button"
         >
           <LinearGradient
             colors={gradients.crimsonButton}
@@ -278,6 +293,41 @@ export default function DepositScreen() {
           </LinearGradient>
         </Pressable>
       </View>
+
+      {successInfo ? (
+        <View style={styles.successOverlay} testID="deposit-success-overlay">
+          <Animated.View style={[styles.successCard, { opacity: successOpacity }]}>
+            <Animated.View style={[styles.successIconWrap, { transform: [{ scale: successScale }] }]}>
+              <MaterialCommunityIcons name="check-decagram" size={72} color={colors.positive} />
+            </Animated.View>
+            <Text style={styles.successTitle}>Deposit Successful!</Text>
+            <Text style={styles.successAmount} testID="deposit-success-amount">
+              +₹{successInfo.total.toLocaleString('en-IN')}
+            </Text>
+            {successInfo.bonus > 0 ? (
+              <View style={styles.successBonusRow}>
+                <MaterialCommunityIcons name="gift-outline" size={16} color={colors.gold} />
+                <Text style={styles.successBonusText}>+₹{successInfo.bonus.toLocaleString('en-IN')} bonus added</Text>
+              </View>
+            ) : null}
+            <Text style={styles.successNote}>Your wallet balance has been updated.</Text>
+            <Pressable
+              onPress={() => setSuccessInfo(null)}
+              testID="deposit-success-done-button"
+              style={styles.successButtonOuter}
+            >
+              <LinearGradient
+                colors={gradients.goldButton}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.successButton}
+              >
+                <Text style={styles.successButtonText}>Done</Text>
+              </LinearGradient>
+            </Pressable>
+          </Animated.View>
+        </View>
+      ) : null}
     </ScreenContainer>
   );
 }
@@ -403,4 +453,54 @@ const styles = {
   },
   payButton: { borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center' as const },
   payButtonText: { color: colors.textPrimary, fontWeight: '800' as const, fontSize: typography.md, letterSpacing: 1 },
+  successOverlay: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.overlay,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    padding: spacing.xl,
+  },
+  successCard: {
+    width: '100%' as const,
+    maxWidth: 340,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    alignItems: 'center' as const,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+  },
+  successIconWrap: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.positive,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginBottom: spacing.lg,
+  },
+  successTitle: { color: colors.textPrimary, fontSize: typography.xl, fontWeight: '800' as const, marginBottom: spacing.sm },
+  successAmount: { color: colors.positive, fontSize: typography.xxl, fontWeight: '800' as const, marginBottom: spacing.sm },
+  successBonusRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing.xs,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  successBonusText: { color: colors.gold, fontSize: typography.sm, fontWeight: '700' as const },
+  successNote: { color: colors.textSecondary, fontSize: typography.sm, textAlign: 'center' as const, marginBottom: spacing.lg },
+  successButtonOuter: { alignSelf: 'stretch' as const },
+  successButton: { borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center' as const },
+  successButtonText: { color: CARD_TEXT_COLOR, fontWeight: '800' as const, fontSize: typography.md, letterSpacing: 1 },
 };

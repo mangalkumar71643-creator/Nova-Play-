@@ -49,12 +49,15 @@ const CREDIT_TYPES = new Set<BackendTransaction['type']>([
 function mapTransaction(tx: BackendTransaction): WalletTransaction {
   const signedAmount = CREDIT_TYPES.has(tx.type) ? Number(tx.amount) : -Number(tx.amount);
   const created = new Date(tx.createdAt);
+  // StockPay's hosted UPI checkout deposits get their own label/icon so a
+  // player can tell a UPI deposit apart from an admin credit at a glance.
+  const isUpiDeposit = tx.type === 'DEPOSIT' && tx.provider === 'stockpay';
   return {
     id: tx.id,
-    title: TX_TITLES[tx.type],
+    title: isUpiDeposit ? 'UPI Deposit' : TX_TITLES[tx.type],
     amount: signedAmount,
     type: signedAmount >= 0 ? 'earn' : 'spend',
-    icon: TX_ICONS[tx.type],
+    icon: isUpiDeposit ? 'contactless-payment' : TX_ICONS[tx.type],
     timestamp: created.toLocaleString(),
     timestampISO: tx.createdAt,
     status: tx.status,

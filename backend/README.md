@@ -116,3 +116,33 @@ gambling-licensed payment processor, add a UK SMS provider, then flip
 the mode env vars to `live`. See the root `README.md` for the full
 compliance checklist, including the RNG certification requirement for
 `/games/:gameKey/play`.
+
+## StockPay UPI deposits (TEST MODE)
+
+INR deposits by UPI run through StockPay's hosted checkout — see
+`src/services/stockpayService.ts`. The app asks the backend for a checkout
+(`POST /wallet/upi/checkout`), opens StockPay's hosted payment page, and
+the deposit is credited only after StockPay's signed `order.paid` webhook
+(`POST /webhooks/stockpay`) or a server-side re-fetch of the order
+(`POST /wallet/upi/confirm`) confirms payment — exactly once, via
+`src/services/depositService.ts`'s idempotent claim.
+
+Environment variables (Vercel → Settings → Environment Variables):
+
+- `STOCKPAY_KEY` — StockPay **test** key (`sk_test_...`). Live keys are
+  rejected by the server; real-money gambling payments need a licence first.
+- `STOCKPAY_WEBHOOK_SECRET` — from StockPay admin → API Keys. Required for
+  `POST /webhooks/stockpay` (HMAC-SHA256 over `timestamp + "." + rawBody`,
+  headers `X-StockPay-Timestamp` / `X-StockPay-Signature`).
+- `STOCKPAY_TEST_PHONES` — comma-separated phone numbers allowed to deposit
+  in test mode; everyone else sees "not available".
+
+After deploying, register `https://<your-deployed-server>/webhooks/stockpay`
+as the webhook URL in StockPay's admin panel. Related routes:
+`GET /wallet/upi/status`, `POST /wallet/upi/checkout`,
+`POST /wallet/upi/confirm`, `GET /wallet/upi/return` (the page StockPay
+sends the player back to).
+
+Wallets are denominated in INR (`Wallet.currency` default `"INR"`). For a
+database created while the default was still GBP, run
+`prisma/sql/20261014_wallet_currency_inr.sql` once (demo data only).
