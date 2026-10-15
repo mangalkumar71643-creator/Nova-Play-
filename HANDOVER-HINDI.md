@@ -30,14 +30,14 @@ Code ke teen hisse hain:
 | Kya | Kahan |
 | --- | --- |
 | Server aur admin panel | Vercel, team `mangak`, project `novaplay-server`. Pata: `https://novaplay-server.vercel.app`, admin panel: `/admin.html` |
-| Database (players ka saara data) | PostgreSQL. Iska link Vercel ki settings me `DATABASE_URL` naam se hai |
-| Code | GitHub: `mangalkumar71643-creator/10s2`, branch `claude/betting-app-dev-0r7vsq` |
+| Database (players ka saara data) | PostgreSQL (Neon, `neondb`), Vercel project se juda. Iska link Vercel ki settings me `DATABASE_URL` naam se hai — repo me kabhi nahi |
+| Code | GitHub: `mangalkumar71643-creator/Nova-Play-`, branch `main` (purana `10s2` repo ab use nahi hota) |
 
-Branch pe jo bhi code daalo, Vercel uska ek test version (preview) bana
-deta hai. Use phir live (production) kiya jata hai.
+`main` pe jo bhi code push karo, Vercel use apne aap live (production) kar
+deta hai. Kisi aur branch pe push karne se ek test version (preview) banta hai.
 
-**Dhyan rahe:** test version bante waqt bhi live database ka dhaancha badal
-jata hai.
+**Dhyan rahe:** jab tak `DATABASE_*` settings Preview ke liye bhi on hain,
+test version bante waqt bhi live database ka dhaancha badal jata hai.
 
 ## 3. Server ki secret settings
 
