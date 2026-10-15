@@ -766,7 +766,7 @@
   function showAlert(message) { openDialog(String(message), false); }
 
   // ---------- State / helpers ----------
-  var API = location.origin;
+  var API = location.pathname.indexOf('/api/') === 0 ? '/api' : location.origin;
   var TOKEN_KEY = 'novaplay_admin_token';
   var token = null;
   var me = null;

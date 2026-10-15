@@ -4,40 +4,37 @@ import { ApiError } from "../middleware/errorHandler";
 import { completeDeposit } from "./depositService";
 
 /**
- * Card deposits through StockPay's hosted GBP checkout, written against its
- * GBP API reference (stockpay-in.vercel.app/docs/gbp, read 2026-10-13).
+ * UPI deposits through StockPay's hosted INR checkout, written against its
+ * current API reference (stockpay-in.vercel.app/docs, checked 2026-10-14).
  *
- * NOTE (2026-10-14): StockPay has since taken that page down; its docs
- * (stockpay-in.vercel.app/docs) now say INR by UPI only, no cards, and
- * currency "GBP" -> 400 unsupported_currency. Until StockPay accepts GBP
- * again every checkout fails with "Payment service error: ...". Switching
- * CURRENCY to INR would also mean UPI amounts with paise added
- * (amount_payable) and Indian players.
+ * StockPay currently supports INR UPI only (no cards or GBP). This project
+ * intentionally accepts test keys only; live gambling payments require a
+ * properly licensed provider and are not enabled here.
  *
- * Flow: the app asks for a checkout -> POST /orders creates StockPay's
+ * Flow: the app asks for a UPI checkout -> POST /orders creates StockPay's
  * payment page and a PENDING DEPOSIT row is written with the order id -> the
  * player pays there -> the order is settled when StockPay's signed
  * order.paid webhook arrives, or when the app asks to confirm (on return to
  * the app, or the next visit to Deposit). Either way the order is fetched
  * back from StockPay (GET /orders/{id}) and only a paid order, in this
- * amount and in GBP, claims the PENDING row and credits the wallet — once.
+ * amount and in INR, claims the PENDING row and credits the wallet — once.
  *
- * Settings (Vercel -> Settings -> Environment Variables):
+ * Replit Secrets:
  *   STOCKPAY_KEY             StockPay secret key (sk_test_...)
  *   STOCKPAY_TEST_PHONES     phone numbers allowed to deposit in test mode, comma separated
  *   STOCKPAY_WEBHOOK_SECRET  webhook secret from StockPay admin -> API Keys (optional)
  *
- * Only TEST keys are switched on: a test order's "Simulate successful payment"
+ * Only TEST keys are accepted: a test order's "Simulate successful payment"
  * button would otherwise put play money in real players' wallets, and taking
  * real money for gambling needs a gambling licence and a payment company
  * that allows it. In test mode only STOCKPAY_TEST_PHONES may deposit.
  */
 
 const BASE = "https://stockpay-in.vercel.app/api/v1";
-const CURRENCY = "GBP";
+const CURRENCY = "INR";
 export const PROVIDER = "stockpay";
-export const MIN_CARD_DEPOSIT = 100;
-export const MAX_CARD_DEPOSIT = 5000;
+export const MIN_UPI_DEPOSIT = 100;
+export const MAX_UPI_DEPOSIT = 5000;
 
 const rawKey = () => (process.env.STOCKPAY_KEY ?? "").trim();
 const testKey = () => (rawKey().startsWith("sk_test_") ? rawKey() : "");
@@ -60,7 +57,7 @@ type StockpayOrder = {
 
 async function call<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
   const key = testKey();
-  if (!key) throw new ApiError(503, "Card payments are not set up yet.");
+  if (!key) throw new ApiError(503, "UPI test payments are not set up yet.");
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
@@ -82,26 +79,26 @@ async function call<T>(method: "GET" | "POST", path: string, body?: unknown): Pr
   return json;
 }
 
-/** What the app needs to know to offer card deposits to this player. */
-export async function cardDepositStatus(userId: string) {
-  const base = { gateway: PROVIDER, gatewayName: "StockPay", testMode: true };
+/** What the app needs to know to offer test UPI deposits to this player. */
+export async function upiDepositStatus(userId: string) {
+  const base = { gateway: PROVIDER, gatewayName: "StockPay UPI", testMode: true };
   if (rawKey().startsWith("sk_live_")) {
-    return { ...base, enabled: false, testMode: false, reason: "Live card payments are switched off. Use a StockPay test key (sk_test_...)." };
+    return { ...base, enabled: false, testMode: false, reason: "Live UPI payments are switched off. Use a StockPay test key (sk_test_...)." };
   }
-  if (!testKey()) return { ...base, enabled: false, gateway: null, gatewayName: null, testMode: false, reason: "Card payments are not set up yet." };
+  if (!testKey()) return { ...base, enabled: false, gateway: null, gatewayName: null, testMode: false, reason: "UPI test payments are not set up yet." };
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
   const phone = (user.phone ?? "").replace(/\D/g, "").slice(-10);
   if (!testPhones().includes(phone)) {
-    return { ...base, enabled: false, reason: `Card payments are in test mode. This account's number (…${phone.slice(-4) || "none"}) is not in STOCKPAY_TEST_PHONES.` };
+    return { ...base, enabled: false, reason: `UPI payments are in test mode. This account's number (…${phone.slice(-4) || "none"}) is not in STOCKPAY_TEST_PHONES.` };
   }
-  return { ...base, enabled: true, reason: null, min: MIN_CARD_DEPOSIT, max: MAX_CARD_DEPOSIT, currency: CURRENCY.toLowerCase() };
+  return { ...base, enabled: true, reason: null, min: MIN_UPI_DEPOSIT, max: MAX_UPI_DEPOSIT, currency: CURRENCY.toLowerCase() };
 }
 
-/** Opens a StockPay payment page for `amount` (GBP) and records the PENDING deposit. */
-export async function createCardCheckout(userId: string, amount: number, returnBase: string) {
-  const status = await cardDepositStatus(userId);
-  if (!status.enabled) throw new ApiError(403, status.reason ?? "Card payments are not available.");
-  if (amount < MIN_CARD_DEPOSIT || amount > MAX_CARD_DEPOSIT) throw new ApiError(400, `Deposit must be between ${MIN_CARD_DEPOSIT} and ${MAX_CARD_DEPOSIT}.`);
+/** Opens a StockPay UPI payment page for `amount` (INR) and records the PENDING deposit. */
+export async function createUpiCheckout(userId: string, amount: number, returnBase: string) {
+  const status = await upiDepositStatus(userId);
+  if (!status.enabled) throw new ApiError(403, status.reason ?? "UPI payments are not available.");
+  if (amount < MIN_UPI_DEPOSIT || amount > MAX_UPI_DEPOSIT) throw new ApiError(400, `Deposit must be between ₹${MIN_UPI_DEPOSIT} and ₹${MAX_UPI_DEPOSIT}.`);
 
   const order = await call<StockpayOrder>("POST", "/orders", {
     amount: amount.toFixed(2),
@@ -109,7 +106,7 @@ export async function createCardCheckout(userId: string, amount: number, returnB
     reference: `np-${userId.slice(0, 8)}-${Date.now()}`,
     note: "NovaPlay wallet deposit",
     // StockPay adds ?order_id=…&reference=…&status=… itself, so no query here.
-    return_url: `${returnBase}/wallet/card/return`,
+    return_url: `${returnBase}/wallet/upi/return`,
   });
   if (!order.id || !order.payment_url) throw new ApiError(502, "The payment service did not return a payment page.");
 
@@ -119,7 +116,7 @@ export async function createCardCheckout(userId: string, amount: number, returnB
   return { sessionId: order.id, url: order.payment_url, gateway: PROVIDER };
 }
 
-/** Looks one PENDING deposit up with StockPay: paid -> credited (exactly once), expired/cancelled -> FAILED, else left PENDING. */
+/** Looks one PENDING UPI deposit up with StockPay: paid -> credited (exactly once), expired/cancelled -> FAILED, else left PENDING. */
 async function settle(tx: { id: string; userId: string; amount: unknown; providerReferenceId: string | null }) {
   const amount = Number(tx.amount);
   const order = await call<StockpayOrder>("GET", `/orders/${encodeURIComponent(tx.providerReferenceId!)}`);
@@ -148,7 +145,7 @@ async function settle(tx: { id: string; userId: string; amount: unknown; provide
  * COMPLETED (alreadyCredited) when asked for by `sessionId`, so the app can
  * still say the deposit arrived.
  */
-export async function confirmCardDeposits(userId: string, sessionId?: string) {
+export async function confirmUpiDeposits(userId: string, sessionId?: string) {
   if (!testKey()) return { results: [] };
   const rows = await prisma.transaction.findMany({
     where: {

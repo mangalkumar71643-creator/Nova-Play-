@@ -881,7 +881,7 @@ export function fetchFortuneSixHistory(limit = 30) {
   return apiFetch<FortuneSixBetRow[]>(`/fortune-six/my-history?limit=${limit}`);
 }
 
-export interface CardDepositStatus {
+export interface UpiDepositStatus {
   enabled: boolean;
   testMode: boolean;
   gateway: 'stockpay' | null;
@@ -891,21 +891,21 @@ export interface CardDepositStatus {
   max?: number;
   currency?: string;
 }
-export interface CardDepositResult {
+export interface UpiDepositResult {
   status: 'COMPLETED' | 'FAILED' | 'PENDING';
   amount: number;
   bonus: number;
   alreadyCredited: boolean;
 }
-export function fetchCardDepositStatus() {
-  return apiFetch<CardDepositStatus>('/wallet/card/status');
+export function fetchUpiDepositStatus() {
+  return apiFetch<UpiDepositStatus>('/wallet/upi/status');
 }
-export function startCardCheckout(amount: number) {
-  return apiFetch<{ sessionId: string; url: string }>('/wallet/card/checkout', { method: 'POST', body: JSON.stringify({ amount }) });
+export function startUpiCheckout(amount: number) {
+  return apiFetch<{ sessionId: string; url: string }>('/wallet/upi/checkout', { method: 'POST', body: JSON.stringify({ amount }) });
 }
-/** Settles this player's open card payments (or just `sessionId`) with Stripe. */
-export function confirmCardDeposits(sessionId?: string) {
-  return apiFetch<{ results: CardDepositResult[] }>('/wallet/card/confirm', { method: 'POST', body: JSON.stringify(sessionId ? { sessionId } : {}) });
+/** Settles this player's open UPI payments (or just `sessionId`) with StockPay. */
+export function confirmUpiDeposits(sessionId?: string) {
+  return apiFetch<{ results: UpiDepositResult[] }>('/wallet/upi/confirm', { method: 'POST', body: JSON.stringify(sessionId ? { sessionId } : {}) });
 }
 
 export interface MinesConfig {

@@ -256,7 +256,7 @@ model Wallet {
   userId   String  @unique
   user     User    @relation(fields: [userId], references: [id])
   balance  Decimal @default(0) @db.Decimal(12, 2)
-  currency String  @default("GBP")
+  currency String  @default("INR")
 
   // Bonus funds already added to `balance` (so they're immediately
   // playable) but not yet withdrawable until `wageringProgress` reaches

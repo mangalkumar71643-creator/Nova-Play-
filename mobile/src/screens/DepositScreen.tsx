@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import ScreenContainer from '../components/ScreenContainer';
 import { ApiClientError } from '../api/client';
-import { CardDepositStatus, confirmCardDeposits, fetchCardDepositStatus, startCardCheckout } from '../api/backend';
+import { UpiDepositStatus, confirmUpiDeposits, fetchUpiDepositStatus, startUpiCheckout } from '../api/backend';
 import { RootStackParamList } from '../navigation/types';
 import { KYC_REQUIRED, useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
@@ -35,14 +35,14 @@ export default function DepositScreen() {
   const { backendUser } = useAuth();
   const [amountText, setAmountText] = useState(String(QUICK_AMOUNTS[1]));
   const [busy, setBusy] = useState(false);
-  const [card, setCard] = useState<CardDepositStatus | null>(null);
-  // The StockPay payment page opened from here; checked when the app comes back.
+  const [upi, setUpi] = useState<UpiDepositStatus | null>(null);
+  // The StockPay UPI payment page opened from here; checked when the app comes back.
   const pendingSession = useRef<string | null>(null);
 
-  const reportCardResults = useCallback(
+  const reportUpiResults = useCallback(
     async (sessionId?: string, quiet = false) => {
       try {
-        const { results } = await confirmCardDeposits(sessionId);
+        const { results } = await confirmUpiDeposits(sessionId);
         // The webhook may have credited it already (alreadyCredited): when
         // this is the payment the player just made, still say it arrived.
         const done = results.filter((r) => r.status === 'COMPLETED' && (sessionId ? true : !r.alreadyCredited));
@@ -67,17 +67,17 @@ export default function DepositScreen() {
   );
 
   useEffect(() => {
-    fetchCardDepositStatus().then(setCard).catch(() => setCard(null));
-    // Settle any card payment left open last time (e.g. the app was closed while paying).
-    reportCardResults(undefined, true);
+    fetchUpiDepositStatus().then(setUpi).catch(() => setUpi(null));
+    // Settle any UPI payment left open last time (e.g. the app was closed while paying).
+    reportUpiResults(undefined, true);
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active' || !pendingSession.current) return;
       const sessionId = pendingSession.current;
       pendingSession.current = null;
-      reportCardResults(sessionId);
+      reportUpiResults(sessionId);
     });
     return () => sub.remove();
-  }, [reportCardResults]);
+  }, [reportUpiResults]);
 
   const kycApproved = !KYC_REQUIRED || backendUser?.kycStatus === 'APPROVED';
   const amount = Number(amountText);
@@ -92,19 +92,19 @@ export default function DepositScreen() {
     if (!isValidAmount) return;
     // A payment company is set up but not open to this account: say why,
     // rather than falling through to the old (closed) deposit.
-    if (card && !card.enabled && card.gateway) {
-      Alert.alert('Card payment not available', card.reason ?? 'Please try again later.');
+    if (upi && !upi.enabled && upi.gateway) {
+      Alert.alert('UPI payment not available', upi.reason ?? 'Please try again later.');
       return;
     }
     setBusy(true);
-    if (card?.enabled) {
+    if (upi?.enabled) {
       try {
-        const { sessionId, url } = await startCardCheckout(amount);
+        const { sessionId, url } = await startUpiCheckout(amount);
         pendingSession.current = sessionId;
         await Linking.openURL(url);
       } catch (err) {
         pendingSession.current = null;
-        Alert.alert('Payment failed', err instanceof ApiClientError ? err.message : 'Please try again.');
+        Alert.alert('UPI payment failed', err instanceof ApiClientError ? err.message : 'Please try again.');
       } finally {
         setBusy(false);
       }
@@ -258,9 +258,9 @@ export default function DepositScreen() {
       </ScrollView>
 
       <View style={styles.payBar}>
-        {card?.enabled ? (
+        {upi?.enabled ? (
           <Text style={{ color: colors.gold, textAlign: 'center', fontSize: 12, marginBottom: 6 }}>
-            Pay with {card.gatewayName}{card.testMode ? ' · TEST MODE (no real money)' : ''}
+            Pay with {upi.gatewayName}{upi.testMode ? ' · TEST MODE (no real money)' : ''}
           </Text>
         ) : null}
         <Pressable

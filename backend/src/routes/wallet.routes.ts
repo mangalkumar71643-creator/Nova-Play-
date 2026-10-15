@@ -7,7 +7,7 @@ import { prisma } from "../db/prismaClient";
 import { paymentProvider } from "../services/paymentService";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
 import { completeDeposit } from "../services/depositService";
-import { cardDepositStatus, confirmCardDeposits, createCardCheckout } from "../services/stockpayService";
+import { confirmUpiDeposits, createUpiCheckout, upiDepositStatus } from "../services/stockpayService";
 import { env } from "../config/env";
 
 const router = Router();
@@ -105,46 +105,47 @@ router.post(
   })
 );
 
-// --- Card deposits through StockPay's hosted checkout (see stockpayService.ts) ---
+// --- INR UPI test deposits through StockPay's hosted checkout ---
 
 router.get(
-  "/card/status",
+  "/upi/status",
   requireAuth,
   asyncHandler(async (req, res) => {
-    res.json(await cardDepositStatus(req.user!.userId));
+    res.json(await upiDepositStatus(req.user!.userId));
   })
 );
 
 router.post(
-  "/card/checkout",
+  "/upi/checkout",
   requireAuth,
   asyncHandler(async (req, res) => {
     const { amount } = amountSchema.parse(req.body);
     const userId = req.user!.userId;
     await assertCanTransact(userId);
     await assertWithinDepositLimits(userId, amount);
-    // StockPay sends the player back here (https on Vercel, behind its proxy).
+    // Preserve the API artifact prefix when StockPay sends the player back.
     const proto = req.get("x-forwarded-proto") ?? req.protocol;
-    res.json(await createCardCheckout(userId, amount, `${proto}://${req.get("host")}`));
+    const apiPrefix = req.originalUrl.startsWith("/api/") ? "/api" : "";
+    res.json(await createUpiCheckout(userId, amount, `${proto}://${req.get("host")}${apiPrefix}`));
   })
 );
 
 const confirmSchema = z.object({ sessionId: z.string().min(1).max(200).optional() });
 router.post(
-  "/card/confirm",
+  "/upi/confirm",
   requireAuth,
   asyncHandler(async (req, res) => {
     const { sessionId } = confirmSchema.parse(req.body ?? {});
     const userId = req.user!.userId;
-    const { results } = await confirmCardDeposits(userId, sessionId);
+    const { results } = await confirmUpiDeposits(userId, sessionId);
     res.json({ results, wallet: await buildWalletView(userId) });
   })
 );
 
-/** Where StockPay's page sends the player afterwards (it adds ?order_id=…&status=…): a plain "go back to the app" page. */
-router.get("/card/return", (req, res) => {
+/** Where StockPay's UPI page sends the player after checkout. */
+router.get("/upi/return", (req, res) => {
   const paid = req.query.status === "paid";
-  const title = paid ? "Payment received" : "Back to NovaPlay";
+  const title = paid ? "UPI payment received" : "Back to NovaPlay";
   const text = paid
     ? "Go back to the NovaPlay app — your balance updates in a few seconds."
     : "Go back to the NovaPlay app. If you paid, your balance updates as soon as the payment is confirmed; otherwise no money was taken.";

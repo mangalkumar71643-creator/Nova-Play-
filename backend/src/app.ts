@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { resolve } from "node:path";
 import { asyncHandler, errorHandler } from "./middleware/errorHandler";
 
 import authRoutes from "./routes/auth.routes";
@@ -76,6 +77,15 @@ export const app = express();
 
 app.use(cors());
 
+// The Replit API artifact is exposed under /api; strip that proxy prefix so
+// the same backend routes also work at the root on other hosts.
+app.use((req, _res, next) => {
+  if (req.path === "/api" || req.path.startsWith("/api/")) {
+    req.url = req.url.slice(4) || "/";
+  }
+  next();
+});
+
 // StockPay's signed webhook needs the body exactly as sent, so it is read
 // raw here, before the JSON parser below.
 app.post(
@@ -88,6 +98,7 @@ app.post(
 
 // Room for popup images uploaded from the admin panel (base64, already shrunk by the panel).
 app.use(express.json({ limit: "4mb" }));
+app.use(express.static(resolve(__dirname, "../public")));
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
