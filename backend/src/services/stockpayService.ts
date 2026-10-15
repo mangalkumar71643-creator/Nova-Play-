@@ -22,7 +22,7 @@ import { completeDeposit } from "./depositService";
  * and credits the wallet — once.
  *
  * Settings (Vercel -> Settings -> Environment Variables):
- *   STOCKPAY_KEY             StockPay secret TEST key (sk_test_...)
+ *   STOCKPAY_KEY             StockPay secret TEST key (sk_test_...); STOCK_KEY is read too
  *   STOCKPAY_TEST_PHONES     phone numbers allowed to deposit in test mode, comma separated
  *   STOCKPAY_WEBHOOK_SECRET  webhook secret from StockPay admin -> API Keys
  *
@@ -41,10 +41,12 @@ const BASE = "https://stockpay-in.vercel.app/api/v1";
 const CURRENCY = "INR";
 export const PROVIDER = "stockpay";
 export const MIN_UPI_DEPOSIT = 100;
-// StockPay's own per-order maximum.
-export const MAX_UPI_DEPOSIT = 99999;
+// Test mode: kept well under StockPay's own ₹99,999 per-order maximum.
+export const MAX_UPI_DEPOSIT = 5000;
+// StockPay: an expired order can still turn paid within 24 h (late payment).
+const LATE_PAYMENT_WINDOW_MS = 25 * 3600 * 1000;
 
-const rawKey = () => (process.env.STOCKPAY_KEY ?? "").trim();
+const rawKey = () => (process.env.STOCKPAY_KEY || process.env.STOCK_KEY || "").trim();
 const testKey = () => (rawKey().startsWith("sk_test_") ? rawKey() : "");
 
 function testPhones(): string[] {
@@ -59,6 +61,8 @@ type StockpayOrder = {
   reference?: string;
   status: "pending" | "paid" | "expired" | "cancelled" | string;
   amount?: string;
+  // Live mode adds up to ₹0.99 so each payment can be told apart; the payer pays this.
+  amount_payable?: string;
   amount_paid: string | null;
   currency: string;
   utr?: string | null;
@@ -115,7 +119,9 @@ export async function createUpiCheckout(userId: string, amount: number, returnBa
   const order = await call<StockpayOrder>("POST", "/orders", {
     amount: amount.toFixed(2),
     currency: CURRENCY,
-    reference: `np-${userId.slice(0, 8)}-${Date.now()}`,
+    // StockPay returns the existing order for a reference it has seen, so
+    // two checkouts in the same millisecond must not share one.
+    reference: `np-${userId.slice(0, 8)}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`,
     note: "NovaPlay wallet deposit",
     // Lets StockPay pre-fill the payer's details on the UPI payment page.
     customer: user.phone ? { phone: user.phone } : undefined,
@@ -124,23 +130,43 @@ export async function createUpiCheckout(userId: string, amount: number, returnBa
   });
   if (!order.id || !order.payment_url) throw new ApiError(502, "The payment service did not return a payment page.");
 
-  await prisma.transaction.create({
-    data: { userId, type: "DEPOSIT", amount, status: "PENDING", provider: PROVIDER, providerReferenceId: order.id },
-  });
+  // One StockPay order = one deposit row (also enforced by a unique index,
+  // see prisma/seed.ts), so a paid order can only ever be credited once.
+  const existing = await prisma.transaction.findFirst({ where: { provider: PROVIDER, type: "DEPOSIT", providerReferenceId: order.id } });
+  if (!existing) {
+    try {
+      await prisma.transaction.create({
+        data: { userId, type: "DEPOSIT", amount, status: "PENDING", provider: PROVIDER, providerReferenceId: order.id },
+      });
+    } catch (err) {
+      if ((err as { code?: string }).code !== "P2002") throw err;
+    }
+  } else if (existing.userId !== userId) {
+    throw new ApiError(409, "This payment page belongs to another account. Please try again.");
+  }
   return { sessionId: order.id, url: order.payment_url, gateway: PROVIDER };
 }
 
-/** Looks one PENDING deposit up with StockPay: paid -> credited (exactly once), expired/cancelled -> FAILED, else left PENDING. */
-async function settle(tx: { id: string; userId: string; amount: unknown; providerReferenceId: string | null }) {
+/**
+ * Looks one open deposit up with StockPay: paid -> credited (exactly once),
+ * expired/cancelled -> FAILED, else left PENDING. A FAILED row can still be
+ * credited if StockPay later reports the order paid (a late payment).
+ */
+async function settle(tx: { id: string; userId: string; amount: unknown; status?: string; providerReferenceId: string | null }) {
   const amount = Number(tx.amount);
   const order = await call<StockpayOrder>("GET", `/orders/${encodeURIComponent(tx.providerReferenceId!)}`);
   // Test keys only: an order that isn't a test order is never credited here.
   if (order.test !== true) throw new ApiError(400, "Only StockPay test payments are accepted.");
 
   if (order.status === "paid") {
+    // The order must be for this deposit's amount; what was paid may carry
+    // StockPay's identifying paise on top (amount_payable, under ₹1 extra).
+    // The wallet is credited the deposit's amount.
+    const wantMinor = Math.round(amount * 100);
+    const orderMinor = order.amount != null ? Math.round(Number(order.amount) * 100) : wantMinor;
     const paidMinor = Math.round(Number(order.amount_paid) * 100);
-    if (paidMinor !== Math.round(amount * 100) || (order.currency ?? "").toUpperCase() !== CURRENCY) {
-      console.error(`[stockpay] amount mismatch on ${order.id}: ${order.amount_paid} ${order.currency} vs ${amount} ${CURRENCY}`);
+    if (orderMinor !== wantMinor || !(paidMinor >= wantMinor && paidMinor < wantMinor + 100) || (order.currency ?? "").toUpperCase() !== CURRENCY) {
+      console.error(`[stockpay] amount mismatch on ${order.id}: order ${order.amount}, paid ${order.amount_paid} ${order.currency} vs ${amount} ${CURRENCY}`);
       throw new ApiError(400, "The paid amount does not match this deposit. Please contact support.");
     }
     const done = await completeDeposit(tx.userId, amount, PROVIDER, order.id, tx.id);
@@ -150,7 +176,28 @@ async function settle(tx: { id: string; userId: string; amount: unknown; provide
     await prisma.transaction.updateMany({ where: { id: tx.id, status: "PENDING" }, data: { status: "FAILED" } });
     return { status: "FAILED" as const, amount, bonus: 0, alreadyCredited: false };
   }
+  if (tx.status === "FAILED") return { status: "FAILED" as const, amount, bonus: 0, alreadyCredited: false };
   return { status: "PENDING" as const, amount, bonus: 0, alreadyCredited: false };
+}
+
+/** Open rows worth asking StockPay about: PENDING ones, and FAILED ones young enough for a late payment. */
+async function openRows(where: { userId?: string }, takePending: number, takeFailed: number) {
+  const base = { ...where, type: "DEPOSIT" as const, provider: PROVIDER };
+  const [pending, failed] = await Promise.all([
+    // A payment page lives 15 minutes by default, so an open row is settled
+    // the first time anyone looks; the window only bounds the work.
+    prisma.transaction.findMany({
+      where: { ...base, status: "PENDING", createdAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) } },
+      orderBy: { createdAt: "desc" },
+      take: takePending,
+    }),
+    prisma.transaction.findMany({
+      where: { ...base, status: "FAILED", createdAt: { gte: new Date(Date.now() - LATE_PAYMENT_WINDOW_MS) } },
+      orderBy: { createdAt: "desc" },
+      take: takeFailed,
+    }),
+  ]);
+  return [...pending, ...failed];
 }
 
 /**
@@ -161,25 +208,18 @@ async function settle(tx: { id: string; userId: string; amount: unknown; provide
  */
 export async function confirmUpiDeposits(userId: string, sessionId?: string) {
   if (!testKey()) return { results: [] };
-  const rows = await prisma.transaction.findMany({
-    where: {
-      userId,
-      type: "DEPOSIT",
-      provider: PROVIDER,
-      // A payment page lives 30 minutes, so an open row is settled the first
-      // time anyone looks; the window only bounds the work per request.
-      ...(sessionId
-        ? { providerReferenceId: sessionId, status: { in: ["PENDING", "COMPLETED"] } }
-        : { status: "PENDING", createdAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) } }),
-    },
-    orderBy: { createdAt: "desc" },
-    // One payment page = one deposit row.
-    take: sessionId ? 1 : 10,
-  });
+  const rows = sessionId
+    ? // One payment page = one deposit row.
+      await prisma.transaction.findMany({ where: { userId, type: "DEPOSIT", provider: PROVIDER, providerReferenceId: sessionId }, take: 1 })
+    : await openRows({ userId }, 10, 3);
   const results = [];
   for (const tx of rows) {
     if (tx.status === "COMPLETED") {
       results.push({ status: "COMPLETED" as const, amount: Number(tx.amount), bonus: 0, alreadyCredited: true });
+      continue;
+    }
+    if (tx.status === "FAILED" && Date.now() - tx.createdAt.getTime() >= LATE_PAYMENT_WINDOW_MS) {
+      results.push({ status: "FAILED" as const, amount: Number(tx.amount), bonus: 0, alreadyCredited: false });
       continue;
     }
     try {
@@ -228,8 +268,9 @@ export async function handleWebhook(rawBody: Buffer, headers: Record<string, str
   }
 
   if (event.event !== "order.paid") return { ignored: true };
+  // FAILED too: an order that expired can still be paid late.
   const tx = await prisma.transaction.findFirst({
-    where: { provider: PROVIDER, providerReferenceId: orderId, type: "DEPOSIT", status: "PENDING" },
+    where: { provider: PROVIDER, providerReferenceId: orderId, type: "DEPOSIT", status: { in: ["PENDING", "FAILED"] } },
     orderBy: { createdAt: "desc" },
   });
   if (!tx) return { ignored: true };
@@ -249,17 +290,8 @@ export async function sweepStaleUpiDeposits(force = false) {
   if (!testKey()) return;
   if (!force && Date.now() - lastSweepAt < 60_000) return;
   lastSweepAt = Date.now();
-  const rows = await prisma.transaction.findMany({
-    where: {
-      type: "DEPOSIT",
-      provider: PROVIDER,
-      status: "PENDING",
-      // Give a brand-new payment page a few minutes before poking StockPay.
-      createdAt: { lt: new Date(Date.now() - 5 * 60_000), gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
+  // Give a brand-new payment page a few minutes before poking StockPay.
+  const rows = (await openRows({}, 20, 10)).filter((tx) => Date.now() - tx.createdAt.getTime() > 5 * 60_000);
   for (const tx of rows) {
     try {
       await settle(tx);

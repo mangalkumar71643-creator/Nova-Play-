@@ -9,10 +9,11 @@ import { env } from "../config/env";
  * marks the money as unplayed (database trigger, see prisma/seed.ts) so it
  * must be played before it can be withdrawn.
  *
- * With `pendingTransactionId` (a card deposit recorded as PENDING when its
- * payment page was opened), that row is claimed PENDING -> COMPLETED instead
- * of a new row being written; if it was already claimed, nothing is credited
- * again (alreadyCompleted).
+ * With `pendingTransactionId` (a UPI deposit recorded as PENDING when its
+ * payment page was opened), that row is claimed -> COMPLETED instead of a new
+ * row being written; if it was already claimed, nothing is credited again
+ * (alreadyCompleted). A FAILED row is claimable too: the caller has just
+ * confirmed with the payment company that it was paid (a late payment).
  */
 export async function completeDeposit(userId: string, amount: number, provider: string, providerReferenceId: string | null, pendingTransactionId?: string) {
   return prisma.$transaction(async (tx) => {
@@ -31,7 +32,7 @@ export async function completeDeposit(userId: string, amount: number, provider: 
 
     let depositId: string;
     if (pendingTransactionId) {
-      const claimed = await tx.transaction.updateMany({ where: { id: pendingTransactionId, userId, status: "PENDING" }, data: { status: "COMPLETED" } });
+      const claimed = await tx.transaction.updateMany({ where: { id: pendingTransactionId, userId, status: { in: ["PENDING", "FAILED"] } }, data: { status: "COMPLETED" } });
       if (claimed.count === 0) return { depositId: pendingTransactionId, bonus: 0, alreadyCompleted: true };
       depositId = pendingTransactionId;
     } else {

@@ -31,7 +31,9 @@ export async function assertWithinDepositLimits(userId: string, amount: number) 
       where: {
         userId,
         type: "DEPOSIT",
-        status: "COMPLETED",
+        // PENDING too: open UPI payment pages, so several can't be opened
+        // under the limit and then all paid.
+        status: { in: ["COMPLETED", "PENDING"] },
         createdAt: { gte: check.windowStart },
       },
       _sum: { amount: true },

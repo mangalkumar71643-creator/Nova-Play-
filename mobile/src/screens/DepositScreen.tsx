@@ -15,8 +15,8 @@ import { colors, gradients, radius, spacing, typography } from '../theme';
 
 const CARD_TEXT_COLOR = '#5C3A0E';
 const MIN_DEPOSIT = 100;
-// Matches the backend's MAX_UPI_DEPOSIT (StockPay's per-order maximum).
-const MAX_DEPOSIT = 99999;
+// Matches the backend's MAX_UPI_DEPOSIT (test mode).
+const MAX_DEPOSIT = 5000;
 const QUICK_AMOUNTS = [100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
 // Mirrors backend/src/config/env.ts's `wallet.firstDepositBonusPercent` /

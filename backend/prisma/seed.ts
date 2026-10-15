@@ -66,6 +66,24 @@ async function main() {
   await seedDepositBonusPopup();
   await ensureUnplayedDepositTrigger();
   await ensureManualReferenceIndex();
+  await ensureStockpayOrderIndex();
+}
+
+/**
+ * One StockPay order = one deposit row, so a paid order can never be
+ * credited twice (see stockpayService.ts createUpiCheckout). Logged, not
+ * fatal, if old duplicate rows stop it being built.
+ */
+async function ensureStockpayOrderIndex() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS novaplay_stockpay_order
+      ON "Transaction" ("providerReferenceId")
+      WHERE provider = 'stockpay' AND type = 'DEPOSIT';
+    `);
+  } catch (err) {
+    console.error("Could not create the StockPay order index (duplicate rows?):", err);
+  }
 }
 
 /**

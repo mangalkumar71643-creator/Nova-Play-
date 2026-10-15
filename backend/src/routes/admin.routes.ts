@@ -663,7 +663,18 @@ router.get(
       },
       take: 200,
     });
-    res.json(withdrawals);
+    // Players who have StockPay TEST deposits ("Simulate successful payment"
+    // = play money): flagged so the panel warns before real money is paid out.
+    const testUsers = new Set(
+      (
+        await prisma.transaction.findMany({
+          where: { userId: { in: [...new Set(withdrawals.map((w) => w.userId))] }, provider: STOCKPAY_PROVIDER, type: "DEPOSIT", status: "COMPLETED" },
+          distinct: ["userId"],
+          select: { userId: true },
+        })
+      ).map((r) => r.userId)
+    );
+    res.json(withdrawals.map((w) => ({ ...w, testMoney: testUsers.has(w.userId) })));
   })
 );
 

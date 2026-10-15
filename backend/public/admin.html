@@ -1242,6 +1242,7 @@
             '<div class="item-title">' + fmtMoney(w.amount) + ' — ' + escapeHtml(name) + '</div>' +
             '<div class="item-meta">' + escapeHtml(contact) + ' · ' + new Date(w.createdAt).toLocaleString() + '</div>' +
             '<div class="item-meta">' + bank + '</div>' +
+            (w.testMoney ? '<div class="item-meta" style="color:#ff5c5c;font-weight:700;">⚠ This player has StockPay TEST deposits (play money). Do not pay real money for it.</div>' : '') +
           '</div>' +
           '<span class="pill ' + statusClass + '">' + w.status + '</span>' +
         '</div>' +
