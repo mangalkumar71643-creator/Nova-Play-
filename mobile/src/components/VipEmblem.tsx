@@ -1,4 +1,5 @@
 import React from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 import Svg, {
   Circle,
   Defs,
@@ -10,7 +11,6 @@ import Svg, {
   RadialGradient,
   Rect,
   Stop,
-  Text as SvgText,
 } from 'react-native-svg';
 
 /**
@@ -309,11 +309,25 @@ export function VipStage({ width, height }: { width: number; height: number }) {
 }
 
 /**
- * The curved level track across the top: five stops around the level in
- * focus, gold up to the player's own level.
+ * The curved level track across the top. The level dots ride along the curve
+ * with the carousel (driven by its scroll position), the one in the middle
+ * being the level in focus. Gold runs from the left edge to the middle, and
+ * a dot is filled gold once the player has reached that level.
  */
-export function VipArc({ width, focused, playerLevel, maxLevel }: { width: number; focused: number; playerLevel: number; maxLevel: number }) {
-  const h = 74;
+export function VipArc({
+  width,
+  scrollX,
+  itemWidth,
+  levels,
+  playerLevel,
+}: {
+  width: number;
+  scrollX: Animated.Value;
+  itemWidth: number;
+  levels: number[];
+  playerLevel: number;
+}) {
+  const h = 78;
   const p0 = { x: -10, y: 56 };
   const p1 = { x: width / 2, y: -8 };
   const p2 = { x: width + 10, y: 56 };
@@ -321,42 +335,53 @@ export function VipArc({ width, focused, playerLevel, maxLevel }: { width: numbe
     x: (1 - t) ** 2 * p0.x + 2 * (1 - t) * t * p1.x + t ** 2 * p2.x,
     y: (1 - t) ** 2 * p0.y + 2 * (1 - t) * t * p1.y + t ** 2 * p2.y,
   });
-  const ts = [0.1, 0.3, 0.5, 0.7, 0.9];
-  // Gold runs from the left edge to the player's level (or across, if past view).
-  const offset = playerLevel - focused;
-  const tGold = offset < -2 ? 0 : offset > 2 ? 1 : ts[offset + 2];
-  const q1 = { x: p0.x + tGold * (p1.x - p0.x), y: p0.y + tGold * (p1.y - p0.y) };
-  const end = at(tGold);
+  const center = at(0.5);
+  const goldCtrl = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+  const STEP = 0.2; // share of the curve between neighbouring levels
+  const DOT_BOX = 44;
+
+  // Scroll positions sampled every half item, so dots follow the curve closely.
+  const inputRange: number[] = [];
+  for (let k = 0; k <= levels.length - 1; k += 0.5) inputRange.push(k * itemWidth);
 
   return (
-    <Svg width={width} height={h}>
-      <Path d={`M${p0.x} ${p0.y} Q${p1.x} ${p1.y} ${p2.x} ${p2.y}`} stroke="#12030A" strokeWidth={4} fill="none" />
-      <Path d={`M${p0.x} ${p0.y} Q${p1.x} ${p1.y} ${p2.x} ${p2.y}`} stroke="#FF8A99" strokeOpacity={0.18} strokeWidth={1} fill="none" />
-      {tGold > 0 ? <Path d={`M${p0.x} ${p0.y} Q${q1.x} ${q1.y} ${end.x} ${end.y}`} stroke="#F0B93D" strokeWidth={3} fill="none" /> : null}
-      {ts.map((t, i) => {
-        const lvl = focused - 2 + i;
-        if (lvl < 0 || lvl > maxLevel) return null;
-        const p = at(t);
-        const isFocus = lvl === focused;
+    <View style={{ width, height: h }}>
+      <Svg width={width} height={h} style={StyleSheet.absoluteFill}>
+        <Path d={`M${p0.x} ${p0.y} Q${p1.x} ${p1.y} ${p2.x} ${p2.y}`} stroke="#12030A" strokeWidth={4} fill="none" />
+        <Path d={`M${p0.x} ${p0.y} Q${p1.x} ${p1.y} ${p2.x} ${p2.y}`} stroke="#FF8A99" strokeOpacity={0.18} strokeWidth={1} fill="none" />
+        <Path d={`M${p0.x} ${p0.y} Q${goldCtrl.x} ${goldCtrl.y} ${center.x} ${center.y}`} stroke="#F0B93D" strokeOpacity={0.35} strokeWidth={8} fill="none" />
+        <Path d={`M${p0.x} ${p0.y} Q${goldCtrl.x} ${goldCtrl.y} ${center.x} ${center.y}`} stroke="#F0B93D" strokeWidth={3} fill="none" />
+        <Circle cx={center.x} cy={center.y} r={14} fill="#F0B93D" opacity={0.2} />
+        <Circle cx={center.x} cy={center.y} r={9} fill="#2A070D" stroke="#F0B93D" strokeWidth={2.5} />
+      </Svg>
+      {levels.map((lvl, i) => {
+        const points = inputRange.map((x) => at(Math.max(-0.15, Math.min(1.15, 0.5 + (i - x / itemWidth) * STEP))));
+        const translateX = scrollX.interpolate({ inputRange, outputRange: points.map((p) => p.x - DOT_BOX / 2), extrapolate: 'clamp' });
+        const translateY = scrollX.interpolate({ inputRange, outputRange: points.map((p) => p.y - 6), extrapolate: 'clamp' });
+        const opacity = scrollX.interpolate({
+          inputRange,
+          outputRange: inputRange.map((x) => (Math.abs(i - x / itemWidth) > 2.6 ? 0 : 1)),
+          extrapolate: 'clamp',
+        });
+        const focus = [(i - 1) * itemWidth, i * itemWidth, (i + 1) * itemWidth];
+        const labelScale = scrollX.interpolate({ inputRange: focus, outputRange: [1, 1.25, 1], extrapolate: 'clamp' });
         const reached = lvl <= playerLevel;
         return (
-          <G key={lvl}>
-            {isFocus ? <Circle cx={p.x} cy={p.y} r={13} fill="#F0B93D" opacity={0.18} /> : null}
-            {isFocus ? <Circle cx={p.x} cy={p.y} r={8} fill="#2A070D" stroke="#F0B93D" strokeWidth={2.5} /> : null}
-            <Circle cx={p.x} cy={p.y} r={isFocus ? 4 : 5} fill={reached ? '#F0B93D' : '#2A070D'} stroke={reached ? '#FFDE8C' : '#5A1A26'} strokeWidth={1} />
-            <SvgText
-              x={p.x}
-              y={p.y + (isFocus ? 26 : 22)}
-              fontSize={isFocus ? 15 : 13}
-              fontWeight="700"
-              fill={isFocus ? '#FF8A99' : '#9E5A66'}
-              textAnchor="middle"
-            >
-              {`V${lvl}`}
-            </SvgText>
-          </G>
+          <Animated.View key={lvl} pointerEvents="none" style={[arcStyles.dotBox, { opacity, transform: [{ translateX }, { translateY }] }]}>
+            <View style={[arcStyles.dot, reached ? arcStyles.dotReached : arcStyles.dotOpen]} />
+            <Animated.Text style={[arcStyles.label, reached && arcStyles.labelReached, { transform: [{ scale: labelScale }] }]}>V{lvl}</Animated.Text>
+          </Animated.View>
         );
       })}
-    </Svg>
+    </View>
   );
 }
+
+const arcStyles = StyleSheet.create({
+  dotBox: { position: 'absolute', left: 0, top: 0, width: 44, alignItems: 'center' },
+  dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.5 },
+  dotReached: { backgroundColor: '#F0B93D', borderColor: '#FFDE8C' },
+  dotOpen: { backgroundColor: '#2A070D', borderColor: '#B8862A' },
+  label: { color: '#B86A78', fontSize: 13, fontWeight: '800', marginTop: 6 },
+  labelReached: { color: '#FFB3C1' },
+});

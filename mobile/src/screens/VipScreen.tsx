@@ -253,7 +253,7 @@ export default function VipScreen() {
           <View style={styles.backButton} />
         </View>
 
-        <VipArc width={screenWidth} focused={focusedLevel} playerLevel={vip.level} maxLevel={scrollLevels[scrollLevels.length - 1].level} />
+        <VipArc width={screenWidth} scrollX={scrollX} itemWidth={itemWidth} levels={scrollLevels.map((l) => l.level)} playerLevel={vip.level} />
 
         <View>
         <View pointerEvents="none" style={[styles.stage, { top: stageY - pedestalHeight * 0.1 }]}>
