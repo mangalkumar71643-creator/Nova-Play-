@@ -4,7 +4,6 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Easing,
   Image,
@@ -20,6 +19,7 @@ import {
 import { claimVipBonus, fetchVipStatus, VipStatus } from '../api/backend';
 import { ApiClientError } from '../api/client';
 import LoadingState from '../components/LoadingState';
+import VipBonusPopup, { nextMonthLabel, VipBonusResult } from '../components/VipBonusPopup';
 import { pedestalHeight as pedestalHeightFor, VipArc, VipEmblem, VipPedestal, VipRays, VipStage, vipTier } from '../components/VipEmblem';
 import ScreenContainer from '../components/ScreenContainer';
 import { AVATARS } from '../data/avatars';
@@ -34,7 +34,7 @@ const DESCRIPTION_IMAGE_ASPECT = 784 / 1168;
 
 function buildPrivileges(level: VipLevelDef): { icon: IconName; label: string; value: string }[] {
   const items: { icon: IconName; label: string; value: string }[] = [];
-  if (level.weeklyBonus) items.push({ icon: 'gift', label: 'Weekly Bonus', value: `₹${level.weeklyBonus.toLocaleString('en-IN')}` });
+  if (level.weeklyBonus) items.push({ icon: 'gift', label: 'Monthly Bonus', value: `₹${level.weeklyBonus.toLocaleString('en-IN')}` });
   if (level.upgradeBonus) items.push({ icon: 'arrow-up-bold-circle', label: 'Upgrade Bonus', value: `₹${level.upgradeBonus.toLocaleString('en-IN')}` });
   items.push({ icon: 'star-four-points', label: 'Level XP', value: level.xpRequired.toLocaleString('en-IN') });
   return items;
@@ -45,6 +45,7 @@ function BenefitRow({
   title,
   amount,
   level,
+  note,
   reached,
   claimed,
   lockedText,
@@ -54,6 +55,8 @@ function BenefitRow({
   title: string;
   amount: number;
   level: number;
+  /** Small line under the amount, e.g. how often the bonus pays. */
+  note?: string;
   reached: boolean;
   claimed: boolean;
   /** Shown instead of "Reach VIP n" when the bonus can't be taken for another reason. */
@@ -68,6 +71,7 @@ function BenefitRow({
       <View style={styles.benefitMiddle}>
         <Text style={styles.benefitTitle}>{title}</Text>
         <Text style={styles.benefitAmount}>₹{amount.toLocaleString('en-IN')}</Text>
+        {note ? <Text style={styles.benefitNote}>{note}</Text> : null}
       </View>
       {reached && !claimed ? (
         <Pressable onPress={onClaim}>
@@ -93,6 +97,7 @@ export default function VipScreen() {
   const { refreshWallet } = useGameState();
   const [vip, setVip] = useState<VipStatus | null>(null);
   const [claiming, setClaiming] = useState(false);
+  const [bonusPopup, setBonusPopup] = useState<VipBonusResult | null>(null);
   const [focusedLevel, setFocusedLevel] = useState(1);
   const [descriptionVisible, setDescriptionVisible] = useState(false);
   const [bonusHistoryVisible, setBonusHistoryVisible] = useState(false);
@@ -160,10 +165,10 @@ export default function VipScreen() {
     setClaiming(true);
     try {
       const { amount } = await claimVipBonus(kind, level);
-      Alert.alert('Bonus added', `₹${amount.toLocaleString('en-IN')} has been added to your balance. It has to be played once before it can be withdrawn.`);
+      setBonusPopup({ kind: 'success', bonus: kind === 'upgrade' ? 'upgrade' : 'monthly', level, amount, nextMonthly: vip?.nextMonthlyAt });
       refreshWallet().catch(() => {});
     } catch (err) {
-      Alert.alert('Could not claim', err instanceof ApiClientError ? err.message : 'Please try again.');
+      setBonusPopup({ kind: 'error', message: err instanceof ApiClientError ? err.message : 'Could not claim the bonus. Please try again.' });
     } finally {
       setClaiming(false);
       loadVip();
@@ -197,6 +202,11 @@ export default function VipScreen() {
   const current = levels.find((l) => l.level === focusedLevel) ?? scrollLevels[0];
   const privileges = buildPrivileges(current);
   const hasBenefits = Boolean(current.weeklyBonus || current.upgradeBonus);
+  // Only the player's own level pays; the monthly bonus once per calendar month.
+  const isOwnLevel = vip.level === current.level;
+  const otherLevelText = vip.level > current.level ? 'Your level is higher' : undefined;
+  const monthlyTaken = vip.monthlyClaimed ?? vip.weeklyClaimedLevels.includes(vip.level);
+  const nextMonthly = nextMonthLabel(vip.nextMonthlyAt);
 
   const handleMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / itemWidth);
@@ -212,7 +222,7 @@ export default function VipScreen() {
   const bonusTopHeight = bonusCardWidth * (114 / 640);
   const vipBonusHistory = vip.history.map((h) => ({
     id: `${h.kind}-${h.level}-${h.createdAt}`,
-    title: `VIP ${h.level} ${h.kind === 'upgrade' ? 'Upgrade' : 'Weekly'} Bonus`,
+    title: `VIP ${h.level} ${h.kind === 'upgrade' ? 'Upgrade' : 'Monthly'} Bonus`,
     amount: h.amount,
     timestampISO: h.createdAt,
   }));
@@ -396,20 +406,23 @@ export default function VipScreen() {
                 title="Upgrade Bonus"
                 amount={current.upgradeBonus}
                 level={current.level}
-                reached={vip.level >= current.level}
+                note="One time, at this level"
+                reached={isOwnLevel}
                 claimed={vip.claimedUpgrades.includes(current.level)}
+                lockedText={otherLevelText}
                 onClaim={() => claim('upgrade', current.level)}
               />
             ) : null}
             {current.weeklyBonus ? (
               <BenefitRow
                 icon="hand-coin"
-                title="Weekly Bonus"
+                title="Monthly Bonus"
                 amount={current.weeklyBonus}
                 level={current.level}
-                reached={vip.level === current.level}
-                claimed={vip.weeklyClaimedLevels.includes(current.level)}
-                lockedText={vip.level > current.level ? 'Your level is higher' : undefined}
+                note={isOwnLevel && monthlyTaken && nextMonthly ? `Next on ${nextMonthly}` : 'Once every month'}
+                reached={isOwnLevel}
+                claimed={isOwnLevel && monthlyTaken}
+                lockedText={otherLevelText}
                 onClaim={() => claim('weekly', current.level)}
               />
             ) : null}
@@ -525,6 +538,8 @@ export default function VipScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <VipBonusPopup result={bonusPopup} onClose={() => setBonusPopup(null)} />
     </ScreenContainer>
   );
 }
@@ -678,6 +693,7 @@ const styles = StyleSheet.create({
   benefitMiddle: { flex: 1 },
   benefitTitle: { color: colors.textSecondary, fontSize: typography.sm, fontWeight: '700' },
   benefitAmount: { color: colors.goldLight, fontSize: typography.xl, fontWeight: '900', marginTop: 2 },
+  benefitNote: { color: colors.textMuted, fontSize: typography.xs, fontWeight: '600', marginTop: 2 },
   benefitStatus: { color: colors.textMuted, fontSize: typography.sm, fontWeight: '700', maxWidth: 120, textAlign: 'right' },
   claimPill: { borderRadius: radius.pill, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm },
   claimPillText: { color: '#3A2006', fontSize: typography.md, fontWeight: '900' },

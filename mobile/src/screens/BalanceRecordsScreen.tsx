@@ -30,7 +30,7 @@ function recordLabel(r: BalanceRecord): string {
       if (r.provider === 'gift-code') return 'Gift code';
       if (r.provider === 'admin-credit') return 'Balance added';
       if (r.provider === 'vip-upgrade') return 'VIP upgrade bonus';
-      if (r.provider === 'vip-weekly') return 'VIP weekly bonus';
+      if (r.provider === 'vip-weekly') return 'VIP monthly bonus';
       return 'Bonus';
     default:
       return r.type;

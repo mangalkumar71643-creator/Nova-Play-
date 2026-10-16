@@ -3651,7 +3651,11 @@ export type VipStatus = {
   level: number;
   levels: { level: number; xpRequired: number; weeklyBonus?: number; upgradeBonus?: number }[];
   claimedUpgrades: number[];
-  /** Levels whose weekly bonus was already taken this week. */
+  /** True once this month's bonus is taken (the "weekly" bonus is now paid monthly). */
+  monthlyClaimed?: boolean;
+  /** When the next monthly bonus opens. */
+  nextMonthlyAt?: string;
+  /** Levels whose monthly bonus was already taken this month. */
   weeklyClaimedLevels: number[];
   history: { kind: 'upgrade' | 'weekly'; level: number; amount: number; createdAt: string }[];
 };
