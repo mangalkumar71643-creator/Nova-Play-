@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
-  Easing,
   Image,
   Modal,
   NativeScrollEvent,
@@ -20,6 +19,7 @@ import {
 import { claimVipBonus, fetchVipStatus, VipStatus } from '../api/backend';
 import { ApiClientError } from '../api/client';
 import LoadingState from '../components/LoadingState';
+import { VipArc, VipEmblem, VipPedestal, vipTier } from '../components/VipEmblem';
 import ScreenContainer from '../components/ScreenContainer';
 import { AVATARS } from '../data/avatars';
 import { IconName, VipLevelDef } from '../data/models';
@@ -29,14 +29,13 @@ import { useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 
-const ITEM_WIDTH = 210;
-const DIAMOND_SIZE = 104;
 const DESCRIPTION_IMAGE_ASPECT = 784 / 1168;
 
 function buildPrivileges(level: VipLevelDef): { icon: IconName; label: string; value: string }[] {
   const items: { icon: IconName; label: string; value: string }[] = [];
-  if (level.weeklyBonus) items.push({ icon: 'calendar-week', label: 'Weekly Bonus', value: `₹${level.weeklyBonus.toLocaleString('en-IN')}` });
-  if (level.upgradeBonus) items.push({ icon: 'trending-up', label: 'Upgrade Bonus', value: `₹${level.upgradeBonus.toLocaleString('en-IN')}` });
+  if (level.weeklyBonus) items.push({ icon: 'gift', label: 'Weekly Bonus', value: `₹${level.weeklyBonus.toLocaleString('en-IN')}` });
+  if (level.upgradeBonus) items.push({ icon: 'arrow-up-bold-circle', label: 'Upgrade Bonus', value: `₹${level.upgradeBonus.toLocaleString('en-IN')}` });
+  items.push({ icon: 'star-four-points', label: 'Level XP', value: level.xpRequired.toLocaleString('en-IN') });
   return items;
 }
 
@@ -60,69 +59,29 @@ function BenefitRow({
   lockedText?: string;
   onClaim: () => void;
 }) {
-  const statusText = !reached ? lockedText ?? `Reach VIP ${level}` : claimed ? 'Claimed' : 'Tap to claim';
   return (
-    <Pressable style={styles.benefitRow} onPress={reached && !claimed ? onClaim : undefined}>
-      <View style={styles.benefitIconWrap}>
-        <MaterialCommunityIcons name={icon} size={20} color={colors.gold} />
-      </View>
+    <LinearGradient colors={['#561021', '#2A060D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.benefitRow}>
+      <LinearGradient colors={['#7E1B2E', '#3A0913']} style={styles.benefitIconWrap}>
+        <MaterialCommunityIcons name={icon} size={26} color={colors.goldLight} />
+      </LinearGradient>
       <View style={styles.benefitMiddle}>
         <Text style={styles.benefitTitle}>{title}</Text>
         <Text style={styles.benefitAmount}>₹{amount.toLocaleString('en-IN')}</Text>
       </View>
-      <Text style={[styles.benefitStatus, reached && !claimed && styles.benefitStatusActive]}>{statusText}</Text>
-    </Pressable>
-  );
-}
-
-function DiamondBadge({
-  level,
-  scale,
-  opacity,
-}: {
-  level: VipLevelDef;
-  scale: Animated.AnimatedInterpolation<number>;
-  opacity: Animated.AnimatedInterpolation<number>;
-}) {
-  const pulse = useRef(new Animated.Value(0)).current;
-  const shimmer = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const pulseLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    const shimmerLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.delay(800),
-        Animated.timing(shimmer, { toValue: 0, duration: 0, useNativeDriver: true }),
-      ])
-    );
-    pulseLoop.start();
-    shimmerLoop.start();
-    return () => {
-      pulseLoop.stop();
-      shimmerLoop.stop();
-    };
-  }, [pulse, shimmer]);
-
-  const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
-  const shimmerTranslate = shimmer.interpolate({ inputRange: [0, 1], outputRange: [-DIAMOND_SIZE, DIAMOND_SIZE] });
-
-  return (
-    <Animated.View style={[styles.diamondWrap, { transform: [{ scale }], opacity, shadowColor: level.gradient[1] }]}>
-      <Animated.View style={[styles.diamondRotate, { transform: [{ rotate: '45deg' }, { scale: pulseScale }] }]}>
-        <LinearGradient colors={level.gradient} style={styles.diamond}>
-          <View style={styles.diamondInner}>
-            <MaterialCommunityIcons name={level.icon} size={32} color={colors.background} />
-          </View>
-          <Animated.View pointerEvents="none" style={[styles.diamondShimmer, { transform: [{ translateX: shimmerTranslate }] }]} />
-        </LinearGradient>
-      </Animated.View>
-    </Animated.View>
+      {reached && !claimed ? (
+        <Pressable onPress={onClaim}>
+          <LinearGradient colors={gradients.goldButton} style={styles.claimPill}>
+            <Text style={styles.claimPillText}>Claim</Text>
+          </LinearGradient>
+        </Pressable>
+      ) : claimed ? (
+        <View style={styles.receivedPill}>
+          <Text style={styles.receivedPillText}>Received</Text>
+        </View>
+      ) : (
+        <Text style={styles.benefitStatus}>{lockedText ?? `VIP ${level} can claim`}</Text>
+      )}
+    </LinearGradient>
   );
 }
 
@@ -139,6 +98,10 @@ export default function VipScreen() {
   const [historyTab, setHistoryTab] = useState<'month' | 'all'>('month');
   const scrollX = useRef(new Animated.Value(0)).current;
   const focusedLevelRef = useRef(1);
+  // Centre emblem large, its neighbours peeking in at the sides.
+  const itemWidth = Math.round(screenWidth * 0.44);
+  const emblemSize = Math.round(itemWidth * 0.86);
+  const pedestalHeight = Math.round(itemWidth * 0.42);
 
   // Level, XP and claims come from the server: XP is what the player has
   // staked in games, and bonuses are paid into the real balance.
@@ -174,7 +137,7 @@ export default function VipScreen() {
     const scrollLevels = levels.filter((l) => l.level >= 1);
     if (scrollLevels.length === 0) return;
     const id = scrollX.addListener(({ value }) => {
-      const index = Math.max(0, Math.min(scrollLevels.length - 1, Math.round(value / ITEM_WIDTH)));
+      const index = Math.max(0, Math.min(scrollLevels.length - 1, Math.round(value / itemWidth)));
       const level = scrollLevels[index]?.level;
       if (level && level !== focusedLevelRef.current) {
         focusedLevelRef.current = level;
@@ -182,7 +145,7 @@ export default function VipScreen() {
       }
     });
     return () => scrollX.removeListener(id);
-  }, [vip, scrollX]);
+  }, [vip, scrollX, itemWidth]);
 
   if (!vip || levels.length === 0) {
     return (
@@ -195,15 +158,11 @@ export default function VipScreen() {
   const playerName = backendUser?.uid ? `Player${backendUser.uid}` : 'Player';
   const scrollLevels = levels.filter((l) => l.level >= 1);
   const current = levels.find((l) => l.level === focusedLevel) ?? scrollLevels[0];
-  const prev = levels.find((l) => l.level === focusedLevel - 1) ?? levels[0];
-  const progressTarget = Math.max(1, current.xpRequired - prev.xpRequired);
-  const progressValue = Math.max(0, Math.min(progressTarget, vip.xp - prev.xpRequired));
-  const progress = progressValue / progressTarget;
   const privileges = buildPrivileges(current);
   const hasBenefits = Boolean(current.weeklyBonus || current.upgradeBonus);
 
   const handleMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / ITEM_WIDTH);
+    const index = Math.round(e.nativeEvent.contentOffset.x / itemWidth);
     const level = scrollLevels[Math.max(0, Math.min(scrollLevels.length - 1, index))]?.level;
     if (level) setFocusedLevel(level);
   };
@@ -232,65 +191,89 @@ export default function VipScreen() {
 
   return (
     <ScreenContainer>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.navigate('Home')} style={styles.backButton}>
-          <MaterialCommunityIcons name="chevron-left" size={26} color={colors.gold} />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Image source={AVATARS[avatarId - 1]} style={styles.avatar} />
-          <Text style={styles.username} numberOfLines={1}>
-            {playerName}
-          </Text>
-          <LinearGradient colors={gradients.goldButton} style={styles.vipBadge}>
-            <MaterialCommunityIcons name="crown" size={12} color={colors.background} />
-            <Text style={styles.vipBadgeText}>VIP {vip.level}</Text>
-          </LinearGradient>
-        </View>
-        <View style={styles.backButton} />
-      </View>
-
-      <Animated.FlatList
-        data={scrollLevels}
-        keyExtractor={(item) => String(item.level)}
-        horizontal
-        snapToInterval={ITEM_WIDTH}
-        decelerationRate="fast"
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: (screenWidth - ITEM_WIDTH) / 2 }}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
-          useNativeDriver: true,
-        })}
-        onMomentumScrollEnd={handleMomentumEnd}
-        scrollEventThrottle={16}
-        getItemLayout={(_, index) => ({ length: ITEM_WIDTH, offset: ITEM_WIDTH * index, index })}
-        renderItem={({ item, index }) => {
-          const inputRange = [(index - 1) * ITEM_WIDTH, index * ITEM_WIDTH, (index + 1) * ITEM_WIDTH];
-          const scale = scrollX.interpolate({ inputRange, outputRange: [0.6, 1, 0.6], extrapolate: 'clamp' });
-          const opacity = scrollX.interpolate({ inputRange, outputRange: [0.4, 1, 0.4], extrapolate: 'clamp' });
-          return (
-            <View style={styles.carouselItem}>
-              <Animated.View style={[styles.topDot, { opacity, transform: [{ scale }] }]} />
-              <Animated.Text style={[styles.dotLabel, { opacity }]}>V{item.level}</Animated.Text>
-              <DiamondBadge level={item} scale={scale} opacity={opacity} />
-              <Animated.View style={[styles.levelPill, { opacity }]}>
-                <Text style={styles.levelPillText}>V{item.level}</Text>
-              </Animated.View>
+      <View style={styles.hero}>
+        <LinearGradient
+          colors={['#8A1A2C', '#5A0E1B', '#2A060D', colors.background]}
+          locations={[0, 0.38, 0.78, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.header}>
+          <Pressable onPress={() => navigation.navigate('Home')} style={styles.backButton}>
+            <MaterialCommunityIcons name="chevron-left" size={30} color={colors.goldLight} />
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <Image source={AVATARS[avatarId - 1]} style={styles.avatar} />
+            <View style={styles.headerText}>
+              <Text style={styles.username} numberOfLines={1}>
+                {playerName}
+              </Text>
+              <LinearGradient colors={vipTier(vip.level).ribbon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.vipBadge}>
+                <MaterialCommunityIcons name="crown" size={13} color="#FFFFFF" />
+                <Text style={styles.vipBadgeText}>VIP {vip.level}</Text>
+              </LinearGradient>
             </View>
-          );
-        }}
-      />
+          </View>
+          <View style={styles.backButton} />
+        </View>
 
-      <View style={styles.progressCard}>
-        <View style={styles.progressLabelsRow}>
-          <Text style={styles.progressLabelText}>V0</Text>
-          <Text style={styles.progressLabelText}>V{current.level}</Text>
-        </View>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
-        </View>
-        <Text style={styles.progressCount}>
-          {progressValue.toLocaleString('en-US')}/{progressTarget.toLocaleString('en-US')}
-        </Text>
+        <VipArc width={screenWidth} focused={focusedLevel} playerLevel={vip.level} maxLevel={scrollLevels[scrollLevels.length - 1].level} />
+
+        <Animated.FlatList
+          data={scrollLevels}
+          keyExtractor={(item) => String(item.level)}
+          horizontal
+          snapToInterval={itemWidth}
+          decelerationRate="fast"
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: (screenWidth - itemWidth) / 2 }}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+            useNativeDriver: true,
+          })}
+          onMomentumScrollEnd={handleMomentumEnd}
+          scrollEventThrottle={16}
+          getItemLayout={(_, index) => ({ length: itemWidth, offset: itemWidth * index, index })}
+          renderItem={({ item, index }) => {
+            const inputRange = [(index - 1) * itemWidth, index * itemWidth, (index + 1) * itemWidth];
+            const scale = scrollX.interpolate({ inputRange, outputRange: [0.74, 1, 0.74], extrapolate: 'clamp' });
+            const opacity = scrollX.interpolate({ inputRange, outputRange: [0.7, 1, 0.7], extrapolate: 'clamp' });
+            const tier = vipTier(item.level);
+            const achieved = vip.xp >= item.xpRequired;
+            const pct = item.xpRequired > 0 ? Math.min(1, vip.xp / item.xpRequired) : 1;
+            return (
+              <View style={{ width: itemWidth, alignItems: 'center' }}>
+                <Animated.View style={{ alignItems: 'center', opacity, transform: [{ scale }] }}>
+                  <View style={{ width: emblemSize, height: emblemSize, zIndex: 2 }}>
+                    <VipEmblem level={item.level} size={emblemSize} />
+                    <LinearGradient colors={tier.ribbon} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.ribbon}>
+                      <Text style={styles.ribbonText}>V{item.level}</Text>
+                    </LinearGradient>
+                  </View>
+                  <View style={{ width: itemWidth, height: pedestalHeight, marginTop: -Math.round(emblemSize * 0.14) }}>
+                    <VipPedestal width={itemWidth} />
+                    <View style={[styles.capsule, { top: pedestalHeight * 0.36, width: itemWidth * 0.8 }]}>
+                      {achieved ? (
+                        <Text style={styles.capsuleDone}>Achieved</Text>
+                      ) : (
+                        <>
+                          <View style={styles.capsuleRow}>
+                            <Text style={styles.capsuleLevel}>V{vip.level}</Text>
+                            <View style={styles.capsuleTrack}>
+                              <LinearGradient colors={gradients.goldButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: `${Math.round(pct * 100)}%`, height: '100%' }} />
+                            </View>
+                            <Text style={styles.capsuleLevel}>V{item.level}</Text>
+                          </View>
+                          <Text style={styles.capsuleXp}>
+                            {vip.xp.toLocaleString('en-US')}/{item.xpRequired.toLocaleString('en-US')}
+                          </Text>
+                        </>
+                      )}
+                    </View>
+                  </View>
+                </Animated.View>
+              </View>
+            );
+          }}
+        />
         <Text style={styles.progressHint}>Your XP: {vip.xp.toLocaleString('en-IN')} · every ₹1 you bet = 1 XP</Text>
       </View>
 
@@ -304,16 +287,20 @@ export default function VipScreen() {
       <Animated.ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.privilegesRow}>
         {privileges.map((priv, i) => (
           <React.Fragment key={priv.label}>
-            <View style={styles.privilegeCard}>
-              <View style={styles.privilegeLock}>
-                <MaterialCommunityIcons name="lock-outline" size={11} color={colors.gold} />
-              </View>
-              <MaterialCommunityIcons name={priv.icon} size={36} color={colors.gold} />
+            <LinearGradient colors={['#5E1222', '#330811']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.privilegeCard}>
+              {vip.level < current.level ? (
+                <View style={styles.privilegeLock}>
+                  <MaterialCommunityIcons name="lock" size={13} color={colors.goldLight} />
+                </View>
+              ) : null}
+              <LinearGradient colors={['#8A2034', '#3A0913']} style={styles.privilegeIconWrap}>
+                <MaterialCommunityIcons name={priv.icon} size={34} color={colors.goldLight} />
+              </LinearGradient>
               <Text style={styles.privilegeLabel}>{priv.label}</Text>
               <Text style={styles.privilegeValue}>{priv.value}</Text>
-            </View>
+            </LinearGradient>
             {i < privileges.length - 1 ? (
-              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} style={styles.privilegeChevron} />
+              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.goldDark} style={styles.privilegeChevron} />
             ) : null}
           </React.Fragment>
         ))}
@@ -330,7 +317,7 @@ export default function VipScreen() {
           <View style={styles.benefitsList}>
             {current.upgradeBonus ? (
               <BenefitRow
-                icon="treasure-chest"
+                icon="hand-coin"
                 title="Upgrade Bonus"
                 amount={current.upgradeBonus}
                 level={current.level}
@@ -341,7 +328,7 @@ export default function VipScreen() {
             ) : null}
             {current.weeklyBonus ? (
               <BenefitRow
-                icon="calendar-week"
+                icon="hand-coin"
                 title="Weekly Bonus"
                 amount={current.weeklyBonus}
                 level={current.level}
@@ -356,7 +343,8 @@ export default function VipScreen() {
       ) : null}
 
       <Pressable style={styles.levelUpButtonWrap} onPress={() => navigation.navigate('Home')}>
-        <LinearGradient colors={gradients.crimsonButton} style={styles.levelUpButton}>
+        <LinearGradient colors={['#FF4A63', '#D11A33', '#8E0E1F']} style={styles.levelUpButton}>
+          <View style={styles.levelUpShine} />
           <Text style={styles.levelUpLabel}>Level up now</Text>
         </LinearGradient>
       </Pressable>
@@ -467,145 +455,171 @@ export default function VipScreen() {
 }
 
 const styles = StyleSheet.create({
-  progressHint: { color: colors.textMuted, fontSize: typography.xs, textAlign: 'center', marginTop: spacing.xs },
+  hero: { paddingBottom: spacing.md, overflow: 'hidden' },
+  progressHint: { color: colors.textMuted, fontSize: typography.xs, textAlign: 'center', marginTop: spacing.sm },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingTop: spacing.lg,
-    marginBottom: spacing.lg,
   },
-  backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  avatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: colors.gold },
-  username: { color: colors.textPrimary, fontSize: typography.lg, fontWeight: '800', marginTop: spacing.xs },
+  backButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  headerText: { alignItems: 'flex-start' },
+  avatar: { width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderColor: '#5A0E1B' },
+  username: { color: colors.textPrimary, fontSize: typography.lg, fontWeight: '800', letterSpacing: 0.3 },
   vipBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
     paddingVertical: 3,
-    marginTop: spacing.xs,
-  },
-  vipBadgeText: { color: colors.background, fontSize: typography.xs, fontWeight: '800' },
-  carouselItem: { width: ITEM_WIDTH, alignItems: 'center', justifyContent: 'flex-end' },
-  topDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.gold, marginBottom: spacing.xs },
-  dotLabel: { color: colors.textSecondary, fontSize: typography.xs, fontWeight: '700', marginBottom: spacing.md },
-  diamondWrap: {
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  diamondRotate: {
-    width: DIAMOND_SIZE,
-    height: DIAMOND_SIZE,
-    borderRadius: 18,
-    overflow: 'hidden',
-    transform: [{ rotate: '45deg' }],
-  },
-  diamond: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  diamondInner: { transform: [{ rotate: '-45deg' }] },
-  levelPill: {
-    marginTop: spacing.md,
-    backgroundColor: colors.surfaceRaised,
+    marginTop: 4,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
+    borderColor: 'rgba(255,255,255,0.45)',
   },
-  levelPillText: { color: colors.gold, fontSize: typography.md, fontWeight: '800' },
-  progressCard: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.xl,
-    backgroundColor: colors.surface,
+  vipBadgeText: { color: '#FFFFFF', fontSize: typography.sm, fontWeight: '900', fontStyle: 'italic' },
+  ribbon: {
+    position: 'absolute',
+    bottom: '9%',
+    alignSelf: 'center',
+    borderRadius: radius.pill,
+    paddingHorizontal: 18,
+    paddingVertical: 3,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.7)',
+  },
+  ribbonText: {
+    color: '#FFFFFF',
+    fontSize: typography.lg,
+    fontWeight: '900',
+    textShadowColor: 'rgba(0,0,0,0.55)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  capsule: {
+    position: 'absolute',
+    alignSelf: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(10,2,5,0.72)',
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
+    borderColor: 'rgba(255,138,153,0.35)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
   },
-  progressLabelsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  progressLabelText: { color: colors.gold, fontSize: typography.sm, fontWeight: '800' },
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.surfaceAlt,
-    marginTop: spacing.xs,
-    overflow: 'hidden',
-  },
-  progressFill: { height: 6, borderRadius: 3, backgroundColor: colors.gold },
-  progressCount: { color: colors.textMuted, fontSize: typography.xs, marginTop: spacing.xs, textAlign: 'center' },
+  capsuleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'stretch' },
+  capsuleLevel: { color: colors.textPrimary, fontSize: typography.xs, fontWeight: '800' },
+  capsuleTrack: { flex: 1, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
+  capsuleXp: { color: colors.textSecondary, fontSize: typography.xs, fontWeight: '700', marginTop: 1 },
+  capsuleDone: { color: colors.textPrimary, fontSize: typography.sm, fontWeight: '800', paddingVertical: 4 },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: spacing.lg,
-    marginTop: spacing.xxl,
+    marginTop: spacing.xl,
     marginBottom: spacing.md,
   },
   sectionTitle: { color: colors.textPrimary, fontSize: typography.lg, fontWeight: '800' },
   sectionLink: { color: colors.crimsonLight, fontSize: typography.xs, fontWeight: '700' },
   privilegesRow: { paddingHorizontal: spacing.lg, alignItems: 'center' },
   privilegeCard: {
-    width: 128,
-    backgroundColor: colors.surface,
+    width: 124,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderColor: 'rgba(240,185,61,0.35)',
+    borderRadius: 16,
     paddingVertical: spacing.lg,
     alignItems: 'center',
   },
   privilegeLock: {
     position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceAlt,
+    top: 8,
+    left: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(10,2,5,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(240,185,61,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
+  },
+  privilegeIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,222,140,0.35)',
   },
   privilegeLabel: {
-    color: colors.textSecondary,
-    fontSize: typography.xs,
+    color: colors.textPrimary,
+    fontSize: typography.sm,
     fontWeight: '700',
     marginTop: spacing.sm,
     textAlign: 'center',
   },
-  privilegeValue: { color: colors.gold, fontSize: typography.sm, fontWeight: '800', marginTop: spacing.xs },
-  privilegeChevron: { marginHorizontal: spacing.xs },
+  privilegeValue: { color: colors.goldLight, fontSize: typography.md, fontWeight: '900', marginTop: 2 },
+  privilegeChevron: { marginHorizontal: 2 },
   benefitsList: { marginHorizontal: spacing.lg, gap: spacing.md },
   benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderColor: 'rgba(240,185,61,0.25)',
+    borderRadius: 16,
     padding: spacing.md,
   },
   benefitIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceAlt,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,222,140,0.3)',
   },
   benefitMiddle: { flex: 1 },
-  benefitTitle: { color: colors.textPrimary, fontSize: typography.sm, fontWeight: '700' },
-  benefitAmount: { color: colors.gold, fontSize: typography.md, fontWeight: '800', marginTop: 2 },
-  benefitStatus: { color: colors.textMuted, fontSize: typography.xs, fontWeight: '600', maxWidth: 110, textAlign: 'right' },
-  benefitStatusActive: { color: colors.gold, fontWeight: '800' },
-  levelUpButtonWrap: { marginHorizontal: spacing.lg, marginTop: spacing.xxl },
-  levelUpButton: { borderRadius: radius.pill, paddingVertical: spacing.lg, alignItems: 'center' },
-  levelUpLabel: { color: colors.textPrimary, fontSize: typography.lg, fontWeight: '800' },
+  benefitTitle: { color: colors.textSecondary, fontSize: typography.sm, fontWeight: '700' },
+  benefitAmount: { color: colors.goldLight, fontSize: typography.xl, fontWeight: '900', marginTop: 2 },
+  benefitStatus: { color: colors.textMuted, fontSize: typography.sm, fontWeight: '700', maxWidth: 120, textAlign: 'right' },
+  claimPill: { borderRadius: radius.pill, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm },
+  claimPillText: { color: '#3A2006', fontSize: typography.md, fontWeight: '900' },
+  receivedPill: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  receivedPillText: { color: colors.textMuted, fontSize: typography.md, fontWeight: '700' },
+  levelUpButtonWrap: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    borderRadius: radius.pill,
+    shadowColor: '#FF2D4A',
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  levelUpButton: {
+    borderRadius: radius.pill,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,190,200,0.45)',
+  },
+  levelUpShine: { position: 'absolute', top: 0, left: 0, right: 0, height: '48%', backgroundColor: 'rgba(255,255,255,0.14)' },
+  levelUpLabel: { color: colors.textPrimary, fontSize: typography.xl, fontWeight: '800', letterSpacing: 0.5 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: colors.overlay,
@@ -618,13 +632,6 @@ const styles = StyleSheet.create({
     top: -14,
     right: -6,
     zIndex: 1,
-  },
-  diamondShimmer: {
-    position: 'absolute',
-    top: -20,
-    bottom: -20,
-    width: DIAMOND_SIZE * 0.3,
-    backgroundColor: 'rgba(255,255,255,0.4)',
   },
   bonusHeaderRow: {
     flexDirection: 'row',
