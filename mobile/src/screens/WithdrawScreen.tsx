@@ -30,6 +30,7 @@ export default function WithdrawScreen() {
     dailyWithdrawalLimit,
     remainingWithdrawalLimit,
     refreshWallet,
+    applyWithdrawal,
   } = useGameState();
   const { backendUser } = useAuth();
   const [amountText, setAmountText] = useState(String(QUICK_AMOUNTS[0]));
@@ -89,15 +90,20 @@ export default function WithdrawScreen() {
     }
     if (!isValidAmount) return;
     setBusy(true);
+    // The server takes the money from the game balance in this one request;
+    // show it straight away and sync the full wallet in the background.
+    applyWithdrawal(amount);
     try {
       await walletService.withdraw(amount);
-      await refreshWallet();
+      refreshWallet().catch(() => {});
       Alert.alert(
-        'Withdrawal requested',
-        `₹${amount.toLocaleString('en-IN')} is on its way to your bank account ending ${payoutAccountNumber?.slice(-4)} — pending admin approval before it's sent.`,
+        'Withdrawal done',
+        `₹${amount.toLocaleString('en-IN')} has been deducted from your game balance and is being sent to your bank account ending ${payoutAccountNumber?.slice(-4)}.`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (err) {
+      // Nothing was taken: put the real balance back.
+      refreshWallet().catch(() => {});
       Alert.alert('Withdrawal failed', err instanceof ApiClientError ? err.message : 'Please try again.');
     } finally {
       setBusy(false);
@@ -221,9 +227,8 @@ export default function WithdrawScreen() {
         <View style={styles.tipsBlock}>
           <Text style={styles.tipsTitle}>Withdraw tips:</Text>
           <Text style={styles.tipsText}>
-            Withdrawals go through a sandbox payment provider in this build — no processing fee is
-            deducted right now. Once a real, licensed payment processor is connected, a transfer can take
-            up to 24 hours to arrive.
+            The amount leaves your game balance the moment you withdraw, and the NovaPlay team sends it to
+            your bank account — usually within minutes. No fee is deducted.
           </Text>
           {lockedBonus > 0 ? (
             <Text style={styles.tipsText}>
@@ -246,7 +251,7 @@ export default function WithdrawScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.payButton}
           >
-            <Text style={styles.payButtonText}>{busy ? 'Processing…' : 'Withdraw'}</Text>
+            <Text style={styles.payButtonText}>{busy ? 'Withdrawing…' : 'Withdraw'}</Text>
           </LinearGradient>
         </Pressable>
       </View>

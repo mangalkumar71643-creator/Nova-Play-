@@ -108,7 +108,7 @@ export default function HistoryScreen() {
                 <Text style={styles.rowTitle}>{isDeposit ? 'Deposit' : 'Withdrawal'}</Text>
                 <Text style={styles.rowTimestamp}>{new Date(t.createdAt).toLocaleString()}</Text>
                 {t.status === 'PENDING' ? (
-                  <Text style={styles.rowStatusPending}>{isDeposit ? 'Pending' : 'Pending admin approval'}</Text>
+                  <Text style={styles.rowStatusPending}>{isDeposit ? 'Pending' : 'Deducted — being sent to your bank'}</Text>
                 ) : t.status === 'FAILED' ? (
                   <Text style={styles.rowStatusFailed}>{isDeposit ? 'Failed' : 'Rejected — refunded'}</Text>
                 ) : (

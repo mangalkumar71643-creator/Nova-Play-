@@ -47,6 +47,8 @@ type GameState = {
   favoriteGameIds: string[];
   vipBonusHistory: VipBonusRecord[];
   refreshWallet: () => Promise<void>;
+  /** Shows a withdrawal on screen at once (the server takes the money in the same request). */
+  applyWithdrawal: (amount: number) => void;
   claimMission: (missionId: string) => void;
   claimDailyReward: () => Promise<{ amount: number; streak: number } | null>;
   markNotificationRead: (id: string) => void;
@@ -227,6 +229,12 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     setFavoriteGameIds((prev) => (prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, gameId]));
   }, []);
 
+  const applyWithdrawal = useCallback((amount: number) => {
+    setCoins((c) => Math.max(0, c - amount));
+    setWithdrawable((w) => Math.max(0, w - amount));
+    setRemainingWithdrawalLimit((r) => Math.max(0, r - amount));
+  }, []);
+
   const value: GameState = {
     loading,
     user,
@@ -251,6 +259,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     favoriteGameIds,
     vipBonusHistory,
     refreshWallet,
+    applyWithdrawal,
     claimMission,
     claimDailyReward,
     markNotificationRead,
