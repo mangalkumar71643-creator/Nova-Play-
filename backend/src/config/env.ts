@@ -58,8 +58,7 @@ export const env = {
     secondDepositBonusPercent: Number(process.env.SECOND_DEPOSIT_BONUS_PERCENT ?? 0.05),
     firstDepositBonusCap: Number(process.env.FIRST_DEPOSIT_BONUS_CAP ?? 500),
     wageringMultiplier: Number(process.env.WAGERING_MULTIPLIER ?? 3),
-    // Total COMPLETED withdrawals per calendar day, across all payment
-    // methods, enforced server-side in wallet.routes.ts.
-    dailyWithdrawalLimit: Number(process.env.DAILY_WITHDRAWAL_LIMIT ?? 50000),
+    // Daily withdrawal limits, free withdrawals and the fee depend on the
+    // player's VIP level: see VIP_LEVELS in vipService.ts.
   },
 };

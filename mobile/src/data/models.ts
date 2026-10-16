@@ -103,6 +103,8 @@ export type VipLevelDef = {
   gradient: readonly [string, string, string];
   weeklyBonus?: number;
   upgradeBonus?: number;
+  dailyWithdrawalLimit?: number;
+  freeWithdrawals?: number;
 };
 
 export type AppNotification = {

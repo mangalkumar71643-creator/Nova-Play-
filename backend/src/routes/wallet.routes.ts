@@ -9,21 +9,16 @@ import { assertCanTransact, assertWithinDepositLimits } from "../services/respon
 import { completeDeposit } from "../services/depositService";
 import { upiDepositStatus, confirmUpiDeposits, createUpiCheckout, sweepStaleUpiDeposits } from "../services/stockpayService";
 import { env } from "../config/env";
+import { istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
 
 const router = Router();
 
-function startOfDay(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 /** Shared response shape for GET/deposit/withdraw so the mobile app always
  * sees the same fields: raw wallet columns plus the derived numbers it
- * actually needs (how much is really free to withdraw right now, and how
- * much of today's withdrawal limit is left). */
+ * actually needs (how much is really free to withdraw right now, how much
+ * of today's withdrawal limit is left, and how many fee-free withdrawals). */
 async function buildWalletView(userId: string, db: Prisma.TransactionClient = prisma) {
-  const [wallet, user, todaysWithdrawals] = await Promise.all([
+  const [wallet, user, todaysWithdrawals, vip] = await Promise.all([
     db.wallet.findUniqueOrThrow({ where: { userId } }),
     db.user.findUniqueOrThrow({
       where: { id: userId },
@@ -39,13 +34,16 @@ async function buildWalletView(userId: string, db: Prisma.TransactionClient = pr
       // earmarked against the daily limit — otherwise a user could
       // submit several pending requests to bypass it before any are
       // approved.
-      where: { userId, type: "WITHDRAWAL", status: { in: ["PENDING", "COMPLETED"] }, createdAt: { gte: startOfDay() } },
+      // A rejected (refunded) one counts for neither the limit nor the free ones.
+      where: { userId, type: "WITHDRAWAL", status: { in: ["PENDING", "COMPLETED"] }, createdAt: { gte: istDayStart() } },
       _sum: { amount: true },
+      _count: true,
     }),
+    vipTermsFor(userId, db),
   ]);
 
   const withdrawnToday = Number(todaysWithdrawals._sum.amount ?? 0);
-  const remainingWithdrawalLimit = Math.max(0, env.wallet.dailyWithdrawalLimit - withdrawnToday);
+  const remainingWithdrawalLimit = Math.max(0, vip.dailyWithdrawalLimit - withdrawnToday);
   // Only winnings can leave: deposits must be played first, and a locked bonus waits for its wagering.
   const withdrawable = Math.max(0, Number(wallet.balance) - Number(wallet.lockedBonus) - Number(wallet.unplayedDeposit));
 
@@ -57,8 +55,12 @@ async function buildWalletView(userId: string, db: Prisma.TransactionClient = pr
     hasPayoutAccount: Boolean(user.payoutAccountHolderName && user.payoutAccountNumber && user.payoutIfsc),
     firstDepositBonusClaimed: user.firstDepositBonusClaimed,
     withdrawable,
-    dailyWithdrawalLimit: env.wallet.dailyWithdrawalLimit,
+    vipLevel: vip.level,
+    dailyWithdrawalLimit: vip.dailyWithdrawalLimit,
     remainingWithdrawalLimit: Math.min(remainingWithdrawalLimit, withdrawable),
+    freeWithdrawalsPerDay: vip.freeWithdrawals,
+    freeWithdrawalsLeft: Math.max(0, vip.freeWithdrawals - todaysWithdrawals._count),
+    withdrawalFee: WITHDRAWAL_FEE,
   };
 }
 
@@ -207,7 +209,7 @@ router.post(
     // so parallel requests are handled one at a time: each one sees the
     // balance and daily total left by the one before, and none can withdraw
     // money (or limit) another has already taken.
-    await prisma.$transaction(async (tx) => {
+    const fee = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
       const view = await buildWalletView(userId, tx);
       if (amount > view.withdrawable) {
@@ -223,7 +225,15 @@ router.post(
         );
       }
       if (amount > view.remainingWithdrawalLimit) {
-        throw new ApiError(400, `This would exceed today's withdrawal limit. Remaining today: ₹${view.remainingWithdrawalLimit.toFixed(2)}.`);
+        throw new ApiError(
+          400,
+          `This would exceed today's withdrawal limit for VIP ${view.vipLevel} (₹${view.dailyWithdrawalLimit.toLocaleString("en-IN")}). Remaining today: ₹${view.remainingWithdrawalLimit.toFixed(2)}.`
+        );
+      }
+      // The day's first few withdrawals are free; after that the fee comes out of the payout.
+      const fee = view.freeWithdrawalsLeft > 0 ? 0 : withdrawalFee(amount);
+      if (fee >= amount) {
+        throw new ApiError(400, `The withdrawal fee would be ₹${fee.toFixed(2)} (₹${WITHDRAWAL_FEE.flat} + ${WITHDRAWAL_FEE.percent}%), so withdraw more than that.`);
       }
 
       // Withdrawals now require manual admin approval (see admin.routes.ts
@@ -237,11 +247,12 @@ router.post(
       });
       if (debited.count === 0) throw new ApiError(400, "Insufficient balance");
       await tx.transaction.create({
-        data: { userId, type: "WITHDRAWAL", amount, status: "PENDING" },
+        data: { userId, type: "WITHDRAWAL", amount, status: "PENDING", fee: fee > 0 ? fee : null },
       });
+      return fee;
     });
 
-    res.json(await buildWalletView(userId));
+    res.json({ ...(await buildWalletView(userId)), fee, payout: Math.round((amount - fee) * 100) / 100 });
   })
 );
 
@@ -273,7 +284,7 @@ router.get(
         where: { userId, type },
         orderBy: { createdAt: "desc" },
         take: 200,
-        select: { id: true, amount: true, status: true, createdAt: true },
+        select: { id: true, amount: true, fee: true, status: true, createdAt: true },
       }),
       prisma.transaction.aggregate({ where: { userId, type, status: "COMPLETED" }, _sum: { amount: true }, _count: true }),
       prisma.transaction.aggregate({ where: { userId, type, status: "PENDING" }, _sum: { amount: true } }),
@@ -283,7 +294,7 @@ router.get(
       total: Number(completed._sum.amount ?? 0),
       count: completed._count,
       pending: Number(pending._sum.amount ?? 0),
-      items: items.map((t) => ({ ...t, amount: Number(t.amount) })),
+      items: items.map((t) => ({ ...t, amount: Number(t.amount), fee: Number(t.fee ?? 0) })),
     });
   })
 );

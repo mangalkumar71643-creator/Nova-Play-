@@ -5,6 +5,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import ScreenContainer from '../components/ScreenContainer';
+import { withdrawalFeeFor } from '../api/backend';
 import { ApiClientError } from '../api/client';
 import { RootStackParamList } from '../navigation/types';
 import { KYC_REQUIRED, useAuth } from '../state/AuthContext';
@@ -29,6 +30,10 @@ export default function WithdrawScreen() {
     hasPayoutAccount,
     dailyWithdrawalLimit,
     remainingWithdrawalLimit,
+    vipLevel,
+    freeWithdrawalsPerDay,
+    freeWithdrawalsLeft,
+    withdrawalFee,
     refreshWallet,
     applyWithdrawal,
   } = useGameState();
@@ -44,7 +49,11 @@ export default function WithdrawScreen() {
   const kycApproved = !KYC_REQUIRED || backendUser?.kycStatus === 'APPROVED';
   const maxWithdraw = Math.min(withdrawable, remainingWithdrawalLimit);
   const amount = Number(amountText);
-  const isValidAmount = amountText.trim().length > 0 && amount >= MIN_WITHDRAW && amount <= maxWithdraw;
+  // The day's first few withdrawals are free (by VIP level); after that the fee comes out of the payout.
+  const feeApplies = Boolean(withdrawalFee) && freeWithdrawalsLeft <= 0;
+  const fee = feeApplies && withdrawalFee && amount > 0 ? withdrawalFeeFor(amount, withdrawalFee) : 0;
+  const receive = Math.max(0, Math.round((amount - fee) * 100) / 100);
+  const isValidAmount = amountText.trim().length > 0 && amount >= MIN_WITHDRAW && amount <= maxWithdraw && amount > fee;
   const wageringRemaining = Math.max(0, wageringRequired - wageringProgress);
 
   function openBankModal() {
@@ -94,11 +103,14 @@ export default function WithdrawScreen() {
     // show it straight away and sync the full wallet in the background.
     applyWithdrawal(amount);
     try {
-      await walletService.withdraw(amount);
+      const result = await walletService.withdraw(amount);
       refreshWallet().catch(() => {});
       Alert.alert(
         'Withdrawal done',
-        `₹${amount.toLocaleString('en-IN')} has been deducted from your game balance and is being sent to your bank account ending ${payoutAccountNumber?.slice(-4)}.`,
+        `₹${amount.toLocaleString('en-IN')} has been deducted from your game balance. ` +
+          (result.fee > 0
+            ? `₹${result.payout.toLocaleString('en-IN')} is being sent to your bank account ending ${payoutAccountNumber?.slice(-4)} (fee ₹${result.fee.toLocaleString('en-IN')}).`
+            : `The full amount is being sent to your bank account ending ${payoutAccountNumber?.slice(-4)} — no fee.`),
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (err) {
@@ -208,14 +220,43 @@ export default function WithdrawScreen() {
         </View>
 
         <View style={styles.limitsCard}>
-          <View style={styles.limitRow}>
-            <Text style={styles.limitLabel}>Remaining today's limit</Text>
-            <Text style={styles.limitValue}>₹{remainingWithdrawalLimit.toLocaleString('en-IN')}</Text>
+          <View style={styles.vipTermsHeader}>
+            <MaterialCommunityIcons name="crown" size={16} color={colors.gold} />
+            <Text style={styles.vipTermsTitle}>VIP {vipLevel} withdrawal terms</Text>
           </View>
           <View style={styles.limitRow}>
             <Text style={styles.limitLabel}>Daily withdrawal limit</Text>
             <Text style={styles.limitValue}>₹{dailyWithdrawalLimit.toLocaleString('en-IN')}</Text>
           </View>
+          <View style={styles.limitRow}>
+            <Text style={styles.limitLabel}>Remaining today's limit</Text>
+            <Text style={styles.limitValue}>₹{remainingWithdrawalLimit.toLocaleString('en-IN')}</Text>
+          </View>
+          {withdrawalFee ? (
+            <>
+              <View style={styles.limitRow}>
+                <Text style={styles.limitLabel}>Free withdrawals left today</Text>
+                <Text style={styles.limitValue}>
+                  {freeWithdrawalsLeft} of {freeWithdrawalsPerDay}
+                </Text>
+              </View>
+              <View style={styles.limitDivider} />
+              <View style={styles.limitRow}>
+                <Text style={styles.limitLabel}>Fee on this withdrawal</Text>
+                {feeApplies ? (
+                  <Text style={styles.limitValue}>
+                    ₹{fee.toLocaleString('en-IN')} (₹{withdrawalFee.flat} + {withdrawalFee.percent}%)
+                  </Text>
+                ) : (
+                  <Text style={[styles.limitValue, { color: colors.positive }]}>Free</Text>
+                )}
+              </View>
+              <View style={styles.limitRow}>
+                <Text style={styles.receiveLabel}>You will receive</Text>
+                <Text style={styles.receiveValue}>₹{receive.toLocaleString('en-IN')}</Text>
+              </View>
+            </>
+          ) : null}
           {lockedBonus > 0 ? (
             <View style={styles.limitRow}>
               <Text style={styles.limitLabel}>Wager requirement left</Text>
@@ -228,8 +269,15 @@ export default function WithdrawScreen() {
           <Text style={styles.tipsTitle}>Withdraw tips:</Text>
           <Text style={styles.tipsText}>
             The amount leaves your game balance the moment you withdraw, and the NovaPlay team sends it to
-            your bank account — usually within minutes. No fee is deducted.
+            your bank account — usually within minutes.
           </Text>
+          {withdrawalFee ? (
+            <Text style={styles.tipsText}>
+              Your first {freeWithdrawalsPerDay} withdrawals each day are free. After that, ₹{withdrawalFee.flat} +{' '}
+              {withdrawalFee.percent}% is kept from the amount sent to your bank. Limits reset at midnight (India
+              time) — higher VIP levels get bigger limits and more free withdrawals.
+            </Text>
+          ) : null}
           {lockedBonus > 0 ? (
             <Text style={styles.tipsText}>
               ₹{lockedBonus.toLocaleString('en-IN')} of your balance is a deposit bonus, locked until you've
@@ -424,6 +472,11 @@ const styles = {
     gap: spacing.sm,
   },
   limitRow: { flexDirection: 'row' as const, justifyContent: 'space-between' as const },
+  vipTermsHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: spacing.xs, marginBottom: spacing.xs },
+  vipTermsTitle: { color: colors.gold, fontSize: typography.sm, fontWeight: '800' as const },
+  limitDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
+  receiveLabel: { color: colors.textPrimary, fontSize: typography.md, fontWeight: '700' as const },
+  receiveValue: { color: colors.gold, fontSize: typography.lg, fontWeight: '900' as const },
   limitLabel: { color: colors.textSecondary, fontSize: typography.sm },
   limitValue: { color: colors.textPrimary, fontSize: typography.sm, fontWeight: '700' as const },
   amountCard: {

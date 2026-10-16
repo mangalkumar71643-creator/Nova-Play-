@@ -8,6 +8,7 @@ import {
   fetchBackendWallet,
   setPayoutBankAccount as setPayoutBankAccountRequest,
   withdrawFromWallet,
+  WithdrawalFee,
 } from '../api/backend';
 
 const TX_ICONS: Record<BackendTransaction['type'], IconName> = {
@@ -77,6 +78,10 @@ export interface WalletSummary {
   firstDepositBonusClaimed: boolean;
   dailyWithdrawalLimit: number;
   remainingWithdrawalLimit: number;
+  vipLevel: number;
+  freeWithdrawalsPerDay: number;
+  freeWithdrawalsLeft: number;
+  withdrawalFee: WithdrawalFee | null;
   transactions: WalletTransaction[];
 }
 
@@ -94,6 +99,11 @@ function toSummary(wallet: BackendWallet, transactions: WalletTransaction[]): Wa
     firstDepositBonusClaimed: wallet.firstDepositBonusClaimed,
     dailyWithdrawalLimit: wallet.dailyWithdrawalLimit,
     remainingWithdrawalLimit: wallet.remainingWithdrawalLimit,
+    vipLevel: wallet.vipLevel ?? 0,
+    // An older server charges no fee at all: every withdrawal is free.
+    freeWithdrawalsPerDay: wallet.freeWithdrawalsPerDay ?? 0,
+    freeWithdrawalsLeft: wallet.freeWithdrawalsLeft ?? Number.POSITIVE_INFINITY,
+    withdrawalFee: wallet.withdrawalFee ?? null,
     transactions,
   };
 }
@@ -115,10 +125,12 @@ export async function deposit(amount: number): Promise<{ newBalance: number; bon
 
 /** Withdrawals now go to PENDING until an admin approves them (see
  * backend/public/admin.html) — this returns the new balance (already
- * reduced, so the amount can't be double-spent while pending). */
-export async function withdraw(amount: number): Promise<number> {
+ * reduced, so the amount can't be double-spent while pending), the fee kept
+ * back and what goes to the bank. */
+export async function withdraw(amount: number): Promise<{ balance: number; fee: number; payout: number }> {
   const wallet = await withdrawFromWallet(amount);
-  return Number(wallet.balance);
+  const fee = wallet.fee ?? 0;
+  return { balance: Number(wallet.balance), fee, payout: wallet.payout ?? amount - fee };
 }
 
 export async function setPayoutBankAccount(accountHolderName: string, accountNumber: string, ifsc: string): Promise<void> {

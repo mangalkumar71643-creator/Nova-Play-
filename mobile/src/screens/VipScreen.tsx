@@ -7,7 +7,6 @@ import {
   Animated,
   Easing,
   Image,
-  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -21,6 +20,7 @@ import { ApiClientError } from '../api/client';
 import LoadingState from '../components/LoadingState';
 import VipBonusHistory from '../components/VipBonusHistory';
 import VipBonusPopup, { nextMonthLabel, VipBonusResult } from '../components/VipBonusPopup';
+import VipLevelTable from '../components/VipLevelTable';
 import { pedestalHeight as pedestalHeightFor, VipArc, VipEmblem, VipPedestal, VipRays, VipStage, vipTier } from '../components/VipEmblem';
 import ScreenContainer from '../components/ScreenContainer';
 import { AVATARS } from '../data/avatars';
@@ -31,12 +31,14 @@ import { useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 
-const DESCRIPTION_IMAGE_ASPECT = 784 / 1168;
-
 function buildPrivileges(level: VipLevelDef): { icon: IconName; label: string; value: string }[] {
   const items: { icon: IconName; label: string; value: string }[] = [];
   if (level.weeklyBonus) items.push({ icon: 'gift', label: 'Monthly Bonus', value: `₹${level.weeklyBonus.toLocaleString('en-IN')}` });
   if (level.upgradeBonus) items.push({ icon: 'arrow-up-bold-circle', label: 'Upgrade Bonus', value: `₹${level.upgradeBonus.toLocaleString('en-IN')}` });
+  if (level.dailyWithdrawalLimit) {
+    items.push({ icon: 'bank-transfer-out', label: 'Daily Withdrawal', value: `₹${level.dailyWithdrawalLimit.toLocaleString('en-IN')}` });
+  }
+  if (level.freeWithdrawals) items.push({ icon: 'cash-check', label: 'Free Withdrawals', value: `${level.freeWithdrawals} / day` });
   items.push({ icon: 'star-four-points', label: 'Level XP', value: level.xpRequired.toLocaleString('en-IN') });
   return items;
 }
@@ -93,7 +95,7 @@ function BenefitRow({
 
 export default function VipScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<BottomTabParamList>>();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { width: screenWidth } = useWindowDimensions();
   const { avatarId, backendUser } = useAuth();
   const { refreshWallet } = useGameState();
   const [vip, setVip] = useState<VipStatus | null>(null);
@@ -213,10 +215,6 @@ export default function VipScreen() {
     const level = scrollLevels[Math.max(0, Math.min(scrollLevels.length - 1, index))]?.level;
     if (level) setFocusedLevel(level);
   };
-
-  const descriptionImageWidth = Math.min(400, screenWidth - spacing.lg * 4);
-  const descriptionImageHeight = Math.min(descriptionImageWidth / DESCRIPTION_IMAGE_ASPECT, screenHeight * 0.8);
-  const descriptionImageWidthCapped = descriptionImageHeight * DESCRIPTION_IMAGE_ASPECT;
 
   return (
     <ScreenContainer>
@@ -419,28 +417,7 @@ export default function VipScreen() {
         </LinearGradient>
       </Pressable>
 
-      <Modal
-        visible={descriptionVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDescriptionVisible(false)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setDescriptionVisible(false)}>
-          <Pressable
-            style={{ width: descriptionImageWidthCapped, height: descriptionImageHeight }}
-            onPress={() => {}}
-          >
-            <Pressable onPress={() => setDescriptionVisible(false)} style={styles.closeButton}>
-              <MaterialCommunityIcons name="close-circle" size={28} color={colors.gold} />
-            </Pressable>
-            <Image
-              source={require('../../assets/vip-level-description.webp')}
-              style={{ width: descriptionImageWidthCapped, height: descriptionImageHeight, borderRadius: radius.lg }}
-              resizeMode="contain"
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <VipLevelTable visible={descriptionVisible} onClose={() => setDescriptionVisible(false)} vip={vip} />
 
       <VipBonusHistory
         visible={bonusHistoryVisible}
@@ -637,17 +614,4 @@ const styles = StyleSheet.create({
   },
   levelUpShine: { position: 'absolute', top: 0, left: 0, right: 0, height: '48%', backgroundColor: 'rgba(255,255,255,0.14)' },
   levelUpLabel: { color: colors.textPrimary, fontSize: typography.xl, fontWeight: '800', letterSpacing: 0.5 },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: -14,
-    right: -6,
-    zIndex: 1,
-  },
 });

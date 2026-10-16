@@ -4,7 +4,7 @@ import { initialAchievements, initialMissions, initialNotifications } from '../d
 import { Achievement, AppNotification, Mission, User, VipBonusRecord, WalletTransaction } from '../data/models';
 import { fetchUser } from '../services/userService';
 import { fetchWallet } from '../services/walletService';
-import { claimBackendDailyBonus, fetchDailyBonusStatus } from '../api/backend';
+import { claimBackendDailyBonus, fetchDailyBonusStatus, WithdrawalFee } from '../api/backend';
 import { useAuth } from './AuthContext';
 
 const STORAGE_KEY = 'novaplay:progress:v2';
@@ -38,6 +38,11 @@ type GameState = {
   firstDepositBonusClaimed: boolean;
   dailyWithdrawalLimit: number;
   remainingWithdrawalLimit: number;
+  vipLevel: number;
+  freeWithdrawalsPerDay: number;
+  /** Fee-free withdrawals left today; after them withdrawalFee applies. */
+  freeWithdrawalsLeft: number;
+  withdrawalFee: WithdrawalFee | null;
   transactions: WalletTransaction[];
   missions: Mission[];
   achievements: Achievement[];
@@ -76,6 +81,10 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
   const [firstDepositBonusClaimed, setFirstDepositBonusClaimed] = useState(false);
   const [dailyWithdrawalLimit, setDailyWithdrawalLimit] = useState(0);
   const [remainingWithdrawalLimit, setRemainingWithdrawalLimit] = useState(0);
+  const [vipLevel, setVipLevel] = useState(0);
+  const [freeWithdrawalsPerDay, setFreeWithdrawalsPerDay] = useState(0);
+  const [freeWithdrawalsLeft, setFreeWithdrawalsLeft] = useState(0);
+  const [withdrawalFee, setWithdrawalFee] = useState<WithdrawalFee | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [missions, setMissions] = useState<Mission[]>(initialMissions);
   const [achievements] = useState<Achievement[]>(initialAchievements);
@@ -100,6 +109,10 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     setFirstDepositBonusClaimed(wallet.firstDepositBonusClaimed);
     setDailyWithdrawalLimit(wallet.dailyWithdrawalLimit);
     setRemainingWithdrawalLimit(wallet.remainingWithdrawalLimit);
+    setVipLevel(wallet.vipLevel);
+    setFreeWithdrawalsPerDay(wallet.freeWithdrawalsPerDay);
+    setFreeWithdrawalsLeft(wallet.freeWithdrawalsLeft);
+    setWithdrawalFee(wallet.withdrawalFee);
     setTransactions(wallet.transactions);
     setStreak(dailyStatus.dailyStreak);
     setClaimedToday(dailyStatus.claimedToday);
@@ -162,6 +175,10 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
       setFirstDepositBonusClaimed(false);
       setDailyWithdrawalLimit(0);
       setRemainingWithdrawalLimit(0);
+      setVipLevel(0);
+      setFreeWithdrawalsPerDay(0);
+      setFreeWithdrawalsLeft(0);
+      setWithdrawalFee(null);
       setTransactions([]);
       setStreak(0);
       setClaimedToday(false);
@@ -233,6 +250,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     setCoins((c) => Math.max(0, c - amount));
     setWithdrawable((w) => Math.max(0, w - amount));
     setRemainingWithdrawalLimit((r) => Math.max(0, r - amount));
+    setFreeWithdrawalsLeft((n) => Math.max(0, n - 1));
   }, []);
 
   const value: GameState = {
@@ -250,6 +268,10 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     firstDepositBonusClaimed,
     dailyWithdrawalLimit,
     remainingWithdrawalLimit,
+    vipLevel,
+    freeWithdrawalsPerDay,
+    freeWithdrawalsLeft,
+    withdrawalFee,
     transactions,
     missions,
     achievements,

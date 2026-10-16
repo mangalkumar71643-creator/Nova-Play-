@@ -76,6 +76,18 @@ export interface BackendWallet {
   withdrawable: number;
   dailyWithdrawalLimit: number;
   remainingWithdrawalLimit: number;
+  /** VIP terms for withdrawals (older servers leave these out). */
+  vipLevel?: number;
+  freeWithdrawalsPerDay?: number;
+  freeWithdrawalsLeft?: number;
+  withdrawalFee?: WithdrawalFee;
+}
+
+/** Charged on a withdrawal past the day's free ones: ₹flat + percent%, kept out of the payout. */
+export type WithdrawalFee = { flat: number; percent: number };
+
+export function withdrawalFeeFor(amount: number, fee: WithdrawalFee) {
+  return Math.round((fee.flat + (amount * fee.percent) / 100) * 100) / 100;
 }
 
 export interface DepositResult extends BackendWallet {
@@ -114,7 +126,7 @@ export function depositToWallet(amount: number) {
 }
 
 export function withdrawFromWallet(amount: number) {
-  return apiFetch<BackendWallet>('/wallet/withdraw', { method: 'POST', body: JSON.stringify({ amount }) });
+  return apiFetch<BackendWallet & { fee?: number; payout?: number }>('/wallet/withdraw', { method: 'POST', body: JSON.stringify({ amount }) });
 }
 
 export function setPayoutBankAccount(accountHolderName: string, accountNumber: string, ifsc: string) {
@@ -3614,7 +3626,8 @@ export type WalletHistory = {
   count: number;
   /** Withdrawals still waiting for approval. */
   pending: number;
-  items: { id: string; amount: number; status: 'PENDING' | 'COMPLETED' | 'FAILED'; createdAt: string }[];
+  /** fee: what was kept back from a withdrawal (0 for a free one). */
+  items: { id: string; amount: number; fee?: number; status: 'PENDING' | 'COMPLETED' | 'FAILED'; createdAt: string }[];
 };
 
 export function fetchWalletHistory(kind: WalletHistoryKind) {
@@ -3649,7 +3662,15 @@ export type VipStatus = {
   /** Total staked in games; ₹1 = 1 XP. */
   xp: number;
   level: number;
-  levels: { level: number; xpRequired: number; weeklyBonus?: number; upgradeBonus?: number }[];
+  levels: {
+    level: number;
+    xpRequired: number;
+    weeklyBonus?: number;
+    upgradeBonus?: number;
+    dailyWithdrawalLimit?: number;
+    freeWithdrawals?: number;
+  }[];
+  withdrawalFee?: WithdrawalFee;
   claimedUpgrades: number[];
   /** True once this month's bonus is taken (the "weekly" bonus is now paid monthly). */
   monthlyClaimed?: boolean;

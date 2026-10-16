@@ -239,13 +239,14 @@ router.get(
       )
       SELECT p.period, t.type::text AS type,
              CASE WHEN t.type IN ('BONUS', 'DEPOSIT_BONUS') THEN t.provider ELSE NULL END AS provider,
-             SUM(t.amount) AS total
+             -- A withdrawal's fee stays with the house: only amount - fee left as cash.
+             SUM(CASE WHEN t.type = 'WITHDRAWAL' THEN t.amount - COALESCE(t.fee, 0) ELSE t.amount END) AS total
       FROM periods p
       JOIN "Transaction" t ON t."createdAt" >= p.since AND t.status = 'COMPLETED'
       GROUP BY 1, 2, 3`;
     const [wallets, pending, players] = await Promise.all([
       prisma.wallet.aggregate({ _sum: { balance: true } }),
-      prisma.transaction.aggregate({ where: { type: "WITHDRAWAL", status: "PENDING" }, _sum: { amount: true }, _count: true }),
+      prisma.transaction.aggregate({ where: { type: "WITHDRAWAL", status: "PENDING" }, _sum: { amount: true, fee: true }, _count: true }),
       prisma.wallet.count({ where: { balance: { gt: 0 } } }),
     ]);
 
@@ -285,7 +286,7 @@ router.get(
       })
     );
     const playerBalances = r2(Number(wallets._sum.balance ?? 0));
-    const pendingWithdrawals = r2(Number(pending._sum.amount ?? 0));
+    const pendingWithdrawals = r2(Number(pending._sum.amount ?? 0) - Number(pending._sum.fee ?? 0));
     res.json({
       periods: out,
       now: {
@@ -717,7 +718,8 @@ router.post(
     try {
       result = await paymentProvider.withdraw({
         userId: transaction.userId,
-        amount: Number(transaction.amount),
+        // The fee stays with us: pay out the rest.
+        amount: Number(transaction.amount) - Number(transaction.fee ?? 0),
         currency: wallet.currency,
       });
     } finally {

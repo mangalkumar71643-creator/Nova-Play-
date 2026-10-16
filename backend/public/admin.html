@@ -1231,8 +1231,11 @@
       ? escapeHtml(w.user.payoutAccountHolderName) + ' · ' + escapeHtml(w.user.payoutAccountNumber) + ' · IFSC ' + escapeHtml(w.user.payoutIfsc)
       : 'No bank account on file';
     var statusClass = w.status === 'COMPLETED' ? 'approved' : w.status === 'FAILED' ? 'failed' : 'pending';
+    // Past the player's free withdrawals for the day a fee is kept back: send only amount - fee.
+    var fee = Number(w.fee || 0);
+    var payout = Math.round((Number(w.amount) - fee) * 100) / 100;
     var actions = w.status === 'PENDING'
-      ? '<button class="icon-btn view" data-action="approve" data-id="' + w.id + '">Approve &amp; pay out</button>' +
+      ? '<button class="icon-btn view" data-action="approve" data-id="' + w.id + '" data-payout="' + payout + '">Approve &amp; pay out ' + fmtMoney(payout) + '</button>' +
         '<button class="icon-btn ban" data-action="reject" data-id="' + w.id + '">Reject &amp; refund</button>'
       : '';
     return (
@@ -1242,6 +1245,11 @@
             '<div class="item-title">' + fmtMoney(w.amount) + ' — ' + escapeHtml(name) + '</div>' +
             '<div class="item-meta">' + escapeHtml(contact) + ' · ' + new Date(w.createdAt).toLocaleString() + '</div>' +
             '<div class="item-meta">' + bank + '</div>' +
+            '<div class="item-meta" style="font-weight:700;">' +
+              (fee > 0
+                ? 'Send ' + fmtMoney(payout) + ' to the bank (' + fmtMoney(w.amount) + ' − fee ' + fmtMoney(fee) + ')'
+                : 'Send ' + fmtMoney(payout) + ' to the bank (free withdrawal, no fee)') +
+            '</div>' +
             (w.testMoney ? '<div class="item-meta" style="color:#ff5c5c;font-weight:700;">⚠ This player has StockPay TEST deposits (play money). Do not pay real money for it.</div>' : '') +
           '</div>' +
           '<span class="pill ' + statusClass + '">' + w.status + '</span>' +
@@ -1264,7 +1272,7 @@
           var id = btn.getAttribute('data-id');
           var action = btn.getAttribute('data-action');
           if (action === 'approve') {
-            var ref = prompt('You have sent this payout to the customer\'s bank/UPI?\nEnter the payment\'s UTR / reference to mark it paid:');
+            var ref = prompt('You have sent ' + fmtMoney(btn.getAttribute('data-payout')) + ' to the customer\'s bank/UPI?\nEnter the payment\'s UTR / reference to mark it paid:');
             if (ref === null) return;
             ref = ref.trim();
             if (ref.length < 4) { showAlert('Enter the UTR / reference of the payment you sent (at least 4 characters).'); return; }

@@ -8,24 +8,48 @@ import { assertCanTransact } from "./responsibleGamblingService";
  * Only the player's current level pays: upgradeBonus once for that level,
  * and weeklyBonus (shown as the monthly bonus; the name stays for older
  * apps) once per calendar month.
+ *
+ * Withdrawals: dailyWithdrawalLimit is the most a player can take out per
+ * day (India time), and the first freeWithdrawals of the day carry no fee;
+ * every one after that pays WITHDRAWAL_FEE. VIP 0 has VIP 1's terms.
  */
-export const VIP_LEVELS: { level: number; xpRequired: number; weeklyBonus?: number; upgradeBonus?: number }[] = [
-  { level: 0, xpRequired: 0 },
-  { level: 1, xpRequired: 100 },
-  { level: 2, xpRequired: 1000, weeklyBonus: 3, upgradeBonus: 7 },
-  { level: 3, xpRequired: 5000, weeklyBonus: 5, upgradeBonus: 11 },
-  { level: 4, xpRequired: 10000, weeklyBonus: 7, upgradeBonus: 17 },
-  { level: 5, xpRequired: 20000, weeklyBonus: 11, upgradeBonus: 37 },
-  { level: 6, xpRequired: 50000, weeklyBonus: 17, upgradeBonus: 77 },
-  { level: 7, xpRequired: 100000, weeklyBonus: 27, upgradeBonus: 177 },
-  { level: 8, xpRequired: 200000, weeklyBonus: 37, upgradeBonus: 377 },
-  { level: 9, xpRequired: 500000, weeklyBonus: 77, upgradeBonus: 1777 },
-  { level: 10, xpRequired: 1000000, weeklyBonus: 117, upgradeBonus: 3777 },
-  { level: 11, xpRequired: 5000000, weeklyBonus: 177, upgradeBonus: 17777 },
-  { level: 12, xpRequired: 10000000, weeklyBonus: 1777, upgradeBonus: 77777 },
+export const VIP_LEVELS: {
+  level: number;
+  xpRequired: number;
+  weeklyBonus?: number;
+  upgradeBonus?: number;
+  dailyWithdrawalLimit: number;
+  freeWithdrawals: number;
+}[] = [
+  { level: 0, xpRequired: 0, dailyWithdrawalLimit: 1000, freeWithdrawals: 4 },
+  { level: 1, xpRequired: 100, dailyWithdrawalLimit: 1000, freeWithdrawals: 4 },
+  { level: 2, xpRequired: 1000, weeklyBonus: 3, upgradeBonus: 7, dailyWithdrawalLimit: 5000, freeWithdrawals: 4 },
+  { level: 3, xpRequired: 5000, weeklyBonus: 5, upgradeBonus: 11, dailyWithdrawalLimit: 10000, freeWithdrawals: 5 },
+  { level: 4, xpRequired: 10000, weeklyBonus: 7, upgradeBonus: 17, dailyWithdrawalLimit: 20000, freeWithdrawals: 5 },
+  { level: 5, xpRequired: 20000, weeklyBonus: 11, upgradeBonus: 37, dailyWithdrawalLimit: 50000, freeWithdrawals: 10 },
+  { level: 6, xpRequired: 50000, weeklyBonus: 17, upgradeBonus: 77, dailyWithdrawalLimit: 100000, freeWithdrawals: 10 },
+  { level: 7, xpRequired: 100000, weeklyBonus: 27, upgradeBonus: 177, dailyWithdrawalLimit: 200000, freeWithdrawals: 15 },
+  { level: 8, xpRequired: 200000, weeklyBonus: 37, upgradeBonus: 377, dailyWithdrawalLimit: 500000, freeWithdrawals: 15 },
+  { level: 9, xpRequired: 500000, weeklyBonus: 77, upgradeBonus: 1777, dailyWithdrawalLimit: 1000000, freeWithdrawals: 15 },
+  { level: 10, xpRequired: 1000000, weeklyBonus: 117, upgradeBonus: 3777, dailyWithdrawalLimit: 5000000, freeWithdrawals: 99 },
+  { level: 11, xpRequired: 5000000, weeklyBonus: 177, upgradeBonus: 17777, dailyWithdrawalLimit: 10000000, freeWithdrawals: 99 },
+  { level: 12, xpRequired: 10000000, weeklyBonus: 1777, upgradeBonus: 77777, dailyWithdrawalLimit: 10000000, freeWithdrawals: 99 },
 ];
 
+/** Fee on a withdrawal past the day's free ones: ₹flat + percent% of the amount, kept out of the payout. */
+export const WITHDRAWAL_FEE = { flat: 6, percent: 3 };
+
+export function withdrawalFee(amount: number) {
+  return Math.round((WITHDRAWAL_FEE.flat + (amount * WITHDRAWAL_FEE.percent) / 100) * 100) / 100;
+}
+
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/** Midnight today, India time: daily withdrawal limits and free withdrawals reset then. */
+export function istDayStart(now = new Date()) {
+  const ist = new Date(now.getTime() + IST_OFFSET_MS);
+  return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()) - IST_OFFSET_MS);
+}
 
 /** Start of the calendar month (India time) `offset` months from now; monthly bonuses reset then. */
 function monthStart(offset = 0, now = new Date()) {
@@ -55,6 +79,12 @@ async function xpFor(userId: string, client: Prisma.TransactionClient | typeof p
   return Math.floor(Number(staked._sum.amount ?? 0));
 }
 
+/** The player's VIP level and that level's terms. */
+export async function vipTermsFor(userId: string, client: Prisma.TransactionClient | typeof prisma = prisma) {
+  const level = levelForXp(await xpFor(userId, client));
+  return VIP_LEVELS.find((l) => l.level === level) ?? VIP_LEVELS[0];
+}
+
 export async function getVipStatus(userId: string) {
   const [xp, claims] = await Promise.all([
     xpFor(userId),
@@ -68,6 +98,7 @@ export async function getVipStatus(userId: string) {
     level,
     monthKey: currentMonthKey(),
     levels: VIP_LEVELS,
+    withdrawalFee: WITHDRAWAL_FEE,
     claimedUpgrades: claims.filter((c) => c.claimKey.startsWith("upgrade-")).map((c) => Number(c.claimKey.split("-")[1])),
     /** True once this month's bonus is taken, whatever level it was taken at. */
     monthlyClaimed,
