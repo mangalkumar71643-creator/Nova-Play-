@@ -21,7 +21,7 @@ StockPay ke admin panel kholo (jahan se aapko API mili hai):
 
 | Name | Value |
 | --- | --- |
-| `STOCKPAY_KEY` | `sk_test_...` (aapki test key) |
+| `STOCKPAY_KEY` (ya `STOCK_KEY`) | `sk_test_...` (aapki test key) |
 | `STOCKPAY_WEBHOOK_SECRET` | webhook secret |
 | `STOCKPAY_TEST_PHONES` | `98XXXXXXXX` (aapka number) |
 
@@ -67,8 +67,10 @@ hai, chahe app band hi kyu na ho.
 
 ## Agar kuch na chale
 
-- Deposit screen pe "UPI payments are not set up yet" → `STOCKPAY_KEY`
+- Deposit screen pe "UPI payments are not set up yet" → `STOCKPAY_KEY` / `STOCK_KEY`
   Vercel me nahi pahunchi (redeploy ke baad bhi) ya galat hai.
+- "Live UPI payments are switched off" → key `sk_live_...` hai; test mode me
+  sirf `sk_test_...` chalti hai.
 - "...is not in STOCKPAY_TEST_PHONES" → us account ka number list me nahi
   hai; Vercel me number add karke redeploy karo.
 - Payment karne ke baad bhi PENDING → webhook URL register nahi hui ya
