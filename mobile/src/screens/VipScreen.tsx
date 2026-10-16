@@ -19,6 +19,7 @@ import {
 import { claimVipBonus, fetchVipStatus, VipStatus } from '../api/backend';
 import { ApiClientError } from '../api/client';
 import LoadingState from '../components/LoadingState';
+import VipBonusHistory from '../components/VipBonusHistory';
 import VipBonusPopup, { nextMonthLabel, VipBonusResult } from '../components/VipBonusPopup';
 import { pedestalHeight as pedestalHeightFor, VipArc, VipEmblem, VipPedestal, VipRays, VipStage, vipTier } from '../components/VipEmblem';
 import ScreenContainer from '../components/ScreenContainer';
@@ -101,7 +102,6 @@ export default function VipScreen() {
   const [focusedLevel, setFocusedLevel] = useState(1);
   const [descriptionVisible, setDescriptionVisible] = useState(false);
   const [bonusHistoryVisible, setBonusHistoryVisible] = useState(false);
-  const [historyTab, setHistoryTab] = useState<'month' | 'all'>('month');
   const scrollX = useRef(new Animated.Value(0)).current;
   const focusedLevelRef = useRef(1);
   // Centre emblem large, its neighbours peeking in at the sides.
@@ -217,24 +217,6 @@ export default function VipScreen() {
   const descriptionImageWidth = Math.min(400, screenWidth - spacing.lg * 4);
   const descriptionImageHeight = Math.min(descriptionImageWidth / DESCRIPTION_IMAGE_ASPECT, screenHeight * 0.8);
   const descriptionImageWidthCapped = descriptionImageHeight * DESCRIPTION_IMAGE_ASPECT;
-
-  const bonusCardWidth = Math.min(400, screenWidth - spacing.lg * 4);
-  const bonusTopHeight = bonusCardWidth * (114 / 640);
-  const vipBonusHistory = vip.history.map((h) => ({
-    id: `${h.kind}-${h.level}-${h.createdAt}`,
-    title: `VIP ${h.level} ${h.kind === 'upgrade' ? 'Upgrade' : 'Monthly'} Bonus`,
-    amount: h.amount,
-    timestampISO: h.createdAt,
-  }));
-  const totalVipRewards = vipBonusHistory.reduce((sum, b) => sum + b.amount, 0);
-  const now = new Date();
-  const filteredBonusHistory =
-    historyTab === 'all'
-      ? vipBonusHistory
-      : vipBonusHistory.filter((b) => {
-          const d = new Date(b.timestampISO);
-          return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-        });
 
   return (
     <ScreenContainer>
@@ -460,84 +442,13 @@ export default function VipScreen() {
         </Pressable>
       </Modal>
 
-      <Modal
+      <VipBonusHistory
         visible={bonusHistoryVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setBonusHistoryVisible(false)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setBonusHistoryVisible(false)}>
-          <Pressable style={{ width: bonusCardWidth }} onPress={() => {}}>
-            <View style={styles.bonusHeaderRow}>
-              <MaterialCommunityIcons name="diamond-stone" size={28} color={colors.gold} />
-              <View style={styles.bonusHeaderCenter}>
-                <Image source={AVATARS[avatarId - 1]} style={styles.bonusAvatar} />
-                <Text style={styles.bonusUsername} numberOfLines={1}>
-                  {playerName}
-                </Text>
-                <View style={styles.bonusVipBadge}>
-                  <MaterialCommunityIcons name="crown" size={11} color={colors.gold} />
-                  <Text style={styles.bonusVipBadgeText}>VIP {vip.level}</Text>
-                </View>
-              </View>
-              <View style={styles.bonusHeaderRight}>
-                <MaterialCommunityIcons name="cards-club" size={26} color={colors.crimsonLight} />
-                <Text style={styles.bonusHeaderRightLabel}>VIP</Text>
-              </View>
-              <Pressable onPress={() => setBonusHistoryVisible(false)} style={styles.bonusCloseButton}>
-                <MaterialCommunityIcons name="close-circle" size={26} color={colors.gold} />
-              </Pressable>
-            </View>
-
-            <Image
-              source={require('../../assets/vip-bonus-history-top.jpg')}
-              style={{ width: bonusCardWidth, height: bonusTopHeight }}
-              resizeMode="stretch"
-            />
-            <LinearGradient colors={gradients.goldButton} style={styles.bonusRewardsBox}>
-              <Text style={styles.bonusRewardsLabel}>Total Rewards</Text>
-              <Text style={styles.bonusRewardsValue}>₹{totalVipRewards.toLocaleString('en-IN')}</Text>
-            </LinearGradient>
-
-            <View style={styles.bonusTabRow}>
-              <Pressable style={styles.bonusTab} onPress={() => setHistoryTab('month')}>
-                <Text style={[styles.bonusTabText, historyTab === 'month' && styles.bonusTabTextActive]}>Month</Text>
-                {historyTab === 'month' ? <View style={styles.bonusTabUnderline} /> : null}
-              </Pressable>
-              <Pressable style={styles.bonusTab} onPress={() => setHistoryTab('all')}>
-                <Text style={[styles.bonusTabText, historyTab === 'all' && styles.bonusTabTextActive]}>ALL</Text>
-                {historyTab === 'all' ? <View style={styles.bonusTabUnderline} /> : null}
-              </Pressable>
-            </View>
-
-            <View style={styles.bonusPanel}>
-              {filteredBonusHistory.length === 0 ? (
-                <View style={styles.bonusEmpty}>
-                  <MaterialCommunityIcons name="clipboard-text-outline" size={56} color={colors.crimsonLight} />
-                  <Text style={styles.bonusEmptyText}>No bonus history.</Text>
-                </View>
-              ) : (
-                <View style={styles.bonusHistoryList}>
-                  {filteredBonusHistory.map((record) => (
-                    <View key={record.id} style={styles.bonusHistoryRow}>
-                      <View style={styles.benefitIconWrap}>
-                        <MaterialCommunityIcons name="crown-outline" size={18} color={colors.gold} />
-                      </View>
-                      <View style={styles.benefitMiddle}>
-                        <Text style={styles.benefitTitle}>{record.title}</Text>
-                        <Text style={styles.bonusHistoryTimestamp}>
-                          {new Date(record.timestampISO).toLocaleDateString()}
-                        </Text>
-                      </View>
-                      <Text style={styles.bonusHistoryAmount}>+₹{record.amount.toLocaleString('en-IN')}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onClose={() => setBonusHistoryVisible(false)}
+        vip={vip}
+        playerName={playerName}
+        avatar={AVATARS[avatarId - 1]}
+      />
 
       <VipBonusPopup result={bonusPopup} onClose={() => setBonusPopup(null)} />
     </ScreenContainer>
@@ -739,69 +650,4 @@ const styles = StyleSheet.create({
     right: -6,
     zIndex: 1,
   },
-  bonusHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  bonusHeaderCenter: { flex: 1, alignItems: 'center', marginHorizontal: spacing.sm },
-  bonusAvatar: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: colors.gold },
-  bonusUsername: { color: colors.textPrimary, fontSize: typography.sm, fontWeight: '700', marginTop: spacing.xs },
-  bonusVipBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    marginTop: 2,
-  },
-  bonusVipBadgeText: { color: colors.gold, fontSize: typography.xs, fontWeight: '700' },
-  bonusHeaderRight: { alignItems: 'center' },
-  bonusHeaderRightLabel: { color: colors.crimsonLight, fontSize: typography.xs, fontWeight: '700', marginTop: 2 },
-  bonusCloseButton: { marginLeft: spacing.sm },
-  bonusRewardsBox: { alignItems: 'center', paddingVertical: spacing.lg },
-  bonusRewardsLabel: { color: '#5C3A0E', fontSize: typography.md, fontWeight: '700' },
-  bonusRewardsValue: { color: '#5C3A0E', fontSize: 48, fontWeight: '800', marginTop: spacing.xs },
-  bonusTabRow: {
-    flexDirection: 'row',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: colors.gold,
-    backgroundColor: colors.background,
-  },
-  bonusTab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
-  bonusTabText: { color: colors.textMuted, fontSize: typography.md, fontWeight: '700' },
-  bonusTabTextActive: { color: colors.gold },
-  bonusTabUnderline: { marginTop: spacing.xs, height: 2, width: '70%', backgroundColor: colors.gold },
-  bonusPanel: {
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.gold,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
-    backgroundColor: colors.background,
-    minHeight: 200,
-    padding: spacing.lg,
-  },
-  bonusEmpty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
-  bonusEmptyText: { color: colors.gold, fontSize: typography.md, fontWeight: '700', marginTop: spacing.lg },
-  bonusHistoryList: { gap: spacing.sm },
-  bonusHistoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-  },
-  bonusHistoryTimestamp: { color: colors.textMuted, fontSize: typography.xs, marginTop: 2 },
-  bonusHistoryAmount: { color: colors.positive, fontSize: typography.md, fontWeight: '800' },
 });
