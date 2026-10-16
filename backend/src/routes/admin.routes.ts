@@ -6,7 +6,7 @@ import { prisma } from "../db/prismaClient";
 import { env } from "../config/env";
 import { paymentProvider } from "../services/paymentService";
 import { completeDeposit } from "../services/depositService";
-import { PROVIDER as STOCKPAY_PROVIDER } from "../services/stockpayService";
+import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import { FAST2SMS_ROUTES, fast2SmsFromEnv } from "../services/smsService";
 import { INTEGRATION_FIELDS, integration, integrationView, saveIntegrationSettings } from "../services/integrationSettings";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
@@ -469,10 +469,11 @@ router.get(
   asyncHandler(async (req, res) => {
     const status = upiDepositStatusQuery.parse(req.query.status);
     const rows = await prisma.transaction.findMany({
-      where: { provider: STOCKPAY_PROVIDER, type: "DEPOSIT", status },
+      // Test (play money) and live-pilot (real money) deposits; `provider` tells them apart.
+      where: { provider: { in: STOCKPAY_PROVIDERS }, type: "DEPOSIT", status },
       orderBy: { createdAt: "desc" },
       take: 200,
-      select: { id: true, amount: true, status: true, providerReferenceId: true, createdAt: true, user: { select: { id: true, ...userSummarySelect } } },
+      select: { id: true, amount: true, status: true, provider: true, providerReferenceId: true, createdAt: true, user: { select: { id: true, ...userSummarySelect } } },
     });
     res.json(rows);
   })

@@ -81,6 +81,12 @@ async function ensureStockpayOrderIndex() {
       ON "Transaction" ("providerReferenceId")
       WHERE provider = 'stockpay' AND type = 'DEPOSIT';
     `);
+    // Live-pilot (real money) deposits, provider 'stockpay_live'.
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS novaplay_stockpay_live_order
+      ON "Transaction" ("providerReferenceId")
+      WHERE provider = 'stockpay_live' AND type = 'DEPOSIT';
+    `);
   } catch (err) {
     console.error("Could not create the StockPay order index (duplicate rows?):", err);
   }

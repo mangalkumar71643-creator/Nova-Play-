@@ -51,7 +51,7 @@ function mapTransaction(tx: BackendTransaction): WalletTransaction {
   const created = new Date(tx.createdAt);
   // StockPay's hosted UPI checkout deposits get their own label/icon so a
   // player can tell a UPI deposit apart from an admin credit at a glance.
-  const isUpiDeposit = tx.type === 'DEPOSIT' && tx.provider === 'stockpay';
+  const isUpiDeposit = tx.type === 'DEPOSIT' && (tx.provider === 'stockpay' || tx.provider === 'stockpay_live');
   return {
     id: tx.id,
     title: isUpiDeposit ? 'UPI Deposit' : TX_TITLES[tx.type],

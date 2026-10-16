@@ -1307,6 +1307,9 @@
           '</div>' +
           '<div style="text-align:right;flex:0 0 auto;">' +
             '<span class="pill ' + statusClass + '">' + d.status + '</span>' +
+            (d.provider === 'stockpay_live'
+              ? '<br/><span class="pill approved" style="display:inline-block;margin-top:6px;">LIVE ₹</span>'
+              : '<br/><span class="pill" style="display:inline-block;margin-top:6px;">TEST</span>') +
             (stuck ? '<br/><span class="pill failed" style="display:inline-block;margin-top:6px;">STUCK &gt;30m</span>' : '') +
           '</div>' +
         '</div>' +

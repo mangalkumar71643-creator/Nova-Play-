@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "../db/prismaClient";
+import { env } from "../config/env";
 import { ApiError } from "../middleware/errorHandler";
 import { completeDeposit } from "./depositService";
 
@@ -18,12 +19,15 @@ import { completeDeposit } from "./depositService";
  * when StockPay's signed order.paid webhook arrives, or when the app asks
  * to confirm (on return to the app, or the next visit to Deposit). Either
  * way the order is fetched back from StockPay (GET /orders/{id}) and only
- * a paid test order, in this amount and in INR, claims the PENDING row
- * and credits the wallet — once.
+ * a paid order of the key's own mode (test or live), in this amount and in
+ * INR, claims the PENDING row and credits the wallet — once.
  *
  * Settings (Vercel -> Settings -> Environment Variables):
- *   STOCKPAY_KEY             StockPay secret TEST key (sk_test_...); STOCK_KEY is read too
- *   STOCKPAY_TEST_PHONES     phone numbers allowed to deposit in test mode, comma separated
+ *   STOCKPAY_KEY             StockPay TEST key (sk_test_...); STOCK_KEY is read too
+ *   STOCKPAY_LIVE_KEY        StockPay LIVE key (sk_live_...); stockpay_key_live is read too
+ *   STOCKPAY_MODE            "live" uses the live key (live PILOT); anything else the test key
+ *   STOCKPAY_TEST_PHONES     phone numbers allowed to deposit, comma separated
+ *                            (in both modes; empty = nobody)
  *   STOCKPAY_WEBHOOK_SECRET  webhook secret from StockPay admin -> API Keys
  *
  * Webhook: register https://<your-server>/webhooks/stockpay in StockPay's
@@ -31,25 +35,48 @@ import { completeDeposit } from "./depositService";
  * rawBody) in X-StockPay-Signature / X-StockPay-Timestamp (5-minute
  * tolerance) and sends order.paid / order.expired / order.cancelled.
  *
- * Only TEST keys are switched on: a test order's "Simulate successful payment"
- * button would otherwise put play money in real players' wallets, and taking
- * real money for gambling needs a gambling licence and a payment company
- * that allows it. In test mode only STOCKPAY_TEST_PHONES may deposit.
+ * Test mode: a test order's "Simulate successful payment" button puts play
+ * money in the wallet, so only STOCKPAY_TEST_PHONES may deposit.
+ *
+ * Live PILOT (sk_live_ key): real money, still only for the numbers in
+ * STOCKPAY_TEST_PHONES — every other player is told UPI deposits are not
+ * open yet. It is for the owner's own real-payment test; opening it to all
+ * players needs a gambling licence and a payment company that allows it.
+ * Live deposits are recorded as provider "stockpay_live" and test ones as
+ * "stockpay", and a key only ever credits orders of its own mode, so test
+ * play money and real money never mix.
  */
 
 const BASE = "https://stockpay-in.vercel.app/api/v1";
 const CURRENCY = "INR";
+/** Test-mode deposits (play money). */
 export const PROVIDER = "stockpay";
+/** Live-pilot deposits (real money). */
+export const LIVE_PROVIDER = "stockpay_live";
+export const STOCKPAY_PROVIDERS = [PROVIDER, LIVE_PROVIDER];
 export const MIN_UPI_DEPOSIT = 100;
-// Test mode: kept well under StockPay's own ₹99,999 per-order maximum.
+// Kept well under StockPay's own ₹99,999 per-order maximum.
 export const MAX_UPI_DEPOSIT = 5000;
 // StockPay: an expired order can still turn paid within 24 h (late payment).
 const LATE_PAYMENT_WINDOW_MS = 25 * 3600 * 1000;
 
-const rawKey = () => (process.env.STOCKPAY_KEY || process.env.STOCK_KEY || "").trim();
-const testKey = () => (rawKey().startsWith("sk_test_") ? rawKey() : "");
+type Mode = "test" | "live";
+/** STOCKPAY_MODE=live picks the live key; otherwise the test key. Its prefix sets the mode. */
+function rawKey(): string {
+  const live = (process.env.STOCKPAY_MODE ?? "").trim().toLowerCase() === "live";
+  const key = live ? process.env.STOCKPAY_LIVE_KEY || process.env.stockpay_key_live : process.env.STOCKPAY_KEY || process.env.STOCK_KEY;
+  return (key ?? "").trim();
+}
+/** The key in use and its mode; a key that is neither sk_test_ nor sk_live_ counts as none. */
+function activeKey(): { key: string; mode: Mode } | null {
+  const key = rawKey();
+  if (key.startsWith("sk_test_")) return { key, mode: "test" };
+  if (key.startsWith("sk_live_")) return { key, mode: "live" };
+  return null;
+}
+const providerFor = (mode: Mode) => (mode === "live" ? LIVE_PROVIDER : PROVIDER);
 
-function testPhones(): string[] {
+function allowedPhones(): string[] {
   return (process.env.STOCKPAY_TEST_PHONES ?? "")
     .split(/[\s,]+/)
     .map((p) => p.replace(/\D/g, "").slice(-10))
@@ -71,7 +98,7 @@ type StockpayOrder = {
 };
 
 async function call<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
-  const key = testKey();
+  const key = activeKey()?.key;
   if (!key) throw new ApiError(503, "UPI payments are not set up yet.");
   let res: Response;
   try {
@@ -96,14 +123,21 @@ async function call<T>(method: "GET" | "POST", path: string, body?: unknown): Pr
 
 /** What the app needs to know to offer UPI deposits to this player. */
 export async function upiDepositStatus(userId: string) {
-  const base = { gateway: PROVIDER, gatewayName: "StockPay", testMode: true };
-  if (rawKey().startsWith("sk_live_")) {
-    return { ...base, enabled: false, testMode: false, reason: "Live UPI payments are switched off. Use a StockPay test key (sk_test_...)." };
-  }
-  if (!testKey()) return { ...base, enabled: false, gateway: null, gatewayName: null, testMode: false, reason: "UPI payments are not set up yet." };
+  const active = activeKey();
+  if (!active) return { enabled: false, gateway: null, gatewayName: null, testMode: false, reason: "UPI payments are not set up yet." };
+  const testMode = active.mode === "test";
+  const base = { gateway: PROVIDER, gatewayName: "StockPay", testMode };
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
   const phone = (user.phone ?? "").replace(/\D/g, "").slice(-10);
-  if (!testPhones().includes(phone)) {
+  if (!testMode) {
+    // Live pilot (real money): only an account whose phone is exactly +91 and
+    // a listed number, and only while OTP really goes by SMS — with mock OTP
+    // anyone could sign in as that number. Everyone else finds UPI not open.
+    const listed = allowedPhones().map((p) => `+91${p}`);
+    if (env.smsProviderMode !== "live" || !listed.includes(user.phone ?? "")) {
+      return { ...base, enabled: false, reason: "UPI deposits are not open yet." };
+    }
+  } else if (!allowedPhones().includes(phone)) {
     return { ...base, enabled: false, reason: `UPI payments are in test mode. This account's number (…${phone.slice(-4) || "none"}) is not in STOCKPAY_TEST_PHONES.` };
   }
   return { ...base, enabled: true, reason: null, min: MIN_UPI_DEPOSIT, max: MAX_UPI_DEPOSIT, currency: CURRENCY.toLowerCase() };
@@ -112,7 +146,9 @@ export async function upiDepositStatus(userId: string) {
 /** Opens a StockPay UPI payment page for `amount` (INR) and records the PENDING deposit. */
 export async function createUpiCheckout(userId: string, amount: number, returnBase: string) {
   const status = await upiDepositStatus(userId);
-  if (!status.enabled) throw new ApiError(403, status.reason ?? "UPI payments are not available.");
+  const active = activeKey();
+  if (!status.enabled || !active) throw new ApiError(403, status.reason ?? "UPI payments are not available.");
+  const provider = providerFor(active.mode);
   if (amount < MIN_UPI_DEPOSIT || amount > MAX_UPI_DEPOSIT) throw new ApiError(400, `Deposit must be between ₹${MIN_UPI_DEPOSIT} and ₹${MAX_UPI_DEPOSIT}.`);
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
@@ -132,11 +168,11 @@ export async function createUpiCheckout(userId: string, amount: number, returnBa
 
   // One StockPay order = one deposit row (also enforced by a unique index,
   // see prisma/seed.ts), so a paid order can only ever be credited once.
-  const existing = await prisma.transaction.findFirst({ where: { provider: PROVIDER, type: "DEPOSIT", providerReferenceId: order.id } });
+  const existing = await prisma.transaction.findFirst({ where: { provider, type: "DEPOSIT", providerReferenceId: order.id } });
   if (!existing) {
     try {
       await prisma.transaction.create({
-        data: { userId, type: "DEPOSIT", amount, status: "PENDING", provider: PROVIDER, providerReferenceId: order.id },
+        data: { userId, type: "DEPOSIT", amount, status: "PENDING", provider, providerReferenceId: order.id },
       });
     } catch (err) {
       if ((err as { code?: string }).code !== "P2002") throw err;
@@ -152,11 +188,17 @@ export async function createUpiCheckout(userId: string, amount: number, returnBa
  * expired/cancelled -> FAILED, else left PENDING. A FAILED row can still be
  * credited if StockPay later reports the order paid (a late payment).
  */
-async function settle(tx: { id: string; userId: string; amount: unknown; status?: string; providerReferenceId: string | null }) {
+async function settle(tx: { id: string; userId: string; amount: unknown; status?: string; provider?: string | null; providerReferenceId: string | null }) {
   const amount = Number(tx.amount);
+  const active = activeKey();
+  if (!active) throw new ApiError(503, "UPI payments are not set up yet.");
+  const provider = providerFor(active.mode);
+  // A row from the other mode (opened before the key was switched) is never
+  // settled with this key.
+  if (tx.provider && tx.provider !== provider) throw new ApiError(409, "This deposit was opened in the other StockPay mode.");
   const order = await call<StockpayOrder>("GET", `/orders/${encodeURIComponent(tx.providerReferenceId!)}`);
-  // Test keys only: an order that isn't a test order is never credited here.
-  if (order.test !== true) throw new ApiError(400, "Only StockPay test payments are accepted.");
+  // A test key credits only test orders, a live key only real ones.
+  if (order.test !== (active.mode === "test")) throw new ApiError(400, active.mode === "test" ? "Only StockPay test payments are accepted." : "Test payments are not accepted with a live key.");
 
   if (order.status === "paid") {
     // The order must be for this deposit's amount; what was paid may carry
@@ -169,7 +211,7 @@ async function settle(tx: { id: string; userId: string; amount: unknown; status?
       console.error(`[stockpay] amount mismatch on ${order.id}: order ${order.amount}, paid ${order.amount_paid} ${order.currency} vs ${amount} ${CURRENCY}`);
       throw new ApiError(400, "The paid amount does not match this deposit. Please contact support.");
     }
-    const done = await completeDeposit(tx.userId, amount, PROVIDER, order.id, tx.id);
+    const done = await completeDeposit(tx.userId, amount, provider, order.id, tx.id);
     return { status: "COMPLETED" as const, amount, bonus: done.bonus, alreadyCredited: done.alreadyCompleted };
   }
   if (order.status === "expired" || order.status === "cancelled") {
@@ -181,8 +223,8 @@ async function settle(tx: { id: string; userId: string; amount: unknown; status?
 }
 
 /** Open rows worth asking StockPay about: PENDING ones, and FAILED ones young enough for a late payment. */
-async function openRows(where: { userId?: string }, takePending: number, takeFailed: number) {
-  const base = { ...where, type: "DEPOSIT" as const, provider: PROVIDER };
+async function openRows(where: { userId?: string }, mode: Mode, takePending: number, takeFailed: number) {
+  const base = { ...where, type: "DEPOSIT" as const, provider: providerFor(mode) };
   const [pending, failed] = await Promise.all([
     // A payment page lives 15 minutes by default, so an open row is settled
     // the first time anyone looks; the window only bounds the work.
@@ -207,11 +249,12 @@ async function openRows(where: { userId?: string }, takePending: number, takeFai
  * still say the deposit arrived.
  */
 export async function confirmUpiDeposits(userId: string, sessionId?: string) {
-  if (!testKey()) return { results: [] };
+  const active = activeKey();
+  if (!active) return { results: [] };
   const rows = sessionId
     ? // One payment page = one deposit row.
-      await prisma.transaction.findMany({ where: { userId, type: "DEPOSIT", provider: PROVIDER, providerReferenceId: sessionId }, take: 1 })
-    : await openRows({ userId }, 10, 3);
+      await prisma.transaction.findMany({ where: { userId, type: "DEPOSIT", provider: providerFor(active.mode), providerReferenceId: sessionId }, take: 1 })
+    : await openRows({ userId }, active.mode, 10, 3);
   const results = [];
   for (const tx of rows) {
     if (tx.status === "COMPLETED") {
@@ -256,12 +299,14 @@ export async function handleWebhook(rawBody: Buffer, headers: Record<string, str
     throw new ApiError(400, "Bad JSON.");
   }
   const orderId = event.order?.id;
-  if (!orderId) return { ignored: true };
+  const active = activeKey();
+  if (!orderId || !active) return { ignored: true };
+  const provider = providerFor(active.mode);
 
   // A payment page that lapsed or was cancelled fails its open deposit row.
   if (event.event === "order.expired" || event.event === "order.cancelled") {
     await prisma.transaction.updateMany({
-      where: { provider: PROVIDER, providerReferenceId: orderId, type: "DEPOSIT", status: "PENDING" },
+      where: { provider, providerReferenceId: orderId, type: "DEPOSIT", status: "PENDING" },
       data: { status: "FAILED" },
     });
     return { failed: true };
@@ -270,7 +315,7 @@ export async function handleWebhook(rawBody: Buffer, headers: Record<string, str
   if (event.event !== "order.paid") return { ignored: true };
   // FAILED too: an order that expired can still be paid late.
   const tx = await prisma.transaction.findFirst({
-    where: { provider: PROVIDER, providerReferenceId: orderId, type: "DEPOSIT", status: { in: ["PENDING", "FAILED"] } },
+    where: { provider, providerReferenceId: orderId, type: "DEPOSIT", status: { in: ["PENDING", "FAILED"] } },
     orderBy: { createdAt: "desc" },
   });
   if (!tx) return { ignored: true };
@@ -287,11 +332,12 @@ export async function handleWebhook(rawBody: Buffer, headers: Record<string, str
  */
 let lastSweepAt = 0;
 export async function sweepStaleUpiDeposits(force = false) {
-  if (!testKey()) return;
+  const active = activeKey();
+  if (!active) return;
   if (!force && Date.now() - lastSweepAt < 60_000) return;
   lastSweepAt = Date.now();
   // Give a brand-new payment page a few minutes before poking StockPay.
-  const rows = (await openRows({}, 20, 10)).filter((tx) => Date.now() - tx.createdAt.getTime() > 5 * 60_000);
+  const rows = (await openRows({}, active.mode, 20, 10)).filter((tx) => Date.now() - tx.createdAt.getTime() > 5 * 60_000);
   for (const tx of rows) {
     try {
       await settle(tx);
