@@ -190,36 +190,120 @@ export function VipEmblem({ level, size }: { level: number; size: number }) {
   );
 }
 
-/** The round stage a VIP emblem stands on. */
+/** Pedestal height for a given width (the screen lays the emblem and capsule out with it). */
+export const pedestalHeight = (width: number) => Math.round(width * 0.5);
+
+/** The lit stage a VIP emblem stands on: glowing rim on top, dark metal front. */
 export function VipPedestal({ width }: { width: number }) {
-  const h = Math.round(width * 0.42);
+  const h = pedestalHeight(width);
   const cx = width / 2;
-  const rx = width * 0.47;
-  const ry = h * 0.2;
-  const top = h * 0.26;
-  const depth = h * 0.42;
+  const rx = width * 0.48;
+  const ry = h * 0.15;
+  const top = h * 0.2;
+  const depth = h * 0.56;
+  const L = cx - rx;
+  const R = cx + rx;
   return (
     <Svg width={width} height={h}>
       <Defs>
-        <RadialGradient id="pedGlow" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor="#FF3B54" stopOpacity="0.55" />
-          <Stop offset="1" stopColor="#FF3B54" stopOpacity="0" />
+        <RadialGradient id="pedFloor" cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor="#FF2D55" stopOpacity="0.5" />
+          <Stop offset="1" stopColor="#FF2D55" stopOpacity="0" />
         </RadialGradient>
-        <SvgLinearGradient id="pedTop" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#6E1626" />
-          <Stop offset="1" stopColor="#2A070D" />
+        <RadialGradient id="pedTop" cx="50%" cy="45%" r="60%">
+          <Stop offset="0" stopColor="#2A060D" />
+          <Stop offset="0.7" stopColor="#4E0D1A" />
+          <Stop offset="1" stopColor="#9A1C34" />
+        </RadialGradient>
+        <SvgLinearGradient id="pedFront" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor="#09090D" />
+          <Stop offset="0.3" stopColor="#2C2C36" />
+          <Stop offset="0.5" stopColor="#4A4A58" />
+          <Stop offset="0.7" stopColor="#2C2C36" />
+          <Stop offset="1" stopColor="#09090D" />
         </SvgLinearGradient>
-        <SvgLinearGradient id="pedSide" x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0" stopColor="#1A0408" />
-          <Stop offset="0.5" stopColor="#4A0E19" />
-          <Stop offset="1" stopColor="#1A0408" />
+        <SvgLinearGradient id="pedShade" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#000000" stopOpacity="0" />
+          <Stop offset="1" stopColor="#000000" stopOpacity="0.55" />
         </SvgLinearGradient>
       </Defs>
-      <Ellipse cx={cx} cy={top} rx={rx * 0.95} ry={ry * 1.6} fill="url(#pedGlow)" />
-      <Rect x={cx - rx} y={top} width={rx * 2} height={depth} fill="url(#pedSide)" />
-      <Ellipse cx={cx} cy={top + depth} rx={rx} ry={ry} fill="#12030A" />
-      <Ellipse cx={cx} cy={top} rx={rx} ry={ry} fill="url(#pedTop)" stroke="#FF8A99" strokeOpacity={0.45} strokeWidth={1.5} />
-      <Ellipse cx={cx} cy={top} rx={rx * 0.72} ry={ry * 0.6} fill="none" stroke="#FFD27A" strokeOpacity={0.25} strokeWidth={1} />
+      <Ellipse cx={cx} cy={top + depth} rx={rx * 1.05} ry={ry * 1.4} fill="#000000" opacity={0.45} />
+      <Path
+        d={`M${L} ${top} L${L} ${top + depth} A${rx} ${ry} 0 0 0 ${R} ${top + depth} L${R} ${top} A${rx} ${ry} 0 0 1 ${L} ${top} Z`}
+        fill="url(#pedFront)"
+      />
+      <Path
+        d={`M${L} ${top} L${L} ${top + depth} A${rx} ${ry} 0 0 0 ${R} ${top + depth} L${R} ${top} A${rx} ${ry} 0 0 1 ${L} ${top} Z`}
+        fill="url(#pedShade)"
+      />
+      <Path d={`M${L} ${top + depth} A${rx} ${ry} 0 0 0 ${R} ${top + depth}`} stroke="#FFFFFF" strokeOpacity={0.12} strokeWidth={1.5} fill="none" />
+      <Path d={`M${R} ${top} A${rx} ${ry} 0 0 1 ${L} ${top}`} stroke="#FF6B85" strokeOpacity={0.55} strokeWidth={1.5} fill="none" />
+      <Ellipse cx={cx} cy={top} rx={rx} ry={ry} fill="url(#pedTop)" />
+      <Ellipse cx={cx} cy={top} rx={rx * 0.8} ry={ry * 0.75} fill="url(#pedFloor)" />
+      <Ellipse cx={cx} cy={top} rx={rx} ry={ry} fill="none" stroke="#FF3B5C" strokeOpacity={0.35} strokeWidth={7} />
+      <Ellipse cx={cx} cy={top} rx={rx} ry={ry} fill="none" stroke="#FF8FA3" strokeWidth={2} />
+      <Ellipse cx={cx} cy={top} rx={rx * 0.62} ry={ry * 0.55} fill="none" stroke="#FFD27A" strokeOpacity={0.3} strokeWidth={1} />
+    </Svg>
+  );
+}
+
+/**
+ * Light beams fanning up from a point (the pedestal top). Drawn in the top
+ * half of a box twice as tall, so rotating the box sways them about their base.
+ */
+export function VipRays({ width, height }: { width: number; height: number }) {
+  const ox = width / 2;
+  const oy = height;
+  const beams = [-62, -44, -27, -11, 0, 11, 27, 44, 62];
+  return (
+    <Svg width={width} height={height * 2}>
+      <Defs>
+        <SvgLinearGradient id="ray" x1="0" y1="1" x2="0" y2="0">
+          <Stop offset="0" stopColor="#FF2D55" stopOpacity="0.95" />
+          <Stop offset="0.45" stopColor="#FF4D6D" stopOpacity="0.35" />
+          <Stop offset="1" stopColor="#FF4D6D" stopOpacity="0" />
+        </SvgLinearGradient>
+        <RadialGradient id="rayCore" cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor="#FFB3C1" stopOpacity="0.9" />
+          <Stop offset="0.4" stopColor="#FF2D55" stopOpacity="0.45" />
+          <Stop offset="1" stopColor="#FF2D55" stopOpacity="0" />
+        </RadialGradient>
+      </Defs>
+      {beams.map((deg, i) => {
+        const a = (deg * Math.PI) / 180;
+        const len = height * (i % 2 === 0 ? 0.98 : 0.78);
+        const ex = ox + Math.sin(a) * len;
+        const ey = oy - Math.cos(a) * len;
+        const w = len * (i % 2 === 0 ? 0.07 : 0.045);
+        const px = Math.cos(a) * w;
+        const py = Math.sin(a) * w;
+        return (
+          <Polygon
+            key={deg}
+            points={`${ox - 2},${oy} ${ox + 2},${oy} ${(ex + px).toFixed(1)},${(ey + py).toFixed(1)} ${(ex - px).toFixed(1)},${(ey - py).toFixed(1)}`}
+            fill="url(#ray)"
+          />
+        );
+      })}
+      <Ellipse cx={ox} cy={oy} rx={width * 0.42} ry={height * 0.22} fill="url(#rayCore)" />
+    </Svg>
+  );
+}
+
+/** The dark curved stage band behind the row of pedestals. */
+export function VipStage({ width, height }: { width: number; height: number }) {
+  const dip = height * 0.38;
+  return (
+    <Svg width={width} height={height}>
+      <Defs>
+        <SvgLinearGradient id="stage" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#2A0B12" />
+          <Stop offset="0.5" stopColor="#14050A" />
+          <Stop offset="1" stopColor="#14050A" stopOpacity="0" />
+        </SvgLinearGradient>
+      </Defs>
+      <Path d={`M0 0 Q${width / 2} ${dip * 2} ${width} 0 L${width} ${height} L0 ${height} Z`} fill="url(#stage)" />
+      <Path d={`M0 0 Q${width / 2} ${dip * 2} ${width} 0`} stroke="#FF6B85" strokeOpacity={0.35} strokeWidth={1.5} fill="none" />
     </Svg>
   );
 }

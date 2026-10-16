@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Easing,
   Image,
   Modal,
   NativeScrollEvent,
@@ -19,7 +20,7 @@ import {
 import { claimVipBonus, fetchVipStatus, VipStatus } from '../api/backend';
 import { ApiClientError } from '../api/client';
 import LoadingState from '../components/LoadingState';
-import { VipArc, VipEmblem, VipPedestal, vipTier } from '../components/VipEmblem';
+import { pedestalHeight as pedestalHeightFor, VipArc, VipEmblem, VipPedestal, VipRays, VipStage, vipTier } from '../components/VipEmblem';
 import ScreenContainer from '../components/ScreenContainer';
 import { AVATARS } from '../data/avatars';
 import { IconName, VipLevelDef } from '../data/models';
@@ -101,7 +102,43 @@ export default function VipScreen() {
   // Centre emblem large, its neighbours peeking in at the sides.
   const itemWidth = Math.round(screenWidth * 0.44);
   const emblemSize = Math.round(itemWidth * 0.86);
-  const pedestalHeight = Math.round(itemWidth * 0.42);
+  const pedestalHeight = pedestalHeightFor(itemWidth);
+  // Where the pedestal's top sits, measured from the emblem box's top.
+  const stageY = Math.round(emblemSize * 0.86 + pedestalHeight * 0.2);
+
+  // Stage lighting: beams pulse and sway, sparks rise off the pedestal.
+  const pulse = useRef(new Animated.Value(0)).current;
+  const sway = useRef(new Animated.Value(0)).current;
+  const sparks = useRef(Array.from({ length: 7 }, () => new Animated.Value(0))).current;
+  useEffect(() => {
+    const loops = [
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 0, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ])
+      ),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(sway, { toValue: 1, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(sway, { toValue: 0, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ])
+      ),
+      ...sparks.map((v, i) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.delay(i * 380),
+            Animated.timing(v, { toValue: 1, duration: 2400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+            Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
+          ])
+        )
+      ),
+    ];
+    loops.forEach((l) => l.start());
+    return () => loops.forEach((l) => l.stop());
+  }, [pulse, sway, sparks]);
+  const beamOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
+  const beamSway = sway.interpolate({ inputRange: [0, 1], outputRange: ['-4deg', '4deg'] });
 
   // Level, XP and claims come from the server: XP is what the player has
   // staked in games, and bonuses are paid into the real balance.
@@ -218,6 +255,10 @@ export default function VipScreen() {
 
         <VipArc width={screenWidth} focused={focusedLevel} playerLevel={vip.level} maxLevel={scrollLevels[scrollLevels.length - 1].level} />
 
+        <View>
+        <View pointerEvents="none" style={[styles.stage, { top: stageY - pedestalHeight * 0.1 }]}>
+          <VipStage width={screenWidth} height={pedestalHeight * 1.3} />
+        </View>
         <Animated.FlatList
           data={scrollLevels}
           keyExtractor={(item) => String(item.level)}
@@ -236,6 +277,7 @@ export default function VipScreen() {
             const inputRange = [(index - 1) * itemWidth, index * itemWidth, (index + 1) * itemWidth];
             const scale = scrollX.interpolate({ inputRange, outputRange: [0.74, 1, 0.74], extrapolate: 'clamp' });
             const opacity = scrollX.interpolate({ inputRange, outputRange: [0.7, 1, 0.7], extrapolate: 'clamp' });
+            const focus = scrollX.interpolate({ inputRange, outputRange: [0, 1, 0], extrapolate: 'clamp' });
             const tier = vipTier(item.level);
             const achieved = vip.xp >= item.xpRequired;
             const pct = item.xpRequired > 0 ? Math.min(1, vip.xp / item.xpRequired) : 1;
@@ -243,6 +285,20 @@ export default function VipScreen() {
               <View style={{ width: itemWidth, alignItems: 'center' }}>
                 <Animated.View style={{ alignItems: 'center', opacity, transform: [{ scale }] }}>
                   <View style={{ width: emblemSize, height: emblemSize, zIndex: 2 }}>
+                    <Animated.View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        width: itemWidth,
+                        height: emblemSize * 2,
+                        left: (emblemSize - itemWidth) / 2,
+                        top: stageY - emblemSize,
+                        opacity: Animated.multiply(focus, beamOpacity),
+                        transform: [{ rotate: beamSway }],
+                      }}
+                    >
+                      <VipRays width={itemWidth} height={emblemSize} />
+                    </Animated.View>
                     <VipEmblem level={item.level} size={emblemSize} />
                     <LinearGradient colors={tier.ribbon} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.ribbon}>
                       <Text style={styles.ribbonText}>V{item.level}</Text>
@@ -250,7 +306,7 @@ export default function VipScreen() {
                   </View>
                   <View style={{ width: itemWidth, height: pedestalHeight, marginTop: -Math.round(emblemSize * 0.14) }}>
                     <VipPedestal width={itemWidth} />
-                    <View style={[styles.capsule, { top: pedestalHeight * 0.36, width: itemWidth * 0.8 }]}>
+                    <View style={[styles.capsule, { top: pedestalHeight * 0.38, width: itemWidth * 0.8 }]}>
                       {achieved ? (
                         <Text style={styles.capsuleDone}>Achieved</Text>
                       ) : (
@@ -274,6 +330,25 @@ export default function VipScreen() {
             );
           }}
         />
+        <View pointerEvents="none" style={[styles.sparkField, { left: (screenWidth - itemWidth) / 2, width: itemWidth, top: stageY - emblemSize, height: emblemSize }]}>
+          {sparks.map((v, i) => (
+            <Animated.View
+              key={i}
+              style={[
+                styles.spark,
+                {
+                  left: `${12 + ((i * 37) % 76)}%`,
+                  opacity: v.interpolate({ inputRange: [0, 0.2, 0.8, 1], outputRange: [0, 1, 0.6, 0] }),
+                  transform: [
+                    { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -emblemSize * (0.55 + (i % 3) * 0.12)] }) },
+                    { scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.4] }) },
+                  ],
+                },
+              ]}
+            />
+          ))}
+        </View>
+        </View>
         <Text style={styles.progressHint}>Your XP: {vip.xp.toLocaleString('en-IN')} · every ₹1 you bet = 1 XP</Text>
       </View>
 
@@ -456,6 +531,21 @@ export default function VipScreen() {
 
 const styles = StyleSheet.create({
   hero: { paddingBottom: spacing.md, overflow: 'hidden' },
+  stage: { position: 'absolute', left: 0, right: 0 },
+  sparkField: { position: 'absolute' },
+  spark: {
+    position: 'absolute',
+    bottom: 0,
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#FFD1DA',
+    shadowColor: '#FF2D55',
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
   progressHint: { color: colors.textMuted, fontSize: typography.xs, textAlign: 'center', marginTop: spacing.sm },
   header: {
     flexDirection: 'row',
