@@ -3770,3 +3770,10 @@ export function fetchJackpotRanking() {
 export function fetchJackpotHistory() {
   return apiFetch<{ weekKey: string; pool: number; paid: number; rolledOver: number; winners: JackpotEntry[] }[]>('/agent/jackpot/history');
 }
+
+// --- Games page "Hot" list ---
+
+/** The most played games (by bets in the last 30 days), most played first. */
+export function fetchHotGames() {
+  return apiFetch<{ games: { key: string; plays30d: number; players30d: number }[] }>('/players/hot-games');
+}

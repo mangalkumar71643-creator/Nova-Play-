@@ -187,3 +187,38 @@ export async function getGameReport() {
     },
   };
 }
+
+/** Shown first while too few games have been played to fill the Hot list. */
+const DEFAULT_HOT = ["Aviator", "Mines", "ChickenRoad", "WinGo", "TeenPatti", "AndarBahar", "DragonTiger", "Dice", "Plinko", "Slot"];
+const HOT_CACHE_MS = 10 * 60 * 1000;
+let hotCache: { at: number; games: { key: string; plays30d: number; players30d: number }[] } | null = null;
+
+/**
+ * The most played games: ranked by bets placed in the last 30 days (then
+ * all-time bets), topped up from DEFAULT_HOT when fewer have been played.
+ * Cached for a few minutes, as it reads every game's bet table.
+ */
+export async function getHotGames(limit = 10) {
+  if (hotCache && Date.now() - hotCache.at < HOT_CACHE_MS) return hotCache.games.slice(0, limit);
+  const d30 = `now() - interval '30 days'`;
+  const live = SOURCES.filter((s) => s.category !== "Retired");
+  // Built only from the fixed SOURCES list; nothing here comes from a request.
+  const parts = live.map(
+    (s) => `SELECT '${s.key}' AS key,
+      COUNT(*) FILTER (WHERE t."createdAt" >= ${d30}) AS plays30,
+      COUNT(DISTINCT t."userId") FILTER (WHERE t."createdAt" >= ${d30}) AS players30,
+      COUNT(*) AS plays_all
+    FROM "${s.table}" t ${s.where ? `WHERE ${s.where}` : ""}`
+  );
+  const rows = await prisma.$queryRawUnsafe<{ key: string; plays30: bigint; players30: bigint; plays_all: bigint }[]>(parts.join("\nUNION ALL\n"));
+  const rank = (key: string) => {
+    const i = DEFAULT_HOT.indexOf(key);
+    return i < 0 ? DEFAULT_HOT.length : i;
+  };
+  const games = rows
+    .map((r) => ({ key: r.key, plays30d: Number(r.plays30), players30d: Number(r.players30), all: Number(r.plays_all) }))
+    .sort((a, b) => b.plays30d - a.plays30d || b.all - a.all || rank(a.key) - rank(b.key))
+    .map(({ key, plays30d, players30d }) => ({ key, plays30d, players30d }));
+  hotCache = { at: Date.now(), games };
+  return games.slice(0, limit);
+}

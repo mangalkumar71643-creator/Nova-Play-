@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   AppState,
@@ -21,8 +21,9 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fetchHotGames } from '../api/backend';
 import { API_BASE_URL } from '../api/client';
-import { GAME_CATEGORIES, GameTile } from '../components/GameTile';
+import { GAME_CATEGORIES, GameId, GameTile } from '../components/GameTile';
 import { RootStackParamList } from '../navigation/types';
 import { useGameState } from '../state/GameStateContext';
 
@@ -44,6 +45,13 @@ type Banner = { id: string; title: string; width: number; height: number; imageU
 const DOWNLOAD_TARGET = 'DOWNLOAD';
 const SHOW_DOWNLOAD_BANNERS = Platform.OS === 'web';
 const GAME_SCREENS = new Set<string>(GAME_CATEGORIES.flatMap((c) => c.games));
+
+/** The Hot section: the 10 most played games, from the server; this order until it answers. */
+const HOT_ID = 'hot';
+const HOT_COUNT = 10;
+const DEFAULT_HOT: GameId[] = ['Aviator', 'Mines', 'ChickenRoad', 'WinGo', 'TeenPatti', 'AndarBahar', 'DragonTiger', 'Dice', 'Plinko', 'Slot'];
+const CATEGORY_IDS = [HOT_ID, ...GAME_CATEGORIES.map((c) => c.id)];
+type Section = { id: string; title: string; games: GameId[]; hot?: boolean };
 
 /**
  * The "Category Slider" banners set up in the admin panel, sliding by
@@ -176,13 +184,46 @@ function CategoryBanners({ width }: { width: number }) {
  * every category's games below, each in its own swipeable row. Tapping a tab
  * jumps to that category; scrolling moves the picked tab along.
  */
+/** A Hot game's place in the list ("TOP 1"…), over the top-left of its tile. */
+function HotRank({ rank, children }: { rank: number; children: React.ReactNode }) {
+  if (!rank) return <>{children}</>;
+  const top3 = rank <= 3;
+  return (
+    <View>
+      {children}
+      <LinearGradient
+        colors={top3 ? ['#FFE48A', '#F0B93D', '#B8862A'] : ['#FF7A45', '#C8331A']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.rankBadge}
+        pointerEvents="none"
+      >
+        <MaterialCommunityIcons name={top3 ? 'crown' : 'fire'} size={11} color={top3 ? '#5C3A0E' : '#FFF3C4'} />
+        <Text style={[styles.rankText, top3 && { color: '#5C3A0E' }]}>TOP {rank}</Text>
+      </LinearGradient>
+    </View>
+  );
+}
+
 export default function GameCategoryScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RootStackParamList, 'GameCategory'>>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { coins } = useGameState();
-  const startId = GAME_CATEGORIES.some((c) => c.id === route.params?.categoryId) ? route.params!.categoryId : GAME_CATEGORIES[0].id;
+  const requested = route.params?.categoryId;
+  const startId = requested && CATEGORY_IDS.includes(requested) ? requested : CATEGORY_IDS[0];
+  const [hotIds, setHotIds] = useState<GameId[]>(DEFAULT_HOT);
+  useEffect(() => {
+    fetchHotGames()
+      .then(({ games }) => {
+        const top = games.map((g) => g.key).filter((k): k is GameId => GAME_SCREENS.has(k));
+        // Always ten: fill any gap from the default list.
+        setHotIds([...new Set([...top, ...DEFAULT_HOT])].slice(0, HOT_COUNT));
+      })
+      .catch(() => {});
+  }, []);
+  const categories = useMemo<Section[]>(() => [{ id: HOT_ID, title: 'Hot', games: hotIds, hot: true }, ...GAME_CATEGORIES], [hotIds]);
   const [activeId, setActiveId] = useState(startId);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ [startId]: false });
 
@@ -217,13 +258,13 @@ export default function GameCategoryScreen() {
   const sectionTop = useCallback(
     (id: string) => {
       let y = bannerH + TABS_HEIGHT;
-      for (const c of GAME_CATEGORIES) {
+      for (const c of categories) {
         if (c.id === id) return y;
         y += sectionH.current[c.id] ?? 0;
       }
       return y;
     },
-    [bannerH],
+    [bannerH, categories],
   );
 
   const jumpTo = useCallback(
@@ -243,15 +284,15 @@ export default function GameCategoryScreen() {
   const onSectionLayout = (id: string) => (e: LayoutChangeEvent) => {
     sectionH.current[id] = e.nativeEvent.layout.height;
     // Open on the tapped category once every section has been laid out.
-    if (!jumpedToStart.current && GAME_CATEGORIES.every((c) => sectionH.current[c.id] !== undefined)) {
+    if (!jumpedToStart.current && categories.every((c) => sectionH.current[c.id] !== undefined)) {
       jumpedToStart.current = true;
-      if (startId !== GAME_CATEGORIES[0].id) setTimeout(() => jumpTo(startId, false), 30);
+      if (startId !== categories[0].id) setTimeout(() => jumpTo(startId, false), 30);
     }
   };
 
   // Banners that arrive just after the screen opens push everything down; keep the tapped category in view.
   useEffect(() => {
-    if (jumpedToStart.current && startId !== GAME_CATEGORIES[0].id && Date.now() - openedAt.current < 4000) jumpTo(startId, false);
+    if (jumpedToStart.current && startId !== categories[0].id && Date.now() - openedAt.current < 4000) jumpTo(startId, false);
     // Only when the banner block changes size.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bannerH]);
@@ -260,10 +301,10 @@ export default function GameCategoryScreen() {
     if (jumping.current) return;
     const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
     const y = contentOffset.y + TABS_HEIGHT + 24;
-    let current = GAME_CATEGORIES[0].id;
-    for (const c of GAME_CATEGORIES) if (sectionTop(c.id) <= y) current = c.id;
+    let current = categories[0].id;
+    for (const c of categories) if (sectionTop(c.id) <= y) current = c.id;
     // At the very end the last category can't reach the top, so it counts as the one in view.
-    if (contentOffset.y > 0 && contentOffset.y + layoutMeasurement.height >= contentSize.height - 8) current = GAME_CATEGORIES[GAME_CATEGORIES.length - 1].id;
+    if (contentOffset.y > 0 && contentOffset.y + layoutMeasurement.height >= contentSize.height - 8) current = categories[categories.length - 1].id;
     if (current !== activeId) {
       setActiveId(current);
       showTab(current);
@@ -302,7 +343,7 @@ export default function GameCategoryScreen() {
         {/* Category tabs (stick to the top while the games scroll) */}
         <View style={styles.tabsWrap}>
           <ScrollView ref={tabsRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SIDE, gap: 8, alignItems: 'center' }}>
-            {GAME_CATEGORIES.map((c) => {
+            {categories.map((c) => {
               const on = c.id === activeId;
               return (
                 <Pressable
@@ -313,7 +354,11 @@ export default function GameCategoryScreen() {
                   accessibilityState={{ selected: on }}
                   accessibilityLabel={c.title}
                 >
-                  <LinearGradient colors={on ? ['#FF5A6A', RED, '#8A0A16'] : ['#3A0A10', '#22060A']} style={[styles.tab, on && styles.tabOn]}>
+                  <LinearGradient
+                    colors={c.hot ? (on ? ['#FFB347', '#FF5A1F', '#B8270A'] : ['#4A1A08', '#26080A']) : on ? ['#FF5A6A', RED, '#8A0A16'] : ['#3A0A10', '#22060A']}
+                    style={[styles.tab, on && styles.tabOn, c.hot && styles.tabHot]}
+                  >
+                    {c.hot ? <MaterialCommunityIcons name="fire" size={20} color={on ? '#FFF3C4' : '#FF8A3D'} /> : null}
                     <Text style={[styles.tabText, on && styles.tabTextOn]}>{c.title}</Text>
                   </LinearGradient>
                 </Pressable>
@@ -323,13 +368,16 @@ export default function GameCategoryScreen() {
         </View>
 
         {/* Every category's games */}
-        {GAME_CATEGORIES.map((c) => {
+        {categories.map((c) => {
           const open = !!expanded[c.id];
           return (
             <View key={c.id} onLayout={onSectionLayout(c.id)} style={styles.section}>
               <View style={styles.sectionHead}>
-                <View style={styles.diamond} />
-                <Text style={styles.sectionTitle}>{c.title}</Text>
+                {c.hot ? <MaterialCommunityIcons name="fire" size={26} color="#FF6A2B" style={{ marginLeft: -4 }} /> : <View style={styles.diamond} />}
+                <Text style={styles.sectionTitle}>
+                  {c.hot ? 'Hot Games' : c.title}
+                  {c.hot ? <Text style={styles.hotSub}>{'  '}Most played</Text> : null}
+                </Text>
                 <Pressable onPress={() => setExpanded((e) => ({ ...e, [c.id]: !open }))} hitSlop={8} style={styles.allBtn} accessibilityLabel={`${open ? 'Show fewer' : 'Show all'} ${c.title}`}>
                   <Text style={styles.allText}>{open ? 'Less' : `All ${c.games.length}`}</Text>
                   <MaterialCommunityIcons name={open ? 'chevron-up' : 'chevron-right'} size={20} color={GOLD} />
@@ -337,14 +385,18 @@ export default function GameCategoryScreen() {
               </View>
               {open ? (
                 <View style={[styles.grid, { paddingHorizontal: SIDE }]}>
-                  {c.games.map((id) => (
-                    <GameTile key={id} id={id} size={gridTile} />
+                  {c.games.map((id, i) => (
+                    <HotRank key={id} rank={c.hot ? i + 1 : 0}>
+                      <GameTile id={id} size={gridTile} />
+                    </HotRank>
                   ))}
                 </View>
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SIDE, gap: TILE_GAP }}>
-                  {c.games.map((id) => (
-                    <GameTile key={id} id={id} size={rowTile} />
+                  {c.games.map((id, i) => (
+                    <HotRank key={id} rank={c.hot ? i + 1 : 0}>
+                      <GameTile id={id} size={rowTile} />
+                    </HotRank>
                   ))}
                 </ScrollView>
               )}
@@ -386,6 +438,22 @@ const styles = StyleSheet.create({
   tabTextOn: { color: '#FFF4DC', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
   section: { paddingTop: 14 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: SIDE + 4, marginBottom: 10 },
+  tabHot: { flexDirection: 'row', gap: 6, borderColor: 'rgba(255,160,90,0.45)' },
+  hotSub: { color: '#FF9A5C', fontSize: 13, fontWeight: '700' },
+  rankBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,248,220,0.85)',
+  },
+  rankText: { color: '#FFF3C4', fontSize: 10, fontWeight: '900', letterSpacing: 0.3 },
   diamond: { width: 11, height: 11, backgroundColor: RED, transform: [{ rotate: '45deg' }], borderRadius: 2 },
   sectionTitle: { flex: 1, color: '#FFE8EA', fontSize: 19, fontWeight: '700', letterSpacing: 0.5 },
   allBtn: { flexDirection: 'row', alignItems: 'center' },
