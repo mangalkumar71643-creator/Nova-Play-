@@ -133,6 +133,7 @@ const ICONS: Partial<Record<GameId, ImageSourcePropType>> = {
   Vortex: require('../../assets/icons/vortex.webp'),
   ChickenRoad: require('../../assets/icons/chicken-road.webp'),
   Mines: require('../../assets/icons/mines.webp'),
+  WinGo: require('../../assets/icons/wingo.webp'),
   AndarBahar: require('../../assets/icons/andar-bahar.webp'),
   DragonTiger: require('../../assets/icons/dragon-tiger.webp'),
   Roulette: require('../../assets/icons/roulette.webp'),
