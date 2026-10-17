@@ -184,7 +184,7 @@ function CategoryBanners({ width }: { width: number }) {
  * every category's games below, each in its own swipeable row. Tapping a tab
  * jumps to that category; scrolling moves the picked tab along.
  */
-/** A Hot game's place in the list ("TOP 1"…), over the top-left of its tile. */
+/** A Hot game's place in the list ("TOP 1"…), over the top-right of its tile (icons carry NEW/HOT on the left). */
 function HotRank({ rank, children }: { rank: number; children: React.ReactNode }) {
   if (!rank) return <>{children}</>;
   const top3 = rank <= 3;
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   rankBadge: {
     position: 'absolute',
     top: 4,
-    left: 4,
+    right: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
