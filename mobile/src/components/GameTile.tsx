@@ -167,6 +167,11 @@ const ICONS: Partial<Record<GameId, ImageSourcePropType>> = {
   CricketX: require('../../assets/icons/cricket-x.webp'),
   Rocket: require('../../assets/icons/rocket.webp'),
   GoalRush: require('../../assets/icons/goal-rush.webp'),
+  BigCatch: require('../../assets/icons/big-catch.webp'),
+  Cosmonaut: require('../../assets/icons/cosmonaut.webp'),
+  SkyJet: require('../../assets/icons/sky-jet.webp'),
+  NightRacer: require('../../assets/icons/night-racer.webp'),
+  Airship: require('../../assets/icons/airship.webp'),
 };
 
 /** One game's tile at `size` points square; tapping it opens the game. */
