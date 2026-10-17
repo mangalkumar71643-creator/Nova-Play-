@@ -8,7 +8,9 @@ import { VipEmblem, vipTier } from './VipEmblem';
 
 export type VipBonusResult =
   | { kind: 'success'; bonus: 'upgrade' | 'monthly'; level: number; amount: number; nextMonthly?: string }
-  | { kind: 'error'; message: string };
+  /** Agent (EARN) rewards claimed into the balance. */
+  | { kind: 'success'; bonus: 'agent'; level?: undefined; amount: number; nextMonthly?: undefined }
+  | { kind: 'error'; message: string; kicker?: string };
 
 const RAYS = 18;
 const COINS = 12;
@@ -123,7 +125,7 @@ export default function VipBonusPopup({ result, onClose }: { result: VipBonusRes
   const shineX = shine.interpolate({ inputRange: [0, 1], outputRange: [-width, width] });
   const centreY = emblemSize / 2;
   const next = success?.bonus === 'monthly' ? nextMonthLabel(success.nextMonthly) : null;
-  const tier = success ? vipTier(success.level) : null;
+  const tier = success && success.bonus !== 'agent' ? vipTier(success.level) : null;
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
@@ -158,7 +160,9 @@ export default function VipBonusPopup({ result, onClose }: { result: VipBonusRes
               <>
                 <Text style={styles.kicker}>CONGRATULATIONS</Text>
                 <Text style={styles.title}>
-                  VIP {success.level} {success.bonus === 'upgrade' ? 'Upgrade' : 'Monthly'} Bonus
+                  {success.bonus === 'agent'
+                    ? 'Agent Rewards'
+                    : `VIP ${success.level} ${success.bonus === 'upgrade' ? 'Upgrade' : 'Monthly'} Bonus`}
                 </Text>
                 <Text style={styles.amount}>+₹{shown.toLocaleString('en-IN')}</Text>
                 <View style={styles.ornament}>
@@ -175,7 +179,7 @@ export default function VipBonusPopup({ result, onClose }: { result: VipBonusRes
               </>
             ) : (
               <>
-                <Text style={styles.kicker}>VIP BONUS</Text>
+                <Text style={styles.kicker}>{(result.kind === 'error' && result.kicker) || 'VIP BONUS'}</Text>
                 <Text style={styles.title}>Not available</Text>
                 <Text style={styles.errorText}>{result.kind === 'error' ? result.message : ''}</Text>
               </>
@@ -193,9 +197,13 @@ export default function VipBonusPopup({ result, onClose }: { result: VipBonusRes
           <Animated.View
             style={[styles.emblem, { width: emblemSize, height: emblemSize, left: (width - emblemSize) / 2, transform: [{ scale: emblemScale }] }]}
           >
-            {success && tier ? (
+            {success?.bonus === 'agent' ? (
+              <LinearGradient colors={['#FFF0B0', colors.gold, colors.goldDark]} style={[styles.errorBadge, { borderRadius: emblemSize / 2 }]}>
+                <MaterialCommunityIcons name="hand-coin" size={Math.round(emblemSize * 0.5)} color="#5C3A0E" />
+              </LinearGradient>
+            ) : success && tier ? (
               <>
-                <VipEmblem level={success.level} size={emblemSize} />
+                <VipEmblem level={success.level ?? 0} size={emblemSize} />
                 <LinearGradient colors={tier.ribbon} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.ribbon}>
                   <Text style={styles.ribbonText}>V{success.level}</Text>
                 </LinearGradient>

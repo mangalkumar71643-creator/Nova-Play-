@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import HomeScreen from '../screens/HomeScreen';
 import RankingScreen from '../screens/RankingScreen';
-import RewardsScreen from '../screens/RewardsScreen';
+import EarnScreen from '../screens/EarnScreen';
 import VipScreen from '../screens/VipScreen';
 import WalletScreen from '../screens/WalletScreen';
 import { colors } from '../theme';
@@ -15,7 +15,7 @@ const Tab = createBottomTabNavigator<BottomTabParamList>();
 const TAB_ICONS: Record<keyof BottomTabParamList, IconName> = {
   Home: 'home-variant',
   Ranking: 'trophy-variant',
-  Rewards: 'gift',
+  Earn: 'handshake',
   Wallet: 'wallet',
   Vip: 'crown',
 };
@@ -43,7 +43,7 @@ export default function BottomTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Ranking" component={RankingScreen} />
-      <Tab.Screen name="Rewards" component={RewardsScreen} />
+      <Tab.Screen name="Earn" component={EarnScreen} />
       <Tab.Screen name="Wallet" component={WalletScreen} />
       <Tab.Screen name="Vip" component={VipScreen} options={{ title: 'VIP' }} />
     </Tab.Navigator>

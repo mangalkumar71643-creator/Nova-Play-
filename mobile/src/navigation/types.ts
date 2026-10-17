@@ -3,7 +3,7 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 export type BottomTabParamList = {
   Home: undefined;
   Ranking: undefined;
-  Rewards: undefined;
+  Earn: undefined;
   Wallet: undefined;
   Vip: undefined;
 };
@@ -24,6 +24,10 @@ export type RootStackParamList = {
   History: { kind?: 'deposit' | 'withdraw' } | undefined;
   Deposit: undefined;
   Withdraw: undefined;
+  /** EARN: reward details (optionally one kind) or the claim history. */
+  AgentRewards: { tab?: 'details' | 'withdrawals'; kind?: 'BET' | 'DEPOSIT' | 'TASK' | 'INVITE' | 'JACKPOT' } | undefined;
+  AgentTeam: undefined;
+  AgentJackpot: { tab?: 'ranking' | 'history' } | undefined;
   Aviator: undefined;
   ChickenRoad: undefined;
   Mines: undefined;

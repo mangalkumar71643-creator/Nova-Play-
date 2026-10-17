@@ -167,6 +167,12 @@ model User {
   // One-time first-deposit bonus, see paymentService.ts / wallet.routes.ts.
   firstDepositBonusClaimed Boolean @default(false)
 
+  // Agent program (agentService.ts): who invited this player (their invite
+  // code is the inviter's uid), and when the invite qualified for the
+  // joining reward (₹200 deposited and 3x that staked).
+  referrerId          String?
+  referralQualifiedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -237,6 +243,8 @@ model User {
   MoneyComingSpin    MoneyComingSpin[]
   GiftCodeRedemption GiftCodeRedemption[]
   VipBonusClaim      VipBonusClaim[]
+
+  @@index([referrerId])
 }
 
 model KycVerification {
@@ -2190,4 +2198,76 @@ model FortuneSixBet {
   createdAt      DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ---------------- Agent program (see agentService.ts) ----------------
+
+// Every inviter above a player, up to 6 levels deep: depth 1 is the player
+// who invited them directly, depth 2 that player's inviter, and so on.
+model AgentLink {
+  ancestorId   String
+  descendantId String
+  depth        Int
+  createdAt    DateTime @default(now())
+
+  @@id([ancestorId, descendantId])
+  @@index([descendantId])
+  @@index([ancestorId, depth])
+}
+
+enum AgentRewardKind {
+  BET
+  DEPOSIT
+  TASK
+  INVITE
+  JACKPOT
+}
+
+// Rewards earned by an agent, waiting in "Withdrawal rewards" until claimed
+// into the balance. periodKey makes each one unique: the IST day for
+// BET/DEPOSIT, "invitee:<id>" / "welcome" for INVITE, "m<count>" for a
+// cumulative-invitation TASK, the week's Monday for JACKPOT.
+model AgentReward {
+  id        String          @id @default(uuid())
+  userId    String
+  kind      AgentRewardKind
+  periodKey String
+  amount    Decimal         @db.Decimal(12, 2)
+  // How many invitees it came from (bets/deposits that day, or 1 per invite).
+  invitees  Int             @default(0)
+  // When it was earned: the day's start for BET/DEPOSIT, else the moment.
+  earnedAt  DateTime
+  claimId   String?
+  createdAt DateTime        @default(now())
+
+  @@unique([userId, kind, periodKey])
+  @@index([userId, earnedAt])
+  @@index([earnedAt])
+}
+
+// One "Claim" of everything waiting: paid into the balance as a BONUS.
+model AgentClaim {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Decimal  @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// Marks a day ("day:YYYY-MM-DD") or week ("week:YYYY-MM-DD") as settled, so
+// rebates and the jackpot are paid exactly once.
+model AgentSettlement {
+  key       String   @id
+  createdAt DateTime @default(now())
+}
+
+// A finished week of the Agent Jackpot and who won it.
+model AgentJackpotWeek {
+  weekKey    String   @id
+  pool       Decimal  @db.Decimal(14, 2)
+  paid       Decimal  @db.Decimal(14, 2)
+  rolledOver Decimal  @db.Decimal(14, 2)
+  winners    Json
+  createdAt  DateTime @default(now())
 }

@@ -34,6 +34,8 @@ export type ProfileFields = {
   lastName: string;
   dateOfBirth: string;
   country: string;
+  /** The inviter's code, if the player was invited (agent program). */
+  inviteCode?: string;
 };
 
 type AuthState = {

@@ -54,6 +54,7 @@ export function completePhoneProfile(input: {
   lastName: string;
   dateOfBirth: string;
   country: string;
+  inviteCode?: string;
 }) {
   return apiFetch<AuthResult>('/auth/otp/complete-profile', {
     method: 'POST',
@@ -3698,4 +3699,74 @@ export type Ranking = {
 
 export function fetchRanking() {
   return apiFetch<Ranking>('/players/ranking');
+}
+
+// --- Agent program (EARN): invites, team commission, Agent Jackpot ---
+
+export type AgentRules = {
+  maxDepth: number;
+  teamLevels: { level: number; teamSize: number; teamBetting: number }[];
+  /** % of subordinate levels 1-6's bets, by team level. */
+  betRebate: number[][];
+  /** % of level-1 subordinates' deposits, by team level. */
+  topUpRebate: number[];
+  join: { inviterReward: number; inviteeReward: number; minDeposit: number; wagerMultiple: number; dailyCap: number };
+  milestones: { count: number; reward: number }[];
+  jackpot: { poolPercent: number; minCommission: number; prizes: { from: number; to: number; percent: number }[] };
+};
+
+export type JackpotEntry = { rank: number; name: string; uid?: number | null; commission: number; percent: number; prize: number; isMe?: boolean };
+
+export type AgentSummary = {
+  inviteCode: string;
+  inviteUrl: string;
+  team: { level: number; size: number; betting: number; direct: number; next: { level: number; teamSize: number; teamBetting: number } | null };
+  rates: { betUpTo: number; depositUpTo: number };
+  rewards: { claimable: number; total: number; today: number; invitation: number };
+  invite: AgentRules['join'] & {
+    todayLeft: number;
+    invitees: number;
+    qualified: number;
+    rewards: number;
+    milestones: { count: number; reward: number; reached: boolean }[];
+  };
+  jackpot: { weekKey: string; endsAt: string; pool: number; minCommission: number; myCommission: number; myRank: number | null; top: JackpotEntry[] };
+  rules: AgentRules;
+};
+
+export type AgentRewardKind = 'BET' | 'DEPOSIT' | 'TASK' | 'INVITE' | 'JACKPOT';
+
+export function fetchAgentSummary() {
+  return apiFetch<AgentSummary>('/agent/summary');
+}
+
+export function fetchAgentRewards(month: string, kind?: AgentRewardKind) {
+  return apiFetch<{
+    month: string;
+    total: number;
+    items: { id: string; kind: AgentRewardKind; periodKey: string; amount: number; invitees: number; earnedAt: string; claimed: boolean }[];
+  }>(`/agent/rewards?month=${month}${kind ? `&kind=${kind}` : ''}`);
+}
+
+export function fetchAgentClaims() {
+  return apiFetch<{ id: string; amount: number; createdAt: string; status: string }[]>('/agent/claims');
+}
+
+export function claimAgentRewards() {
+  return apiFetch<{ amount: number; balance: number }>('/agent/claim', { method: 'POST' });
+}
+
+export function fetchAgentTeam(depth: number) {
+  return apiFetch<{
+    counts: { depth: number; count: number }[];
+    members: { name: string; joinedAt: string; betting: number; deposited: boolean }[];
+  }>(`/agent/team?depth=${depth}`);
+}
+
+export function fetchJackpotRanking() {
+  return apiFetch<{ weekKey: string; endsAt: string; pool: number; minCommission: number; list: JackpotEntry[] }>('/agent/jackpot');
+}
+
+export function fetchJackpotHistory() {
+  return apiFetch<{ weekKey: string; pool: number; paid: number; rolledOver: number; winners: JackpotEntry[] }[]>('/agent/jackpot/history');
 }

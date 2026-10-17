@@ -71,6 +71,9 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import OtpScreen from '../screens/OtpScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import AgentJackpotScreen from '../screens/AgentJackpotScreen';
+import AgentRewardsScreen from '../screens/AgentRewardsScreen';
+import AgentTeamScreen from '../screens/AgentTeamScreen';
 import WithdrawScreen from '../screens/WithdrawScreen';
 import LoadingState from '../components/LoadingState';
 import ScreenContainer from '../components/ScreenContainer';
@@ -113,6 +116,9 @@ function MainNavigator() {
       <Stack.Screen name="History" component={HistoryScreen} />
       <Stack.Screen name="Deposit" component={DepositScreen} />
       <Stack.Screen name="Withdraw" component={WithdrawScreen} />
+      <Stack.Screen name="AgentRewards" component={AgentRewardsScreen} />
+      <Stack.Screen name="AgentTeam" component={AgentTeamScreen} />
+      <Stack.Screen name="AgentJackpot" component={AgentJackpotScreen} />
       <Stack.Screen name="Aviator" component={AviatorScreen} />
       <Stack.Screen name="ChickenRoad" component={ChickenRoadScreen} />
       <Stack.Screen name="Mines" component={MinesScreen} />

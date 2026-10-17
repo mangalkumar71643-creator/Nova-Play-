@@ -117,6 +117,13 @@ const completeProfileSchema = z.object({
   lastName: z.string().min(1),
   dateOfBirth: z.string(),
   country: z.string().min(2),
+  // The inviter's uid (agent program); optional.
+  inviteCode: z
+    .string()
+    .trim()
+    .max(12)
+    .optional()
+    .transform((v) => v || undefined),
 });
 
 router.post(

@@ -23,6 +23,7 @@ export default function CompleteProfileScreen() {
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit() {
@@ -46,6 +47,7 @@ export default function CompleteProfileScreen() {
       lastName: lastName.trim(),
       dateOfBirth: dob.toISOString(),
       country: country.trim().toUpperCase(),
+      inviteCode: inviteCode.trim() || undefined,
     });
     setSubmitting(false);
     if (error) Alert.alert('Could not create account', error);
@@ -77,6 +79,17 @@ export default function CompleteProfileScreen() {
           <TextInput style={styles.dobInput} placeholder="MM" placeholderTextColor={colors.textMuted} keyboardType="number-pad" maxLength={2} value={month} onChangeText={setMonth} />
           <TextInput style={[styles.dobInput, { flex: 1.4 }]} placeholder="YYYY" placeholderTextColor={colors.textMuted} keyboardType="number-pad" maxLength={4} value={year} onChangeText={setYear} />
         </View>
+
+        <Text style={styles.label}>Invite code (optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Friend's invite code"
+          placeholderTextColor={colors.textMuted}
+          keyboardType="number-pad"
+          maxLength={12}
+          value={inviteCode}
+          onChangeText={(t) => setInviteCode(t.replace(/[^0-9]/g, ''))}
+        />
 
         <PrimaryButton label={submitting ? 'Please wait…' : 'Create account'} onPress={handleSubmit} disabled={submitting} />
 

@@ -5,6 +5,7 @@ import { ApiError } from "../middleware/errorHandler";
 import { comparePassword, hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { isAtLeast18 } from "../utils/age";
+import { findInviter, linkInvitee } from "./agentService";
 import { consumeOtp, isRecentlyVerified, requestOtp as requestOtpCode, verifyOtp as verifyOtpCode } from "./otpService";
 
 function randomFiveDigitUid(): number {
@@ -200,6 +201,8 @@ export interface CompleteProfileInput {
   lastName: string;
   dateOfBirth: string;
   country: string;
+  /** The inviter's code (their uid), if the player was invited. */
+  inviteCode?: string;
 }
 
 /** Step 3 (new users only): creates the account once the phone has been
@@ -226,6 +229,8 @@ export async function completePhoneRegistration(input: CompleteProfileInput) {
   if (!isAtLeast18(dob)) {
     throw new ApiError(403, "You must be at least 18 years old to register.");
   }
+  // Checked before the account exists, so a mistyped code can be fixed.
+  const inviterId = input.inviteCode ? await findInviter(input.inviteCode) : null;
 
   const user = await createUserWithUniqueUid((uid) =>
     prisma.user.create({
@@ -240,6 +245,8 @@ export async function completePhoneRegistration(input: CompleteProfileInput) {
       },
     })
   );
+
+  if (inviterId) await linkInvitee(inviterId, user.id);
 
   await consumeOtp(phone);
   const token = signToken({ userId: user.id, role: user.role });
