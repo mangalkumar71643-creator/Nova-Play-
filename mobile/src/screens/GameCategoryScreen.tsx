@@ -180,7 +180,7 @@ export default function GameCategoryScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RootStackParamList, 'GameCategory'>>();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const { coins } = useGameState();
   const startId = GAME_CATEGORIES.some((c) => c.id === route.params?.categoryId) ? route.params!.categoryId : GAME_CATEGORIES[0].id;
   const [activeId, setActiveId] = useState(startId);
@@ -198,6 +198,9 @@ export default function GameCategoryScreen() {
   const jumpedToStart = useRef(false);
   // While a tab tap scrolls the page, the scroll handler leaves the picked tab alone.
   const jumping = useRef(false);
+  // The page scrolls no further than its last games; a tab near the end goes as far as that allows.
+  const contentH = useRef(0);
+  const viewH = useRef(0);
 
   const contentWidth = width - SIDE * 2;
   const rowTile = Math.floor((contentWidth - TILE_GAP * 3) / ROW_TILES_VISIBLE);
@@ -229,8 +232,9 @@ export default function GameCategoryScreen() {
       jumping.current = true;
       setActiveId(id);
       showTab(id);
-      // The tabs stick at the top, so the section's top goes just under them.
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - TABS_HEIGHT), animated });
+      // The tabs stick at the top, so the section's top goes just under them (or as near as the end allows).
+      const maxY = contentH.current ? Math.max(0, contentH.current - viewH.current) : Number.POSITIVE_INFINITY;
+      scrollRef.current?.scrollTo({ y: Math.min(maxY, Math.max(0, y - TABS_HEIGHT)), animated });
       setTimeout(() => (jumping.current = false), animated ? 600 : 80);
     },
     [showTab, sectionTop],
@@ -254,9 +258,12 @@ export default function GameCategoryScreen() {
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (jumping.current) return;
-    const y = e.nativeEvent.contentOffset.y + TABS_HEIGHT + 24;
+    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+    const y = contentOffset.y + TABS_HEIGHT + 24;
     let current = GAME_CATEGORIES[0].id;
     for (const c of GAME_CATEGORIES) if (sectionTop(c.id) <= y) current = c.id;
+    // At the very end the last category can't reach the top, so it counts as the one in view.
+    if (contentOffset.y > 0 && contentOffset.y + layoutMeasurement.height >= contentSize.height - 8) current = GAME_CATEGORIES[GAME_CATEGORIES.length - 1].id;
     if (current !== activeId) {
       setActiveId(current);
       showTab(current);
@@ -282,8 +289,10 @@ export default function GameCategoryScreen() {
         stickyHeaderIndices={[1]}
         onScroll={onScroll}
         scrollEventThrottle={32}
-        // Room under the last category so a tab tap can bring any category up under the tabs.
-        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 32, height * 0.55) }}
+        onLayout={(e) => (viewH.current = e.nativeEvent.layout.height)}
+        onContentSizeChange={(_, h) => (contentH.current = h)}
+        // Just a little room under the last games, no empty screen below them.
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
       >
         <View style={{ paddingHorizontal: SIDE }} onLayout={(e) => setBannerH(e.nativeEvent.layout.height)}>
