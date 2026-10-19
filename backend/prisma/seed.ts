@@ -87,6 +87,13 @@ async function ensureStockpayOrderIndex() {
       ON "Transaction" ("providerReferenceId")
       WHERE provider = 'stockpay_live' AND type = 'DEPOSIT';
     `);
+    // RupayEx: one order = one deposit row, one payout id = one withdrawal
+    // (see rupayexService.ts).
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS novaplay_rupayex_order
+      ON "Transaction" (type, "providerReferenceId")
+      WHERE provider = 'rupayex';
+    `);
   } catch (err) {
     console.error("Could not create the StockPay order index (duplicate rows?):", err);
   }

@@ -7,7 +7,8 @@ import { prisma } from "../db/prismaClient";
 import { paymentProvider } from "../services/paymentService";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
 import { completeDeposit } from "../services/depositService";
-import { upiDepositStatus, confirmUpiDeposits, createUpiCheckout, sweepStaleUpiDeposits } from "../services/stockpayService";
+import { confirmUpiDeposits as confirmStockpayDeposits, sweepStaleUpiDeposits, STOCKPAY_PROVIDERS } from "../services/stockpayService";
+import * as rupayex from "../services/rupayexService";
 import { env } from "../config/env";
 import { istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
 
@@ -107,16 +108,18 @@ router.post(
   })
 );
 
-// --- UPI deposits through StockPay's hosted INR checkout (see stockpayService.ts) ---
+// --- UPI deposits through RupayEx (see rupayexService.ts). New deposits go to
+// RupayEx only; StockPay deposits opened before the switch still settle. ---
 
 router.get(
   "/upi/status",
   requireAuth,
   asyncHandler(async (req, res) => {
-    // A missed webhook must not leave money hanging: re-check open deposits
-    // with StockPay (throttled) whenever a player opens this screen.
+    // StockPay deposits opened before the switch to RupayEx: a missed webhook
+    // must not leave them hanging (throttled). RupayEx deposits are re-checked
+    // by the player's own confirm and by the sweep (rupayexService.ts).
     await sweepStaleUpiDeposits();
-    res.json(await upiDepositStatus(req.user!.userId));
+    res.json(await rupayex.upiDepositStatus(req.user!.userId));
   })
 );
 
@@ -128,11 +131,11 @@ router.post(
     const userId = req.user!.userId;
     await assertCanTransact(userId);
     await assertWithinDepositLimits(userId, amount);
-    // StockPay sends the player back here (https on Vercel, behind its proxy),
+    // RupayEx sends the player back here (https on Vercel, behind its proxy),
     // keeping the /api prefix when served under one (Replit).
     const proto = req.get("x-forwarded-proto") ?? req.protocol;
     const apiPrefix = req.originalUrl.startsWith("/api/") ? "/api" : "";
-    res.json(await createUpiCheckout(userId, amount, `${proto}://${req.get("host")}${apiPrefix}`));
+    res.json(await rupayex.createUpiCheckout(userId, amount, `${proto}://${req.get("host")}${apiPrefix}`));
   })
 );
 
@@ -143,14 +146,41 @@ router.post(
   asyncHandler(async (req, res) => {
     const { sessionId } = confirmSchema.parse(req.body ?? {});
     const userId = req.user!.userId;
-    const { results } = await confirmUpiDeposits(userId, sessionId);
+    let results;
+    if (sessionId) {
+      // One payment page = one deposit row; settle it with the company that opened it.
+      const row = await prisma.transaction.findFirst({ where: { userId, type: "DEPOSIT", providerReferenceId: sessionId }, select: { provider: true } });
+      results = (STOCKPAY_PROVIDERS.includes(row?.provider ?? "") ? await confirmStockpayDeposits(userId, sessionId) : await rupayex.confirmUpiDeposits(userId, sessionId)).results;
+    } else {
+      const [rx, sp] = await Promise.all([rupayex.confirmUpiDeposits(userId), confirmStockpayDeposits(userId)]);
+      results = [...rx.results, ...sp.results];
+    }
     res.json({ results, wallet: await buildWalletView(userId) });
   })
 );
 
+/** RupayEx's redirect_url: its JSON callback (POST) and the player's browser (GET). */
+router.post(
+  "/rupayex/return",
+  asyncHandler(async (req, res) => {
+    const orderId = typeof req.body?.order_id === "string" ? req.body.order_id : typeof req.query.order_id === "string" ? req.query.order_id : undefined;
+    await rupayex.handleReturn(orderId);
+    res.json({ received: true });
+  })
+);
+router.get(
+  "/rupayex/return",
+  asyncHandler(async (req, res) => {
+    const orderId = typeof req.query.order_id === "string" ? req.query.order_id : undefined;
+    const { status } = await rupayex.handleReturn(orderId);
+    upiReturnPage(res, status === "COMPLETED");
+  })
+);
+
 /** Where StockPay's UPI page sends the player after checkout. */
-router.get("/upi/return", (req, res) => {
-  const paid = req.query.status === "paid";
+router.get("/upi/return", (req, res) => upiReturnPage(res, req.query.status === "paid"));
+
+function upiReturnPage(res: import("express").Response, paid: boolean) {
   const title = paid ? "UPI payment received" : "Back to NovaPlay";
   const text = paid
     ? "Go back to the NovaPlay app — your balance updates in a few seconds."
@@ -160,7 +190,7 @@ router.get("/upi/return", (req, res) => {
       `<body style="margin:0;font-family:system-ui,sans-serif;background:#120a1f;color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center">` +
       `<div style="padding:24px"><div style="font-size:56px">${paid ? "✅" : "↩️"}</div><h1 style="font-size:22px">${title}</h1><p style="opacity:.8;line-height:1.5">${text}</p></div></body></html>`
   );
-});
+}
 
 const payoutAccountSchema = z.object({
   accountHolderName: z.string().trim().min(2, "Enter the account holder's name").max(120),
@@ -284,7 +314,7 @@ router.get(
         where: { userId, type },
         orderBy: { createdAt: "desc" },
         take: 200,
-        select: { id: true, amount: true, fee: true, status: true, createdAt: true },
+        select: { id: true, amount: true, fee: true, providerFee: true, status: true, createdAt: true },
       }),
       prisma.transaction.aggregate({ where: { userId, type, status: "COMPLETED" }, _sum: { amount: true }, _count: true }),
       prisma.transaction.aggregate({ where: { userId, type, status: "PENDING" }, _sum: { amount: true } }),
@@ -294,7 +324,7 @@ router.get(
       total: Number(completed._sum.amount ?? 0),
       count: completed._count,
       pending: Number(pending._sum.amount ?? 0),
-      items: items.map((t) => ({ ...t, amount: Number(t.amount), fee: Number(t.fee ?? 0) })),
+      items: items.map((t) => ({ ...t, amount: Number(t.amount), fee: Number(t.fee ?? 0), providerFee: t.providerFee == null ? null : Number(t.providerFee) })),
     });
   })
 );

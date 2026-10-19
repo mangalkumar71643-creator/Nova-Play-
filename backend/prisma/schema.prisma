@@ -299,6 +299,10 @@ model Transaction {
   providerReferenceId String?
   // Withdrawals only: the fee kept back, so the player is paid amount - fee.
   fee                 Decimal?          @db.Decimal(12, 2)
+  // Withdrawals paid through a payout company (RupayEx): the fee it took out
+  // of what it sent, and when the payout was sent to it.
+  providerFee         Decimal?          @db.Decimal(12, 2)
+  sentAt              DateTime?
   betId               String?
   bet                 Bet?              @relation(fields: [betId], references: [id])
   createdAt           DateTime          @default(now())

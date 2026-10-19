@@ -7,6 +7,7 @@ import { env } from "../config/env";
 import { paymentProvider } from "../services/paymentService";
 import { completeDeposit } from "../services/depositService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
+import * as rupayex from "../services/rupayexService";
 import { FAST2SMS_ROUTES, fast2SmsFromEnv } from "../services/smsService";
 import { INTEGRATION_FIELDS, integration, integrationView, saveIntegrationSettings } from "../services/integrationSettings";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
@@ -463,15 +464,15 @@ router.get(
   })
 );
 
-/** StockPay UPI deposits (hosted checkout), newest first — read-only status view for the panel. */
+/** UPI deposits (RupayEx, and StockPay before it), newest first — read-only status view for the panel. */
 const upiDepositStatusQuery = z.enum(["PENDING", "COMPLETED", "FAILED"]).optional();
 router.get(
   "/upi-deposits",
   asyncHandler(async (req, res) => {
     const status = upiDepositStatusQuery.parse(req.query.status);
     const rows = await prisma.transaction.findMany({
-      // Test (play money) and live-pilot (real money) deposits; `provider` tells them apart.
-      where: { provider: { in: STOCKPAY_PROVIDERS }, type: "DEPOSIT", status },
+      // RupayEx, StockPay test (play money) and live-pilot (real money) deposits; `provider` tells them apart.
+      where: { provider: { in: [rupayex.PROVIDER, ...STOCKPAY_PROVIDERS] }, type: "DEPOSIT", status },
       orderBy: { createdAt: "desc" },
       take: 200,
       select: { id: true, amount: true, status: true, provider: true, providerReferenceId: true, createdAt: true, user: { select: { id: true, ...userSummarySelect } } },
@@ -647,6 +648,9 @@ router.get(
   "/withdrawals",
   asyncHandler(async (req, res) => {
     const status = withdrawalStatusQuery.parse(req.query.status);
+    // Payouts sent with RupayEx move on as RupayEx reports them (throttled,
+    // in the background so a RupayEx outage never holds up this list).
+    rupayex.sweepRupayex().catch((err) => console.error("RupayEx sweep failed", err));
     const withdrawals = await prisma.transaction.findMany({
       where: { type: "WITHDRAWAL", status },
       orderBy: { createdAt: "desc" },
@@ -739,6 +743,43 @@ router.post(
       data: { status: "COMPLETED", provider: result.provider, providerReferenceId: result.providerReferenceId },
     });
     res.json(updated);
+  })
+);
+
+// RupayEx bank payouts (rupayexService.ts): sent only from here, by the
+// admin's button; the status check moves it on (SUCCESS -> paid, REJECTED ->
+// refunded) and the list above runs the same check for every open one.
+const rupayexPayoutSchema = z.object({ account: z.string().trim().min(1).max(40) });
+router.post(
+  "/withdrawals/:transactionId/rupayex",
+  asyncHandler(async (req, res) => {
+    // The account number the admin was shown: refused if the player has changed it since.
+    const { account } = rupayexPayoutSchema.parse(req.body ?? {});
+    const result = await rupayex.sendPayout(req.params.transactionId, account);
+    res.json({ ...result, transaction: await prisma.transaction.findUniqueOrThrow({ where: { id: req.params.transactionId } }) });
+  })
+);
+router.post(
+  "/withdrawals/:transactionId/rupayex-status",
+  asyncHandler(async (req, res) => {
+    const result = await rupayex.syncPayout(req.params.transactionId);
+    res.json({ ...result, transaction: await prisma.transaction.findUniqueOrThrow({ where: { id: req.params.transactionId } }) });
+  })
+);
+// After checking RupayEx's own dashboard: settle a payout RupayEx won't
+// settle itself — paid, or failed with the amount refunded to the player.
+const rupayexSettleSchema = z.object({ outcome: z.enum(["paid", "refund"]) });
+router.post(
+  "/withdrawals/:transactionId/rupayex-settle",
+  asyncHandler(async (req, res) => {
+    const { outcome } = rupayexSettleSchema.parse(req.body ?? {});
+    res.json(await rupayex.settlePayoutByHand(req.params.transactionId, outcome));
+  })
+);
+router.get(
+  "/rupayex/balance",
+  asyncHandler(async (_req, res) => {
+    res.json(await rupayex.walletBalance());
   })
 );
 

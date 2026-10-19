@@ -409,6 +409,7 @@
             </select>
             <button class="btn secondary" id="withdrawalRefresh" style="flex:0 0 auto;">Refresh</button>
           </div>
+          <div class="item-meta" id="rupayexBalance" style="margin:4px 0 10px;"></div>
           <div id="withdrawalsList"></div>
         </div>
 
@@ -693,6 +694,9 @@
           <div class="form-row"><input id="int_smsWaMessageId" placeholder="WhatsApp Message ID (whatsapp route only)" /></div>
           <div id="intStatus_smsWaPhoneNumberId" class="item-meta"></div>
           <div class="form-row"><input id="int_smsWaPhoneNumberId" placeholder="WhatsApp Phone Number ID (whatsapp route only)" /></div>
+          <div class="item-title" style="margin:14px 0 6px;">RupayEx (UPI deposits &amp; bank payouts)</div>
+          <div id="intStatus_rupayexToken" class="item-meta"></div>
+          <div class="form-row"><input id="int_rupayexToken" type="password" autocomplete="off" placeholder="RupayEx API token" /></div>
           <div class="form-row"><button class="btn" id="intSaveBtn">Save keys</button></div>
           <div class="item-meta" id="intResult"></div>
         </div>
@@ -1234,9 +1238,24 @@
     // Past the player's free withdrawals for the day a fee is kept back: send only amount - fee.
     var fee = Number(w.fee || 0);
     var payout = Math.round((Number(w.amount) - fee) * 100) / 100;
-    var actions = w.status === 'PENDING'
-      ? '<button class="icon-btn view" data-action="approve" data-id="' + w.id + '" data-payout="' + payout + '">Approve &amp; pay out ' + fmtMoney(payout) + '</button>' +
-        '<button class="icon-btn ban" data-action="reject" data-id="' + w.id + '">Reject &amp; refund</button>'
+    // Sent with RupayEx: it pays and reports back, so only a status check is offered.
+    var viaRupayex = w.provider === 'rupayex';
+    var providerFee = w.providerFee != null ? Number(w.providerFee) : null;
+    var actions = w.status !== 'PENDING' ? ''
+      : viaRupayex
+        ? '<button class="icon-btn view" data-action="rupayex-status" data-id="' + w.id + '">Check RupayEx status</button>' +
+          '<button class="icon-btn view" data-action="rupayex-paid" data-id="' + w.id + '">Mark paid (seen on RupayEx)</button>' +
+          '<button class="icon-btn ban" data-action="rupayex-refund" data-id="' + w.id + '">Refund (RupayEx did not pay)</button>'
+        : w.provider
+          ? ''
+          : '<button class="icon-btn view" data-action="rupayex" data-id="' + w.id + '" data-payout="' + payout + '" data-account="' + escapeHtml(w.user && w.user.payoutAccountNumber || '') + '" data-bank="' + escapeHtml(w.user ? (w.user.payoutAccountHolderName || '') + ' · ' + (w.user.payoutAccountNumber || '') + ' · IFSC ' + (w.user.payoutIfsc || '') : '') + '">Pay ' + fmtMoney(payout) + ' with RupayEx</button>' +
+            '<button class="icon-btn view" data-action="approve" data-id="' + w.id + '" data-payout="' + payout + '">Paid by hand (UTR)</button>' +
+            '<button class="icon-btn ban" data-action="reject" data-id="' + w.id + '">Reject &amp; refund</button>';
+    var rupayexLine = viaRupayex
+      ? '<div class="item-meta" style="color:#9ecbff;font-weight:700;">RupayEx payout ' + escapeHtml(w.providerReferenceId || '') +
+          (w.sentAt ? ' · sent ' + new Date(w.sentAt).toLocaleString() : '') +
+          (providerFee != null ? ' · RupayEx fee ' + fmtMoney(providerFee) + ' · player gets ' + fmtMoney(Math.round((payout - providerFee) * 100) / 100) : '') +
+          (w.status === 'PENDING' ? ' · waiting for RupayEx' : '') + '</div>'
       : '';
     return (
       '<div class="item">' +
@@ -1250,6 +1269,7 @@
                 ? 'Send ' + fmtMoney(payout) + ' to the bank (' + fmtMoney(w.amount) + ' − fee ' + fmtMoney(fee) + ')'
                 : 'Send ' + fmtMoney(payout) + ' to the bank (free withdrawal, no fee)') +
             '</div>' +
+            rupayexLine +
             (w.testMoney ? '<div class="item-meta" style="color:#ff5c5c;font-weight:700;">⚠ This player has StockPay TEST deposits (play money). Do not pay real money for it.</div>' : '') +
           '</div>' +
           '<span class="pill ' + statusClass + '">' + w.status + '</span>' +
@@ -1262,6 +1282,11 @@
   function loadWithdrawals() {
     var status = document.getElementById('withdrawalStatus').value;
     var qs = status ? '?status=' + status : '';
+    api('/admin/rupayex/balance').then(function (b) {
+      document.getElementById('rupayexBalance').innerHTML = !b.configured
+        ? 'RupayEx: no API token yet (Settings → keys).'
+        : b.balance != null ? 'RupayEx wallet balance: <b>' + fmtMoney(b.balance) + '</b>' : 'RupayEx balance unavailable: ' + escapeHtml(b.error || '');
+    }).catch(function () {});
     api('/admin/withdrawals' + qs).then(function (withdrawals) {
       document.getElementById('withdrawalsList').innerHTML = withdrawals.length
         ? withdrawals.map(withdrawalRowHtml).join('')
@@ -1278,6 +1303,35 @@
             if (ref.length < 4) { showAlert('Enter the UTR / reference of the payment you sent (at least 4 characters).'); return; }
             btn.disabled = true;
             api('/admin/withdrawals/' + id + '/approve', { method: 'POST', body: JSON.stringify({ reference: ref }) }).then(loadWithdrawals).catch(function (err) { showAlert(err.message); loadWithdrawals(); });
+          } else if (action === 'rupayex') {
+            askConfirm('Send ' + fmtMoney(btn.getAttribute('data-payout')) + ' with RupayEx to:\n' + btn.getAttribute('data-bank') + '\n\nRupayEx takes its own fee out of it. This sends real money.').then(function (ok) {
+              if (!ok) return;
+              btn.disabled = true;
+              api('/admin/withdrawals/' + id + '/rupayex', { method: 'POST', body: JSON.stringify({ account: btn.getAttribute('data-account') }) })
+                .then(function (r) { showAlert('Sent to RupayEx — status: ' + (r.rupayexStatus || r.status) + (r.fee != null ? ', RupayEx fee ' + fmtMoney(r.fee) : '') + '.'); loadWithdrawals(); })
+                .catch(function (err) { showAlert(err.message); loadWithdrawals(); });
+            });
+          } else if (action === 'rupayex-status') {
+            btn.disabled = true;
+            api('/admin/withdrawals/' + id + '/rupayex-status', { method: 'POST' })
+              .then(function (r) {
+                showAlert('RupayEx status: ' + (r.rupayexStatus || 'no clear answer yet') + (r.note ? ' (' + r.note + ')' : '') + '. Withdrawal: ' + r.status + '.' +
+                  (r.status === 'PENDING' ? '\nIf this stays stuck, check the payout on RupayEx\'s dashboard, then use Mark paid or Refund.' : ''));
+                loadWithdrawals();
+              })
+              .catch(function (err) { showAlert(err.message); loadWithdrawals(); });
+          } else if (action === 'rupayex-paid' || action === 'rupayex-refund') {
+            var paid = action === 'rupayex-paid';
+            askConfirm(paid
+              ? 'Only if RupayEx\'s dashboard shows this payout as paid: mark the withdrawal paid?'
+              : 'Only if RupayEx\'s dashboard shows this payout as failed, rejected or never received: refund the full amount to the player\'s balance? If RupayEx pays it later, the player is paid twice.'
+            ).then(function (ok) {
+              if (!ok) return;
+              btn.disabled = true;
+              api('/admin/withdrawals/' + id + '/rupayex-settle', { method: 'POST', body: JSON.stringify({ outcome: paid ? 'paid' : 'refund' }) })
+                .then(loadWithdrawals)
+                .catch(function (err) { showAlert(err.message); loadWithdrawals(); });
+            });
           } else if (action === 'reject') {
             askConfirm('Reject this withdrawal and refund the customer’s balance?').then(function (ok) {
               if (!ok) return;
@@ -2348,7 +2402,7 @@
       .finally(function () { btn.disabled = false; });
   });
 
-  var INT_FIELDS = ['smsApiKey', 'smsRoute', 'smsFallbackRoute', 'smsSenderId', 'smsTemplateId', 'smsWaMessageId', 'smsWaPhoneNumberId'];
+  var INT_FIELDS = ['smsApiKey', 'smsRoute', 'smsFallbackRoute', 'smsSenderId', 'smsTemplateId', 'smsWaMessageId', 'smsWaPhoneNumberId', 'rupayexToken'];
   function showIntegrations(view) {
     INT_FIELDS.forEach(function (name) {
       var f = view[name] || {};

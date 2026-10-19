@@ -3627,8 +3627,9 @@ export type WalletHistory = {
   count: number;
   /** Withdrawals still waiting for approval. */
   pending: number;
-  /** fee: what was kept back from a withdrawal (0 for a free one). */
-  items: { id: string; amount: number; fee?: number; status: 'PENDING' | 'COMPLETED' | 'FAILED'; createdAt: string }[];
+  /** fee: what was kept back from a withdrawal (0 for a free one); providerFee: what the
+   * payout company (RupayEx) took out of the transfer, once it is known. */
+  items: { id: string; amount: number; fee?: number; providerFee?: number | null; status: 'PENDING' | 'COMPLETED' | 'FAILED'; createdAt: string }[];
 };
 
 export function fetchWalletHistory(kind: WalletHistoryKind) {

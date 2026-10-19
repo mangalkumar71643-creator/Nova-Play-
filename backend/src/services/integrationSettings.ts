@@ -4,7 +4,7 @@ import { env } from "../config/env";
 import { ApiError } from "../middleware/errorHandler";
 
 /**
- * SMS keys the admin enters in the panel (Integrations card),
+ * SMS keys and the RupayEx API token the admin enters in the panel (Integrations card),
  * so they take effect without touching Vercel or redeploying. Stored in the
  * Setting table under "int:<name>"; secret ones are encrypted at rest with a
  * key derived from JWT_SECRET and are never sent back to the panel (only
@@ -19,6 +19,7 @@ export const INTEGRATION_FIELDS = {
   smsWaMessageId: { env: "SMS_WA_MESSAGE_ID", secret: false },
   smsWaPhoneNumberId: { env: "SMS_WA_PHONE_NUMBER_ID", secret: false },
   smsFallbackRoute: { env: "SMS_FALLBACK_ROUTE", secret: false },
+  rupayexToken: { env: "RUPAYEX_TOKEN", secret: true },
 } as const;
 export type IntegrationField = keyof typeof INTEGRATION_FIELDS;
 const FIELD_NAMES = Object.keys(INTEGRATION_FIELDS) as IntegrationField[];

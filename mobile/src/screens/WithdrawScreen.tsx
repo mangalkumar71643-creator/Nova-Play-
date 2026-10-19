@@ -271,6 +271,10 @@ export default function WithdrawScreen() {
             The amount leaves your game balance the moment you withdraw, and the NovaPlay team sends it to
             your bank account — usually within minutes.
           </Text>
+          <Text style={styles.tipsText}>
+            When a withdrawal is sent through our payout partner, the partner takes its own bank transfer charge
+            out of the amount it sends. That charge is shown on the withdrawal in your history.
+          </Text>
           {withdrawalFee ? (
             <Text style={styles.tipsText}>
               Your first {freeWithdrawalsPerDay} withdrawals each day are free. After that, ₹{withdrawalFee.flat} +{' '}

@@ -74,6 +74,7 @@ import moneyComingRoutes from "./routes/moneyComing.routes";
 import { closeOutRetiredGames } from "./services/retiredGamesCloseout";
 import { refreshSettingsIfStale } from "./services/settingsService";
 import { handleWebhook as handleStockpayWebhook, sweepStaleUpiDeposits } from "./services/stockpayService";
+import { sweepRupayex } from "./services/rupayexService";
 
 export const app = express();
 
@@ -100,6 +101,8 @@ app.post(
 
 // Room for popup images uploaded from the admin panel (base64, already shrunk by the panel).
 app.use(express.json({ limit: "4mb" }));
+// RupayEx may post its payment callback as a form.
+app.use(express.urlencoded({ extended: false, limit: "100kb" }));
 app.use(express.static(resolve(__dirname, "../public")));
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
@@ -200,3 +203,5 @@ closeOutRetiredGames().catch((err) => console.error("Retired games close-out fai
 
 // Missed StockPay webhooks: settle open UPI deposits on every cold start too.
 sweepStaleUpiDeposits(true).catch((err) => console.error("UPI deposit sweep failed", err));
+// Missed RupayEx callbacks and payout updates, the same way.
+sweepRupayex(true).catch((err) => console.error("RupayEx sweep failed", err));

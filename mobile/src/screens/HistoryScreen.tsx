@@ -114,9 +114,11 @@ export default function HistoryScreen() {
                 ) : (
                   <Text style={styles.rowStatusDone}>{isDeposit ? 'Successful' : 'Paid'}</Text>
                 )}
-                {!isDeposit && t.status !== 'FAILED' && t.fee ? (
+                {!isDeposit && t.status !== 'FAILED' && (t.fee || t.providerFee) ? (
                   <Text style={styles.rowTimestamp}>
-                    Fee ₹{t.fee.toLocaleString('en-IN')} · to bank ₹{(Math.round((t.amount - t.fee) * 100) / 100).toLocaleString('en-IN')}
+                    {t.fee ? `Fee ₹${t.fee.toLocaleString('en-IN')} · ` : ''}
+                    {t.providerFee ? `Bank transfer charge ₹${t.providerFee.toLocaleString('en-IN')} · ` : ''}
+                    to bank ₹{(Math.round((t.amount - (t.fee ?? 0) - (t.providerFee ?? 0)) * 100) / 100).toLocaleString('en-IN')}
                   </Text>
                 ) : null}
               </View>
