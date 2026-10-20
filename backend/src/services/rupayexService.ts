@@ -32,8 +32,8 @@ import { refreshSettingsIfStale } from "./settingsService";
  * Settings:
  *   RUPAYEX_TOKEN         API token (RUPAYEX_KEY is read too; one saved from
  *                         the admin panel's Integrations card wins over both)
- *   RUPAYEX_PILOT_PHONES  numbers allowed to deposit, comma separated;
- *                         STOCKPAY_TEST_PHONES is read when it is not set
+ *   RUPAYEX_PILOT_PHONES  numbers allowed to deposit, comma separated; the
+ *                         numbers in STOCKPAY_TEST_PHONES are allowed too
  *
  * Real money from the first rupee — RupayEx has no test mode — so, like the
  * StockPay live pilot before it, deposits are open only to the listed numbers
@@ -61,7 +61,7 @@ function token(): string {
 }
 
 function allowedPhones(): string[] {
-  return (process.env.RUPAYEX_PILOT_PHONES || process.env.STOCKPAY_TEST_PHONES || "")
+  return `${process.env.RUPAYEX_PILOT_PHONES ?? ""},${process.env.STOCKPAY_TEST_PHONES ?? ""}`
     .split(/[\s,]+/)
     .map((p) => p.replace(/\D/g, "").slice(-10))
     .filter((p) => p.length === 10);
