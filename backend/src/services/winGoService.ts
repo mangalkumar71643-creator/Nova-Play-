@@ -24,7 +24,7 @@ function floor2(n: number): number {
 }
 
 /**
- * Fixed odds, each returning the shared rtp:
+ * Fixed odds, each returning the lottery rtp:
  *  - number (1 in 10): 10 x rtp
  *  - big 5-9 / small 0-4 (5 in 10): 2 x rtp
  *  - violet (0 and 5): 5 x rtp
@@ -32,7 +32,7 @@ function floor2(n: number): number {
  *    numbers and 0.5 less on the shared violet one, so 4c + (c - 0.5) = 10 x rtp.
  */
 export const PAYOUTS = (() => {
-  const rtp = env.games.rtp;
+  const rtp = env.games.lotteryRtp;
   const color = floor2((10 * rtp + 0.5) / 5);
   return { number: floor2(10 * rtp), size: floor2(2 * rtp), violet: floor2(5 * rtp), color, colorMixed: floor2(color - 0.5) };
 })();
@@ -197,7 +197,7 @@ export function getWinGoConfig() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     lockSeconds: LOCK_SECONDS,
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(env.games.lotteryRtp * 100),
     payouts: PAYOUTS,
   };
 }

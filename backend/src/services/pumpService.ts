@@ -31,7 +31,7 @@ function round2(n: number): number {
 }
 
 // Rounds down after trimming float noise to 12 significant digits, so an exact
-// value such as 0.9 x 53130 = 47817 isn't shown as 47816.9999.
+// value such as 0.85 x 53130 = 45160.5 isn't shown as 45160.4999.
 function floor2(n: number): number {
   return Math.floor(Number((n * 100).toPrecision(12))) / 100;
 }

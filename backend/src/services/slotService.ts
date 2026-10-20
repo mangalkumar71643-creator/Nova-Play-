@@ -18,10 +18,10 @@ export type SlotSymbol = (typeof SYMBOLS)[number];
 export const PAYTABLE: Record<SlotSymbol, number> = {
   J: 0.4,
   Q: 0.5,
-  K: 0.7,
+  K: 0.6,
   A: 0.9,
   EMERALD: 1.5,
-  SAPPHIRE: 2.5,
+  SAPPHIRE: 2,
   RUBY: 4,
   WILD: 8,
 };

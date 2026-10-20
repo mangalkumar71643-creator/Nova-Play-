@@ -10,13 +10,13 @@ import { nextRoundSeedMaterial } from "./fairnessService";
  * Color Ball: a glass drum holds 20 numbered balls — 9 red, 7 blue, 3 green
  * and 1 gold. The player backs a colour, one ball is drawn (ball floor(r * 20)
  * with r from the player's provably-fair seeds) and a matching colour pays
- * floor2(0.88 / its chance), so every colour returns 88% or a hair under (a
- * 12% house edge; rounding down never favours the player).
+ * floor2(0.85 / its chance), so every colour returns 85% or a hair under (a
+ * 15% house edge; rounding down never favours the player).
  */
 
 export type BallColor = "RED" | "BLUE" | "GREEN" | "GOLD";
 export const COLORS: BallColor[] = ["RED", "BLUE", "GREEN", "GOLD"];
-export const TARGET_RTP = 0.88;
+export const TARGET_RTP = 0.85;
 export const BALLS = 20;
 
 /** Ball n (1-20) is the colour at index n-1: balls 1-9 red, 10-16 blue, 17-19 green, 20 gold. */

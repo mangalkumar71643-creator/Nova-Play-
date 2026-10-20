@@ -281,7 +281,7 @@ export default function LuckyCupsScreen() {
   const ladder = useMemo(() => {
     const fromServer = config?.modes.find((m) => m.balls === activeBalls)?.multipliers;
     if (fromServer) return fromServer;
-    return Array.from({ length: ROUNDS + 1 }, (_, n) => (n ? floor2(0.88 / Math.pow(activeBalls / 3, n)) : 1));
+    return Array.from({ length: ROUNDS + 1 }, (_, n) => (n ? floor2(0.85 / Math.pow(activeBalls / 3, n)) : 1));
   }, [config, activeBalls]);
   const stake = round ? Number(round.stake) : bet;
   const wins = round?.wins ?? 0;
@@ -647,7 +647,7 @@ export default function LuckyCupsScreen() {
           {[1, 2].map((b) => {
             const on = activeBalls === b;
             const locked = pending || moving;
-            const first = config?.modes.find((m) => m.balls === b)?.multipliers[1] ?? floor2(0.88 / (b / 3));
+            const first = config?.modes.find((m) => m.balls === b)?.multipliers[1] ?? floor2(0.85 / (b / 3));
             return (
               <Pressable key={b} disabled={locked} onPress={() => setBalls(b)} style={[styles.mode, on && styles.modeOn, locked && !on && styles.dim]}>
                 <View style={{ flexDirection: 'row', gap: 3 }}>
@@ -724,7 +724,7 @@ export default function LuckyCupsScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 88}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per game{'\n'}
+          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per game{'\n'}
           No autoplay · the ball's cup is drawn from your provably-fair seeds; the shuffle is just for show
         </GameInfoButton>
       </ScrollView>

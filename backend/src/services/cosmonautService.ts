@@ -3,7 +3,7 @@
  * the jetpack, the multiplier climbs as they fly out past the planets, and
  * the round ends when the fuel runs out (the crash point). Same provably
  * fair crash-point formula, timing and money-safety rules as
- * goalRushService.ts, on its own tables. RTP is 88% (a 12% house edge) for
+ * goalRushService.ts, on its own tables. RTP is 85% (a 15% house edge) for
  * every cash-out strategy.
  *
  * Two half cash-outs: a manual one (take half the stake at the live
@@ -36,8 +36,8 @@ const GROWTH_RATE = Math.log(2) / 5;
 
 /** House edge baked into the crash-point distribution itself (see
  * crashMultiplierFromSeed): cashing out at any target m succeeds with
- * probability (1 - edge) / m, so every strategy returns 88%. */
-const HOUSE_EDGE = 0.12;
+ * probability (1 - edge) / m, so every strategy returns 85%. */
+const HOUSE_EDGE = 0.15;
 
 const MIN_AUTO_CASHOUT = 1.01;
 

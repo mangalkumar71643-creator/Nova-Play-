@@ -11,24 +11,24 @@ import { Card, HAND_CLASSES, HandClass, best5, qualifies, settle } from "./holde
  * Casino Hold'em paytables. ANTE_PAYS is the ante's winnings (x to 1) by the
  * player's final hand; CALL_PAYS is the call's winnings when the player beats
  * a qualifying dealer. With these the return under the best possible play is
- * OPTIMAL_RTP_PERCENT of everything staked (ante plus calls), measured by
- * sampling hands and, for each, counting every turn, river and dealer hand to
- * make the best call-or-fold decision.
+ * OPTIMAL_RTP_PERCENT of everything staked (ante plus calls), exact: every
+ * flop and player hand is counted and, for each, every turn, river and dealer
+ * hand to make the best call-or-fold decision.
  */
 export const ANTE_PAYS: Record<HandClass, number> = {
-  HIGH_CARD: 0.75,
-  PAIR: 0.75,
-  TWO_PAIR: 0.75,
-  THREE_OF_A_KIND: 0.75,
-  STRAIGHT: 0.75,
+  HIGH_CARD: 0.65,
+  PAIR: 0.65,
+  TWO_PAIR: 0.65,
+  THREE_OF_A_KIND: 0.65,
+  STRAIGHT: 0.65,
   FLUSH: 2,
-  FULL_HOUSE: 3,
+  FULL_HOUSE: 2.5,
   FOUR_OF_A_KIND: 10,
   STRAIGHT_FLUSH: 20,
   ROYAL_FLUSH: 100,
 };
-export const CALL_PAYS = 0.75;
-export const OPTIMAL_RTP_PERCENT = 89.5;
+export const CALL_PAYS = 0.65;
+export const OPTIMAL_RTP_PERCENT = 84.95;
 export const ACTIONS = ["CALL", "FOLD"] as const;
 export type HoldemAction = (typeof ACTIONS)[number];
 const ROUND_CHANGED = "This hand changed in the meantime — please refresh.";

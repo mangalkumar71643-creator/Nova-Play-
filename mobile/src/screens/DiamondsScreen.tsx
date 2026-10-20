@@ -52,7 +52,7 @@ const FALLBACK_PAYTABLE: DiamondsConfig['paytable'] = [
   { result: 'FIVE_OF_A_KIND', multiplier: 50, chancePercent: 0.04 },
   { result: 'FOUR_OF_A_KIND', multiplier: 5, chancePercent: 1.25 },
   { result: 'FULL_HOUSE', multiplier: 4, chancePercent: 2.5 },
-  { result: 'THREE_OF_A_KIND', multiplier: 2.7, chancePercent: 12.49 },
+  { result: 'THREE_OF_A_KIND', multiplier: 2.3, chancePercent: 12.49 },
   { result: 'TWO_PAIR', multiplier: 1.75, chancePercent: 18.74 },
   { result: 'PAIR', multiplier: 0.1, chancePercent: 49.98 },
   { result: 'NONE', multiplier: 0, chancePercent: 14.99 },
@@ -615,7 +615,7 @@ function Rules({ config }: { config: DiamondsConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Payouts are the total returned for your bet. Return to player {config?.rtpPercent ?? 89.86}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per bet ₹{config?.maxPayout ?? 10000}.
+        Payouts are the total returned for your bet. Return to player {config?.rtpPercent ?? 84.86}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per bet ₹{config?.maxPayout ?? 10000}.
       </Text>
       <Text style={styles.ruleLine}>Every gem comes from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

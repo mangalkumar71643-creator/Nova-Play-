@@ -22,8 +22,8 @@ export type PenaltyDifficulty = "EASY" | "MEDIUM" | "HARD" | "EXPERT";
 
 export const ZONES = 6;
 export const KICKS = 5;
-/** 12% house edge: the expected return of every cash-out point is 88%. */
-export const RTP = 0.88;
+/** 15% house edge: the expected return of every cash-out point is 85%. */
+export const RTP = 0.85;
 
 /** How many of the 6 zones the keeper covers on each kick. */
 export const COVER: Record<PenaltyDifficulty, number> = { EASY: 1, MEDIUM: 2, HARD: 3, EXPERT: 4 };

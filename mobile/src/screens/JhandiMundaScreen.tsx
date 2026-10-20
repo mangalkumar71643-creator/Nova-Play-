@@ -32,7 +32,7 @@ const SYMBOL_NAME: Record<JhandiSymbol, { en: string; hi: string }> = {
   FLAG: { en: 'Flag', hi: 'Jhandi' },
   CROWN: { en: 'Crown', hi: 'Munda' },
 };
-const FALLBACK_PAYTABLE: Record<string, number> = { 2: 3, 3: 4.5, 4: 6, 5: 10, 6: 20 };
+const FALLBACK_PAYTABLE: Record<string, number> = { 2: 3, 3: 4.8, 4: 6.5, 5: 10, 6: 20 };
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500];
 const CHIP_COLORS: Record<number, string> = {
   10: '#1E9E4A',

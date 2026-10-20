@@ -19,8 +19,8 @@ import { nextRoundSeedMaterial } from "./fairnessService";
 
 export const CUPS = 3;
 export const ROUNDS = 5;
-/** 12% house edge: the expected return of every cash-out point is 88%. */
-export const RTP = 0.88;
+/** 15% house edge: the expected return of every cash-out point is 85%. */
+export const RTP = 0.85;
 export const BALL_OPTIONS = [1, 2] as const;
 
 export type CupPick = { cup: number; ballCups: number[]; won: boolean };

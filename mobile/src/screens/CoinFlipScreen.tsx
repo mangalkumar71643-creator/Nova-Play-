@@ -212,7 +212,7 @@ export default function CoinFlipScreen() {
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const maxFlips = config?.maxFlips ?? MAX_FLIPS;
-  const multipliers = config?.multipliers ?? Array.from({ length: MAX_FLIPS }, (_, i) => round2(0.9 * 2 ** (i + 1)));
+  const multipliers = config?.multipliers ?? Array.from({ length: MAX_FLIPS }, (_, i) => round2(0.85 * 2 ** (i + 1)));
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const live = round?.status === 'ACTIVE';
 
@@ -682,7 +682,7 @@ export default function CoinFlipScreen() {
 }
 
 function Rules({ config }: { config: CoinFlipConfig | null }) {
-  const mults = config?.multipliers ?? Array.from({ length: MAX_FLIPS }, (_, i) => round2(0.9 * 2 ** (i + 1)));
+  const mults = config?.multipliers ?? Array.from({ length: MAX_FLIPS }, (_, i) => round2(0.85 * 2 ** (i + 1)));
   return (
     <View>
       <Text style={styles.ruleHead}>How to play</Text>
@@ -699,7 +699,7 @@ function Rules({ config }: { config: CoinFlipConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Multiplier after n right calls = {(config?.rtpPercent ?? 90) / 100} × 2ⁿ, so the return is {config?.rtpPercent ?? 90}% whenever you cash out. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per round ₹{config?.maxPayout ?? 10000} — reaching it cashes out automatically.
+        Multiplier after n right calls = {(config?.rtpPercent ?? 85) / 100} × 2ⁿ, so the return is {config?.rtpPercent ?? 85}% whenever you cash out. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per round ₹{config?.maxPayout ?? 10000} — reaching it cashes out automatically.
       </Text>
       <Text style={styles.ruleLine}>Every flip comes from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

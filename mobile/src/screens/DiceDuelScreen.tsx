@@ -30,7 +30,7 @@ const PICKS: DuelPick[] = ['PLAYER', 'TIE', 'HOUSE'];
 const PICK_COLOR: Record<DuelPick, string> = { PLAYER: BLUE, TIE: VIOLET, HOUSE: RED };
 const PICK_LABEL: Record<DuelPick, string> = { PLAYER: 'YOU WIN', TIE: 'TIE', HOUSE: 'HOUSE WINS' };
 /** Used until the config arrives; the server's table replaces it. */
-const FALLBACK_PAYS: Record<DuelPick, number> = { PLAYER: 1.98, TIE: 7.81, HOUSE: 1.98 };
+const FALLBACK_PAYS: Record<DuelPick, number> = { PLAYER: 1.91, TIE: 7.54, HOUSE: 1.91 };
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -377,7 +377,7 @@ export default function DiceDuelScreen() {
   const minutes = Math.floor((now - sessionStart.current) / 60000);
   const seconds = Math.floor(((now - sessionStart.current) % 60000) / 1000);
   const outcome = shown?.outcome ?? null;
-  const rtpLine = config ? [...new Set(config.picks.map((p) => p.rtpPercent))].join('% / ') + '%' : '88%';
+  const rtpLine = config ? [...new Set(config.picks.map((p) => p.rtpPercent))].join('% / ') + '%' : '85%';
 
   const tray = (side: 'PLAYER' | 'HOUSE') => {
     const isP = side === 'PLAYER';

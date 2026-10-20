@@ -39,15 +39,15 @@ export const STRIPS: number[][] = [
 
 /** Two, three, four and five of a kind, in line bets (0 where two don't pay). */
 export const PAYS: Record<Exclude<PharaohSymbol, "BOOK">, [number, number, number, number]> = {
-  PHARAOH: [8, 80, 800, 4000],
-  EYE: [4, 32, 320, 1600],
-  SCARAB: [4, 20, 80, 500],
-  ANKH: [4, 20, 80, 500],
-  ACE: [0, 4, 25, 100],
-  KING: [0, 4, 25, 100],
-  QUEEN: [0, 4, 18, 70],
-  JACK: [0, 4, 18, 70],
-  TEN: [0, 4, 18, 70],
+  PHARAOH: [8, 75, 750, 3800],
+  EYE: [4, 30, 300, 1500],
+  SCARAB: [4, 19, 75, 480],
+  ANKH: [4, 19, 75, 480],
+  ACE: [0, 4, 24, 95],
+  KING: [0, 4, 24, 95],
+  QUEEN: [0, 4, 17, 65],
+  JACK: [0, 4, 17, 65],
+  TEN: [0, 4, 17, 65],
 };
 /** Books anywhere, in stakes. */
 export const SCATTER_PAYS: Record<number, number> = { 3: 2, 4: 20, 5: 200 };

@@ -48,7 +48,7 @@ const CHIP_COLORS: Record<number, string> = {
   1000: '#0F766E',
 };
 const DEFAULT_CHIP = 10;
-const FALLBACK_MULTIPLIERS: Record<DragonTigerArea, number> = { DRAGON: 1.95, TIE: 11.7, TIGER: 1.95, SUITED_TIE: 46.8 };
+const FALLBACK_MULTIPLIERS: Record<DragonTigerArea, number> = { DRAGON: 1.84, TIE: 11.05, TIGER: 1.84, SUITED_TIE: 44.2 };
 
 const WIN_CARD_MS = 3000;
 const TOAST_MS = 1600;

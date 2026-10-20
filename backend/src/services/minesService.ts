@@ -14,11 +14,18 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+function floor2(n: number): number {
+  return Math.floor(n * 100 + 1e-9) / 100;
+}
+
 /**
  * Fair-value multiplier after `safeRevealed` safe tiles, discounted by the
  * same `rtp` as the other games. The chance of surviving k picks with m
  * mines on 25 tiles is prod((25-m-i)/(25-i)) for i < k, so stake *
  * multiplier * that chance === stake * rtp whenever the player cashes out.
+ * Rounded down, so no cash-out point returns more than rtp. With 1-3 mines
+ * the first pick or few are worth under 1x (0.88x after one pick with 1
+ * mine).
  */
 export function multiplierFor(mineCount: number, safeRevealed: number): number {
   if (safeRevealed <= 0) return 1;
@@ -26,11 +33,7 @@ export function multiplierFor(mineCount: number, safeRevealed: number): number {
   for (let i = 0; i < safeRevealed; i++) {
     survive *= (TILE_COUNT - mineCount - i) / (TILE_COUNT - i);
   }
-  // A safe pick never pays back less than the stake: each one is worth at
-  // least 1% more than the last (1.01x, 1.02x, ...). This only lifts the
-  // first pick or two with 1-2 mines, where the fair value dips under 1x;
-  // those few cash-out points return a bit more than rtp.
-  return Math.max(round2(env.games.rtp / survive), round2(1 + 0.01 * safeRevealed));
+  return floor2(env.games.rtp / survive);
 }
 
 /**

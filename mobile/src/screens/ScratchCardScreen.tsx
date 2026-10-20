@@ -31,7 +31,7 @@ const GAP = 8;
 const FALLBACK_SYMBOLS = [
   { key: 'COIN', multiplier: 1, chance: 0.2 },
   { key: 'CHERRY', multiplier: 2, chance: 0.12 },
-  { key: 'BELL', multiplier: 5, chance: 0.03 },
+  { key: 'BELL', multiplier: 4, chance: 0.03 },
   { key: 'CLOVER', multiplier: 10, chance: 0.01 },
   { key: 'HORSESHOE', multiplier: 20, chance: 0.0035 },
   { key: 'DIAMOND', multiplier: 50, chance: 0.0012 },
@@ -845,7 +845,7 @@ export default function ScratchCardScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 88}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
+          RTP {config?.rtpPercent ?? 85}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
           No autoplay or turbo · each ticket takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

@@ -14,7 +14,7 @@ export type PlinkoRisk = (typeof RISKS)[number];
 /**
  * Shape of each risk's payout table: the centre slot pays `floor` and the
  * payout grows towards the edges as (distance from centre)^curve. The
- * curves are tuned so 16 rows tops out around 16x / 110x / 1000x.
+ * curves are tuned so 16 rows tops out around 14x / 100x / 930x.
  */
 const RISK_SHAPES: Record<PlinkoRisk, { floor: number; curve: number }> = {
   LOW: { floor: 0.5, curve: 2.94 },
@@ -48,8 +48,9 @@ function displayFloor(v: number): number {
  * Multiplier for every landing slot (0..rows). Slot k is reached by k
  * right-bounces out of `rows`, probability C(rows, k) / 2^rows. With the
  * shape m(x) = floor + (edge - floor) * x^curve, x = |k - rows/2| / (rows/2),
- * the edge value is solved so sum(P(k) * m(k)) = rtp exactly, then each
- * value is rounded down.
+ * the edge value solving sum(P(k) * m(k)) = rtp exactly is the starting
+ * point; as each value is rounded down, the edge is then raised (by
+ * bisection) as far as the rounded table still returns at most rtp.
  */
 function buildTable(rows: number, risk: PlinkoRisk): number[] {
   const { floor, curve } = RISK_SHAPES[risk];
@@ -57,8 +58,17 @@ function buildTable(rows: number, risk: PlinkoRisk): number[] {
   const probs = Array.from({ length: rows + 1 }, (_, k) => binomial(rows, k) / 2 ** rows);
   const xs = Array.from({ length: rows + 1 }, (_, k) => Math.abs(k - half) / half);
   const s = probs.reduce((sum, p, k) => sum + p * xs[k] ** curve, 0);
-  const edge = (env.games.rtp - floor * (1 - s)) / s;
-  return xs.map((x) => displayFloor(floor + (edge - floor) * x ** curve));
+  const tableFor = (edge: number) => xs.map((x) => displayFloor(floor + (edge - floor) * x ** curve));
+  const rtpOf = (table: number[]) => table.reduce((sum, m, k) => sum + probs[k] * m, 0);
+  let lo = (env.games.rtp - floor * (1 - s)) / s;
+  // 2 points of rtp before rounding is more than rounding down ever takes off.
+  let hi = lo + 0.02 / s;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (rtpOf(tableFor(mid)) <= env.games.rtp) lo = mid;
+    else hi = mid;
+  }
+  return tableFor(lo);
 }
 
 const TABLES: Record<string, number[]> = {};

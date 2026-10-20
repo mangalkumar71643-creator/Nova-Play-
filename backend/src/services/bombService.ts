@@ -18,8 +18,8 @@ import { nextRoundSeedMaterial } from "./fairnessService";
 
 export const WIRES = 8;
 export const LIVE_OPTIONS = [2, 3, 5] as const;
-/** 12% house edge: the expected return of every cash-out point is 88%. */
-export const RTP = 0.88;
+/** 15% house edge: the expected return of every cash-out point is 85%. */
+export const RTP = 0.85;
 
 function floor2(n: number): number {
   return Math.floor(Number((n * 100).toPrecision(12))) / 100;

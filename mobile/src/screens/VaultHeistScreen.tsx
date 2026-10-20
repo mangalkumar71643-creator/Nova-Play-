@@ -46,7 +46,7 @@ function errorMessage(err: unknown): string {
 }
 
 function ladderFor(alarms: number): number[] {
-  return Array.from({ length: LOCKS + 1 }, (_, n) => (n ? floor2(0.88 / Math.pow((DIGITS - alarms) / DIGITS, n)) : 1));
+  return Array.from({ length: LOCKS + 1 }, (_, n) => (n ? floor2(0.85 / Math.pow((DIGITS - alarms) / DIGITS, n)) : 1));
 }
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -816,7 +816,7 @@ export default function VaultHeistScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 88}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per heist{'\n'}
+          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per heist{'\n'}
           No autoplay · each lock's alarm digits are fixed by your provably-fair seeds before you dial
         </GameInfoButton>
       </ScrollView>

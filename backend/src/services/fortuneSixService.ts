@@ -13,8 +13,8 @@ import { nextRoundSeedMaterial } from "./fairnessService";
  * position of the ball that completed it: the sooner, the bigger.
  *
  * The chance the 6th pick lands on position k is C(k-1, 5) / C(48, 6), so the
- * table below returns sum(PAYS[k] * C(k-1, 5)) / C(48, 6) = 87.98%, just under
- * an 88% target (a 12% house edge).
+ * table below returns sum(PAYS[k] * C(k-1, 5)) / C(48, 6) = 91.93%, just under
+ * the 92% lottery rtp (an 8% house edge).
  */
 
 export const NUMBERS = 48;
@@ -25,7 +25,7 @@ export const PICKS = 6;
 export const PAYS: Record<number, number> = {
   6: 10000, 7: 7500, 8: 5000, 9: 2500, 10: 1000, 11: 500, 12: 300, 13: 200, 14: 150, 15: 100,
   16: 80, 17: 70, 18: 60, 19: 50, 20: 40, 21: 34, 22: 27.5, 23: 22, 24: 16, 25: 12,
-  26: 10, 27: 9, 28: 7.5, 29: 6, 30: 5, 31: 4, 32: 3, 33: 2, 34: 1.5, 35: 1,
+  26: 10, 27: 9, 28: 7.5, 29: 6.5, 30: 5.5, 31: 4.5, 32: 3.5, 33: 2.5, 34: 2, 35: 1,
 };
 
 function comb(n: number, k: number): number {

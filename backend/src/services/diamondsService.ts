@@ -11,7 +11,7 @@ import { nextRoundSeedMaterial } from "./fairnessService";
  * chance, and pays for how many share a colour, like a poker hand. Out of the
  * 7^5 = 16,807 equally likely rows: five of a kind 7, four of a kind 210, full
  * house 420, three of a kind 2,100, two pair 3,150, one pair 8,400 and no
- * match 2,520. With PAYTABLE that returns 15,102.5 / 16,807 = 89.86%.
+ * match 2,520. With PAYTABLE that returns 14,262.5 / 16,807 = 84.86%.
  */
 export const COLORS = 7;
 export const GEMS = 5;
@@ -22,7 +22,7 @@ export const PAYTABLE: Record<DiamondsResult, number> = {
   NONE: 0,
   PAIR: 0.1,
   TWO_PAIR: 1.75,
-  THREE_OF_A_KIND: 2.7,
+  THREE_OF_A_KIND: 2.3,
   FULL_HOUSE: 4,
   FOUR_OF_A_KIND: 5,
   FIVE_OF_A_KIND: 50,

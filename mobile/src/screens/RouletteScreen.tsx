@@ -736,7 +736,7 @@ export default function RouletteScreen() {
   const multFor = useCallback(
     (key: string) => {
       const n = SPOTS.get(key)?.length ?? 1;
-      return config?.multipliers?.[String(n)] ?? floor2((0.9 * 37) / n);
+      return config?.multipliers?.[String(n)] ?? floor2((0.85 * 37) / n);
     },
     [config]
   );

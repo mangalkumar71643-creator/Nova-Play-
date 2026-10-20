@@ -27,8 +27,8 @@ const FALLBACK_PAYTABLE: Record<AcesCard, [number, number, number]> = {
   SPADE: [0.02, 0.06, 0.1],
   J: [0.04, 0.12, 0.2],
   Q: [0.06, 0.18, 0.3],
-  K: [0.08, 0.24, 0.4],
-  A: [0.1, 0.3, 0.5],
+  K: [0.07, 0.21, 0.35],
+  A: [0.09, 0.27, 0.45],
 };
 const FALLBACK_BASE = [1, 2, 3, 5];
 const FALLBACK_FREE = [2, 4, 6, 10];
@@ -1070,7 +1070,7 @@ function Paytable({ paytable, bet, config }: { paytable: Record<AcesCard, [numbe
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 88.09}% (measured over 20 million spins). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
+        Return to player {config?.rtpPercent ?? 84.69}% (measured over 120 million spins). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
       </Text>
       <Text style={styles.ruleLine}>Tap SPIN during a spin to speed it up. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

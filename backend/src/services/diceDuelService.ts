@@ -11,13 +11,13 @@ import { nextRoundSeedMaterial } from "./fairnessService";
  * wins. The player backs PLAYER, HOUSE or TIE before the roll. All four dice
  * come from the player's provably-fair seeds, so each of the 6^4 = 1296 rolls
  * is equally likely: PLAYER and HOUSE each win 575 of them and TIE 146. Each
- * pick pays floor2(0.88 / its chance), so every pick returns just under 88%
- * (a 12% house edge; the rounding down never favours the player).
+ * pick pays floor2(0.85 / its chance), so every pick returns just under 85%
+ * (a 15% house edge; the rounding down never favours the player).
  */
 
 export type DuelPick = "PLAYER" | "HOUSE" | "TIE";
 export const PICKS: DuelPick[] = ["PLAYER", "HOUSE", "TIE"];
-export const TARGET_RTP = 0.88;
+export const TARGET_RTP = 0.85;
 const ROLLS = 1296;
 
 /** Of the 1296 equally likely rolls, how many each pick wins. */

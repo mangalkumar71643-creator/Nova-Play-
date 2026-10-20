@@ -29,7 +29,7 @@ const FALLBACK_CONFIG: VortexConfig = {
   minStake: 1,
   maxStake: 500,
   maxPayout: 10000,
-  rtpPercent: 90,
+  rtpPercent: 85,
   wheel: ['WATER', 'EARTH', 'WATER', 'CRASH', 'WATER', 'FIRE', 'WATER', 'EARTH', 'CRASH', 'WATER', 'EARTH', 'WATER', 'CRASH', 'WATER', 'EARTH', 'CRASH', 'FIRE', 'WATER', 'EARTH', 'CRASH'],
   elements: [
     { element: 'WATER', factor: 1.2, sections: 10, chancePercent: 40, ladder: [1, 1.2, 1.44, 1.72, 2.07, 2.48, 2.98, 3.58, 4.29, 5.15, 6.19] },

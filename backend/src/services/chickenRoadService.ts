@@ -26,16 +26,21 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+function floor2(n: number): number {
+  return Math.floor(n * 100 + 1e-9) / 100;
+}
+
 /**
  * Fair-value multiplier at a given lane count, discounted by the same
  * `rtp` used elsewhere (dice/coinflip) so the expected return is
  * identical whichever lane a player cashes out on: stake * multiplier(n)
- * * surviveProb^n === stake * rtp for every n. Lane 0 (no lanes crossed
- * yet) is always exactly 1x — nothing risked, nothing gained.
+ * * surviveProb^n === stake * rtp for every n, rounded down so no lane
+ * returns more. Lane 0 (no lanes crossed yet) is always exactly 1x —
+ * nothing risked, nothing gained.
  */
 function multiplierAt(config: { surviveProb: number }, step: number): number {
   if (step <= 0) return 1;
-  return round2(env.games.rtp / Math.pow(config.surviveProb, step));
+  return floor2(env.games.rtp / Math.pow(config.surviveProb, step));
 }
 
 export function getChickenRoadConfig() {

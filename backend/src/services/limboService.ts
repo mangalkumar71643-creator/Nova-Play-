@@ -11,7 +11,7 @@ import { nextRoundSeedMaterial } from "./fairnessService";
  * multiplier and the bet wins stake x target when the result reaches the
  * target. The result is rtp / (1 - r) for a fair float r, so
  * P(result >= t) = rtp / t and every target returns exactly rtp.
- * About 10% of results land under 1.00x and show as 1.00x.
+ * About 15% of results land under 1.00x and show as 1.00x.
  */
 export const MIN_TARGET = 1.01;
 /** Highest a result is shown as; far above any target that can be bet. */

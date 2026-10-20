@@ -263,7 +263,7 @@ export default function FiveDLotteryScreen() {
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const lockSeconds = config?.lockSeconds ?? 5;
-  const multOf = useCallback((key: string) => config?.multipliers?.[key] ?? (/^\w+:\d$/.test(key) ? 9 : 1.8), [config]);
+  const multOf = useCallback((key: string) => config?.multipliers?.[key] ?? (/^\w+:\d$/.test(key) ? 9.2 : 1.84), [config]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);

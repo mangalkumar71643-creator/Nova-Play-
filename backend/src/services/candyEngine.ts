@@ -27,7 +27,7 @@ export const PAYTABLE: Record<CandySymbol, [number, number, number]> = {
   BANANA: [0.25, 0.75, 2],
   GRAPES: [0.4, 0.9, 4],
   WATERMELON: [0.5, 1, 5],
-  PLUM: [0.8, 1.2, 8],
+  PLUM: [0.6, 1.2, 7],
   APPLE: [1, 1.5, 10],
   BLUE: [1.5, 2, 12],
   GREEN: [2, 5, 15],
@@ -51,10 +51,10 @@ export const BOMB_VALUES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100];
 export const BOMB_WEIGHTS = [300, 220, 160, 120, 90, 70, 50, 35, 25, 15, 9, 4, 2];
 
 /**
- * Measured over 4.5 million simulated spins: 87.62% ± 0.25% (free spins
- * about 1 in 300 spins, averaging about 67x the bet).
+ * Measured over 120 million simulated spins: 84.76% ± 0.05% (free spins
+ * about 1 in 300 spins, averaging about 65x the bet).
  */
-export const MEASURED_RTP = 0.8762;
+export const MEASURED_RTP = 0.8476;
 
 export type Rng = () => number;
 

@@ -3,7 +3,7 @@
  * multiplier climbs while it flies, and the round ends when it explodes
  * (the crash point). Same provably fair crash-point formula, timing and
  * money-safety rules as aviatorService.ts, on its own tables so its rounds
- * and history stay separate. RTP is env.games.rtp (90%) for every
+ * and history stay separate. RTP is env.games.rtp (85%) for every
  * cash-out strategy.
  */
 import { Prisma } from "@prisma/client";

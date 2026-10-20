@@ -36,7 +36,7 @@ const CHIP_COLORS: Record<number, string> = {
   1000: '#0F766E',
 };
 const DEFAULT_CHIP = 10;
-const FALLBACK_MULTIPLIERS: Record<TeenPattiArea, number> = { PLAYER_A: 1.8, PLAYER_B: 1.8, TIE: 813.38 };
+const FALLBACK_MULTIPLIERS: Record<TeenPattiArea, number> = { PLAYER_A: 1.7, PLAYER_B: 1.7, TIE: 768.19 };
 
 const WIN_CARD_MS = 3000;
 const TOAST_MS = 1600;

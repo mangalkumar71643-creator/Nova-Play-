@@ -1,10 +1,12 @@
 import { prisma } from "../db/prismaClient";
+import { env } from "../config/env";
 
 /**
  * Per-game house result, from each game's own bet table (so it covers every
  * bet ever placed, not just new ones). For each game: what players staked,
  * what the game paid back, the profit (staked - paid) and its share of
- * stakes, over today, 7 days, 30 days and all time (India time).
+ * stakes, over today, 7 days, 30 days and all time (India time), next to the
+ * edge the game is set to keep (lottery games keep the lower lottery edge).
  *
  * Voided bets (stake refunded) are left out. Bets still in play count their
  * stake, which has already been taken, and pay nothing yet.
@@ -147,6 +149,9 @@ export async function getGameReport() {
     const p = r2(Number(paid));
     return { staked: s, paid: p, profit: r2(s - p), edgePercent: s > 0 ? Math.round(((s - p) / s) * 10000) / 100 : null };
   };
+  // Retired games have no target any more.
+  const targetEdge = (category: string) =>
+    category === "Retired" ? null : Math.round((1 - (category === "Lottery" ? env.games.lotteryRtp : env.games.rtp)) * 1000) / 10;
 
   const games = SOURCES.map((src) => {
     const r = byKey.get(src.key)!;
@@ -154,6 +159,7 @@ export async function getGameReport() {
       key: src.key,
       name: src.name,
       category: src.category,
+      targetEdgePercent: targetEdge(src.category),
       bets: Number(r.bets_all),
       players: Number(r.players_all),
       betsToday: Number(r.bets_today),

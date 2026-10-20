@@ -28,14 +28,14 @@ export type Cell = { s: Sym; v?: number; j?: "MINI" | "MAJOR" };
 
 /** Line pays for [3, 4, 5] of a kind, in total bets. */
 export const PAYTABLE: Record<Payer, [number, number, number]> = {
-  BUFFALO: [2, 8, 40],
-  EAGLE: [1.2, 4, 16],
-  COUGAR: [0.8, 3.2, 12],
-  HORSE: [0.8, 2.4, 8],
-  ACE: [0.4, 1.2, 4],
-  KING: [0.4, 1.2, 4],
-  QUEEN: [0.24, 0.8, 3.2],
-  JACK: [0.24, 0.8, 3.2],
+  BUFFALO: [1.9, 7.6, 38],
+  EAGLE: [1.14, 3.8, 15.2],
+  COUGAR: [0.76, 3.04, 11.4],
+  HORSE: [0.76, 2.28, 7.6],
+  ACE: [0.38, 1.14, 3.8],
+  KING: [0.38, 1.14, 3.8],
+  QUEEN: [0.24, 0.76, 3.04],
+  JACK: [0.24, 0.76, 3.04],
 };
 
 export const LINES: number[][] = [
@@ -101,11 +101,11 @@ export const MAJOR_CHANCE = 0.002;
 export const RESPIN_MOON_CHANCE = 0.074;
 
 /**
- * Measured over 40 million simulated spins: 88.07% ± 0.15% (line wins 55.1%;
- * free spins about 1 in 274 spins at 33x; Money Respin about 1 in 230 spins
- * at 48x; a spin wins something 35.7% of the time).
+ * Measured over 720 million simulated spins: 84.72% ± 0.03% (line wins 52.6%;
+ * free spins about 1 in 275 spins at 32x; Money Respin about 1 in 230 spins
+ * at 47x; a spin wins something 35.7% of the time).
  */
-export const MEASURED_RTP = 0.8807;
+export const MEASURED_RTP = 0.8472;
 
 export type Rng = () => number;
 

@@ -11,13 +11,13 @@ import { Card, HAND_CLASSES, HandClass, pairPlusReturn, qualifies, score3, settl
  * Three Card Poker paytables (winnings, x to 1). ANTE_PAYS is paid on the ante
  * when the dealer doesn't qualify or the player wins; PLAY_PAYS on the play
  * bet when the player wins; ANTE_BONUS on the ante for a straight or better
- * whenever the player plays. With best play (play queen-six-five or better)
- * the ante and play bets return ANTE_RTP_PERCENT of what they stake, and Pair
+ * whenever the player plays. With best play (play queen-nine or better) the
+ * ante and play bets return ANTE_RTP_PERCENT of what they stake, and Pair
  * Plus returns PAIR_PLUS_RTP_PERCENT; both are exact, from counting every
  * player hand against every dealer hand.
  */
-export const ANTE_PAYS = 0.8;
-export const PLAY_PAYS = 0.8;
+export const ANTE_PAYS = 0.7;
+export const PLAY_PAYS = 0.65;
 export const ANTE_BONUS: Record<HandClass, number> = {
   HIGH_CARD: 0,
   PAIR: 0,
@@ -29,13 +29,13 @@ export const ANTE_BONUS: Record<HandClass, number> = {
 export const PAIR_PLUS_PAYS: Record<HandClass, number> = {
   HIGH_CARD: 0,
   PAIR: 1,
-  FLUSH: 3,
+  FLUSH: 2,
   STRAIGHT: 5,
   THREE_OF_A_KIND: 30,
   STRAIGHT_FLUSH: 40,
 };
-export const ANTE_RTP_PERCENT = 89.67;
-export const PAIR_PLUS_RTP_PERCENT = 89.46;
+export const ANTE_RTP_PERCENT = 84.73;
+export const PAIR_PLUS_RTP_PERCENT = 84.5;
 export const ACTIONS = ["PLAY", "FOLD"] as const;
 export type ThreeCardAction = (typeof ACTIONS)[number];
 const ROUND_CHANGED = "This hand changed in the meantime — please refresh.";

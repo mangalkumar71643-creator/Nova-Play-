@@ -707,7 +707,7 @@ export default function MinesScreen() {
               <Text style={styles.rulesText}>Each tile hides either a star or a mine.</Text>
               <Text style={styles.rulesText}>
                 Increase the total number of stars for bigger odds and higher rewards. You can cash out after each turn,
-                or try for increased winnings.
+                or try for increased winnings. With 1–3 mines the first picks pay less than the bet.
               </Text>
               <Text style={styles.rulesText}>
                 Auto Game: switch it on, tap the tiles you want opened, choose the number of rounds and press Start

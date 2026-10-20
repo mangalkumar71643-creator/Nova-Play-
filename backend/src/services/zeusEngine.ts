@@ -27,15 +27,15 @@ export type Cell = { s: Sym; m?: number };
 
 /** Pays in multiples of the bet for [8-9, 10-11, 12+] of a symbol. */
 export const PAYTABLE: Record<ZeusSymbol, [number, number, number]> = {
-  BLUE: [0.25, 0.75, 2],
-  GREEN: [0.4, 0.9, 4],
-  PURPLE: [0.5, 1, 5],
-  RED: [0.8, 1.2, 8],
-  YELLOW: [1, 1.5, 10],
-  CHALICE: [1.5, 2, 12],
-  RING: [2, 5, 15],
-  HOURGLASS: [2.5, 10, 25],
-  CROWN: [10, 25, 50],
+  BLUE: [0.24, 0.72, 1.9],
+  GREEN: [0.39, 0.87, 3.9],
+  PURPLE: [0.48, 0.96, 4.8],
+  RED: [0.77, 1.15, 7.7],
+  YELLOW: [0.96, 1.45, 9.6],
+  CHALICE: [1.45, 1.95, 11.5],
+  RING: [1.95, 4.8, 14.5],
+  HOURGLASS: [2.4, 9.6, 24],
+  CROWN: [9.6, 24, 48],
 };
 export const MIN_COUNT = 8;
 /** Zeus scatters on the board once the tumbles end: 4, 5, 6+. */
@@ -56,10 +56,10 @@ export const ORB_VALUES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100, 250, 5
 export const ORB_WEIGHTS = [300, 220, 160, 120, 90, 70, 50, 35, 25, 15, 9, 4, 2, 0.4, 0.15];
 
 /**
- * Measured over 60 million simulated spins: 88.04% ± 0.13% (free spins about
- * 1 in 505 spins, averaging about 130x the bet; the base game returns 62.2%).
+ * Measured over 600 million simulated spins: 84.75% ± 0.04% (free spins about
+ * 1 in 505 spins, averaging about 125x the bet; the base game returns 60.0%).
  */
-export const MEASURED_RTP = 0.8804;
+export const MEASURED_RTP = 0.8475;
 
 export type Rng = () => number;
 

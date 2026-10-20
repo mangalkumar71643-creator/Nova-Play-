@@ -459,7 +459,7 @@ export default function PenaltyHeroScreen() {
     const fromServer = config?.difficulties.find((d) => d.difficulty === activeDiff)?.multipliers;
     if (fromServer) return fromServer;
     const p = (6 - FALLBACK_COVER[activeDiff]) / 6;
-    return Array.from({ length: KICKS + 1 }, (_, n) => (n ? floor2(0.88 / Math.pow(p, n)) : 1));
+    return Array.from({ length: KICKS + 1 }, (_, n) => (n ? floor2(0.85 / Math.pow(p, n)) : 1));
   }, [config, activeDiff]);
   const stake = round ? Number(round.stake) : bet;
   const goals = round?.goals ?? 0;
@@ -1245,7 +1245,7 @@ export default function PenaltyHeroScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 88}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per round
+          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per round
           {'\n'}
           No autoplay · the keeper's zones are fixed by your provably-fair seeds before you shoot
         </GameInfoButton>

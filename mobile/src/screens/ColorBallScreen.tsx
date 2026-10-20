@@ -25,7 +25,7 @@ const MIX_MS = 1500;
 const COLORS: BallColor[] = ['RED', 'BLUE', 'GREEN', 'GOLD'];
 /** Used until the config arrives; the server's drum replaces it. */
 const FALLBACK_BALLS: BallColor[] = [...Array<BallColor>(9).fill('RED'), ...Array<BallColor>(7).fill('BLUE'), ...Array<BallColor>(3).fill('GREEN'), 'GOLD'];
-const FALLBACK_PAYS: Record<BallColor, number> = { RED: 1.95, BLUE: 2.51, GREEN: 5.86, GOLD: 17.6 };
+const FALLBACK_PAYS: Record<BallColor, number> = { RED: 1.88, BLUE: 2.42, GREEN: 5.66, GOLD: 17 };
 
 /** Sphere shading per colour: highlight, body, shadow. */
 const SHADE: Record<BallColor, [string, string, string]> = {
@@ -217,7 +217,7 @@ export default function ColorBallScreen() {
   const maxPayout = config?.maxPayout ?? 10000;
   const betLevels = useMemo(() => BET_LEVELS.filter((v) => v >= minStake && v <= maxStake), [minStake, maxStake]);
   const info = useCallback(
-    (c: BallColor) => config?.colors.find((x) => x.color === c) ?? { color: c, balls: FALLBACK_BALLS.filter((x) => x === c).length, multiplier: FALLBACK_PAYS[c], rtpPercent: 88 },
+    (c: BallColor) => config?.colors.find((x) => x.color === c) ?? { color: c, balls: FALLBACK_BALLS.filter((x) => x === c).length, multiplier: FALLBACK_PAYS[c], rtpPercent: 85 },
     [config],
   );
 
@@ -364,7 +364,7 @@ export default function ColorBallScreen() {
 
   const minutes = Math.floor((now - sessionStart.current) / 60000);
   const seconds = Math.floor(((now - sessionStart.current) % 60000) / 1000);
-  const rtpLine = config ? `${Math.min(...config.colors.map((c) => c.rtpPercent))}–${Math.max(...config.colors.map((c) => c.rtpPercent))}%` : '88%';
+  const rtpLine = config ? `${Math.min(...config.colors.map((c) => c.rtpPercent))}–${Math.max(...config.colors.map((c) => c.rtpPercent))}%` : '85%';
   const won = shown !== null && shown.payout > shown.stake;
   const stageH = G + big + 92;
 

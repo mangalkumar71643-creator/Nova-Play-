@@ -39,7 +39,7 @@ const FALLBACK_PAYTABLE: CandyConfig['paytable'] = [
   { symbol: 'GREEN', pays: [2, 5, 15] },
   { symbol: 'BLUE', pays: [1.5, 2, 12] },
   { symbol: 'APPLE', pays: [1, 1.5, 10] },
-  { symbol: 'PLUM', pays: [0.8, 1.2, 8] },
+  { symbol: 'PLUM', pays: [0.6, 1.2, 7] },
   { symbol: 'WATERMELON', pays: [0.5, 1, 5] },
   { symbol: 'GRAPES', pays: [0.4, 0.9, 4] },
   { symbol: 'BANANA', pays: [0.25, 0.75, 2] },
@@ -1225,7 +1225,7 @@ function Paytable({ paytable, bet, config }: { paytable: CandyConfig['paytable']
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 87.62}% (measured over 4.5 million spins). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
+        Return to player {config?.rtpPercent ?? 84.76}% (measured over 120 million spins). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
       </Text>
       <Text style={styles.ruleLine}>Tap SPIN during a spin to speed it up. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

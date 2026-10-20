@@ -27,16 +27,16 @@ const RISK_COLOR: Record<WheelRisk, string> = { LOW: GREEN, MEDIUM: '#5AC8FF', H
 
 /** Used until the config arrives; the server's wheels replace it. */
 const FALLBACK: Record<WheelRisk, number[]> = {
-  LOW: [1.2, 0, 1.2, 1.2, 1.2, 0, 1.5, 0, 1.2, 1.2, 1.2, 0, 1.5, 0, 1.2, 1.2, 1.2, 0, 1.5, 0, 1.2, 1.2, 1.5, 0, 1.2, 0, 1.2, 1.5, 2.1, 0],
-  MEDIUM: [6.9, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0],
-  HIGH: [20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  LOW: [1.2, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.4, 0, 1.2, 0, 1.2, 1.4, 1.7, 0],
+  MEDIUM: [6, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0],
+  HIGH: [20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 };
 
 /** Segment colours by multiplier: dark for a blank, warmer and brighter as it pays more. */
 function segColor(m: number): [string, string] {
   if (m <= 0) return ['#3A2A4E', '#22163A'];
   if (m < 1.4) return ['#3ADCA0', '#0A8A5A'];
-  if (m < 1.8) return ['#5AC8FF', '#1A6ACA'];
+  if (m < 1.6) return ['#5AC8FF', '#1A6ACA'];
   if (m < 2.5) return ['#B88AFF', '#6A2ACA'];
   if (m < 4) return ['#FF9A3A', '#C8500A'];
   if (m < 10) return ['#FF5A7A', '#B8103A'];
@@ -328,7 +328,7 @@ export default function LuckyWheelScreen() {
       if (payout > bet) {
         glow.setValue(0);
         Animated.sequence([Animated.timing(glow, { toValue: 1, duration: 160, useNativeDriver: true }), Animated.timing(glow, { toValue: 0, duration: 900, useNativeDriver: true })]).start();
-        await flashBanner({ title: m >= 6 ? 'BIG WIN!' : 'WIN!', sub: `${fmtX(m)} · ${money(payout)}`, tone: m >= 6 ? 'big' : 'win' }, m >= 6 ? 1500 : 900);
+        await flashBanner({ title: m >= 5 ? 'BIG WIN!' : 'WIN!', sub: `${fmtX(m)} · ${money(payout)}`, tone: m >= 5 ? 'big' : 'win' }, m >= 5 ? 1500 : 900);
       }
     } catch (err) {
       turn.stopAnimation((v) => (turnDeg.current = v));
@@ -526,7 +526,7 @@ export default function LuckyWheelScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 88}% on every risk level · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per spin{'\n'}
+          RTP {config?.rtpPercent ?? 85}% on every risk level · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per spin{'\n'}
           No autoplay or turbo · each spin takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

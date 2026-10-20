@@ -919,7 +919,7 @@ export default function PlinkoScreen() {
               </View>
               <View style={styles.limitRow}>
                 <Text style={styles.limitLabel}>{t.rtp}</Text>
-                <Text style={styles.limitValue}>{config?.rtpPercent ?? 90}%</Text>
+                <Text style={styles.limitValue}>{config?.rtpPercent ?? 85}%</Text>
               </View>
             </ScrollView>
           </View>

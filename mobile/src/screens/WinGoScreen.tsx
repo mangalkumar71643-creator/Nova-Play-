@@ -45,7 +45,7 @@ const MULTIPLIERS = [1, 5, 10, 20, 50, 100];
 const ROWS_PER_PAGE = 10;
 const TOAST_MS = 1800;
 const WIN_MS = 3500;
-const FALLBACK = { number: 9, size: 1.8, violet: 4.5, color: 1.9, colorMixed: 1.4 };
+const FALLBACK = { number: 9.2, size: 1.84, violet: 4.6, color: 1.94, colorMixed: 1.44 };
 
 type HistoryTab = 'game' | 'chart' | 'my';
 

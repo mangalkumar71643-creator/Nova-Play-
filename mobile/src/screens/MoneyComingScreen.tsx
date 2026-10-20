@@ -31,12 +31,12 @@ const FALLBACK_STRIPS: string[][] = [
 const FALLBACK_SPECIAL: MoneyComingSpecial[] = [
   { kind: 'NONE', value: 0, chancePercent: 74.07 },
   { kind: 'MULT', value: 2, chancePercent: 11.11 },
-  { kind: 'MULT', value: 5, chancePercent: 3.7 },
+  { kind: 'MULT', value: 3, chancePercent: 3.7 },
   { kind: 'MULT', value: 10, chancePercent: 0.93 },
   { kind: 'WHEEL', value: 0, chancePercent: 3.7 },
   { kind: 'RESPIN', value: 0, chancePercent: 6.48 },
 ];
-const FALLBACK_WHEEL = [2, 5, 3, 2, 8, 3, 2, 5, 10, 3, 2, 5, 3, 20, 2, 5, 3, 2, 10, 8];
+const FALLBACK_WHEEL = [2, 5, 3, 2, 8, 3, 2, 5, 8, 3, 2, 5, 3, 20, 2, 5, 3, 2, 8, 8];
 /** Example lines for the paytable, top first: [reel 1, reel 2, reel 3]. */
 const PAY_EXAMPLES: string[][] = [
   ['10', '00', '0'],
@@ -1170,7 +1170,7 @@ function Paytable({ special, wheel, bet, config }: { special: MoneyComingSpecial
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 89.73}% (exact, counted over every reel stop). {config?.hitRatePercent ?? 14.26}% of spins win. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
+        Return to player {config?.rtpPercent ?? 84.84}% (exact, counted over every reel stop). {config?.hitRatePercent ?? 14.26}% of spins win. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
       </Text>
       <Text style={styles.ruleLine}>Tap SPIN during a spin to stop the reels at once. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

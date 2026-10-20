@@ -13,7 +13,7 @@ import { nextRoundSeedMaterial } from "./fairnessService";
  * is read left to right as one number, blanks skipped — e.g. 5 | 00 | 0 reads
  * "5000" — and pays that number ÷ 10 times the bet (5000 → 500x). At least
  * two symbols must land; 10 | 00 | 0 = 1000x is the top line win.
- * When the line wins, the Special Reel applies: a multiplier (x2, x5, x10),
+ * When the line wins, the Special Reel applies: a multiplier (x2, x3, x10),
  * the Lucky Wheel (multiplies the win by a wheel segment, 2x to 20x), or a
  * RESPIN — the win is paid and the reels spin again for free, up to
  * MAX_RESPINS in a row.
@@ -58,13 +58,13 @@ export type Special = { kind: "NONE" | "MULT" | "WHEEL" | "RESPIN"; value: numbe
 export const SPECIAL: Special[] = [
   { kind: "NONE", value: 0, weight: 80 },
   { kind: "MULT", value: 2, weight: 12 },
-  { kind: "MULT", value: 5, weight: 4 },
+  { kind: "MULT", value: 3, weight: 4 },
   { kind: "MULT", value: 10, weight: 1 },
   { kind: "WHEEL", value: 0, weight: 4 },
   { kind: "RESPIN", value: 0, weight: 7 },
 ];
 /** The Lucky Wheel's 20 equal segments, clockwise from the top. */
-export const WHEEL = [2, 5, 3, 2, 8, 3, 2, 5, 10, 3, 2, 5, 3, 20, 2, 5, 3, 2, 10, 8];
+export const WHEEL = [2, 5, 3, 2, 8, 3, 2, 5, 8, 3, 2, 5, 3, 20, 2, 5, 3, 2, 8, 8];
 export const MAX_RESPINS = 5;
 
 function floor2(n: number): number {

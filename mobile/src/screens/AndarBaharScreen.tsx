@@ -37,14 +37,14 @@ const CHIP_COLORS: Record<number, string> = {
 };
 const DEFAULT_CHIP = 10;
 const FALLBACK_MULTIPLIERS: Record<AndarBaharArea, number> = {
-  ANDAR: 1.74,
-  BAHAR: 1.85,
-  C1_5: 3.32,
-  C6_10: 4.14,
-  C11_15: 5.32,
-  C16_25: 4.12,
-  C26_35: 9.18,
-  C36_49: 33.46,
+  ANDAR: 1.65,
+  BAHAR: 1.75,
+  C1_5: 3.13,
+  C6_10: 3.91,
+  C11_15: 5.02,
+  C16_25: 3.89,
+  C26_35: 8.67,
+  C36_49: 31.6,
 };
 
 const WIN_CARD_MS = 3000;

@@ -205,7 +205,9 @@ router.get(
       days: list,
       period: { days, staked: periodStaked, paid: periodPaid, profit: Math.round((periodStaked - periodPaid) * 100) / 100, bets: sum("bets") },
       allTime: { staked: allTimeStaked, paid: allTimePaid, profit: Math.round((allTimeStaked - allTimePaid) * 100) / 100 },
+      // Most games keep env.games.rtp; the lottery games keep the lower lottery edge.
       targetHouseEdgePercent: Math.round((1 - env.games.rtp) * 1000) / 10,
+      lotteryTargetHouseEdgePercent: Math.round((1 - env.games.lotteryRtp) * 1000) / 10,
     });
   })
 );
@@ -299,6 +301,7 @@ router.get(
         cashIfAllWithdrew: r2((out.all as { cashIn: number }).cashIn - playerBalances - pendingWithdrawals),
       },
       targetHouseEdgePercent: Math.round((1 - env.games.rtp) * 1000) / 10,
+      lotteryTargetHouseEdgePercent: Math.round((1 - env.games.lotteryRtp) * 1000) / 10,
     });
   })
 );

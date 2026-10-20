@@ -9,7 +9,7 @@ import { assertCanTransact } from "./responsibleGamblingService";
  * "K3 Lottery": three dice every round, on the same fixed wall-clock tracks
  * as Win Go (one independent chain of rounds per duration). Bets are on the
  * sum, big/small, odd/even, pairs, triples and combinations of different
- * numbers; every bet pays floor2(rtp / P(win)).
+ * numbers; every bet pays floor2(lotteryRtp / P(win)).
  */
 export const K3_DURATIONS = [60, 180, 300, 600] as const;
 export type K3Duration = (typeof K3_DURATIONS)[number];
@@ -104,9 +104,9 @@ export function isValidKey(key: string): boolean {
 }
 
 /** Total return per unit staked (stake included): multiplier * P(win) =
- * the shared rtp, rounded down so the edge is never smaller than stated. */
+ * the lottery rtp, rounded down so the edge is never smaller than stated. */
 export function multiplierFor(key: string): number {
-  return floor2((env.games.rtp * 216) / WIN_COUNTS.get(key)!);
+  return floor2((env.games.lotteryRtp * 216) / WIN_COUNTS.get(key)!);
 }
 
 /** The three dice, fixed when the round is created from its server seed
@@ -237,7 +237,7 @@ export function getK3Config() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     lockSeconds: LOCK_SECONDS,
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(env.games.lotteryRtp * 100),
     multipliers: Object.fromEntries([...WIN_COUNTS.keys()].map((k) => [k, multiplierFor(k)])),
   };
 }

@@ -11,12 +11,12 @@ import { nextRoundSeedMaterial } from "./fairnessService";
  * player picks a target and Roll Over (win if the roll is above it) or
  * Roll Under (win if below). Win chance is the share of the bar that wins
  * and the multiplier is rtp x 100 / chance, so every target returns the
- * same rtp: 90 / chance x (100 x chance) / 10,001 = 89.99%.
+ * same rtp: 85 / chance x (100 x chance) / 10,001 = 84.99%.
  */
 export const OUTCOMES = 10001;
 /** Win chance limits, in percent. The top keeps the multiplier above 1.01x. */
 export const MIN_CHANCE = 0.01;
-export const MAX_CHANCE = 89;
+export const MAX_CHANCE = 84;
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;

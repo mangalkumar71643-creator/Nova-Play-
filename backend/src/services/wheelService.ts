@@ -10,8 +10,8 @@ import { nextRoundSeedMaterial } from "./fairnessService";
  * Lucky Wheel: one spin of a 30-segment wheel. Each risk level has its own
  * segments; the pointer stops on segment floor(r * 30), with r drawn from the
  * player's provably-fair seeds, and the stake is paid at that segment's
- * multiplier. Every risk level's segments add up to 26.4, so the return is
- * exactly 26.4 / 30 = 88% (a 12% house edge), whichever level is played.
+ * multiplier. Every risk level's segments add up to 25.5, so the return is
+ * exactly 25.5 / 30 = 85% (a 15% house edge), whichever level is played.
  */
 
 export type WheelRisk = "LOW" | "MEDIUM" | "HIGH";
@@ -20,9 +20,9 @@ export const SEGMENTS_PER_WHEEL = 30;
 
 /** The segments clockwise from the top, per risk level. */
 export const WHEELS: Record<WheelRisk, number[]> = {
-  LOW: [1.2, 0, 1.2, 1.2, 1.2, 0, 1.5, 0, 1.2, 1.2, 1.2, 0, 1.5, 0, 1.2, 1.2, 1.2, 0, 1.5, 0, 1.2, 1.2, 1.5, 0, 1.2, 0, 1.2, 1.5, 2.1, 0],
-  MEDIUM: [6.9, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0],
-  HIGH: [20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  LOW: [1.2, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.4, 0, 1.2, 0, 1.2, 1.4, 1.7, 0],
+  MEDIUM: [6, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0],
+  HIGH: [20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 };
 
 /** Exact return of a risk level: the average segment. */

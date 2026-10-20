@@ -18,8 +18,8 @@ import { nextRoundSeedMaterial } from "./fairnessService";
 
 export const MOUNDS = 16;
 export const CRAB_OPTIONS = [3, 5, 8] as const;
-/** 12% house edge: the expected return of every cash-out point is 88%. */
-export const RTP = 0.88;
+/** 15% house edge: the expected return of every cash-out point is 85%. */
+export const RTP = 0.85;
 
 function floor2(n: number): number {
   return Math.floor(Number((n * 100).toPrecision(12))) / 100;

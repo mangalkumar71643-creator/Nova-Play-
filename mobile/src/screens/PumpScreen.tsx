@@ -52,7 +52,7 @@ function fallbackMultipliers(pops: number): number[] {
   let p = 1;
   return Array.from({ length: safe }, (_, i) => {
     p *= (safe - i) / (SLOTS - i);
-    return Math.floor((0.9 / p) * 10000 + 1e-6) / 10000;
+    return Math.floor((0.85 / p) * 10000 + 1e-6) / 10000;
   });
 }
 
@@ -790,7 +790,7 @@ function Rules({ config }: { config: PumpConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Multiplier after n pumps = {(config?.rtpPercent ?? 90) / 100} ÷ (chance of surviving n pumps), so the return is {config?.rtpPercent ?? 90}% whenever you cash out. On Easy the first pumps pay less than the bet. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per balloon ₹{config?.maxPayout ?? 10000} — reaching it cashes out automatically.
+        Multiplier after n pumps = {(config?.rtpPercent ?? 85) / 100} ÷ (chance of surviving n pumps), so the return is {config?.rtpPercent ?? 85}% whenever you cash out. On Easy and Medium the first pumps pay less than the bet. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per balloon ₹{config?.maxPayout ?? 10000} — reaching it cashes out automatically.
       </Text>
       <Text style={styles.ruleLine}>Where the balloon pops is fixed from your provably-fair seeds when it's handed to you and shown when the round ends (Settings → Provably Fair).</Text>
     </View>

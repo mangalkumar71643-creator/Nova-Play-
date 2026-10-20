@@ -29,11 +29,11 @@ export const DICE = 6;
  * show the symbol; 0 or 1 loses. Matches follow Binomial(6, 1/6), so out of
  * 6^6 = 46656 equally likely throws: 2 -> 9375, 3 -> 2500, 4 -> 375,
  * 5 -> 30, 6 -> 1. Expected return =
- * (9375*3 + 2500*4.5 + 375*6 + 30*10 + 1*20) / 46656 = 41945 / 46656
- * = 89.90% — never above the shared 90% rtp. The top pays 20x, so a full
+ * (9375*3 + 2500*4.8 + 375*6.5 + 30*10 + 1*20) / 46656 = 42882.5 / 46656
+ * = 91.91% — never above the 92% lottery rtp. The top pays 20x, so a full
  * box (maxStake) can never win more than maxPayout.
  */
-export const PAYTABLE: Record<number, number> = { 2: 3, 3: 4.5, 4: 6, 5: 10, 6: 20 };
+export const PAYTABLE: Record<number, number> = { 2: 3, 3: 4.8, 4: 6.5, 5: 10, 6: 20 };
 const TOP_MULTIPLIER = 20;
 
 function round2(n: number): number {

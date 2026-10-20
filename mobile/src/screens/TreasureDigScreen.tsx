@@ -47,13 +47,13 @@ function errorMessage(err: unknown): string {
   return err instanceof ApiClientError ? err.message : 'Network error — please try again.';
 }
 
-/** Same ladder as the server: 88% / P(no crab in n digs). */
+/** Same ladder as the server: 85% / P(no crab in n digs). */
 function ladderFor(crabs: number): number[] {
   const out = [1];
   let p = 1;
   for (let k = 0; k < MOUNDS - crabs; k++) {
     p *= (MOUNDS - crabs - k) / (MOUNDS - k);
-    out.push(floor2(0.88 / p));
+    out.push(floor2(0.85 / p));
   }
   return out;
 }
@@ -813,7 +813,7 @@ export default function TreasureDigScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 88}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per dig{'\n'}
+          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per dig{'\n'}
           No autoplay · the crabs are placed by your provably-fair seeds when the dig starts
         </GameInfoButton>
       </ScrollView>

@@ -192,12 +192,12 @@ function Felt({ w, h, top, cfg }: { w: number; h: number; top: number; cfg: Blac
       <Path d={arc} fill="none" stroke={GOLD} strokeOpacity={0.4} strokeWidth={1.2} transform={`translate(0 ${-18})`} />
       <SvgText fill={FELT_TEXT} fontSize={Math.min(17, w * 0.043)} fontWeight="bold" fontFamily="serif" letterSpacing={2}>
         <TextPath href="#bjArc" startOffset="50%" textAnchor="middle">
-          {`BLACKJACK PAYS ${cfg?.blackjackPays ?? 2.2}x`}
+          {`BLACKJACK PAYS ${cfg?.blackjackPays ?? 2}x`}
         </TextPath>
       </SvgText>
       <SvgText fill={FELT_TEXT} fontSize={Math.min(11, w * 0.029)} fontWeight="bold" letterSpacing={1.6} opacity={0.85}>
         <TextPath href="#bjArc2" startOffset="50%" textAnchor="middle">
-          {`DEALER STANDS ON ALL 17s · INSURANCE PAYS ${round2((cfg?.insurancePays ?? 2.9) - 1)} TO 1`}
+          {`DEALER STANDS ON ALL 17s · INSURANCE PAYS ${round2((cfg?.insurancePays ?? 2.75) - 1)} TO 1`}
         </TextPath>
       </SvgText>
     </Svg>
@@ -847,7 +847,7 @@ export default function BlackjackScreen() {
           <View style={styles.insBox}>
             <Text style={styles.insTitle}>INSURANCE?</Text>
             <Text style={styles.insSub}>
-              Dealer shows an Ace. Insure for ₹{(Math.floor((Number(hand.stake) / 2) * 100 + 1e-9) / 100).toFixed(2)} — pays {round2((config?.insurancePays ?? 2.9) - 1)} to 1 if the dealer has blackjack.
+              Dealer shows an Ace. Insure for ₹{(Math.floor((Number(hand.stake) / 2) * 100 + 1e-9) / 100).toFixed(2)} — pays {round2((config?.insurancePays ?? 2.75) - 1)} to 1 if the dealer has blackjack.
             </Text>
             <View style={styles.row}>
               <Pressable onPress={() => doAction('noInsurance')} style={[styles.bigBtn, styles.btnDark]} accessibilityLabel="No insurance">
@@ -940,9 +940,9 @@ export default function BlackjackScreen() {
 }
 
 function Rules({ config }: { config: BlackjackConfig | null }) {
-  const win = config?.winPays ?? 1.8;
-  const bj = config?.blackjackPays ?? 2.2;
-  const ins = round2((config?.insurancePays ?? 2.9) - 1);
+  const win = config?.winPays ?? 1.7;
+  const bj = config?.blackjackPays ?? 2;
+  const ins = round2((config?.insurancePays ?? 2.75) - 1);
   return (
     <View>
       <Text style={styles.ruleHead}>Goal</Text>
@@ -968,7 +968,7 @@ function Rules({ config }: { config: BlackjackConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Unlimited decks. Return to player {config?.rtpPercent ?? 89.22}% with perfect play. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. An unfinished hand waits for you when you come back.
+        Unlimited decks. Return to player {config?.rtpPercent ?? 84.86}% of all money bet (doubles and splits included) with perfect play. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. An unfinished hand waits for you when you come back.
       </Text>
       <Text style={styles.ruleLine}>Every card is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

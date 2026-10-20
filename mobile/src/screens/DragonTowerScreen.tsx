@@ -259,7 +259,7 @@ export default function DragonTowerScreen() {
   const live = round?.status === 'ACTIVE';
   const diff = live && round ? round.difficulty : difficulty;
   const shape = (config?.difficulties ?? FALLBACK_DIFFS)[diff];
-  const multipliers = config?.multipliers[diff] ?? Array.from({ length: ROWS }, (_, i) => floor4(0.9 * (shape.tiles / shape.eggs) ** (i + 1)));
+  const multipliers = config?.multipliers[diff] ?? Array.from({ length: ROWS }, (_, i) => floor4(0.85 * (shape.tiles / shape.eggs) ** (i + 1)));
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -697,7 +697,7 @@ export default function DragonTowerScreen() {
 
 function Rules({ config }: { config: TowerConfig | null }) {
   const diffs = config?.difficulties ?? FALLBACK_DIFFS;
-  const rtp = config?.rtpPercent ?? 90;
+  const rtp = config?.rtpPercent ?? 85;
   return (
     <View>
       <Text style={styles.ruleHead}>How to play</Text>
@@ -711,7 +711,7 @@ function Rules({ config }: { config: TowerConfig | null }) {
             <Text style={styles.payMid}>
               {diffs[d].eggs} egg{diffs[d].eggs > 1 ? 's' : ''} in {diffs[d].tiles} tiles
             </Text>
-            <Text style={styles.payVal}>{fmtMult(config?.multipliers[d][0] ?? floor4(0.9 * (diffs[d].tiles / diffs[d].eggs)))} → {fmtMult(config?.multipliers[d][ROWS - 1] ?? floor4(0.9 * (diffs[d].tiles / diffs[d].eggs) ** ROWS))}</Text>
+            <Text style={styles.payVal}>{fmtMult(config?.multipliers[d][0] ?? floor4(0.85 * (diffs[d].tiles / diffs[d].eggs)))} → {fmtMult(config?.multipliers[d][ROWS - 1] ?? floor4(0.85 * (diffs[d].tiles / diffs[d].eggs) ** ROWS))}</Text>
           </View>
         ))}
       </View>

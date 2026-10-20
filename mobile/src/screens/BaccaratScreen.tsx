@@ -50,7 +50,7 @@ const CHIP_COLORS: Record<number, string> = {
   500: '#C81E3A',
 };
 const DEFAULT_CHIP = 10;
-const FALLBACK_MULTIPLIERS: Record<BaccaratArea, number> = { PLAYER: 1.8, BANKER: 1.75, TIE: 9.43, PLAYER_PAIR: 11.7, BANKER_PAIR: 11.7 };
+const FALLBACK_MULTIPLIERS: Record<BaccaratArea, number> = { PLAYER: 1.69, BANKER: 1.64, TIE: 8.9, PLAYER_PAIR: 11.05, BANKER_PAIR: 11.05 };
 
 const WIN_CARD_MS = 3200;
 const TOAST_MS = 1600;

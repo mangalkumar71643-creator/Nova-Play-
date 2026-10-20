@@ -613,7 +613,7 @@
         </div>
         <div class="card">
           <div class="card-head"><h2>Har game ka profit / loss</h2></div>
-          <div class="item-meta" style="margin:-6px 0 12px;">Each game's result from its own bets: what players staked, what it paid back, and the profit. Green = the house is up on that game, red = down. A game needs a few thousand bets before its % settles near its edge; until then one big win can swing it.</div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Each game's result from its own bets: what players staked, what it paid back, and the profit. Green = the house is up on that game, red = down. A game needs a few thousand bets before its % settles near its Target % (the edge it is set to keep); until then one big win can swing it.</div>
           <div class="form-row" style="max-width:640px;">
             <button class="btn secondary small" data-game-period="today">Today</button>
             <button class="btn secondary small" data-game-period="d7">7 days</button>
@@ -1812,9 +1812,10 @@
     return api('/admin/reports/pnl').then(function (r) {
       var P = r.periods, cols = [['today', 'Today'], ['d7', '7 days'], ['d30', '30 days'], ['all', 'All time']];
       var a = P.all;
+      var target = 'target edge ' + r.targetHouseEdgePercent + '%, lottery games ' + r.lotteryTargetHouseEdgePercent + '%';
       document.getElementById('pnlHeadline').innerHTML = a.netProfit >= 0
-        ? 'All time you are <b style="color:var(--green)">up ' + fmtMoney(a.netProfit) + '</b> after bonuses (game profit ' + fmtMoney(a.gameProfit) + (a.edgePercent !== null ? ', ' + a.edgePercent.toFixed(2) + '% of stakes' : '') + '; target edge ' + r.targetHouseEdgePercent + '%).'
-        : 'All time you are <b style="color:var(--red)">down ' + fmtMoney(-a.netProfit) + '</b> after bonuses (game profit ' + (a.gameProfit < 0 ? '-' : '') + fmtMoney(Math.abs(a.gameProfit)) + '; target edge ' + r.targetHouseEdgePercent + '%).';
+        ? 'All time you are <b style="color:var(--green)">up ' + fmtMoney(a.netProfit) + '</b> after bonuses (game profit ' + fmtMoney(a.gameProfit) + (a.edgePercent !== null ? ', ' + a.edgePercent.toFixed(2) + '% of stakes' : '') + '; ' + target + ').'
+        : 'All time you are <b style="color:var(--red)">down ' + fmtMoney(-a.netProfit) + '</b> after bonuses (game profit ' + (a.gameProfit < 0 ? '-' : '') + fmtMoney(Math.abs(a.gameProfit)) + '; ' + target + ').';
       function row(label, fn, strong) {
         return '<tr' + (strong ? ' style="background:var(--surface-alt);"' : '') + '><td>' + (strong ? '<b>' + label + '</b>' : label) + '</td>' +
           cols.map(function (c) { return '<td>' + fn(P[c[0]]) + '</td>'; }).join('') + '</tr>';
@@ -1873,10 +1874,11 @@
       return '<tr><td><b>' + escapeHtml(g.name) + '</b>' + (few ? ' <span class="pill" style="font-size:10px;">few bets</span>' : '') + '</td><td>' + escapeHtml(g.category) + '</td>' +
         (gamePeriod === 'all' ? '<td>' + g.bets.toLocaleString('en-IN') + '</td><td>' + g.players + '</td>' : '') +
         '<td>' + fmtMoney(p.staked) + '</td><td>' + fmtMoney(p.paid) + '</td><td>' + profitHtml(p.profit) + '</td><td>' +
-        (p.edgePercent === null ? '—' : '<span style="color:' + (p.edgePercent >= 0 ? 'var(--green)' : 'var(--red)') + '">' + p.edgePercent.toFixed(2) + '%</span>') + '</td></tr>';
+        (p.edgePercent === null ? '—' : '<span style="color:' + (p.edgePercent >= 0 ? 'var(--green)' : 'var(--red)') + '">' + p.edgePercent.toFixed(2) + '%</span>') + '</td><td>' +
+        (g.targetEdgePercent == null ? '—' : g.targetEdgePercent + '%') + '</td></tr>';
     }).join('');
     document.getElementById('gameTable').innerHTML = rows
-      ? '<table><thead><tr><th>Game</th><th>Category</th>' + (gamePeriod === 'all' ? '<th>Bets</th><th>Players</th>' : '') + '<th>Staked</th><th>Paid back</th><th>Profit</th><th>Profit %</th></tr></thead><tbody>' + rows + '</tbody></table>'
+      ? '<table><thead><tr><th>Game</th><th>Category</th>' + (gamePeriod === 'all' ? '<th>Bets</th><th>Players</th>' : '') + '<th>Staked</th><th>Paid back</th><th>Profit</th><th>Profit %</th><th>Target %</th></tr></thead><tbody>' + rows + '</tbody></table>'
       : '<div class="empty">No bets ' + (gamePeriod === 'today' ? 'today' : 'in this period') + ' yet.</div>';
     var c = gameReport.check;
     document.getElementById('gameCheck').innerHTML = (Math.abs(c.unmatchedStaked) < 0.01 && Math.abs(c.unmatchedPaid) < 0.01)
@@ -1931,7 +1933,7 @@
         statCardHtml('reports', 'House profit (' + p.days + ' days)', (p.profit < 0 ? '-' : '') + fmtMoney(Math.abs(p.profit)), pct(p.profit, p.staked) + ' of stakes') +
         statCardHtml('games', 'House profit (all time)', (r.allTime.profit < 0 ? '-' : '') + fmtMoney(Math.abs(r.allTime.profit)), pct(r.allTime.profit, r.allTime.staked) + ' of ' + fmtMoney(r.allTime.staked));
       document.getElementById('reportsNote').textContent =
-        'Target: ' + r.targetHouseEdgePercent + '% of stakes. Single days swing above and below it; the more bets, the closer it gets.';
+        'Target: ' + r.targetHouseEdgePercent + '% of stakes on most games, ' + r.lotteryTargetHouseEdgePercent + '% on lottery games, so the total lands between the two depending on what was played. Single days swing above and below it; the more bets, the closer it gets.';
       var rows = r.days.map(function (d) {
         return '<tr><td>' + escapeHtml(d.day) + '</td><td>' + d.bets.toLocaleString('en-IN') + '</td><td>' + d.players + '</td><td>' + fmtMoney(d.staked) + '</td><td>' + fmtMoney(d.paid) + '</td><td>' + profitHtml(d.profit) + '</td><td>' + pct(d.profit, d.staked) + '</td></tr>';
       }).join('');

@@ -863,7 +863,7 @@ export default function CosmonautScreen() {
           })
         )}
         <GameInfoButton>
-          Provably fair · RTP {config ? 100 - config.houseEdgePercent : 88}% · bet ₹{minStake}–₹{maxStake} · max win ₹{config?.maxPayout ?? 10000} per bet
+          Provably fair · RTP {config ? 100 - config.houseEdgePercent : 85}% · bet ₹{minStake}–₹{maxStake} · max win ₹{config?.maxPayout ?? 10000} per bet
         </GameInfoButton>
       </ScrollView>
 

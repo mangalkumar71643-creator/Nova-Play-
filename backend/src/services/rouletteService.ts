@@ -241,7 +241,7 @@ export type BetInput = { area: string; amount: number };
 
 /** Places one or more chips on the current round in one transaction. The
  * total on each bet spot must stay within maxStake, and its win within
- * maxPayout (so a straight-up number takes at most maxPayout / 33.3). */
+ * maxPayout (so a straight-up number takes at most maxPayout / 31.45). */
 export async function placeRouletteBets(userId: string, bets: BetInput[]) {
   if (bets.length === 0) throw new ApiError(400, "No bets given.");
   for (const b of bets) {

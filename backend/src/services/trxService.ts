@@ -181,7 +181,7 @@ export function getTrxConfig() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     lockSeconds: LOCK_SECONDS,
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(env.games.lotteryRtp * 100),
     payouts: PAYOUTS,
     voidAfterMinutes: VOID_AFTER_MS / 60000,
   };

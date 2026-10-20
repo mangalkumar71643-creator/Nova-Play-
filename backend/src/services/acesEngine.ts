@@ -32,8 +32,8 @@ export const PAYTABLE: Record<Card, [number, number, number]> = {
   SPADE: [0.02, 0.06, 0.1],
   J: [0.04, 0.12, 0.2],
   Q: [0.06, 0.18, 0.3],
-  K: [0.08, 0.24, 0.4],
-  A: [0.1, 0.3, 0.5],
+  K: [0.07, 0.21, 0.35],
+  A: [0.09, 0.27, 0.45],
 };
 
 /** Relative weight of each symbol dropping in, per reel. */
@@ -50,12 +50,12 @@ export const WEIGHTS: Record<Card | "SCATTER", number[]> = {
 };
 
 /**
- * Return to player of the tables above, measured over 20 million simulated
- * spins: 88.09% (standard error 0.12%). A spin wins 50.8% of the time,
+ * Return to player of the tables above, measured over 120 million simulated
+ * spins: 84.69% (standard error 0.05%). A spin wins 50.8% of the time,
  * Free Games trigger about 1 in 178 spins and bring ~25% of the return.
  * Re-measure (scratch simulation) whenever a table or chance changes.
  */
-export const MEASURED_RTP = 0.8809;
+export const MEASURED_RTP = 0.8469;
 
 /** Chance a card dropping onto reels 2-4 is golden (base game / Free Games). */
 export const GOLDEN_CHANCE = 0.1;

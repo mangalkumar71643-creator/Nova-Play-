@@ -12,7 +12,7 @@ import { nextRoundSeedMaterial } from "./fairnessService";
  *   three red 7s 100x, three blue 7s 50x, any three 7s 20x, three triple BARs
  *   15x, three double BARs 10x, three single BARs 5x, any three BARs 3x.
  * When the line wins, the Special Reel's symbol applies: a multiplier (x2,
- * x5, x10), a bonus paid on top (5x, 10x, 20x the bet), or a RESPIN — the
+ * x3, x10), a bonus paid on top (5x, 10x, 20x the bet), or a RESPIN — the
  * win is paid and all reels spin again for free, up to MAX_RESPINS in a row.
  *
  * The RTP is exact: the line-win distribution is counted over every stop
@@ -37,7 +37,7 @@ export type Special = { kind: "NONE" | "MULT" | "BONUS" | "RESPIN"; value: numbe
 export const SPECIAL: Special[] = [
   { kind: "NONE", value: 0, weight: 70 },
   { kind: "MULT", value: 2, weight: 16 },
-  { kind: "MULT", value: 5, weight: 5 },
+  { kind: "MULT", value: 3, weight: 5 },
   { kind: "MULT", value: 10, weight: 2 },
   { kind: "BONUS", value: 5, weight: 6 },
   { kind: "BONUS", value: 10, weight: 3 },

@@ -21,8 +21,8 @@ export const ALARM_OPTIONS = [2, 4, 6] as const;
 
 export const DIGITS = 10;
 export const LOCKS = 5;
-/** 12% house edge: the expected return of every cash-out point is 88%. */
-export const RTP = 0.88;
+/** 15% house edge: the expected return of every cash-out point is 85%. */
+export const RTP = 0.85;
 
 export type VaultTry = { digit: number; alarmDigits: number[]; ok: boolean };
 

@@ -23,7 +23,7 @@ const AUTO_OPTIONS = [10, 25, 50, 100];
 const SOUND_KEY = 'novaplay:dice:sound';
 const TOAST_MS = 1800;
 const RECENT_MAX = 12;
-/** Slider stops: win chance 2%–89% whichever way the roll goes. */
+/** Slider stops: win chance 2%–84% whichever way the roll goes. */
 const SLIDE_MIN_CHANCE = 2;
 
 function round2(n: number): number {
@@ -236,12 +236,12 @@ export default function DiceScreen() {
   const resultAnim = useRef(new Animated.Value(0)).current;
   const tumbleLoop = useRef<Animated.CompositeAnimation | null>(null);
 
-  const rtp = config?.rtpPercent ?? 90;
+  const rtp = config?.rtpPercent ?? 85;
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const minChance = config?.minChance ?? 0.01;
-  const maxChance = config?.maxChance ?? 89;
+  const maxChance = config?.maxChance ?? 84;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
   const chance = round2(rollOver ? 100 - target : target);
@@ -814,7 +814,7 @@ export default function DiceScreen() {
 }
 
 function Rules({ config }: { config: DiceConfig | null }) {
-  const rtp = config?.rtpPercent ?? 90;
+  const rtp = config?.rtpPercent ?? 85;
   return (
     <View>
       <Text style={styles.ruleHead}>How to play</Text>
@@ -836,7 +836,7 @@ function Rules({ config }: { config: DiceConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {rtp}%. Win chance {config?.minChance ?? 0.01}% – {config?.maxChance ?? 89}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per roll ₹{config?.maxPayout ?? 10000}.
+        Return to player {rtp}%. Win chance {config?.minChance ?? 0.01}% – {config?.maxChance ?? 84}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per roll ₹{config?.maxPayout ?? 10000}.
       </Text>
       <Text style={styles.ruleLine}>Every roll is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

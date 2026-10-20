@@ -27,7 +27,7 @@ const FALLBACK_REELS: SlotSymbol[][] = [
   [RU, EM, J, EM, A, SA, W, RU, J, Q, K, J, K, J, W, SA, Q, SA, EM, Q, A, Q, K, A, Q, W, J, A, K],
   [EM, Q, K, J, Q, K, RU, EM, SA, J, EM, J, RU, K, J, Q, A, SA, A, Q, W, A, Q, A, SA, W, K, J, W],
 ];
-const FALLBACK_PAYTABLE: Record<SlotSymbol, number> = { J: 0.4, Q: 0.5, K: 0.7, A: 0.9, EMERALD: 1.5, SAPPHIRE: 2.5, RUBY: 4, WILD: 8 };
+const FALLBACK_PAYTABLE: Record<SlotSymbol, number> = { J: 0.4, Q: 0.5, K: 0.6, A: 0.9, EMERALD: 1.5, SAPPHIRE: 2, RUBY: 4, WILD: 8 };
 const FALLBACK_LINES: [number, number, number][] = [
   [1, 1, 1],
   [0, 0, 0],
@@ -994,7 +994,7 @@ export default function SlotScreen() {
             </View>
             <ScrollView contentContainerStyle={{ padding: 14 }}>
               {panel === 'pay' ? (
-                <Paytable paytable={paytable} paylines={paylines} multipliers={multValues} rtp={config?.rtpPercent ?? 89.83} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? 10000} />
+                <Paytable paytable={paytable} paylines={paylines} multipliers={multValues} rtp={config?.rtpPercent ?? 84.92} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? 10000} />
               ) : (
                 <History spins={history} />
               )}

@@ -9,8 +9,8 @@ import { nextRoundSeedMaterial } from "./fairnessService";
 /**
  * Scratch Card: an instant ticket with nine hidden panels. Three matching
  * symbols win that symbol's prize. The ticket's prize is drawn first, from
- * weights out of 1,000,000 whose expected return is exactly 0.88 (88% RTP, a
- * 12% house edge); the nine panels are then dealt to show it: the prize
+ * weights out of 1,000,000 whose expected return is exactly 0.85 (85% RTP, a
+ * 15% house edge); the nine panels are then dealt to show it: the prize
  * symbol three times on a win, and every other symbol at most twice, so a
  * ticket never shows more than one three-of-a-kind. Everything comes from the
  * player's provably-fair seeds.
@@ -22,7 +22,7 @@ export const PRIZE_WEIGHT_TOTAL = 1_000_000;
 export const SYMBOLS = [
   { key: "COIN", multiplier: 1, weight: 200_000 },
   { key: "CHERRY", multiplier: 2, weight: 120_000 },
-  { key: "BELL", multiplier: 5, weight: 30_000 },
+  { key: "BELL", multiplier: 4, weight: 30_000 },
   { key: "CLOVER", multiplier: 10, weight: 10_000 },
   { key: "HORSESHOE", multiplier: 20, weight: 3_500 },
   { key: "DIAMOND", multiplier: 50, weight: 1_200 },

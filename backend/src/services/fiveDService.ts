@@ -10,7 +10,7 @@ import { assertCanTransact } from "./responsibleGamblingService";
  * wall-clock tracks as Win Go / K3 (one independent chain per duration).
  * Bets on one position (exact digit, big 5-9 / small 0-4, odd / even) or
  * on the sum of all five (big 23-45 / small 0-22, odd / even). Every bet
- * pays floor2(rtp / P(win)).
+ * pays floor2(lotteryRtp / P(win)).
  */
 export const FIVED_DURATIONS = [60, 180, 300, 600] as const;
 export type FiveDDuration = (typeof FIVED_DURATIONS)[number];
@@ -73,9 +73,9 @@ export function isValidKey(key: string): boolean {
 }
 
 /** Total return per unit staked (stake included): multiplier * P(win) =
- * the shared rtp, rounded down so the edge is never smaller than stated. */
+ * the lottery rtp, rounded down so the edge is never smaller than stated. */
 export function multiplierFor(key: string): number {
-  return floor2(env.games.rtp / winChance(key));
+  return floor2(env.games.lotteryRtp / winChance(key));
 }
 
 /** The five digits, fixed when the round is created from its server seed
@@ -206,7 +206,7 @@ export function getFiveDConfig() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     lockSeconds: LOCK_SECONDS,
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(env.games.lotteryRtp * 100),
     multipliers: Object.fromEntries(KEYS.map((k) => [k, multiplierFor(k)])),
   };
 }

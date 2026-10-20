@@ -833,7 +833,7 @@ export default function SkyJetScreen() {
           })
         )}
         <GameInfoButton>
-          Provably fair · RTP {config ? 100 - config.houseEdgePercent : 88}% incl. jackpot · bet ₹{minStake}–₹{maxStake} · max win ₹{config?.maxPayout ?? 10000} per bet
+          Provably fair · RTP {config ? 100 - config.houseEdgePercent : 85}% incl. jackpot · bet ₹{minStake}–₹{maxStake} · max win ₹{config?.maxPayout ?? 10000} per bet
         </GameInfoButton>
       </ScrollView>
 

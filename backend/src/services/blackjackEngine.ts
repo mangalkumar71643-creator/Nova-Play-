@@ -5,22 +5,22 @@
  * - double on any first two cards, also after a split;
  * - split any two cards of the same value once; split Aces get one card each;
  * - insurance is offered when the dealer shows an Ace; no surrender.
- * Payouts are returned stake multiples: a win pays 1.8x, a blackjack 2.2x,
- * insurance 1.9 to 1 (2.9x back) and a push returns the stake.
+ * Payouts are returned stake multiples: a win pays 1.7x, a blackjack 2x,
+ * insurance 1.75 to 1 (2.75x back) and a push returns the stake.
  *
- * Return to player with perfect play is 89.22% of the first bet (89.89% of
- * everything wagered), worked out exactly over the infinite deck (scratch
- * calculator; the same calculator gives 99.43% for standard 1:1 / 3:2).
- * Insurance on its own returns 4/13 x 2.9 = 89.23%.
+ * Return to player with perfect play is 84.86% of everything wagered (84.11%
+ * of the first bet), worked out exactly over the infinite deck (scratch
+ * calculator; the same calculator gives 99.43% of the first bet for standard
+ * 1:1 / 3:2). Insurance on its own returns 4/13 x 2.75 = 84.62%.
  *
  * The engine is pure: cards come from the `draw` passed in, so a hand
  * replays exactly from its card stream.
  */
 
-export const WIN_PAYS = 1.8;
-export const BLACKJACK_PAYS = 2.2;
-export const INSURANCE_PAYS = 2.9;
-export const EXACT_RTP = 0.8922;
+export const WIN_PAYS = 1.7;
+export const BLACKJACK_PAYS = 2;
+export const INSURANCE_PAYS = 2.75;
+export const EXACT_RTP = 0.8486;
 
 /** A card is 0-51: rank = card % 13 (0 = Ace, 1-8 = 2-9, 9 = 10, 10-12 = J Q K), suit = floor(card / 13). */
 export type Card = number;

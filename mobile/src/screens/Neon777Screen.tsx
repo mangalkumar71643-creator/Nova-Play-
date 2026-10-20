@@ -31,7 +31,7 @@ const FALLBACK_STRIPS: Neon777Symbol[][] = [
 const FALLBACK_SPECIAL: Neon777Special[] = [
   { kind: 'NONE', value: 0, chancePercent: 63.64 },
   { kind: 'MULT', value: 2, chancePercent: 14.55 },
-  { kind: 'MULT', value: 5, chancePercent: 4.55 },
+  { kind: 'MULT', value: 3, chancePercent: 4.55 },
   { kind: 'MULT', value: 10, chancePercent: 1.82 },
   { kind: 'BONUS', value: 5, chancePercent: 5.45 },
   { kind: 'BONUS', value: 10, chancePercent: 2.73 },
@@ -1072,7 +1072,7 @@ function Paytable({ pays, special, bet, config }: { pays: Neon777Config['linePay
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 89.6}% (exact, counted over every reel stop). {config?.hitRatePercent ?? 14.27}% of spins win. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
+        Return to player {config?.rtpPercent ?? 84.77}% (exact, counted over every reel stop). {config?.hitRatePercent ?? 14.27}% of spins win. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
       </Text>
       <Text style={styles.ruleLine}>Tap SPIN during a spin to stop the reels at once. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

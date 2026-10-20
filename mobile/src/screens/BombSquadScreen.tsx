@@ -44,13 +44,13 @@ function errorMessage(err: unknown): string {
   return err instanceof ApiClientError ? err.message : 'Network error — please try again.';
 }
 
-/** Same ladder as the server: 88% / P(no live wire in `cuts` cuts). */
+/** Same ladder as the server: 85% / P(no live wire in `cuts` cuts). */
 function ladderFor(live: number): number[] {
   const out = [1];
   let p = 1;
   for (let k = 0; k < WIRES - live; k++) {
     p *= (WIRES - live - k) / (WIRES - k);
-    out.push(floor2(0.88 / p));
+    out.push(floor2(0.85 / p));
   }
   return out;
 }
@@ -773,7 +773,7 @@ export default function BombSquadScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 88}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per bomb{'\n'}
+          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per bomb{'\n'}
           No autoplay · the live wires are fixed by your provably-fair seeds when you arm the bomb
         </GameInfoButton>
       </ScrollView>

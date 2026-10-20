@@ -53,12 +53,12 @@ const FALLBACK_PAYS: Record<number, number> = {
   26: 10,
   27: 9,
   28: 7.5,
-  29: 6,
-  30: 5,
-  31: 4,
-  32: 3,
-  33: 2,
-  34: 1.5,
+  29: 6.5,
+  30: 5.5,
+  31: 4.5,
+  32: 3.5,
+  33: 2.5,
+  34: 2,
   35: 1,
 };
 
@@ -535,7 +535,7 @@ export default function FortuneSixScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 87.98}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
+          RTP {config?.rtpPercent ?? 91.93}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
           No autoplay or turbo · each ticket takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

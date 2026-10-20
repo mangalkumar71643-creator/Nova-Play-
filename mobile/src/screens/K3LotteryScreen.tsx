@@ -275,7 +275,7 @@ export default function K3LotteryScreen() {
     (key: string) => {
       const m = config?.multipliers?.[key];
       if (m) return m;
-      if (key.startsWith('SUM:')) return floor2((0.9 * 216) / SUM_WAYS[Number(key.slice(4))]);
+      if (key.startsWith('SUM:')) return floor2((0.92 * 216) / SUM_WAYS[Number(key.slice(4))]);
       return 0;
     },
     [config]
@@ -683,7 +683,7 @@ export default function K3LotteryScreen() {
                       <Pressable key={b.key} onPress={() => setSelTotal(on ? null : b.key)} style={[styles.bsBtn, on && styles.bsBtnOn]}>
                         <LinearGradient colors={[b.color[0], b.color[1]]} style={[StyleSheet.absoluteFill, { borderRadius: 10 }]} />
                         <Text style={styles.bsText}>{b.label}</Text>
-                        <Text style={styles.bsOdds}>{multOf(b.key) || 1.8}X</Text>
+                        <Text style={styles.bsOdds}>{multOf(b.key) || 1.84}X</Text>
                       </Pressable>
                     );
                   })}
@@ -982,7 +982,7 @@ export default function K3LotteryScreen() {
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
               {[
                 `Three dice are thrown at the end of every period. ${DURATION_LABEL[duration]} per period; betting closes in the last ${lockSeconds} seconds.`,
-                `Total: bet on the sum (3–18). Big = 11–18, Small = 3–10, Odd / Even on the sum — ${multOf('BIG') || 1.8}X.`,
+                `Total: bet on the sum (3–18). Big = 11–18, Small = 3–10, Odd / Even on the sum — ${multOf('BIG') || 1.84}X.`,
                 `2 same: a pair such as 22 wins when at least two dice show 2 (${multOf('PAIR:2')}X). A pair plus a number, e.g. 22+5, needs exactly 2, 2, 5 (${multOf('PAIRSINGLE:2-5')}X).`,
                 `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X), or any triple (${multOf('ANYTRIPLE')}X).`,
                 `Different: pick 3+ numbers for "3 different" — every group of three you picked is one bet (${multOf('DIFF3:1-2-3')}X). "2 different" wins when both numbers show (${multOf('DIFF2:1-2')}X). 3 continuous: 123, 234, 345 or 456 in any order (${multOf('STRAIGHT')}X).`,

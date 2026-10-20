@@ -4,7 +4,7 @@
  * same deck. The final hand is paid from the paytable as a multiple of the bet
  * (the total returned, so a pair of jacks or better gives the bet back).
  *
- * With this paytable the return under perfect play is 89.97%, found by an
+ * With this paytable the return under perfect play is 84.84%, found by an
  * exact search over all 2,598,960 deals and all 32 ways to hold each one; any
  * other play returns less.
  */
@@ -19,16 +19,16 @@ export const PAYTABLE: Record<Hand, number> = {
   JACKS_OR_BETTER: 1,
   TWO_PAIR: 2,
   THREE_OF_A_KIND: 2.5,
-  STRAIGHT: 3.5,
-  FLUSH: 5,
-  FULL_HOUSE: 7,
-  FOUR_OF_A_KIND: 20,
+  STRAIGHT: 3,
+  FLUSH: 4,
+  FULL_HOUSE: 5,
+  FOUR_OF_A_KIND: 15,
   STRAIGHT_FLUSH: 50,
   ROYAL_FLUSH: 500,
 };
 
 /** Return under perfect play with PAYTABLE, from the exact search. */
-export const OPTIMAL_RTP_PERCENT = 89.97;
+export const OPTIMAL_RTP_PERCENT = 84.84;
 
 export function rankOf(card: Card): number {
   return card % 13;
