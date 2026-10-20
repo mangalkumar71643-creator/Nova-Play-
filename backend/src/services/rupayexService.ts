@@ -33,7 +33,9 @@ import { refreshSettingsIfStale } from "./settingsService";
  *   RUPAYEX_TOKEN         API token (RUPAYEX_KEY is read too; one saved from
  *                         the admin panel's Integrations card wins over both)
  *   RUPAYEX_PILOT_PHONES  numbers allowed to deposit, comma separated; the
- *                         numbers in STOCKPAY_TEST_PHONES are allowed too
+ *                         numbers in STOCKPAY_TEST_PHONES are allowed too.
+ *                         "*" opens deposits to every player (owner's
+ *                         temporary testing switch)
  *
  * Real money from the first rupee — RupayEx has no test mode — so, like the
  * StockPay live pilot before it, deposits are open only to the listed numbers
@@ -59,6 +61,9 @@ function token(): string {
   // RUPAYEX_KEY is the name the owner gave the variable in Vercel.
   return integration("rupayexToken") || (process.env.RUPAYEX_KEY ?? "").trim();
 }
+
+/** RUPAYEX_PILOT_PHONES="*" opens deposits to every player — for the owner's own testing only, set back to the numbers after. */
+const openToAll = () => (process.env.RUPAYEX_PILOT_PHONES ?? "").trim() === "*";
 
 function allowedPhones(): string[] {
   return `${process.env.RUPAYEX_PILOT_PHONES ?? ""},${process.env.STOCKPAY_TEST_PHONES ?? ""}`
@@ -131,7 +136,7 @@ export async function upiDepositStatus(userId: string) {
   // could sign in as that number. Everyone else finds UPI not open.
   const listed = allowedPhones().map((p) => `+91${p}`);
   if (env.smsProviderMode !== "live") return { ...base, enabled: false, reason: "UPI deposits are paused while OTP login is in test mode." };
-  if (!listed.includes(user.phone ?? "")) {
+  if (!openToAll() && !listed.includes(user.phone ?? "")) {
     // The player's own number's last digits, so the owner can see which number to add to the pilot list.
     const last4 = (user.phone ?? "").replace(/\D/g, "").slice(-4);
     return { ...base, enabled: false, reason: `UPI deposits are not open yet${last4 ? ` for this number (…${last4})` : ""}.` };
