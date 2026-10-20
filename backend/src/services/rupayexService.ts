@@ -30,8 +30,8 @@ import { refreshSettingsIfStale } from "./settingsService";
  * owner chose: the player bears it); that fee is stored in providerFee.
  *
  * Settings:
- *   RUPAYEX_TOKEN         API token (or saved from the admin panel's
- *                         Integrations card, which wins over the variable)
+ *   RUPAYEX_TOKEN         API token (RUPAYEX_KEY is read too; one saved from
+ *                         the admin panel's Integrations card wins over both)
  *   RUPAYEX_PILOT_PHONES  numbers allowed to deposit, comma separated;
  *                         STOCKPAY_TEST_PHONES is read when it is not set
  *
@@ -56,7 +56,8 @@ const CALL_TIMEOUT_MS = 8000;
 const FAILED_ORDER = ["FAILED", "FAILURE", "EXPIRED", "CANCELLED", "CANCELED", "REJECTED", "DECLINED"];
 
 function token(): string {
-  return integration("rupayexToken");
+  // RUPAYEX_KEY is the name the owner gave the variable in Vercel.
+  return integration("rupayexToken") || (process.env.RUPAYEX_KEY ?? "").trim();
 }
 
 function allowedPhones(): string[] {
