@@ -130,8 +130,11 @@ export async function upiDepositStatus(userId: string) {
   // number, and only while OTP really goes by SMS — with mock OTP anyone
   // could sign in as that number. Everyone else finds UPI not open.
   const listed = allowedPhones().map((p) => `+91${p}`);
-  if (env.smsProviderMode !== "live" || !listed.includes(user.phone ?? "")) {
-    return { ...base, enabled: false, reason: "UPI deposits are not open yet." };
+  if (env.smsProviderMode !== "live") return { ...base, enabled: false, reason: "UPI deposits are paused while OTP login is in test mode." };
+  if (!listed.includes(user.phone ?? "")) {
+    // The player's own number's last digits, so the owner can see which number to add to the pilot list.
+    const last4 = (user.phone ?? "").replace(/\D/g, "").slice(-4);
+    return { ...base, enabled: false, reason: `UPI deposits are not open yet${last4 ? ` for this number (…${last4})` : ""}.` };
   }
   return { ...base, enabled: true, reason: null, min: MIN_UPI_DEPOSIT, max: MAX_UPI_DEPOSIT, currency: "inr" };
 }
