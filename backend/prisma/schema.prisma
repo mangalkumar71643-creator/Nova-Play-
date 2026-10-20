@@ -1062,6 +1062,8 @@ model TrxRound {
   house           Boolean   @default(false)
   // Created under the House rule: only such rounds can turn House when their block is read.
   houseRule       Boolean   @default(false)
+  // House when the hash's second-last digit is below this: 1 (1 in 10) for rounds made before the 1-in-5 rule, 2 after.
+  houseDigits     Int       @default(1)
   voided          Boolean   @default(false)
   settled         Boolean   @default(false)
   createdAt       DateTime  @default(now())

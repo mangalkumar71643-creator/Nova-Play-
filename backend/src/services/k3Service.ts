@@ -10,10 +10,10 @@ import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
  * "K3 Lottery": three dice every round, on the same fixed wall-clock tracks
  * as Win Go (one independent chain of rounds per duration). Bets are on the
  * sum, big/small, odd/even, pairs, triples and combinations of different
- * numbers. One round in ten is a ⭐ House result (lotteryHouse.ts) on which
+ * numbers. One round in five is a ⭐ House result (lotteryHouse.ts) on which
  * every bet loses; otherwise every bet pays fair odds on the dice,
  * floor2(216 / winning throws) — Big/Small 2x, a triple 216x — so each
- * returns at most 90%.
+ * returns at most 80%.
  */
 export const K3_DURATIONS = [60, 180, 300, 600] as const;
 export type K3Duration = (typeof K3_DURATIONS)[number];
@@ -108,7 +108,7 @@ export function isValidKey(key: string): boolean {
 }
 
 /** Total return per unit staked (stake included): fair odds on a round that
- * is not House, 1 / P(win), rounded down to the cent so the return, 90% of
+ * is not House, 1 / P(win), rounded down to the cent so the return, 80% of
  * multiplier * P(win), is never more than LOTTERY_RTP. */
 export function multiplierFor(key: string): number {
   return floor2(216 / WIN_COUNTS.get(key)!);

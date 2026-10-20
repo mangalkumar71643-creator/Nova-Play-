@@ -49,10 +49,10 @@ const MULTIPLIERS = [1, 5, 10, 20, 50, 100];
 const ROWS_PER_PAGE = 10;
 const TOAST_MS = 1800;
 const WIN_MS = 3500;
-// Fair odds on the 9 periods in 10 that are not House (90% return).
+// Fair odds on the 4 periods in 5 that are not House (80% return).
 const FALLBACK = { number: 10, size: 2, violet: 5, color: 2.1, colorMixed: 1.6 };
-const FALLBACK_HOUSE_PERCENT = 10;
-const FALLBACK_RTP_PERCENT = 90;
+const FALLBACK_HOUSE_PERCENT = 20;
+const FALLBACK_RTP_PERCENT = 80;
 
 type HistoryTab = 'game' | 'chart' | 'my';
 
@@ -840,7 +840,7 @@ export default function WinGoScreen() {
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
               {[
                 `One number 0–9 is drawn every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
-                `⭐ House: one period in ten (${housePercent}%) is a House result, shown as ⭐ House. Every bet on a House period loses, whatever the number. All other periods pay the odds below.`,
+                `⭐ House: one period in five (${housePercent}%) is a House result, shown as ⭐ House. Every bet on a House period loses, whatever the number. All other periods pay the odds below.`,
                 `Green: 1, 3, 7, 9 pay ${P.color}X; 5 pays ${P.colorMixed}X.`,
                 `Red: 2, 4, 6, 8 pay ${P.color}X; 0 pays ${P.colorMixed}X.`,
                 `Violet: 0 or 5 pays ${P.violet}X.`,

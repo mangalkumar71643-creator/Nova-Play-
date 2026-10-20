@@ -10,7 +10,7 @@ import { HOUSE_CHANCE, isHouseRound } from "./lotteryHouse";
  * "Jhandi Munda": six dice, each with the same six symbols, are shaken and
  * thrown. A bet on a symbol wins when it shows on two or more dice, and pays
  * more the more dice show it. Shared rounds on fixed wall-clock slots, same
- * shape as Andar Bahar. One round in ten is a ⭐ House result
+ * shape as Andar Bahar. One round in five is a ⭐ House result
  * (lotteryHouse.ts) on which every bet loses, whatever the dice show.
  */
 export const ROUND_SECONDS = 25;
@@ -33,7 +33,7 @@ export const DICE = 6;
  * 5 -> 30, 6 -> 1. On a round that is not House the table returns
  * (9375*3.25 + 2500*5.25 + 375*7 + 30*12 + 1*20) / 46656 = 46598.75 / 46656
  * = 99.88% — fair odds, never above 100% — so with the House rounds a bet
- * returns 89.89%, just under the 90% lottery rtp. The top pays 20x, so a
+ * returns 79.90%, just under the 80% lottery rtp. The top pays 20x, so a
  * full box (maxStake) can never win more than maxPayout.
  */
 export const PAYTABLE: Record<number, number> = { 2: 3.25, 3: 5.25, 4: 7, 5: 12, 6: 20 };

@@ -13,7 +13,7 @@ import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
  * on the sum of all five (big 23-45 / small 0-22, odd / even). One round in
  * ten is a ⭐ House result (lotteryHouse.ts) on which every bet loses;
  * otherwise every bet pays fair odds, floor2(1 / P(win)) — a digit 10x,
- * big/small/odd/even 2x — so each returns 90%.
+ * big/small/odd/even 2x — so each returns 80%.
  */
 export const FIVED_DURATIONS = [60, 180, 300, 600] as const;
 export type FiveDDuration = (typeof FIVED_DURATIONS)[number];
@@ -76,7 +76,7 @@ export function isValidKey(key: string): boolean {
 }
 
 /** Total return per unit staked (stake included): fair odds on a round that
- * is not House, 1 / P(win), rounded down to the cent so the return, 90% of
+ * is not House, 1 / P(win), rounded down to the cent so the return, 80% of
  * multiplier * P(win), is never more than LOTTERY_RTP. */
 export function multiplierFor(key: string): number {
   return floor2(1 / winChance(key));

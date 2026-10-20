@@ -296,8 +296,8 @@ export default function K3LotteryScreen() {
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const lockSeconds = config?.lockSeconds ?? 5;
-  const houseChance = config?.houseChancePercent ?? 10;
-  const rtpPercent = config?.rtpPercent ?? 90;
+  const houseChance = config?.houseChancePercent ?? 20;
+  const rtpPercent = config?.rtpPercent ?? 80;
   const multOf = useCallback(
     (key: string) => {
       const m = config?.multipliers?.[key];
@@ -1030,7 +1030,7 @@ export default function K3LotteryScreen() {
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
               {[
                 `Three dice are thrown at the end of every period. ${DURATION_LABEL[duration]} per period; betting closes in the last ${lockSeconds} seconds.`,
-                `⭐ House: one period in ten is a House result, on which every bet loses, whatever the dice show. Every other period pays fair odds on the dice, so each bet returns ${rtpPercent}% of what is staked over time.`,
+                `⭐ House: one period in five is a House result, on which every bet loses, whatever the dice show. Every other period pays fair odds on the dice, so each bet returns ${rtpPercent}% of what is staked over time.`,
                 `Total: bet on the sum (3–18). Big = 11–18, Small = 3–10, Odd / Even on the sum — ${multOf('BIG') || 2}X, each wins ${chance(WAYS.size)}% of periods. A single sum pays from ${multOf('SUM:10')}X (10 or 11, wins ${chance(SUM_WAYS[10])}%) to ${multOf('SUM:3')}X (3 or 18, wins ${chance(SUM_WAYS[3])}%).`,
                 `2 same: a pair such as 22 wins when at least two dice show 2 (${multOf('PAIR:2')}X, wins ${chance(WAYS.pair)}% of periods). A pair plus a number, e.g. 22+5, needs exactly 2, 2, 5 (${multOf('PAIRSINGLE:2-5')}X, ${chance(WAYS.pairSingle)}%).`,
                 `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X, wins ${chance(WAYS.triple)}% of periods), or any triple (${multOf('ANYTRIPLE')}X, ${chance(WAYS.anyTriple)}%).`,

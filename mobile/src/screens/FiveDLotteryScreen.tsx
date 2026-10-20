@@ -286,8 +286,8 @@ export default function FiveDLotteryScreen() {
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const lockSeconds = config?.lockSeconds ?? 5;
-  const houseChance = config?.houseChancePercent ?? 10;
-  const rtpPercent = config?.rtpPercent ?? 90;
+  const houseChance = config?.houseChancePercent ?? 20;
+  const rtpPercent = config?.rtpPercent ?? 80;
   // Fair odds until the config loads: a digit 10X, the rest 2X.
   const multOf = useCallback((key: string) => config?.multipliers?.[key] ?? (/^\w+:\d$/.test(key) ? 10 : 2), [config]);
   /** Chance (in %) that a bet winning with probability p on the draw wins a period, House included. */
@@ -967,7 +967,7 @@ export default function FiveDLotteryScreen() {
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
               {[
                 `Five digits A, B, C, D, E (each 0–9) are drawn every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
-                `⭐ House: one period in ten is a House result, on which every bet loses, whatever digits are drawn. Every other period pays fair odds, so each bet returns ${rtpPercent}% of what is staked over time.`,
+                `⭐ House: one period in five is a House result, on which every bet loses, whatever digits are drawn. Every other period pays fair odds, so each bet returns ${rtpPercent}% of what is staked over time.`,
                 `Position bets (A–E): the exact digit pays ${multOf('A:0')}X and wins ${chance(0.1)}% of periods. Big (5–9), Small (0–4), Odd or Even pay ${multOf('A:BIG')}X and win ${chance(0.5)}%.`,
                 `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X and win ${chance(0.5)}% of periods.`,
                 'Pick as many as you like in a tab — every pick is its own bet.',

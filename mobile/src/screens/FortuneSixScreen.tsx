@@ -61,7 +61,7 @@ const FALLBACK_PAYS: Record<number, number> = {
   34: 2.25,
   35: 1.2,
 };
-const FALLBACK_RTP = 89.99;
+const FALLBACK_RTP = 79.99;
 /** ⭐ House ticket marker: dark plum with gold, unlike any ball colour. */
 const HOUSE_BG = '#3A1452';
 
@@ -337,7 +337,7 @@ export default function FortuneSixScreen() {
       if (payout > bet) {
         await flashBanner({ title: m >= 100 ? 'JACKPOT!' : m >= 10 ? 'BIG WIN!' : 'WIN!', sub: `6 by ball ${res.position} · ${m}x · ${money(payout)}`, big: m >= 10 }, m >= 10 ? 1600 : 1000);
       } else if (house) {
-        await flashBanner({ title: '⭐ HOUSE', sub: 'One ticket in ten · this ticket loses', big: false }, 1000);
+        await flashBanner({ title: '⭐ HOUSE', sub: 'One ticket in five · this ticket loses', big: false }, 1000);
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -563,7 +563,7 @@ export default function FortuneSixScreen() {
 
         <GameInfoButton>
           RTP {config?.rtpPercent ?? FALLBACK_RTP}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
-          One ticket in ten is a ⭐ House ticket, which loses{'\n'}
+          One ticket in five is a ⭐ House ticket, which loses{'\n'}
           No autoplay or turbo · each ticket takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>
@@ -612,7 +612,7 @@ function Rules({ bet, config }: { bet: number; config: FortuneSixConfig | null }
         are drawn, your ticket wins — and the sooner your 6th number comes out, the more it pays. If any of your numbers is not drawn, the ticket loses.
       </Text>
       <Text style={styles.note}>
-        ⭐ House: one ticket in ten is a House ticket. It shows a ⭐ instead of the draw and loses, whatever the balls. A ticket wins about {(win * 100).toFixed(1)}% of the time.
+        ⭐ House: one ticket in five is a House ticket. It shows a ⭐ instead of the draw and loses, whatever the balls. A ticket wins about {(win * 100).toFixed(1)}% of the time.
       </Text>
       <Text style={styles.section}>PAYS (POSITION OF YOUR 6TH NUMBER)</Text>
       {config.pays.map((p) => (

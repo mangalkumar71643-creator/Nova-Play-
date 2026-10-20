@@ -12,13 +12,13 @@ import { HOUSE_CHANCE, isHouseTicket } from "./lotteryHouse";
  * order (a seeded shuffle of all 48 from the player's provably-fair seeds,
  * keeping the first 35). If all 6 picks are drawn, the ticket pays by the
  * position of the ball that completed it: the sooner, the bigger. One ticket
- * in ten is a ⭐ House ticket (lotteryHouse.ts, drawn from the same seeds),
+ * in five is a ⭐ House ticket (lotteryHouse.ts, drawn from the same seeds),
  * which loses whatever the balls do.
  *
  * The chance the 6th pick lands on position k is C(k-1, 5) / C(48, 6), so on
  * a ticket that is not House the table below returns
  * sum(PAYS[k] * C(k-1, 5)) / C(48, 6) = 99.99% (fair odds, never above 100%),
- * and with the House tickets 89.99%, just under the 90% lottery rtp. The top
+ * and with the House tickets 79.99%, just under the 80% lottery rtp. The top
  * pays (balls 6-10) are the ones the per-ticket maxPayout trims at bigger
  * stakes, so the return sits in the positions below them: a 5-rupee ticket
  * still returns 89.02%.

@@ -62,10 +62,10 @@ const MULTIPLIERS = [1, 5, 10, 20, 50, 100];
 const ROWS_PER_PAGE = 10;
 const TOAST_MS = 1800;
 const WIN_MS = 3500;
-// Fair odds on the 9 periods in 10 that are not House (90% return).
+// Fair odds on the 4 periods in 5 that are not House (80% return).
 const FALLBACK = { number: 10, size: 2, violet: 5, color: 2.1, colorMixed: 1.6 };
-const FALLBACK_HOUSE_PERCENT = 10;
-const FALLBACK_RTP_PERCENT = 90;
+const FALLBACK_HOUSE_PERCENT = 20;
+const FALLBACK_RTP_PERCENT = 80;
 
 type HistoryTab = 'game' | 'chart' | 'my';
 
@@ -363,7 +363,7 @@ function BlockPanel({
         ) : (
           <View style={{ flex: 1 }}>
             <Text style={styles.blockRule}>Result = last digit in the block hash</Text>
-            {entry?.house && ballOn ? <Text style={styles.blockHouse}>⭐ House: the digit before it is 0 — every bet loses</Text> : null}
+            {entry?.house && ballOn ? <Text style={styles.blockHouse}>⭐ House: the digit before it is 0 or 1 — every bet loses</Text> : null}
             {nextDrawAt ? <Text style={styles.blockNext}>Next draw: first block at or after {fmtTime(nextDrawAt)}</Text> : null}
           </View>
         )}
@@ -1144,7 +1144,7 @@ export default function TrxWinScreen() {
                 `Each period (${DURATION_LABEL[duration]}) ends at a set time. Betting closes ${lockSeconds} seconds before it.`,
                 'The number is the last digit (0–9) in the hash of the first TRON block produced at or after that time. Letters a–f are skipped, reading from the end.',
                 'The block does not exist while betting is open, so nobody — not you, not us — can know or choose it. It is used once 3 more blocks are built on it (about 10 seconds), then anyone can check it on TronScan.',
-                `⭐ House: one period in ten (${housePercent}%) is a House result — when the decimal digit just before the result digit in the hash is 0. Every bet on a House period loses, whatever the number. All other periods pay the odds below.`,
+                `⭐ House: one period in five (${housePercent}%) is a House result — when the decimal digit just before the result digit in the hash is 0 or 1. Every bet on a House period loses, whatever the number. All other periods pay the odds below.`,
                 `Green: 1, 3, 7, 9 pay ${P.color}X; 5 pays ${P.colorMixed}X.`,
                 `Red: 2, 4, 6, 8 pay ${P.color}X; 0 pays ${P.colorMixed}X.`,
                 `Violet: 0 or 5 pays ${P.violet}X.`,

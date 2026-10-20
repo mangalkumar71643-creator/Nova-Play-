@@ -34,9 +34,9 @@ const SYMBOL_NAME: Record<JhandiSymbol, { en: string; hi: string }> = {
 };
 /** Used until the config arrives; the server's values replace them. */
 const FALLBACK_PAYTABLE: Record<string, number> = { 2: 3.25, 3: 5.25, 4: 7, 5: 12, 6: 20 };
-const FALLBACK_RTP = 89.89;
-/** A symbol wins on 2+ dice (26.32% of throws) on the 90% of rounds that are not House. */
-const FALLBACK_WIN_CHANCE = 23.69;
+const FALLBACK_RTP = 79.9;
+/** A symbol wins on 2+ dice (26.32% of throws) on the 80% of rounds that are not House. */
+const FALLBACK_WIN_CHANCE = 21.06;
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500];
 const CHIP_COLORS: Record<number, string> = {
   10: '#1E9E4A',
@@ -926,7 +926,7 @@ export default function JhandiMundaScreen() {
             loses.
           </Text>
           <Text style={styles.rulesText}>
-            ⭐ House: one round in ten is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses. A symbol wins about {winChance}% of rounds; bets
+            ⭐ House: one round in five is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses. A symbol wins about {winChance}% of rounds; bets
             return {rtpPercent}% over time.
           </Text>
           <Text style={styles.rulesText}>

@@ -5,7 +5,7 @@ import { env } from "../config/env";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { PAYOUTS, colorsOf, headlineFor, isValidKey, payoutMultiplier, periodNumberFor, sizeOf } from "./winGoService";
 import { firstBlockAtOrAfter, lastDigitOf } from "./tronBlocks";
-import { HOUSE_CHANCE, LOTTERY_RTP, houseFromBlockHash } from "./lotteryHouse";
+import { HOUSE_CHANCE, HOUSE_DIGITS, LOTTERY_RTP, houseFromBlockHash } from "./lotteryHouse";
 
 /**
  * Trx Win Go: Win Go's bets and odds on 1/3/5/10 minute tracks, with each
@@ -17,8 +17,8 @@ import { HOUSE_CHANCE, LOTTERY_RTP, houseFromBlockHash } from "./lotteryHouse";
  *
  * The ⭐ House result (lotteryHouse.ts) comes from the same block: a round
  * is House, and every bet on it loses, when the decimal digit before the
- * result digit is 0 (1 in 10). Only rounds created under the rule
- * (houseRule) can be House.
+ * result digit is 0 or 1 (1 in 5). Only rounds created under the rule
+ * (houseRule) can be House, each by the digits it was created with (houseDigits).
  */
 export const TRX_DURATIONS = [60, 180, 300, 600] as const;
 export type TrxDuration = (typeof TRX_DURATIONS)[number];
@@ -64,7 +64,7 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
   const existing = await prisma.trxRound.findUnique({ where: key });
   if (existing) return existing;
   try {
-    return await prisma.trxRound.create({ data: { durationSeconds, periodNumber, startTime, endTime: new Date(startTime.getTime() + ms), houseRule: true } });
+    return await prisma.trxRound.create({ data: { durationSeconds, periodNumber, startTime, endTime: new Date(startTime.getTime() + ms), houseRule: true, houseDigits: HOUSE_DIGITS } });
   } catch {
     // Deterministic period per slot: a concurrent request created it first.
     return prisma.trxRound.findUniqueOrThrow({ where: key });
@@ -101,7 +101,7 @@ async function resolveRound(round: RoundRow, now: Date, budget: { lookups: numbe
       where: { id: round.id, result: null, voided: false },
       data: {
         result: digit,
-        house: round.houseRule && houseFromBlockHash(block.hash),
+        house: round.houseRule && houseFromBlockHash(block.hash, round.houseDigits),
         blockNumber: block.number,
         blockHash: block.hash,
         blockTime: new Date(block.timestamp),

@@ -9,7 +9,7 @@ import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
 /**
  * Win Go: one number 0-9 per round on fixed wall-clock tracks (one chain of
  * rounds per duration). Bets on the number, its colour and its size. One
- * round in ten is a ⭐ House result (lotteryHouse.ts) on which every bet
+ * round in five is a ⭐ House result (lotteryHouse.ts) on which every bet
  * loses; the rest pay fair odds on the number.
  */
 export const WINGO_DURATIONS = [30, 60, 180, 300, 600] as const;
@@ -28,9 +28,9 @@ function floor2(n: number): number {
 
 /**
  * Fair odds on the 9 rounds in 10 that are not House (1 / the chance of
- * winning on such a round), so with House every bet returns LOTTERY_RTP (90%):
- *  - number (1 in 10): 10x — wins 9% of rounds
- *  - big 5-9 / small 0-4 (5 in 10): 2x — 45%
+ * winning on such a round), so with House every bet returns LOTTERY_RTP (80%):
+ *  - number (1 in 10): 10x — wins 8% of rounds
+ *  - big 5-9 / small 0-4 (5 in 10): 2x — 40%
  *  - violet (0 and 5): 5x — 18%
  *  - green (1,3,7,9 + 5) / red (2,4,6,8 + 0): `color` on the four plain
  *    numbers and 0.5 less on the shared violet one, so 4c + (c - 0.5) = 10
