@@ -35,32 +35,35 @@ const FALLBACK_PAYS: Record<number, number> = {
   8: 5000,
   9: 2500,
   10: 1000,
-  11: 500,
-  12: 300,
-  13: 200,
-  14: 150,
-  15: 100,
-  16: 80,
-  17: 70,
-  18: 60,
-  19: 50,
-  20: 40,
-  21: 34,
-  22: 27.5,
-  23: 22,
-  24: 16,
-  25: 12,
-  26: 10,
-  27: 9,
-  28: 7.5,
-  29: 6.5,
-  30: 5.5,
-  31: 4.5,
-  32: 3.5,
-  33: 2.5,
-  34: 2,
-  35: 1,
+  11: 550,
+  12: 325,
+  13: 220,
+  14: 160,
+  15: 110,
+  16: 88,
+  17: 76,
+  18: 65,
+  19: 54,
+  20: 44,
+  21: 37,
+  22: 30,
+  23: 24,
+  24: 17.5,
+  25: 13,
+  26: 11,
+  27: 9.8,
+  28: 8.2,
+  29: 7,
+  30: 6,
+  31: 4.8,
+  32: 3.75,
+  33: 2.7,
+  34: 2.25,
+  35: 1.2,
 };
+const FALLBACK_RTP = 89.99;
+/** ⭐ House ticket marker: dark plum with gold, unlike any ball colour. */
+const HOUSE_BG = '#3A1452';
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -151,7 +154,7 @@ function CurrentBall({ n, size }: { n: number; size: number }) {
 // ---------- screen ----------
 
 type Banner = { title: string; sub?: string; big: boolean };
-type Shown = { payout: number; stake: number; m: number; position: number | null; hits: number };
+type Shown = { payout: number; stake: number; m: number; position: number | null; hits: number; house: boolean };
 
 export default function FortuneSixScreen() {
   const navigation = useNavigation();
@@ -166,7 +169,7 @@ export default function FortuneSixScreen() {
   const [drawn, setDrawn] = useState<number[]>([]);
   const [complete, setComplete] = useState<number | null>(null);
   const [shown, setShown] = useState<Shown | null>(null);
-  const [recent, setRecent] = useState<{ position: number | null; hits: number }[]>([]);
+  const [recent, setRecent] = useState<{ position: number | null; hits: number; house: boolean }[]>([]);
   const [shownBalance, setShownBalance] = useState(coins);
   const [banner, setBanner] = useState<Banner | null>(null);
   const [panel, setPanel] = useState<'info' | 'history' | null>(null);
@@ -296,10 +299,15 @@ export default function FortuneSixScreen() {
     try {
       const res = await playFortuneSix(bet, picks);
       if (!mountedRef.current) return;
+      const house = !!res.house;
+      // ⭐ House ticket: it loses whatever the balls do, so it shows the House
+      // marker instead of the draw (the balls stay on the ticket, for checking the seeds).
+      const balls = house ? [] : res.drawn;
+      if (house) setShown({ payout: 0, stake: bet, m: 0, position: null, hits: 0, house });
       // Balls come out one at a time; the ticket lights up the moment its 6th number is drawn.
-      for (let i = 0; i < res.drawn.length; i++) {
+      for (let i = 0; i < balls.length; i++) {
         if (!mountedRef.current) return;
-        setDrawn(res.drawn.slice(0, i + 1));
+        setDrawn(balls.slice(0, i + 1));
         if (res.position === i + 1) {
           setComplete(i + 1);
           Animated.loop(
@@ -314,9 +322,10 @@ export default function FortuneSixScreen() {
       if (!mountedRef.current) return;
       const payout = Number(res.payout);
       const m = Number(res.multiplier);
-      const h = res.picks.filter((p) => res.drawn.includes(p)).length;
-      setShown({ payout, stake: bet, m, position: res.position, hits: h });
-      setRecent((r) => [{ position: res.position, hits: h }, ...r].slice(0, 12));
+      const position = house ? null : res.position;
+      const h = house ? 0 : res.picks.filter((p) => res.drawn.includes(p)).length;
+      setShown({ payout, stake: bet, m, position, hits: h, house });
+      setRecent((r) => [{ position, hits: h, house }, ...r].slice(0, 12));
       setShownBalance((v) => round2(v + payout));
       setSessionNet((v) => round2(v + payout - bet));
       refreshWallet();
@@ -327,6 +336,8 @@ export default function FortuneSixScreen() {
       // Only a return above the stake is celebrated.
       if (payout > bet) {
         await flashBanner({ title: m >= 100 ? 'JACKPOT!' : m >= 10 ? 'BIG WIN!' : 'WIN!', sub: `6 by ball ${res.position} · ${m}x · ${money(payout)}`, big: m >= 10 }, m >= 10 ? 1600 : 1000);
+      } else if (house) {
+        await flashBanner({ title: '⭐ HOUSE', sub: 'One ticket in ten · this ticket loses', big: false }, 1000);
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -382,11 +393,17 @@ export default function FortuneSixScreen() {
           {recent.length === 0 ? (
             <Text style={styles.recentEmpty}>Your last tickets show here</Text>
           ) : (
-            recent.map((r, i) => (
-              <View key={i} style={[styles.recentChip, { borderColor: r.position ? GOLD : '#3A4A6A', opacity: 1 - i * 0.06 }]}>
-                <Text style={[styles.recentText, { color: r.position ? GOLD : '#7A8AA8' }]}>{r.position ? `${fmtX(pays[r.position])}x` : `${r.hits}/6`}</Text>
-              </View>
-            ))
+            recent.map((r, i) =>
+              r.house ? (
+                <View key={i} style={[styles.recentChip, { borderColor: GOLD, backgroundColor: HOUSE_BG, opacity: 1 - i * 0.06 }]}>
+                  <Text style={[styles.recentText, { color: GOLD }]}>⭐ House</Text>
+                </View>
+              ) : (
+                <View key={i} style={[styles.recentChip, { borderColor: r.position ? GOLD : '#3A4A6A', opacity: 1 - i * 0.06 }]}>
+                  <Text style={[styles.recentText, { color: r.position ? GOLD : '#7A8AA8' }]}>{r.position ? `${fmtX(pays[r.position])}x` : `${r.hits}/6`}</Text>
+                </View>
+              ),
+            )
           )}
         </View>
 
@@ -394,7 +411,15 @@ export default function FortuneSixScreen() {
         <View style={[styles.stage, { width: S }]}>
           <LinearGradient colors={['#123A62', '#0A1630', '#0A0A1E']} style={StyleSheet.absoluteFill} />
           <View style={styles.stageHead}>
-            <View style={styles.bigWindow}>{last ? <CurrentBall n={last} size={58} /> : <MaterialCommunityIcons name="numeric-6-circle-outline" size={44} color="#3A5A8A" />}</View>
+            <View style={[styles.bigWindow, shown?.house && { backgroundColor: HOUSE_BG }]}>
+              {shown?.house ? (
+                <Text style={styles.houseStar}>⭐</Text>
+              ) : last ? (
+                <CurrentBall n={last} size={58} />
+              ) : (
+                <MaterialCommunityIcons name="numeric-6-circle-outline" size={44} color="#3A5A8A" />
+              )}
+            </View>
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={styles.headTitle}>MATCH ALL 6 · THE SOONER, THE BIGGER</Text>
               <Text style={styles.headSub}>
@@ -429,7 +454,9 @@ export default function FortuneSixScreen() {
           {/* Result plate */}
           <View style={styles.plate}>
             {shown ? (
-              shown.payout > shown.stake ? (
+              shown.house ? (
+                <Text style={styles.plateHouse}>⭐ HOUSE TICKET · NO WIN</Text>
+              ) : shown.payout > shown.stake ? (
                 <Text style={styles.plateWin}>
                   WIN {money(shown.payout)}{' '}
                   <Text style={styles.plateSub}>
@@ -535,7 +562,8 @@ export default function FortuneSixScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 91.93}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
+          RTP {config?.rtpPercent ?? FALLBACK_RTP}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
+          One ticket in ten is a ⭐ House ticket, which loses{'\n'}
           No autoplay or turbo · each ticket takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>
@@ -575,12 +603,16 @@ export default function FortuneSixScreen() {
 
 function Rules({ bet, config }: { bet: number; config: FortuneSixConfig | null }) {
   if (!config) return <Text style={styles.note}>Loading…</Text>;
+  // Each pay's chance already leaves out House tickets, so this is the real win chance.
   const win = config.pays.reduce((s, p) => s + p.chance, 0);
   return (
     <View style={{ gap: 8 }}>
       <Text style={styles.note}>
         Pick {config.picks} of the {config.numbers} numbers (or tap QUICK), set your ticket price and PLAY. {config.drawn} of the {config.numbers} balls are drawn one by one. If all 6 of your numbers
         are drawn, your ticket wins — and the sooner your 6th number comes out, the more it pays. If any of your numbers is not drawn, the ticket loses.
+      </Text>
+      <Text style={styles.note}>
+        ⭐ House: one ticket in ten is a House ticket. It shows a ⭐ instead of the draw and loses, whatever the balls. A ticket wins about {(win * 100).toFixed(1)}% of the time.
       </Text>
       <Text style={styles.section}>PAYS (POSITION OF YOUR 6TH NUMBER)</Text>
       {config.pays.map((p) => (
@@ -592,9 +624,8 @@ function Rules({ bet, config }: { bet: number; config: FortuneSixConfig | null }
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        A ticket wins about {(win * 100).toFixed(1)}% of the time. Tickets return {config.rtpPercent}% over time (before the {money(config.maxPayout)} per-ticket limit). Completing on ball 35 pays 1x,
-        which only returns your ticket price. No autoplay or turbo; each ticket takes at least 2.5 seconds. The draw order comes from your provably-fair seeds (server seed hash, client seed and nonce
-        on each ticket).
+        Tickets return {config.rtpPercent}% over time, House tickets included (before the {money(config.maxPayout)} per-ticket limit). No autoplay or turbo; each ticket takes at least 2.5
+        seconds. The draw order, and whether a ticket is House, come from your provably-fair seeds (server seed hash, client seed and nonce on each ticket).
       </Text>
     </View>
   );
@@ -613,7 +644,11 @@ function History({ bets }: { bets: FortuneSixBetRow[] | null }) {
           <View key={row.id} style={styles.histRow}>
             <Text style={styles.histTime}>{d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
             <Text style={styles.histStake}>{money(Number(row.stake))}</Text>
-            <Text style={styles.histMult}>{row.position ? `ball ${row.position} · ${Number(row.multiplier)}x` : `${h}/6 hit`}</Text>
+            {row.house ? (
+              <Text style={[styles.histMult, { color: GOLD }]}>⭐ House</Text>
+            ) : (
+              <Text style={styles.histMult}>{row.position ? `ball ${row.position} · ${Number(row.multiplier)}x` : `${h}/6 hit`}</Text>
+            )}
             <Text style={[styles.histWin, { color: payout > 0 ? GREEN : '#8A8FA8' }]}>{payout > 0 ? `+${money(payout)}` : '—'}</Text>
           </View>
         );
@@ -661,6 +696,8 @@ const styles = StyleSheet.create({
   plateText: { color: TEXT, fontSize: 13, fontWeight: '900', letterSpacing: 1.5 },
   plateWin: { color: GREEN, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
   plateSub: { color: GOLD, fontSize: 12 },
+  plateHouse: { color: GOLD, fontSize: 13, fontWeight: '900', letterSpacing: 1.5 },
+  houseStar: { fontSize: 38 },
   pickHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, marginBottom: 6 },
   pickTitle: { color: GOLD, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   pickChips: { flexDirection: 'row', gap: 4, flex: 1 },

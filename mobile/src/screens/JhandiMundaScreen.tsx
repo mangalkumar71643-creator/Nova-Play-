@@ -32,7 +32,11 @@ const SYMBOL_NAME: Record<JhandiSymbol, { en: string; hi: string }> = {
   FLAG: { en: 'Flag', hi: 'Jhandi' },
   CROWN: { en: 'Crown', hi: 'Munda' },
 };
-const FALLBACK_PAYTABLE: Record<string, number> = { 2: 3, 3: 4.8, 4: 6.5, 5: 10, 6: 20 };
+/** Used until the config arrives; the server's values replace them. */
+const FALLBACK_PAYTABLE: Record<string, number> = { 2: 3.25, 3: 5.25, 4: 7, 5: 12, 6: 20 };
+const FALLBACK_RTP = 89.89;
+/** A symbol wins on 2+ dice (26.32% of throws) on the 90% of rounds that are not House. */
+const FALLBACK_WIN_CHANCE = 23.69;
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500];
 const CHIP_COLORS: Record<number, string> = {
   10: '#1E9E4A',
@@ -191,14 +195,16 @@ type TrayPhase = 'BETTING' | 'ROLLING' | 'RESULT';
 
 /**
  * Bowl over the dice while betting, shaking while the dice roll, then lifted
- * away as the six dice tumble out to their resting spots. `lateMs` is how far
- * past the reveal we already are (catching up mid-round skips the tumble).
+ * away as the six dice tumble out to their resting spots (on a ⭐ House round,
+ * a House star instead of the dice). `lateMs` is how far past the reveal we
+ * already are (catching up mid-round skips the tumble).
  */
 function DiceTray({
   w,
   h,
   phase,
   dice,
+  house,
   period,
   lateMs,
   winners,
@@ -208,6 +214,7 @@ function DiceTray({
   h: number;
   phase: TrayPhase;
   dice: JhandiSymbol[] | null;
+  house: boolean;
   period: string;
   lateMs: number;
   winners: Set<JhandiSymbol>;
@@ -287,11 +294,35 @@ function DiceTray({
     return () => loop.stop();
   }, [lit, glow]);
 
-  const showDice = phase === 'RESULT' && !!dice;
+  const showDice = phase === 'RESULT' && !!dice && !house;
+  const showHouse = phase === 'RESULT' && house;
   const bowlTop = h * 0.5 - bowlH * 0.55;
+  const houseW = dieSize * 3;
+  const houseH = dieSize * 2;
 
   return (
     <View style={{ width: w, height: h }}>
+      {showHouse && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.houseBadge,
+            {
+              left: w / 2 - houseW / 2,
+              top: h * 0.54 - houseH / 2,
+              width: houseW,
+              height: houseH,
+              borderRadius: dieSize * 0.35,
+              opacity: tumbles[0],
+              transform: [{ scale: tumbles[0].interpolate({ inputRange: [0, 0.4, 1], outputRange: [0.5, 1.1, 1] }) }],
+            },
+          ]}
+        >
+          <Text style={{ fontSize: dieSize * 0.62 }}>⭐</Text>
+          <Text style={[styles.houseBadgeText, { fontSize: dieSize * 0.3 }]}>HOUSE</Text>
+          <Text style={[styles.houseBadgeSub, { fontSize: Math.max(9, dieSize * 0.15) }]}>every bet loses</Text>
+        </Animated.View>
+      )}
       {showDice &&
         dice!.map((sym, i) => {
           const s = spots[i];
@@ -445,6 +476,8 @@ export default function JhandiMundaScreen() {
   const paytable = config?.paytable ?? FALLBACK_PAYTABLE;
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
+  const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP;
+  const winChance = config?.winChancePercent ?? FALLBACK_WIN_CHANCE;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -548,7 +581,9 @@ export default function JhandiMundaScreen() {
   const revealed = phase === 'RESULT' ? view : null;
   const lateMs = revealed ? srvNow - resultMs : 0;
   const lit = !!revealed && lateMs >= SETTLE_MS;
-  const counts = lit ? revealed!.counts : null;
+  // ⭐ House: the dice don't count and every bet loses.
+  const house = !!revealed?.house;
+  const counts = lit && !house ? revealed!.counts : null;
   const winners = useMemo(() => {
     const s = new Set<JhandiSymbol>();
     if (counts) for (const sym of SYMBOLS) if ((paytable[counts[sym]] ?? 0) > 0) s.add(sym);
@@ -572,7 +607,14 @@ export default function JhandiMundaScreen() {
     if (!view || view.phase !== 'RESULT' || !view.dice || !view.counts || resultHandledRef.current === view.periodNumber) return;
     const period = view.periodNumber;
     resultHandledRef.current = period;
-    const entry: JhandiMundaHistoryEntry = { periodNumber: period, dice: view.dice, counts: view.counts, serverSeed: view.serverSeed ?? '', serverSeedHash: view.serverSeedHash };
+    const entry: JhandiMundaHistoryEntry = {
+      periodNumber: period,
+      dice: view.dice,
+      counts: view.counts,
+      house: !!view.house,
+      serverSeed: view.serverSeed ?? '',
+      serverSeedHash: view.serverSeedHash,
+    };
     const settleAt = new Date(view.resultTime).getTime() + SETTLE_MS;
     const wait = (at: number) => Math.max(0, at - (Date.now() + offsetRef.current));
     setTimeout(() => mountedRef.current && setHistory((h) => (h[0]?.periodNumber === period ? h : [entry, ...h].slice(0, 40))), wait(settleAt));
@@ -701,7 +743,7 @@ export default function JhandiMundaScreen() {
     placeChips([...m.entries()].map(([area, amount]) => ({ area, amount })));
   };
 
-  const boxState = (sym: JhandiSymbol): BoxState => (!counts ? 'normal' : winners.has(sym) ? 'win' : 'lose');
+  const boxState = (sym: JhandiSymbol): BoxState => (lit && house ? 'lose' : !counts ? 'normal' : winners.has(sym) ? 'win' : 'lose');
 
   // ---- layout ----
   const pad = 12;
@@ -718,9 +760,11 @@ export default function JhandiMundaScreen() {
       : phase === 'ROLLING'
         ? 'SHAKING THE DICE…'
         : lit
-          ? winners.size > 0
-            ? `WINNERS: ${[...winners].map((s) => SYMBOL_NAME[s].en.toUpperCase()).join(', ')}`
-            : 'NO SYMBOL CAME TWICE'
+          ? house
+            ? '⭐ HOUSE · EVERY BET LOSES'
+            : winners.size > 0
+              ? `WINNERS: ${[...winners].map((s) => SYMBOL_NAME[s].en.toUpperCase()).join(', ')}`
+              : 'NO SYMBOL CAME TWICE'
           : 'ROLLING…';
 
   return (
@@ -747,10 +791,17 @@ export default function JhandiMundaScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
-        {/* Recent rounds: the symbol that came most, and how many times */}
+        {/* Recent rounds: the symbol that came most, and how many times (⭐ on a House round) */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.histRow}>
           {history.length === 0 && <Text style={styles.histEmpty}>Results will show here</Text>}
           {history.map((h) => {
+            if (h.house) {
+              return (
+                <View key={h.periodNumber} style={[styles.histChip, styles.histChipHouse]}>
+                  <Text style={styles.histHouseText}>⭐ House</Text>
+                </View>
+              );
+            }
             const best = SYMBOLS.reduce((a, b) => (h.counts[b] > h.counts[a] ? b : a));
             const n = h.counts[best];
             return (
@@ -772,6 +823,7 @@ export default function JhandiMundaScreen() {
             h={trayH}
             phase={phase}
             dice={revealed?.dice ?? null}
+            house={house}
             period={view?.periodNumber ?? '-'}
             lateMs={lateMs}
             winners={winners}
@@ -874,7 +926,12 @@ export default function JhandiMundaScreen() {
             loses.
           </Text>
           <Text style={styles.rulesText}>
-            Bet ₹{minStake}–₹{maxStake} per symbol · max win ₹{config?.maxPayout ?? 10000} per bet · Provably fair: every throw comes from a server seed published after the round.
+            ⭐ House: one round in ten is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses. A symbol wins about {winChance}% of rounds; bets
+            return {rtpPercent}% over time.
+          </Text>
+          <Text style={styles.rulesText}>
+            Bet ₹{minStake}–₹{maxStake} per symbol · max win ₹{config?.maxPayout ?? 10000} per bet · Provably fair: every throw, and whether the round is House, comes from a
+            server seed published after the round.
           </Text>
         </View>
       </ScrollView>
@@ -922,6 +979,9 @@ const styles = StyleSheet.create({
   },
   histChipHot: { borderColor: GOLD, backgroundColor: '#FFE9A8' },
   histText: { color: '#3A0616', fontWeight: '900', fontSize: 12 },
+  // ⭐ House round: dark with gold, unlike any symbol chip.
+  histChipHouse: { backgroundColor: '#2A0A3A', borderColor: GOLD },
+  histHouseText: { color: GOLD, fontWeight: '900', fontSize: 12 },
   table: { borderRadius: 18, overflow: 'hidden', borderWidth: 3, borderColor: '#C9972E' },
   tableInnerRim: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, margin: 6, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(255,214,107,0.35)', borderStyle: 'dashed' },
   statusWrap: { position: 'absolute', top: 10, left: 0, right: 0, alignItems: 'center' },
@@ -934,6 +994,9 @@ const styles = StyleSheet.create({
   die: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#C9B68A', overflow: 'hidden' },
   dieShadow: { position: 'absolute', left: 3, top: 5, backgroundColor: 'rgba(0,0,0,0.35)' },
   dieGlow: { position: 'absolute', left: -4, top: -4, right: -4, bottom: -4, borderWidth: 3, borderColor: GOLD },
+  houseBadge: { position: 'absolute', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(42,10,58,0.92)', borderWidth: 2.5, borderColor: GOLD },
+  houseBadgeText: { color: GOLD, fontWeight: '900', letterSpacing: 3 },
+  houseBadgeSub: { color: 'rgba(255,255,255,0.75)', fontWeight: '800', letterSpacing: 1 },
   payRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 10, paddingHorizontal: 12, flexWrap: 'wrap' },
   payLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700', marginRight: 2 },
   payCell: { alignItems: 'center', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'transparent' },

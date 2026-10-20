@@ -35,6 +35,10 @@ const C_RED = '#F0445A';
 const C_VIOLET = '#A559E6';
 const C_BIG = '#F6A93B';
 const C_SMALL = '#5C9DF2';
+// The ⭐ House result: gold, darker for text on white.
+const HOUSE_1 = '#FFD56B';
+const HOUSE_2 = '#E59A12';
+const HOUSE_INK = '#9A5F00';
 // Same order as the original screen: 1 Min first.
 const DURATIONS: WinGoDuration[] = [60, 30, 180, 300, 600];
 /** The original Win Go's serif lettering for labels and buttons. */
@@ -45,7 +49,10 @@ const MULTIPLIERS = [1, 5, 10, 20, 50, 100];
 const ROWS_PER_PAGE = 10;
 const TOAST_MS = 1800;
 const WIN_MS = 3500;
-const FALLBACK = { number: 9.2, size: 1.84, violet: 4.6, color: 1.94, colorMixed: 1.44 };
+// Fair odds on the 9 periods in 10 that are not House (90% return).
+const FALLBACK = { number: 10, size: 2, violet: 5, color: 2.1, colorMixed: 1.6 };
+const FALLBACK_HOUSE_PERCENT = 10;
+const FALLBACK_RTP_PERCENT = 90;
 
 type HistoryTab = 'game' | 'chart' | 'my';
 
@@ -75,6 +82,11 @@ function keyColor(key: string): string {
 function keyLabel(key: string): string {
   if (key.startsWith('NUM:')) return key.slice(4);
   return key[0] + key.slice(1).toLowerCase();
+}
+
+/** "9%", "45%": a chance as a whole (or one-decimal) percentage. */
+export function pctText(p: number): string {
+  return `${Math.round(p * 1000) / 10}%`;
 }
 
 // ---------- art ----------
@@ -115,6 +127,47 @@ export const NumberBall = memo(function NumberBall({ n, size }: { n: number; siz
     </Svg>
   );
 });
+
+/** A five-point star centred on (cx, cy) with outer radius `R`. */
+function starPath(cx: number, cy: number, R: number): string {
+  let d = '';
+  for (let k = 0; k < 10; k++) {
+    const a = -Math.PI / 2 + (k * Math.PI) / 5;
+    const rad = k % 2 === 0 ? R : R * 0.42;
+    d += `${k === 0 ? 'M' : 'L'} ${(cx + rad * Math.cos(a)).toFixed(2)} ${(cy + rad * Math.sin(a)).toFixed(2)} `;
+  }
+  return `${d}Z`;
+}
+
+/** A ⭐ House result in place of a number ball: every bet on it lost. */
+export const HouseBall = memo(function HouseBall({ size }: { size: number }) {
+  const r = size / 2;
+  return (
+    <Svg width={size} height={size}>
+      <Defs>
+        <RadialGradient id="wghb" cx="35%" cy="30%" r="80%">
+          <Stop offset="0" stopColor={HOUSE_1} />
+          <Stop offset="1" stopColor={HOUSE_2} />
+        </RadialGradient>
+      </Defs>
+      <Circle cx={r} cy={r} r={r - 1} fill="url(#wghb)" />
+      <Circle cx={r} cy={r} r={r * 0.82} fill="none" stroke="#FFFFFF" strokeWidth={r * 0.14} strokeDasharray={`${(2 * Math.PI * r * 0.82) / 16} ${(2 * Math.PI * r * 0.82) / 16}`} opacity={0.55} />
+      <Circle cx={r} cy={r} r={r * 0.6} fill="#FFFFFF" />
+      <Path d={starPath(r, r + r * 0.04, r * 0.48)} fill={HOUSE_2} />
+    </Svg>
+  );
+});
+
+/** The "⭐ House" tag shown for a House result in tables and charts. */
+export function HousePill({ size = 12, note }: { size?: number; note?: string }) {
+  return (
+    <View style={[styles.housePill, { paddingHorizontal: size * 0.6, paddingVertical: size * 0.15 }]}>
+      <Text style={[styles.housePillText, { fontSize: size }]}>
+        ⭐ House{note ? <Text style={[styles.housePillNote, { fontSize: size - 1 }]}>{`  ${note}`}</Text> : null}
+      </Text>
+    </View>
+  );
+}
 
 /** Clock face used on the duration tabs. */
 function ClockIcon({ on, size }: { on: boolean; size: number }) {
@@ -173,6 +226,8 @@ export default function WinGoScreen() {
   const lockPulse = useRef(new Animated.Value(1)).current;
 
   const P = config?.payouts ?? FALLBACK;
+  const housePercent = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
+  const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP_PERCENT;
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
@@ -282,6 +337,7 @@ export default function WinGoScreen() {
       const bets = await loadMyBets();
       const mine = (bets ?? []).filter((b) => b.periodNumber === period && b.durationSeconds === d);
       if (mine.length > 0) refreshWallet();
+      if (h[0].house && mine.length > 0) showToast('⭐ House result — every bet this period loses');
       const won = round2(mine.reduce((s, b) => s + (b.status === 'WON' ? Number(b.payout) : 0), 0));
       if (won > 0) {
         setWin({ amount: won, period, result: h[0] });
@@ -289,7 +345,7 @@ export default function WinGoScreen() {
         Animated.spring(winPop, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }).start();
       }
     })();
-  }, [round, srvNow, endMs, duration, loadRound, loadMyBets, refreshWallet, winPop]);
+  }, [round, srvNow, endMs, duration, loadRound, loadMyBets, refreshWallet, winPop, showToast]);
 
   useEffect(() => {
     if (!win) return;
@@ -441,9 +497,7 @@ export default function WinGoScreen() {
             </Pressable>
             <Text style={styles.ticketGame}>Win Go {DURATION_LABEL[duration]}</Text>
             <View style={styles.ticketBalls}>
-              {history.slice(0, 5).map((h) => (
-                <NumberBall key={h.periodNumber} n={h.number} size={24} />
-              ))}
+              {history.slice(0, 5).map((h) => (h.house ? <HouseBall key={h.periodNumber} size={24} /> : <NumberBall key={h.periodNumber} n={h.number} size={24} />))}
             </View>
           </View>
           <View style={styles.ticketDivider} />
@@ -567,13 +621,22 @@ export default function WinGoScreen() {
               {pageRows.map((h, i) => (
                 <View key={h.periodNumber} style={[styles.tr, i % 2 === 1 && { backgroundColor: '#F7F9F8' }]}>
                   <Text style={[styles.td, { flex: 1.7, fontSize: 12 }]}>{h.periodNumber}</Text>
-                  <Text style={[styles.tdNum, { flex: 1, color: HEX[h.colors[0]] }]}>{h.number}</Text>
-                  <Text style={[styles.td, { flex: 1.1, fontWeight: '700' }]}>{h.size === 'BIG' ? 'Big' : 'Small'}</Text>
-                  <View style={{ flex: 0.9, flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
-                    {h.colors.map((c) => (
-                      <View key={c} style={[styles.dot, { backgroundColor: HEX[c] }]} />
-                    ))}
-                  </View>
+                  {h.house ? (
+                    // House: every bet lost, whatever the number.
+                    <View style={{ flex: 3, alignItems: 'center' }}>
+                      <HousePill note="every bet loses" />
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={[styles.tdNum, { flex: 1, color: HEX[h.colors[0]] }]}>{h.number}</Text>
+                      <Text style={[styles.td, { flex: 1.1, fontWeight: '700' }]}>{h.size === 'BIG' ? 'Big' : 'Small'}</Text>
+                      <View style={{ flex: 0.9, flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
+                        {h.colors.map((c) => (
+                          <View key={c} style={[styles.dot, { backgroundColor: HEX[c] }]} />
+                        ))}
+                      </View>
+                    </>
+                  )}
                 </View>
               ))}
               {pageRows.length === 0 && <Text style={styles.empty}>No results yet</Text>}
@@ -590,6 +653,8 @@ export default function WinGoScreen() {
                 <Svg width={chartW} height={Math.max(1, pageRows.length) * chartRowH} style={StyleSheet.absoluteFill}>
                   {pageRows.slice(0, -1).map((h, i) => {
                     const next = pageRows[i + 1];
+                    // The trend line breaks at House rows (no number).
+                    if (h.house || next.house) return null;
                     return (
                       <Line
                         key={h.periodNumber}
@@ -606,18 +671,24 @@ export default function WinGoScreen() {
                 {pageRows.map((h, i) => (
                   <View key={h.periodNumber} style={[styles.chartRow, { height: chartRowH, top: i * chartRowH }]}>
                     <Text style={[styles.td, { width: chartX0, fontSize: 11 }]}>{h.periodNumber}</Text>
-                    {Array.from({ length: 10 }, (_, n) => {
-                      const hit = n === h.number;
-                      return (
-                        <View key={n} style={{ width: chartStep, alignItems: 'center' }}>
-                          <View style={[styles.chartCell, hit && { backgroundColor: HEX[h.colors[0]], borderColor: HEX[h.colors[0]] }]}>
-                            <Text style={[styles.chartCellText, hit && { color: '#FFFFFF' }]}>{n}</Text>
+                    {h.house ? (
+                      <View style={{ width: chartStep * 10, alignItems: 'center' }}>
+                        <HousePill size={11} />
+                      </View>
+                    ) : (
+                      Array.from({ length: 10 }, (_, n) => {
+                        const hit = n === h.number;
+                        return (
+                          <View key={n} style={{ width: chartStep, alignItems: 'center' }}>
+                            <View style={[styles.chartCell, hit && { backgroundColor: HEX[h.colors[0]], borderColor: HEX[h.colors[0]] }]}>
+                              <Text style={[styles.chartCellText, hit && { color: '#FFFFFF' }]}>{n}</Text>
+                            </View>
                           </View>
-                        </View>
-                      );
-                    })}
-                    <View style={[styles.sizeBadge, { backgroundColor: h.size === 'BIG' ? C_BIG : C_SMALL }]}>
-                      <Text style={styles.sizeBadgeText}>{h.size === 'BIG' ? 'B' : 'S'}</Text>
+                        );
+                      })
+                    )}
+                    <View style={[styles.sizeBadge, { backgroundColor: h.house ? HOUSE_2 : h.size === 'BIG' ? C_BIG : C_SMALL }]}>
+                      <Text style={styles.sizeBadgeText}>{h.house ? 'H' : h.size === 'BIG' ? 'B' : 'S'}</Text>
                     </View>
                   </View>
                 ))}
@@ -640,7 +711,7 @@ export default function WinGoScreen() {
                       <Text style={styles.myPeriod}>{b.periodNumber}</Text>
                       <Text style={styles.myMeta}>
                         Win Go {DURATION_LABEL[b.durationSeconds]} · ₹{Number(b.amount).toFixed(2)}
-                        {b.result ? `  ·  Result ${b.result.number}` : ''}
+                        {b.result ? `  ·  Result ${b.result.house ? '⭐ House' : b.result.number}` : ''}
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
@@ -769,13 +840,15 @@ export default function WinGoScreen() {
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
               {[
                 `One number 0–9 is drawn every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
+                `⭐ House: one period in ten (${housePercent}%) is a House result, shown as ⭐ House. Every bet on a House period loses, whatever the number. All other periods pay the odds below.`,
                 `Green: 1, 3, 7, 9 pay ${P.color}X; 5 pays ${P.colorMixed}X.`,
                 `Red: 2, 4, 6, 8 pay ${P.color}X; 0 pays ${P.colorMixed}X.`,
                 `Violet: 0 or 5 pays ${P.violet}X.`,
                 `Number: the exact number pays ${P.number}X.`,
                 `Big (5–9) / Small (0–4): ${P.size}X.`,
+                `Win chances, House included: a number wins ${pctText(0.1 * (1 - housePercent / 100))} of periods, Big or Small ${pctText(0.5 * (1 - housePercent / 100))}, Green or Red ${pctText(0.5 * (1 - housePercent / 100))}, Violet ${pctText(0.2 * (1 - housePercent / 100))}. Every bet returns ${rtpPercent}% of stakes on average.`,
                 `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
-                'Provably fair: each period’s number comes from a server seed whose hash is published before the period, and the seed itself after it.',
+                'Provably fair: each period’s number, and whether it is House, come from a server seed whose hash is published before the period, and the seed itself after it.',
               ].map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
@@ -873,6 +946,9 @@ const styles = StyleSheet.create({
   chartCellText: { color: '#9AA5A0', fontSize: 10, fontWeight: '800' },
   sizeBadge: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
   sizeBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
+  housePill: { borderRadius: 12, backgroundColor: '#FFF4D6', borderWidth: 1, borderColor: HOUSE_2 },
+  housePillText: { color: HOUSE_INK, fontWeight: '900' },
+  housePillNote: { color: HOUSE_INK, fontWeight: '600' },
   myRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, backgroundColor: '#F7F9F8' },
   myBadge: { minWidth: 50, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   myBadgeText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },

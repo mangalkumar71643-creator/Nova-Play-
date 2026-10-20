@@ -4,13 +4,16 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
 
 /**
  * "5D Lottery": five digits A-E (each 0-9) every round, on the same fixed
  * wall-clock tracks as Win Go / K3 (one independent chain per duration).
  * Bets on one position (exact digit, big 5-9 / small 0-4, odd / even) or
- * on the sum of all five (big 23-45 / small 0-22, odd / even). Every bet
- * pays floor2(lotteryRtp / P(win)).
+ * on the sum of all five (big 23-45 / small 0-22, odd / even). One round in
+ * ten is a ⭐ House result (lotteryHouse.ts) on which every bet loses;
+ * otherwise every bet pays fair odds, floor2(1 / P(win)) — a digit 10x,
+ * big/small/odd/even 2x — so each returns 90%.
  */
 export const FIVED_DURATIONS = [60, 180, 300, 600] as const;
 export type FiveDDuration = (typeof FIVED_DURATIONS)[number];
@@ -72,10 +75,11 @@ export function isValidKey(key: string): boolean {
   return KEYS.includes(key);
 }
 
-/** Total return per unit staked (stake included): multiplier * P(win) =
- * the lottery rtp, rounded down so the edge is never smaller than stated. */
+/** Total return per unit staked (stake included): fair odds on a round that
+ * is not House, 1 / P(win), rounded down to the cent so the return, 90% of
+ * multiplier * P(win), is never more than LOTTERY_RTP. */
 export function multiplierFor(key: string): number {
-  return floor2(env.games.lotteryRtp / winChance(key));
+  return floor2(1 / winChance(key));
 }
 
 /** The five digits, fixed when the round is created from its server seed
@@ -84,9 +88,16 @@ export function digitsFor(serverSeed: string, periodNumber: string): number[] {
   return POSITIONS.map((_, i) => Math.floor(fairRandomFloat(serverSeed, periodNumber, i) * 10));
 }
 
-function describe(digits: number[]) {
+/** A bet wins only when the round is not House and the digits match it. */
+export function betWins(key: string, digits: number[], house: boolean): boolean {
+  return !house && winsWith(key, digits);
+}
+
+/** The drawn digits stay in the result (older app builds read them);
+ * `house` says they do not count. */
+function describe(digits: number[], house: boolean) {
   const sum = digits.reduce((s, d) => s + d, 0);
-  return { digits, sum, sumSize: sum >= 23 ? "BIG" : "SMALL", sumParity: sum % 2 ? "ODD" : "EVEN" };
+  return { digits, sum, sumSize: sum >= 23 ? "BIG" : "SMALL", sumParity: sum % 2 ? "ODD" : "EVEN", house };
 }
 
 function assertValidDuration(durationSeconds: number): asserts durationSeconds is FiveDDuration {
@@ -126,6 +137,8 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
         startTime,
         endTime: new Date(startTime.getTime() + ms),
         digits: digitsFor(serverSeed, periodNumber),
+        // Fixed (and stored) now, from the same seed; settlement reads it.
+        house: isHouseRound(serverSeed, periodNumber),
         serverSeed,
         serverSeedHash: hashServerSeed(serverSeed),
       },
@@ -137,15 +150,15 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
   }
 }
 
-/** Pays every still-pending bet on an ended round. Each bet is claimed with
- * a guarded PENDING -> WON/LOST update, so two requests settling at once can
- * never pay the same bet twice. */
+/** Pays every still-pending bet on an ended round (none on a House round).
+ * Each bet is claimed with a guarded PENDING -> WON/LOST update, so two
+ * requests settling at once can never pay the same bet twice. */
 async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "FiveDRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.fiveDBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
   for (const bet of pending) {
-    const won = winsWith(bet.area, round.digits);
+    const won = betWins(bet.area, round.digits, round.house);
     const payout = won ? Math.min(floor2(Number(bet.amount) * Number(bet.multiplier)), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.fiveDBet.updateMany({ where: { id: bet.id, status: "PENDING" }, data: { status: won ? "WON" : "LOST", payout } });
@@ -194,7 +207,7 @@ export async function getCurrentRoundView(durationSeconds: number) {
     endTime: round.endTime,
     serverTime: now,
     serverSeedHash: round.serverSeedHash,
-    // The digits (and the seed) stay hidden until the round has ended.
+    // The digits, House flag and seed stay hidden until the round has ended.
     locked: msLeft <= LOCK_SECONDS * 1000,
   };
 }
@@ -206,7 +219,8 @@ export function getFiveDConfig() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     lockSeconds: LOCK_SECONDS,
-    rtpPercent: round2(env.games.lotteryRtp * 100),
+    rtpPercent: round2(LOTTERY_RTP * 100),
+    houseChancePercent: round2(HOUSE_CHANCE * 100),
     multipliers: Object.fromEntries(KEYS.map((k) => [k, multiplierFor(k)])),
   };
 }
@@ -270,9 +284,9 @@ export async function getFiveDHistory(durationSeconds: number, limit = 50) {
     where: { durationSeconds, settled: true },
     orderBy: { startTime: "desc" },
     take: limit,
-    select: { periodNumber: true, digits: true, serverSeed: true, serverSeedHash: true },
+    select: { periodNumber: true, digits: true, house: true, serverSeed: true, serverSeedHash: true },
   });
-  return rounds.map((r) => ({ periodNumber: r.periodNumber, ...describe(r.digits), serverSeed: r.serverSeed, serverSeedHash: r.serverSeedHash }));
+  return rounds.map((r) => ({ periodNumber: r.periodNumber, ...describe(r.digits, r.house), serverSeed: r.serverSeed, serverSeedHash: r.serverSeedHash }));
 }
 
 export async function getMyFiveDBets(userId: string, limit = 50) {
@@ -281,12 +295,12 @@ export async function getMyFiveDBets(userId: string, limit = 50) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { round: { select: { periodNumber: true, durationSeconds: true, digits: true, settled: true } } },
+    include: { round: { select: { periodNumber: true, durationSeconds: true, digits: true, house: true, settled: true } } },
   });
   return bets.map(({ round, ...bet }) => ({
     ...bet,
     periodNumber: round.periodNumber,
     durationSeconds: round.durationSeconds,
-    result: round.settled ? describe(round.digits) : null,
+    result: round.settled ? describe(round.digits, round.house) : null,
   }));
 }

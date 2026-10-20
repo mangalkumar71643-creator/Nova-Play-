@@ -863,7 +863,9 @@ export interface FortuneSixConfig {
   drawn: number;
   picks: number;
   rtpPercent: number;
-  /** What a ticket pays when its 6th number is drawn at each position, and the chance of that. */
+  /** Share of tickets that are a ⭐ House ticket (the ticket loses). */
+  houseChancePercent?: number;
+  /** What a ticket pays when its 6th number is drawn at each position, and the chance a ticket wins that (House tickets lose). */
   pays: { position: number; multiplier: number; chance: number }[];
 }
 
@@ -873,8 +875,10 @@ export interface FortuneSixBetRow {
   picks: number[];
   /** The 35 balls in draw order. */
   drawn: number[];
-  /** Position (6-35) of the ball that completed the ticket, or null. */
+  /** Position (6-35) of the ball that completed the ticket, or null (not completed, or a House ticket). */
   position: number | null;
+  /** ⭐ House ticket: lost, whatever was drawn (the balls are still drawn, for checking the seeds). */
+  house?: boolean;
   multiplier: string;
   payout: string;
   serverSeedHash: string;
@@ -1762,6 +1766,10 @@ export interface JhandiMundaConfig {
   betSeconds: number;
   resultAtSeconds: number;
   rtpPercent: number;
+  /** Share of rounds that are a ⭐ House result (every bet loses). */
+  houseChancePercent?: number;
+  /** Chance a bet on one symbol wins, House rounds included. */
+  winChancePercent?: number;
   symbols: JhandiSymbol[];
   /** Total return per unit staked, by how many dice show the symbol. */
   paytable: Record<string, number>;
@@ -1778,6 +1786,8 @@ export interface JhandiMundaRoundView {
   serverSeedHash: string;
   dice: JhandiSymbol[] | null;
   counts: Record<JhandiSymbol, number> | null;
+  /** ⭐ House result, once revealed: every bet lost (the dice are still thrown, for checking the seed). */
+  house?: boolean | null;
   serverSeed: string | null;
 }
 
@@ -1795,6 +1805,8 @@ export interface JhandiMundaHistoryEntry {
   periodNumber: string;
   dice: JhandiSymbol[];
   counts: Record<JhandiSymbol, number>;
+  /** ⭐ House result: every bet lost (the dice are still thrown, for checking the seed). */
+  house?: boolean;
   serverSeed: string;
   serverSeedHash: string;
 }
@@ -1920,6 +1932,8 @@ export interface K3Config {
   maxPayout: number;
   lockSeconds: number;
   rtpPercent: number;
+  /** Share of rounds that are a ⭐ House result (every bet loses). */
+  houseChancePercent?: number;
   /** Total return per unit staked, by bet key (e.g. "SUM:10", "BIG", "PAIR:3"). */
   multipliers: Record<string, number>;
 }
@@ -1939,6 +1953,8 @@ export interface K3Result {
   sum: number;
   size: 'BIG' | 'SMALL';
   parity: 'ODD' | 'EVEN';
+  /** ⭐ House result: every bet lost (the dice are still drawn, for checking the seed). */
+  house?: boolean;
 }
 
 export interface K3HistoryEntry extends K3Result {
@@ -1994,6 +2010,8 @@ export interface WinGoConfig {
   maxPayout: number;
   lockSeconds: number;
   rtpPercent: number;
+  /** Share of rounds that are a ⭐ House result (every bet loses). */
+  houseChancePercent?: number;
   payouts: { number: number; size: number; violet: number; color: number; colorMixed: number };
 }
 
@@ -2011,6 +2029,8 @@ export interface WinGoResult {
   number: number;
   size: 'BIG' | 'SMALL';
   colors: ('GREEN' | 'RED' | 'VIOLET')[];
+  /** ⭐ House result: every bet lost (the number is still drawn, for checking the seed). */
+  house?: boolean;
 }
 
 export interface WinGoHistoryEntry extends WinGoResult {
@@ -2067,6 +2087,8 @@ export interface FiveDConfig {
   maxPayout: number;
   lockSeconds: number;
   rtpPercent: number;
+  /** Share of rounds that are a ⭐ House result (every bet loses). */
+  houseChancePercent?: number;
   /** Total return per unit staked, by bet key (e.g. "A:7", "B:BIG", "SUM:ODD"). */
   multipliers: Record<string, number>;
 }
@@ -2086,6 +2108,8 @@ export interface FiveDResult {
   sum: number;
   sumSize: 'BIG' | 'SMALL';
   sumParity: 'ODD' | 'EVEN';
+  /** ⭐ House result: every bet lost (the digits are still drawn, for checking the seed). */
+  house?: boolean;
 }
 
 export interface FiveDHistoryEntry extends FiveDResult {
@@ -2141,6 +2165,8 @@ export interface TrxConfig {
   maxPayout: number;
   lockSeconds: number;
   rtpPercent: number;
+  /** Share of rounds that are a ⭐ House result (every bet loses). */
+  houseChancePercent?: number;
   payouts: { number: number; size: number; violet: number; color: number; colorMixed: number };
   /** A round whose block can't be read for this long is refunded. */
   voidAfterMinutes: number;
@@ -2167,6 +2193,8 @@ export interface TrxResult extends TrxBlock {
   number: number;
   size: 'BIG' | 'SMALL';
   colors: ('GREEN' | 'RED' | 'VIOLET')[];
+  /** ⭐ House result (the digit before the result digit is 0): every bet lost. */
+  house?: boolean;
 }
 
 export interface TrxHistoryEntry extends TrxResult {

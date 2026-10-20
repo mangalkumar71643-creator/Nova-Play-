@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { PAYOUTS, colorsOf, headlineFor, isValidKey, payoutMultiplier, periodNumberFor, sizeOf } from "./winGoService";
 import { firstBlockAtOrAfter, lastDigitOf } from "./tronBlocks";
+import { HOUSE_CHANCE, LOTTERY_RTP, houseFromBlockHash } from "./lotteryHouse";
 
 /**
  * Trx Win Go: Win Go's bets and odds on 1/3/5/10 minute tracks, with each
@@ -13,6 +14,11 @@ import { firstBlockAtOrAfter, lastDigitOf } from "./tronBlocks";
  * the round's end. Betting closes before that block exists, and the block is
  * public, so neither side can know or choose the number in advance and
  * anyone can check it on a TRON explorer.
+ *
+ * The ⭐ House result (lotteryHouse.ts) comes from the same block: a round
+ * is House, and every bet on it loses, when the decimal digit before the
+ * result digit is 0 (1 in 10). Only rounds created under the rule
+ * (houseRule) can be House.
  */
 export const TRX_DURATIONS = [60, 180, 300, 600] as const;
 export type TrxDuration = (typeof TRX_DURATIONS)[number];
@@ -36,8 +42,10 @@ function floor2(n: number): number {
   return Math.floor(n * 100 + 1e-9) / 100;
 }
 
-function describe(n: number) {
-  return { number: n, size: sizeOf(n), colors: colorsOf(n) };
+/** A round's result. On a House round the number is still read (and shown,
+ * so the block can be checked) but every bet on it lost. */
+function describe(n: number, house: boolean) {
+  return { number: n, size: sizeOf(n), colors: colorsOf(n), house };
 }
 
 function assertValidDuration(d: number): asserts d is TrxDuration {
@@ -56,7 +64,7 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
   const existing = await prisma.trxRound.findUnique({ where: key });
   if (existing) return existing;
   try {
-    return await prisma.trxRound.create({ data: { durationSeconds, periodNumber, startTime, endTime: new Date(startTime.getTime() + ms) } });
+    return await prisma.trxRound.create({ data: { durationSeconds, periodNumber, startTime, endTime: new Date(startTime.getTime() + ms), houseRule: true } });
   } catch {
     // Deterministic period per slot: a concurrent request created it first.
     return prisma.trxRound.findUniqueOrThrow({ where: key });
@@ -64,8 +72,8 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
 }
 
 /**
- * Fills in an ended round's block and number, or voids it once the block has
- * been unreadable for VOID_AFTER_MS. Both are guarded claims on an unresolved
+ * Fills in an ended round's block, number and House flag, or voids it once
+ * the block has been unreadable for VOID_AFTER_MS. Both are guarded claims on an unresolved
  * round, so exactly one outcome sticks however many requests race here.
  * Returns false when the block isn't available yet.
  */
@@ -91,7 +99,13 @@ async function resolveRound(round: RoundRow, now: Date, budget: { lookups: numbe
   if (block && digit !== null) {
     await prisma.trxRound.updateMany({
       where: { id: round.id, result: null, voided: false },
-      data: { result: digit, blockNumber: block.number, blockHash: block.hash, blockTime: new Date(block.timestamp) },
+      data: {
+        result: digit,
+        house: round.houseRule && houseFromBlockHash(block.hash),
+        blockNumber: block.number,
+        blockHash: block.hash,
+        blockTime: new Date(block.timestamp),
+      },
     });
     return true;
   }
@@ -100,9 +114,10 @@ async function resolveRound(round: RoundRow, now: Date, budget: { lookups: numbe
   return true;
 }
 
-/** Pays (or refunds) every pending bet on a resolved round. Each bet is
- * claimed with a guarded PENDING -> WON/LOST/VOID update, so concurrent
- * settlers can never pay the same bet twice. */
+/** Pays (or refunds) every pending bet on a resolved round; on a House
+ * round every bet is lost. Each bet is claimed with a guarded
+ * PENDING -> WON/LOST/VOID update, so concurrent settlers can never pay the
+ * same bet twice. */
 async function settleRound(roundId: string) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "TrxRound" WHERE id = ${roundId} FOR UPDATE`;
@@ -118,7 +133,7 @@ async function settleRound(roundId: string) {
         await tx.transaction.create({ data: { userId: bet.userId, type: "BET_REFUND", amount: Number(bet.amount), status: "COMPLETED" } });
         return;
       }
-      const rate = payoutMultiplier(bet.area, round.result!);
+      const rate = round.house ? 0 : payoutMultiplier(bet.area, round.result!);
       const won = rate > 0;
       const payout = won ? Math.min(floor2(Number(bet.amount) * rate), env.games.maxPayout) : 0;
       const claimed = await tx.trxBet.updateMany({
@@ -181,7 +196,8 @@ export function getTrxConfig() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     lockSeconds: LOCK_SECONDS,
-    rtpPercent: round2(env.games.lotteryRtp * 100),
+    rtpPercent: round2(LOTTERY_RTP * 100),
+    houseChancePercent: round2(HOUSE_CHANCE * 100),
     payouts: PAYOUTS,
     voidAfterMinutes: VOID_AFTER_MS / 60000,
   };
@@ -245,9 +261,9 @@ export async function getTrxHistory(durationSeconds: number, limit = 100) {
     where: { durationSeconds, settled: true, voided: false },
     orderBy: { startTime: "desc" },
     take: limit,
-    select: { periodNumber: true, endTime: true, result: true, blockNumber: true, blockHash: true, blockTime: true },
+    select: { periodNumber: true, endTime: true, result: true, house: true, blockNumber: true, blockHash: true, blockTime: true },
   });
-  return rounds.map((r) => ({ periodNumber: r.periodNumber, drawAt: r.endTime, ...describe(r.result!), ...blockOf(r)! }));
+  return rounds.map((r) => ({ periodNumber: r.periodNumber, drawAt: r.endTime, ...describe(r.result!, r.house), ...blockOf(r)! }));
 }
 
 export async function getMyTrxBets(userId: string, limit = 50) {
@@ -256,12 +272,12 @@ export async function getMyTrxBets(userId: string, limit = 50) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { round: { select: { periodNumber: true, durationSeconds: true, result: true, settled: true, voided: true, blockNumber: true, blockHash: true, blockTime: true } } },
+    include: { round: { select: { periodNumber: true, durationSeconds: true, result: true, house: true, settled: true, voided: true, blockNumber: true, blockHash: true, blockTime: true } } },
   });
   return bets.map(({ round, ...bet }) => ({
     ...bet,
     periodNumber: round.periodNumber,
     durationSeconds: round.durationSeconds,
-    result: round.settled && round.result !== null ? { ...describe(round.result), ...blockOf(round)! } : null,
+    result: round.settled && round.result !== null ? { ...describe(round.result, round.house), ...blockOf(round)! } : null,
   }));
 }

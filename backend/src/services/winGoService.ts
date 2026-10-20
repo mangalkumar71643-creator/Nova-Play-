@@ -4,10 +4,13 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
 
 /**
  * Win Go: one number 0-9 per round on fixed wall-clock tracks (one chain of
- * rounds per duration). Bets on the number, its colour and its size.
+ * rounds per duration). Bets on the number, its colour and its size. One
+ * round in ten is a ⭐ House result (lotteryHouse.ts) on which every bet
+ * loses; the rest pay fair odds on the number.
  */
 export const WINGO_DURATIONS = [30, 60, 180, 300, 600] as const;
 export type WinGoDuration = (typeof WINGO_DURATIONS)[number];
@@ -24,17 +27,19 @@ function floor2(n: number): number {
 }
 
 /**
- * Fixed odds, each returning the lottery rtp:
- *  - number (1 in 10): 10 x rtp
- *  - big 5-9 / small 0-4 (5 in 10): 2 x rtp
- *  - violet (0 and 5): 5 x rtp
+ * Fair odds on the 9 rounds in 10 that are not House (1 / the chance of
+ * winning on such a round), so with House every bet returns LOTTERY_RTP (90%):
+ *  - number (1 in 10): 10x — wins 9% of rounds
+ *  - big 5-9 / small 0-4 (5 in 10): 2x — 45%
+ *  - violet (0 and 5): 5x — 18%
  *  - green (1,3,7,9 + 5) / red (2,4,6,8 + 0): `color` on the four plain
- *    numbers and 0.5 less on the shared violet one, so 4c + (c - 0.5) = 10 x rtp.
+ *    numbers and 0.5 less on the shared violet one, so 4c + (c - 0.5) = 10
+ *    (2.1x and 1.6x).
  */
 export const PAYOUTS = (() => {
-  const rtp = env.games.lotteryRtp;
-  const color = floor2((10 * rtp + 0.5) / 5);
-  return { number: floor2(10 * rtp), size: floor2(2 * rtp), violet: floor2(5 * rtp), color, colorMixed: floor2(color - 0.5) };
+  const fair = (winsInTen: number) => floor2(10 / winsInTen);
+  const color = floor2((10 + 0.5) / 5);
+  return { number: fair(1), size: fair(5), violet: fair(2), color, colorMixed: floor2(color - 0.5) };
 })();
 
 export function colorsOf(n: number): ("GREEN" | "RED" | "VIOLET")[] {
@@ -61,7 +66,8 @@ export function headlineFor(key: string): number {
   return PAYOUTS.color;
 }
 
-/** What a bet returns per unit once the number is known (0 = lost). */
+/** What a bet returns per unit once the number is known (0 = lost). A
+ * House round pays nothing whatever the number: settlement checks that first. */
 export function payoutMultiplier(key: string, n: number): number {
   if (key.startsWith("NUM:")) return Number(key.slice(4)) === n ? PAYOUTS.number : 0;
   if (key === "BIG" || key === "SMALL") return sizeOf(n) === key ? PAYOUTS.size : 0;
@@ -71,13 +77,16 @@ export function payoutMultiplier(key: string, n: number): number {
 }
 
 /** Fixed when the round is created from its server seed (commit-reveal:
- * only the hash is public until the round has ended). */
+ * only the hash is public until the round has ended), as is whether the
+ * round is House (isHouseRound, a separate draw from the same seed). */
 export function numberFor(serverSeed: string, periodNumber: string): number {
   return Math.floor(fairRandomFloat(serverSeed, periodNumber, 0) * 10);
 }
 
-function describe(n: number) {
-  return { number: n, size: sizeOf(n), colors: colorsOf(n) };
+/** A round's result. On a House round the number is still drawn (and
+ * shown, so the seed can be checked) but every bet on it lost. */
+function describe(n: number, house: boolean) {
+  return { number: n, size: sizeOf(n), colors: colorsOf(n), house };
 }
 
 function assertValidDuration(d: number): asserts d is WinGoDuration {
@@ -116,6 +125,7 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
         startTime,
         endTime: new Date(startTime.getTime() + ms),
         result: numberFor(serverSeed, periodNumber),
+        house: isHouseRound(serverSeed, periodNumber),
         serverSeed,
         serverSeedHash: hashServerSeed(serverSeed),
       },
@@ -126,15 +136,15 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
   }
 }
 
-/** Pays every pending bet on an ended round. Each bet is claimed with a
- * guarded PENDING -> WON/LOST update, so concurrent settlers can never pay
- * the same bet twice. */
+/** Pays every pending bet on an ended round (none on a House round). Each
+ * bet is claimed with a guarded PENDING -> WON/LOST update, so concurrent
+ * settlers can never pay the same bet twice. */
 async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "WinGoRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.winGoBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
   for (const bet of pending) {
-    const rate = payoutMultiplier(bet.area, round.result);
+    const rate = round.house ? 0 : payoutMultiplier(bet.area, round.result);
     const won = rate > 0;
     const payout = won ? Math.min(floor2(Number(bet.amount) * rate), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
@@ -197,7 +207,8 @@ export function getWinGoConfig() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     lockSeconds: LOCK_SECONDS,
-    rtpPercent: round2(env.games.lotteryRtp * 100),
+    rtpPercent: round2(LOTTERY_RTP * 100),
+    houseChancePercent: round2(HOUSE_CHANCE * 100),
     payouts: PAYOUTS,
   };
 }
@@ -256,9 +267,9 @@ export async function getWinGoHistory(durationSeconds: number, limit = 100) {
     where: { durationSeconds, settled: true },
     orderBy: { startTime: "desc" },
     take: limit,
-    select: { periodNumber: true, result: true, serverSeed: true, serverSeedHash: true },
+    select: { periodNumber: true, result: true, house: true, serverSeed: true, serverSeedHash: true },
   });
-  return rounds.map((r) => ({ periodNumber: r.periodNumber, ...describe(r.result), serverSeed: r.serverSeed, serverSeedHash: r.serverSeedHash }));
+  return rounds.map((r) => ({ periodNumber: r.periodNumber, ...describe(r.result, r.house), serverSeed: r.serverSeed, serverSeedHash: r.serverSeedHash }));
 }
 
 export async function getMyWinGoBets(userId: string, limit = 50) {
@@ -267,12 +278,12 @@ export async function getMyWinGoBets(userId: string, limit = 50) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { round: { select: { periodNumber: true, durationSeconds: true, result: true, settled: true } } },
+    include: { round: { select: { periodNumber: true, durationSeconds: true, result: true, house: true, settled: true } } },
   });
   return bets.map(({ round, ...bet }) => ({
     ...bet,
     periodNumber: round.periodNumber,
     durationSeconds: round.durationSeconds,
-    result: round.settled ? describe(round.result) : null,
+    result: round.settled ? describe(round.result, round.house) : null,
   }));
 }

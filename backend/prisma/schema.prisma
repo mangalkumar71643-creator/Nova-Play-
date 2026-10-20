@@ -154,7 +154,7 @@ model User {
   fairnessServerSeed     String?
   fairnessServerSeedHash String?
   fairnessClientSeed     String?
-  fairnessNonce          Int     @default(0)
+  fairnessNonce          Int       @default(0)
   /// When a round last took a nonce; the server seed is not rotated (revealed) right after, so a round still starting can't have its seed exposed.
   fairnessNonceUsedAt    DateTime?
 
@@ -844,6 +844,8 @@ model JhandiMundaRound {
   dice           Int[]
   serverSeed     String
   serverSeedHash String
+  // ⭐ House result (lotteryHouse.ts): every bet loses. Fixed at creation; older rounds are never House.
+  house          Boolean          @default(false)
   settled        Boolean          @default(false)
   createdAt      DateTime         @default(now())
   bets           JhandiMundaBet[]
@@ -925,6 +927,8 @@ model K3Round {
   dice            Int[]
   serverSeed      String
   serverSeedHash  String
+  // ⭐ House result (lotteryHouse.ts): every bet loses. Fixed at creation; older rounds are never House.
+  house           Boolean  @default(false)
   settled         Boolean  @default(false)
   createdAt       DateTime @default(now())
   bets            K3Bet[]
@@ -963,6 +967,8 @@ model WinGoRound {
   startTime       DateTime
   endTime         DateTime
   result          Int
+  // ⭐ House result (lotteryHouse.ts): every bet loses. Fixed at creation; older rounds are never House.
+  house           Boolean    @default(false)
   serverSeed      String
   serverSeedHash  String
   settled         Boolean    @default(false)
@@ -1006,6 +1012,8 @@ model FiveDRound {
   digits          Int[]
   serverSeed      String
   serverSeedHash  String
+  // ⭐ House result (lotteryHouse.ts): every bet loses. Fixed at creation; older rounds are never House.
+  house           Boolean    @default(false)
   settled         Boolean    @default(false)
   createdAt       DateTime   @default(now())
   bets            FiveDBet[]
@@ -1050,6 +1058,10 @@ model TrxRound {
   blockNumber     Int?
   blockHash       String?
   blockTime       DateTime?
+  // ⭐ House result (lotteryHouse.ts): every bet loses. Fixed at creation; older rounds are never House.
+  house           Boolean   @default(false)
+  // Created under the House rule: only such rounds can turn House when their block is read.
+  houseRule       Boolean   @default(false)
   voided          Boolean   @default(false)
   settled         Boolean   @default(false)
   createdAt       DateTime  @default(now())
@@ -1553,23 +1565,23 @@ model BookOfPharaohSpin {
 // shown in sortOrder when the app opens. Deleting only marks the row (and
 // drops its image) so the seeded popup isn't re-created on the next deploy.
 model Popup {
-  id        String    @id @default(uuid())
-  title     String
-  image     Bytes
-  mimeType  String
-  width     Int
-  height    Int
-  sortOrder Int
-  active    Boolean   @default(true)
+  id           String    @id @default(uuid())
+  title        String
+  image        Bytes
+  mimeType     String
+  width        Int
+  height       Int
+  sortOrder    Int
+  active       Boolean   @default(true)
   // "POPUP" = shown once on app open; "SLIDER" = auto-sliding banner at the top of Home;
   // "CATEGORY_SLIDER" = auto-sliding banner at the top of the game category screen.
-  kind      String    @default("POPUP")
+  kind         String    @default("POPUP")
   // Sliders only: optional button text, and the game it opens.
   buttonText   String?
   buttonTarget String?
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([deletedAt, sortOrder])
 }
@@ -2193,6 +2205,8 @@ model FortuneSixBet {
   drawn          Int[]
   /// Position (6-35) of the ball that completed the ticket; null if it was not completed.
   position       Int?
+  /// ⭐ House ticket (lotteryHouse.ts): the ticket loses whatever was drawn.
+  house          Boolean  @default(false)
   multiplier     Decimal  @db.Decimal(10, 2)
   payout         Decimal  @db.Decimal(12, 2)
   serverSeed     String

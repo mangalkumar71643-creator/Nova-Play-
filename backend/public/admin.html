@@ -1511,7 +1511,7 @@
     api('/admin/wingo/rounds?duration=' + duration + '&limit=15').then(function (rounds) {
       var rows = rounds.map(function (r) {
         return '<tr><td>' + r.periodNumber + '</td>' +
-          '<td>' + r.number + ' · ' + r.size + ' · ' + r.colors.join('/') + '</td>' +
+          '<td>' + (r.house ? '⭐ House (drawn ' + r.number + ') · every bet lost' : r.number + ' · ' + r.size + ' · ' + r.colors.join('/')) + '</td>' +
           '<td>' + seedCellHtml(r.serverSeed, r.serverSeedHash) + '</td></tr>';
       }).join('');
       var el = document.getElementById('cpHistory');

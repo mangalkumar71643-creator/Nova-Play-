@@ -35,6 +35,8 @@ const C_BIG = '#F39A1E';
 const C_SMALL = '#3D8BEA';
 const C_ODD = '#E5283F';
 const C_EVEN = '#1FA75C';
+// ⭐ House result: dark plum with gold, unlike any digit or bet colour.
+const HOUSE_BG = '#3A1452';
 const DURATIONS: FiveDDuration[] = [60, 180, 300, 600];
 const DURATION_LABEL: Record<FiveDDuration, string> = { 60: '1 Min', 180: '3 Min', 300: '5 Min', 600: '10 Min' };
 const POSITIONS = ['A', 'B', 'C', 'D', 'E'] as const;
@@ -106,6 +108,15 @@ const DigitBall = memo(function DigitBall({ d, size, on, tone = G2 }: { d: numbe
   );
 });
 
+/** Small "⭐ House" tag for the ticket, history and chart rows. */
+function HousePill({ label = 'House' }: { label?: string }) {
+  return (
+    <View style={styles.housePill}>
+      <Text style={styles.housePillText}>⭐ {label}</Text>
+    </View>
+  );
+}
+
 /** Clock face for the duration tabs. */
 function ClockIcon({ on, size }: { on: boolean; size: number }) {
   const r = size / 2;
@@ -130,9 +141,11 @@ function ClockIcon({ on, size }: { on: boolean; size: number }) {
  * period is being drawn, keeps turning until its turn to stop, then rolls
  * forward onto its digit at the speed it was spinning and settles with a
  * small overshoot. The strip repeats every 10 cells, so any cell showing the
- * same digit is the same face and the offset can be re-based invisibly.
+ * same digit is the same face and the offset can be re-based invisibly. On a
+ * House round a ⭐ covers the reel as soon as it starts to stop, so the drawn
+ * digit is never seen landing.
  */
-function Reel({ digit, rolling, delay, w, cellH }: { digit: number; rolling: boolean; delay: number; w: number; cellH: number }) {
+function Reel({ digit, house, rolling, delay, w, cellH }: { digit: number; house: boolean; rolling: boolean; delay: number; w: number; cellH: number }) {
   // Resting / landing offset of the strip.
   const y = useRef(new Animated.Value(-(10 + digit) * cellH)).current;
   // 0 -> 1 is one lap of ten digits while spinning. Loops reset it to its
@@ -142,9 +155,11 @@ function Reel({ digit, rolling, delay, w, cellH }: { digit: number; rolling: boo
   const wasRolling = useRef(false);
   const runRef = useRef<Animated.CompositeAnimation | null>(null);
   const bump = useRef(new Animated.Value(0)).current;
+  const [star, setStar] = useState(house);
 
   useEffect(() => {
     if (rolling) {
+      setStar(false);
       wasRolling.current = true;
       runRef.current?.stop();
       spin.setValue(0);
@@ -162,10 +177,12 @@ function Reel({ digit, rolling, delay, w, cellH }: { digit: number; rolling: boo
       runRef.current = null;
       spin.setValue(0);
       y.setValue(-(10 + digit) * cellH);
+      setStar(house);
       return;
     }
     const t = setTimeout(() => {
       wasRolling.current = false;
+      if (house) setStar(true);
       runRef.current?.stop();
       runRef.current = null;
       y.stopAnimation((yv) =>
@@ -185,6 +202,7 @@ function Reel({ digit, rolling, delay, w, cellH }: { digit: number; rolling: boo
           ]);
           runRef.current.start(({ finished }) => {
             if (!finished) return;
+            setStar(house);
             bump.setValue(0);
             Animated.sequence([
               Animated.timing(bump, { toValue: 1, duration: 140, useNativeDriver: true }),
@@ -195,9 +213,9 @@ function Reel({ digit, rolling, delay, w, cellH }: { digit: number; rolling: boo
       );
     }, delay);
     return () => clearTimeout(t);
-    // Driven by the roll state and the digit to land on.
+    // Driven by the roll state and the result to land on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rolling, digit]);
+  }, [rolling, digit, house]);
 
   const windowH = cellH * 1.5;
   return (
@@ -212,6 +230,11 @@ function Reel({ digit, rolling, delay, w, cellH }: { digit: number; rolling: boo
       </Animated.View>
       <LinearGradient pointerEvents="none" colors={['rgba(40,30,10,0.55)', 'rgba(40,30,10,0)']} style={[styles.reelShade, { top: 0, height: windowH * 0.3 }]} />
       <LinearGradient pointerEvents="none" colors={['rgba(40,30,10,0)', 'rgba(40,30,10,0.55)']} style={[styles.reelShade, { bottom: 0, height: windowH * 0.3 }]} />
+      {star && (
+        <View style={[StyleSheet.absoluteFill, styles.reelHouse]}>
+          <Text style={{ fontSize: cellH * 0.5 }}>⭐</Text>
+        </View>
+      )}
     </Animated.View>
   );
 }
@@ -230,8 +253,8 @@ export default function FiveDLotteryScreen() {
   const [history, setHistory] = useState<FiveDHistoryEntry[]>([]);
   const [myBets, setMyBets] = useState<FiveDMyBet[]>([]);
   const [rolling, setRolling] = useState(false);
-  // The drawn digits while the reels are landing on them, before the reveal.
-  const [landing, setLanding] = useState<number[] | null>(null);
+  // The drawn result while the reels are landing on it, before the reveal.
+  const [landing, setLanding] = useState<FiveDHistoryEntry | null>(null);
   const [tab, setTab] = useState<Tab>('A');
   const [picks, setPicks] = useState<Pick[]>([]);
   const [digits, setDigits] = useState<number[]>([]);
@@ -263,7 +286,12 @@ export default function FiveDLotteryScreen() {
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const lockSeconds = config?.lockSeconds ?? 5;
-  const multOf = useCallback((key: string) => config?.multipliers?.[key] ?? (/^\w+:\d$/.test(key) ? 9.2 : 1.84), [config]);
+  const houseChance = config?.houseChancePercent ?? 10;
+  const rtpPercent = config?.rtpPercent ?? 90;
+  // Fair odds until the config loads: a digit 10X, the rest 2X.
+  const multOf = useCallback((key: string) => config?.multipliers?.[key] ?? (/^\w+:\d$/.test(key) ? 10 : 2), [config]);
+  /** Chance (in %) that a bet winning with probability p on the draw wins a period, House included. */
+  const chance = (p: number) => round2((100 - houseChance) * p);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -368,7 +396,7 @@ export default function FiveDLotteryScreen() {
       }
       if (!mountedRef.current || durationRef.current !== d) return;
       await new Promise((r) => setTimeout(r, Math.max(0, MIN_ROLL_MS - (Date.now() - startedAt))));
-      if (h) setLanding(h[0].digits);
+      if (h) setLanding(h[0]);
       setRolling(false);
       await new Promise((r) => setTimeout(r, h ? LAND_MS : 0));
       if (!mountedRef.current || durationRef.current !== d) return;
@@ -377,6 +405,7 @@ export default function FiveDLotteryScreen() {
       const bets = await loadMyBets();
       const mine = (bets ?? []).filter((b) => b.periodNumber === period && b.durationSeconds === d);
       if (mine.length > 0) refreshWallet();
+      if (mine.length > 0 && h?.[0].house) showToast('⭐ House result — every bet loses this period');
       const won = round2(mine.reduce((s, b) => s + (b.status === 'WON' ? Number(b.payout) : 0), 0));
       if (won > 0 && h) {
         setWin({ amount: won, period, result: h[0] });
@@ -384,7 +413,7 @@ export default function FiveDLotteryScreen() {
         Animated.spring(winPop, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }).start();
       }
     })();
-  }, [round, srvNow, endMs, duration, loadRound, loadMyBets, refreshWallet, winPop]);
+  }, [round, srvNow, endMs, duration, loadRound, loadMyBets, refreshWallet, showToast, winPop]);
 
   useEffect(() => {
     if (!win) return;
@@ -450,7 +479,8 @@ export default function FiveDLotteryScreen() {
   const ballSize = Math.min(50, (cardW - 24 - 4 * 12) / 5);
   const last = history[0] ?? null;
   const shown = last?.digits ?? [0, 0, 0, 0, 0];
-  const reelDigits = landing ?? shown;
+  const reelDigits = landing?.digits ?? shown;
+  const reelHouse = !!(landing ?? last)?.house;
   const drawing = rolling || !!landing;
   const mm = String(Math.floor(secsLeft / 60)).padStart(2, '0');
   const ss = String(secsLeft % 60).padStart(2, '0');
@@ -537,11 +567,7 @@ export default function FiveDLotteryScreen() {
               <Text style={styles.howText}>How to play</Text>
             </Pressable>
             <Text style={styles.ticketGame}>5D Lotre {DURATION_LABEL[duration]}</Text>
-            <View style={styles.ticketBalls}>
-              {shown.map((d, i) => (
-                <DigitBall key={i} d={d} size={22} />
-              ))}
-            </View>
+            <View style={styles.ticketBalls}>{last?.house ? <HousePill /> : shown.map((d, i) => <DigitBall key={i} d={d} size={22} />)}</View>
           </View>
           <View style={styles.ticketDivider} />
           <View style={styles.ticketRight}>
@@ -578,7 +604,7 @@ export default function FiveDLotteryScreen() {
                     <Text style={styles.reelBadgeText}>{p}</Text>
                   </View>
                   <View style={styles.reelFrame}>
-                    <Reel digit={reelDigits[i]} rolling={rolling} delay={i * REEL_STAGGER_MS} w={reelW} cellH={cellH} />
+                    <Reel digit={reelDigits[i]} house={reelHouse} rolling={rolling} delay={i * REEL_STAGGER_MS} w={reelW} cellH={cellH} />
                   </View>
                 </View>
               ))}
@@ -586,7 +612,11 @@ export default function FiveDLotteryScreen() {
             <View style={[styles.pointer, styles.pointerRight]} />
           </View>
           <View style={styles.resultRow}>
-            {last && !drawing ? (
+            {last?.house && !drawing ? (
+              <View style={[styles.resultChip, { backgroundColor: HOUSE_BG }]}>
+                <Text style={[styles.resultChipText, { color: GOLD }]}>⭐ House · every bet loses</Text>
+              </View>
+            ) : last && !drawing ? (
               <>
                 <View style={[styles.resultChip, { backgroundColor: GOLD }]}>
                   <Text style={[styles.resultChipText, { color: '#4A3200' }]}>Sum {last.sum}</Text>
@@ -705,20 +735,29 @@ export default function FiveDLotteryScreen() {
               {pageRows.map((h, i) => (
                 <View key={h.periodNumber} style={[styles.tr, i % 2 === 1 && { backgroundColor: '#F7FAF8' }]}>
                   <Text style={[styles.td, { flex: 1.5, fontSize: 11 }]}>{h.periodNumber}</Text>
-                  <View style={{ flex: 2, flexDirection: 'row', justifyContent: 'center', gap: 3 }}>
-                    {h.digits.map((d, j) => (
-                      <DigitBall key={j} d={d} size={20} />
-                    ))}
-                  </View>
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                    <Text style={[styles.td, { fontWeight: '900', color: G2 }]}>{h.sum}</Text>
-                    <View style={[styles.miniBadge, { backgroundColor: h.sumSize === 'BIG' ? C_BIG : C_SMALL }]}>
-                      <Text style={styles.miniBadgeText}>{h.sumSize === 'BIG' ? 'B' : 'S'}</Text>
+                  {h.house ? (
+                    // The digits and sum don't count: every bet lost.
+                    <View style={{ flex: 3, alignItems: 'center' }}>
+                      <HousePill label="House · every bet loses" />
                     </View>
-                    <View style={[styles.miniBadge, { backgroundColor: h.sumParity === 'ODD' ? C_ODD : C_EVEN }]}>
-                      <Text style={styles.miniBadgeText}>{h.sumParity === 'ODD' ? 'O' : 'E'}</Text>
-                    </View>
-                  </View>
+                  ) : (
+                    <>
+                      <View style={{ flex: 2, flexDirection: 'row', justifyContent: 'center', gap: 3 }}>
+                        {h.digits.map((d, j) => (
+                          <DigitBall key={j} d={d} size={20} />
+                        ))}
+                      </View>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                        <Text style={[styles.td, { fontWeight: '900', color: G2 }]}>{h.sum}</Text>
+                        <View style={[styles.miniBadge, { backgroundColor: h.sumSize === 'BIG' ? C_BIG : C_SMALL }]}>
+                          <Text style={styles.miniBadgeText}>{h.sumSize === 'BIG' ? 'B' : 'S'}</Text>
+                        </View>
+                        <View style={[styles.miniBadge, { backgroundColor: h.sumParity === 'ODD' ? C_ODD : C_EVEN }]}>
+                          <Text style={styles.miniBadgeText}>{h.sumParity === 'ODD' ? 'O' : 'E'}</Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
                 </View>
               ))}
               {pageRows.length === 0 && <Text style={styles.empty}>No results yet</Text>}
@@ -740,30 +779,39 @@ export default function FiveDLotteryScreen() {
               </LinearGradient>
               <View style={{ height: Math.max(1, pageRows.length) * chartRowH }}>
                 <Svg width={chartW} height={Math.max(1, pageRows.length) * chartRowH} style={StyleSheet.absoluteFill}>
-                  {pageRows.slice(0, -1).map((h, i) => (
-                    <Line
-                      key={h.periodNumber}
-                      x1={chartX0 + chartStep * (h.digits[chartPos] + 0.5)}
-                      y1={chartRowH * (i + 0.5)}
-                      x2={chartX0 + chartStep * (pageRows[i + 1].digits[chartPos] + 0.5)}
-                      y2={chartRowH * (i + 1.5)}
-                      stroke="#E0463D"
-                      strokeWidth={1.6}
-                    />
-                  ))}
+                  {/* The trend line skips House rounds: their digits don't count. */}
+                  {pageRows.slice(0, -1).map((h, i) =>
+                    h.house || pageRows[i + 1].house ? null : (
+                      <Line
+                        key={h.periodNumber}
+                        x1={chartX0 + chartStep * (h.digits[chartPos] + 0.5)}
+                        y1={chartRowH * (i + 0.5)}
+                        x2={chartX0 + chartStep * (pageRows[i + 1].digits[chartPos] + 0.5)}
+                        y2={chartRowH * (i + 1.5)}
+                        stroke="#E0463D"
+                        strokeWidth={1.6}
+                      />
+                    )
+                  )}
                 </Svg>
                 {pageRows.map((h, i) => {
                   const v = h.digits[chartPos];
                   return (
                     <View key={h.periodNumber} style={[styles.chartRow, { height: chartRowH, top: i * chartRowH }]}>
                       <Text style={[styles.td, { width: chartX0, fontSize: 11 }]}>{h.periodNumber.slice(-8)}</Text>
-                      {Array.from({ length: 10 }, (_, n) => (
-                        <View key={n} style={{ width: chartStep, alignItems: 'center' }}>
-                          <View style={[styles.chartCell, n === v && { backgroundColor: v >= 5 ? C_BIG : C_SMALL, borderColor: v >= 5 ? C_BIG : C_SMALL }]}>
-                            <Text style={[styles.chartCellText, n === v && { color: '#FFFFFF' }]}>{n}</Text>
-                          </View>
+                      {h.house ? (
+                        <View style={{ width: chartStep * 10, alignItems: 'center' }}>
+                          <HousePill />
                         </View>
-                      ))}
+                      ) : (
+                        Array.from({ length: 10 }, (_, n) => (
+                          <View key={n} style={{ width: chartStep, alignItems: 'center' }}>
+                            <View style={[styles.chartCell, n === v && { backgroundColor: v >= 5 ? C_BIG : C_SMALL, borderColor: v >= 5 ? C_BIG : C_SMALL }]}>
+                              <Text style={[styles.chartCellText, n === v && { color: '#FFFFFF' }]}>{n}</Text>
+                            </View>
+                          </View>
+                        ))
+                      )}
                     </View>
                   );
                 })}
@@ -789,7 +837,7 @@ export default function FiveDLotteryScreen() {
                         {b.periodNumber} · {DURATION_LABEL[b.durationSeconds]}
                       </Text>
                       <Text style={styles.myMeta}>
-                        ₹{Number(b.amount).toFixed(2)} @ {Number(b.multiplier)}X{b.result ? `  ·  ${b.result.digits.join(' ')} = ${b.result.sum}` : ''}
+                        ₹{Number(b.amount).toFixed(2)} @ {Number(b.multiplier)}X{b.result ? (b.result.house ? '  ·  ⭐ House' : `  ·  ${b.result.digits.join(' ')} = ${b.result.sum}`) : ''}
                       </Text>
                     </View>
                     <Text style={[styles.myStatus, { color: won ? '#159A52' : lost ? '#D91F37' : MUTED }]}>
@@ -919,11 +967,12 @@ export default function FiveDLotteryScreen() {
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
               {[
                 `Five digits A, B, C, D, E (each 0–9) are drawn every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
-                `Position bets (A–E): the exact digit pays ${multOf('A:0')}X. Big (5–9), Small (0–4), Odd or Even pay ${multOf('A:BIG')}X.`,
-                `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X.`,
+                `⭐ House: one period in ten is a House result, on which every bet loses, whatever digits are drawn. Every other period pays fair odds, so each bet returns ${rtpPercent}% of what is staked over time.`,
+                `Position bets (A–E): the exact digit pays ${multOf('A:0')}X and wins ${chance(0.1)}% of periods. Big (5–9), Small (0–4), Odd or Even pay ${multOf('A:BIG')}X and win ${chance(0.5)}%.`,
+                `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X and win ${chance(0.5)}% of periods.`,
                 'Pick as many as you like in a tab — every pick is its own bet.',
                 `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
-                'Provably fair: each period’s digits come from a server seed whose hash is published before the period, and the seed itself after it.',
+                'Provably fair: each period’s digits, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
               ].map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
@@ -1011,6 +1060,9 @@ const styles = StyleSheet.create({
   reel: { borderRadius: 8, overflow: 'hidden' },
   reelDigit: { color: '#2A1F08', fontWeight: '900' },
   reelShade: { position: 'absolute', left: 0, right: 0 },
+  reelHouse: { backgroundColor: HOUSE_BG, alignItems: 'center', justifyContent: 'center' },
+  housePill: { flexDirection: 'row', alignItems: 'center', height: 20, paddingHorizontal: 8, borderRadius: 10, backgroundColor: HOUSE_BG },
+  housePillText: { color: GOLD, fontSize: 11, fontWeight: '900' },
   resultRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 10, minHeight: 26, alignItems: 'center' },
   resultChip: { paddingHorizontal: 14, paddingVertical: 4, borderRadius: 13 },
   resultChipText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },

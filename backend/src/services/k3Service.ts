@@ -4,12 +4,16 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
 
 /**
  * "K3 Lottery": three dice every round, on the same fixed wall-clock tracks
  * as Win Go (one independent chain of rounds per duration). Bets are on the
  * sum, big/small, odd/even, pairs, triples and combinations of different
- * numbers; every bet pays floor2(lotteryRtp / P(win)).
+ * numbers. One round in ten is a ⭐ House result (lotteryHouse.ts) on which
+ * every bet loses; otherwise every bet pays fair odds on the dice,
+ * floor2(216 / winning throws) — Big/Small 2x, a triple 216x — so each
+ * returns at most 90%.
  */
 export const K3_DURATIONS = [60, 180, 300, 600] as const;
 export type K3Duration = (typeof K3_DURATIONS)[number];
@@ -103,10 +107,11 @@ export function isValidKey(key: string): boolean {
   return WIN_COUNTS.has(key);
 }
 
-/** Total return per unit staked (stake included): multiplier * P(win) =
- * the lottery rtp, rounded down so the edge is never smaller than stated. */
+/** Total return per unit staked (stake included): fair odds on a round that
+ * is not House, 1 / P(win), rounded down to the cent so the return, 90% of
+ * multiplier * P(win), is never more than LOTTERY_RTP. */
 export function multiplierFor(key: string): number {
-  return floor2((env.games.lotteryRtp * 216) / WIN_COUNTS.get(key)!);
+  return floor2(216 / WIN_COUNTS.get(key)!);
 }
 
 /** The three dice, fixed when the round is created from its server seed
@@ -115,9 +120,16 @@ export function diceFor(serverSeed: string, periodNumber: string): number[] {
   return [0, 1, 2].map((i) => 1 + Math.floor(fairRandomFloat(serverSeed, periodNumber, i) * 6));
 }
 
-function describe(dice: number[]) {
+/** A bet wins only when the round is not House and the dice match it. */
+export function betWins(key: string, dice: number[], house: boolean): boolean {
+  return !house && winsWith(key, dice);
+}
+
+/** The drawn dice stay in the result (older app builds read them); `house`
+ * says they do not count. */
+function describe(dice: number[], house: boolean) {
   const sum = dice[0] + dice[1] + dice[2];
-  return { dice, sum, size: sum >= 11 ? "BIG" : "SMALL", parity: sum % 2 ? "ODD" : "EVEN" };
+  return { dice, sum, size: sum >= 11 ? "BIG" : "SMALL", parity: sum % 2 ? "ODD" : "EVEN", house };
 }
 
 function assertValidDuration(durationSeconds: number): asserts durationSeconds is K3Duration {
@@ -157,6 +169,8 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
         startTime,
         endTime: new Date(startTime.getTime() + ms),
         dice: diceFor(serverSeed, periodNumber),
+        // Fixed (and stored) now, from the same seed; settlement reads it.
+        house: isHouseRound(serverSeed, periodNumber),
         serverSeed,
         serverSeedHash: hashServerSeed(serverSeed),
       },
@@ -168,15 +182,15 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
   }
 }
 
-/** Pays every still-pending bet on an ended round. Each bet is claimed with
- * a guarded PENDING -> WON/LOST update, so two requests settling at once can
- * never pay the same bet twice. */
+/** Pays every still-pending bet on an ended round (none on a House round).
+ * Each bet is claimed with a guarded PENDING -> WON/LOST update, so two
+ * requests settling at once can never pay the same bet twice. */
 async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "K3Round" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.k3Bet.findMany({ where: { roundId: round.id, status: "PENDING" } });
   for (const bet of pending) {
-    const won = winsWith(bet.area, round.dice);
+    const won = betWins(bet.area, round.dice, round.house);
     const payout = won ? Math.min(floor2(Number(bet.amount) * Number(bet.multiplier)), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.k3Bet.updateMany({ where: { id: bet.id, status: "PENDING" }, data: { status: won ? "WON" : "LOST", payout } });
@@ -225,7 +239,7 @@ export async function getCurrentRoundView(durationSeconds: number) {
     endTime: round.endTime,
     serverTime: now,
     serverSeedHash: round.serverSeedHash,
-    // The dice (and the seed) stay hidden until the round has ended.
+    // The dice, House flag and seed stay hidden until the round has ended.
     locked: msLeft <= LOCK_SECONDS * 1000,
   };
 }
@@ -237,7 +251,8 @@ export function getK3Config() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     lockSeconds: LOCK_SECONDS,
-    rtpPercent: round2(env.games.lotteryRtp * 100),
+    rtpPercent: round2(LOTTERY_RTP * 100),
+    houseChancePercent: round2(HOUSE_CHANCE * 100),
     multipliers: Object.fromEntries([...WIN_COUNTS.keys()].map((k) => [k, multiplierFor(k)])),
   };
 }
@@ -301,9 +316,9 @@ export async function getK3History(durationSeconds: number, limit = 50) {
     where: { durationSeconds, settled: true },
     orderBy: { startTime: "desc" },
     take: limit,
-    select: { periodNumber: true, dice: true, serverSeed: true, serverSeedHash: true },
+    select: { periodNumber: true, dice: true, house: true, serverSeed: true, serverSeedHash: true },
   });
-  return rounds.map((r) => ({ periodNumber: r.periodNumber, ...describe(r.dice), serverSeed: r.serverSeed, serverSeedHash: r.serverSeedHash }));
+  return rounds.map((r) => ({ periodNumber: r.periodNumber, ...describe(r.dice, r.house), serverSeed: r.serverSeed, serverSeedHash: r.serverSeedHash }));
 }
 
 export async function getMyK3Bets(userId: string, limit = 50) {
@@ -312,12 +327,12 @@ export async function getMyK3Bets(userId: string, limit = 50) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { round: { select: { periodNumber: true, durationSeconds: true, dice: true, settled: true } } },
+    include: { round: { select: { periodNumber: true, durationSeconds: true, dice: true, house: true, settled: true } } },
   });
   return bets.map(({ round, ...bet }) => ({
     ...bet,
     periodNumber: round.periodNumber,
     durationSeconds: round.durationSeconds,
-    result: round.settled ? describe(round.dice) : null,
+    result: round.settled ? describe(round.dice, round.house) : null,
   }));
 }

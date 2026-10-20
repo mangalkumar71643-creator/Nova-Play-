@@ -31,6 +31,8 @@ const GOLD = '#F4CF6A';
 const PAGE_BG = '#EEF3F0';
 const INK = '#1C2B22';
 const MUTED = '#7C8A82';
+// ⭐ House result: dark plum with gold, unlike any die or bet colour.
+const HOUSE_BG = '#3A1452';
 const DURATIONS: K3Duration[] = [60, 180, 300, 600];
 const DURATION_LABEL: Record<K3Duration, string> = { 60: '1 Min', 180: '3 Min', 300: '5 Min', 600: '10 Min' };
 const UNIT_VALUES = [1, 10, 50, 100];
@@ -63,6 +65,9 @@ function errorMessage(err: unknown): string {
 
 /** Throws out of 216 for each sum 3..18 (fallback odds before config loads). */
 const SUM_WAYS = [0, 0, 0, 1, 3, 6, 10, 15, 21, 25, 27, 27, 25, 21, 15, 10, 6, 3, 1];
+
+/** Winning throws out of 216, for the win chances in the rules. */
+const WAYS = { size: 108, pair: 16, pairSingle: 3, triple: 1, anyTriple: 6, diff3: 6, straight: 24, diff2: 30 };
 
 function combos<T>(items: T[], k: number): T[][] {
   if (k === 0) return [[]];
@@ -147,15 +152,36 @@ export const DieFace = memo(function DieFace({ value, size }: { value: number; s
   );
 });
 
+/** The ⭐ House result (every bet loses), shown in place of a die. */
+const HouseFace = memo(function HouseFace({ size }: { size: number }) {
+  return (
+    <View style={[styles.houseFace, { width: size, height: size, borderRadius: size * 0.2 }]}>
+      <Text style={{ fontSize: size * 0.4 }}>⭐</Text>
+      {size >= 40 && <Text style={[styles.houseFaceText, { fontSize: size * 0.15 }]}>HOUSE</Text>}
+    </View>
+  );
+});
+
+/** Small "⭐ House" tag for the ticket, history and chart rows. */
+function HousePill({ label = 'House' }: { label?: string }) {
+  return (
+    <View style={styles.housePill}>
+      <Text style={styles.housePillText}>⭐ {label}</Text>
+    </View>
+  );
+}
+
 /** A die that tumbles through random faces while rolling and drops onto
- * its result when the roll ends. */
-function RollingDie({ value, rolling, size, delay }: { value: number; rolling: boolean; size: number; delay: number }) {
+ * its result (a ⭐ on a House round) when the roll ends. */
+function RollingDie({ value, house, rolling, size, delay }: { value: number; house: boolean; rolling: boolean; size: number; delay: number }) {
   const [face, setFace] = useState(value);
+  const [star, setStar] = useState(house);
   const wobble = useRef(new Animated.Value(0)).current;
   const drop = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!rolling) return;
+    setStar(false);
     const id = setInterval(() => setFace(1 + Math.floor(Math.random() * 6)), 75);
     const loop = Animated.loop(
       Animated.sequence([
@@ -176,11 +202,12 @@ function RollingDie({ value, rolling, size, delay }: { value: number; rolling: b
     if (rolling) return;
     const t = setTimeout(() => {
       setFace(value);
+      setStar(house);
       drop.setValue(0);
       Animated.timing(drop, { toValue: 1, duration: 520, easing: Easing.bounce, useNativeDriver: true }).start();
     }, delay);
     return () => clearTimeout(t);
-  }, [rolling, value, delay, drop]);
+  }, [rolling, value, house, delay, drop]);
 
   return (
     <Animated.View
@@ -193,9 +220,7 @@ function RollingDie({ value, rolling, size, delay }: { value: number; rolling: b
     >
       <View style={[styles.dieShadow, { width: size, height: size, borderRadius: size * 0.2 }]} />
       {/* Wrapped so the die stacks above its shadow on every platform. */}
-      <View>
-        <DieFace value={face} size={size} />
-      </View>
+      <View>{star ? <HouseFace size={size} /> : <DieFace value={face} size={size} />}</View>
     </Animated.View>
   );
 }
@@ -271,15 +296,20 @@ export default function K3LotteryScreen() {
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const lockSeconds = config?.lockSeconds ?? 5;
+  const houseChance = config?.houseChancePercent ?? 10;
+  const rtpPercent = config?.rtpPercent ?? 90;
   const multOf = useCallback(
     (key: string) => {
       const m = config?.multipliers?.[key];
       if (m) return m;
-      if (key.startsWith('SUM:')) return floor2((0.92 * 216) / SUM_WAYS[Number(key.slice(4))]);
+      // Fair odds on the dice: 216 / winning throws.
+      if (key.startsWith('SUM:')) return floor2(216 / SUM_WAYS[Number(key.slice(4))]);
       return 0;
     },
     [config]
   );
+  /** Chance (in %) that a bet with this many winning throws wins a period, House included. */
+  const chance = (ways: number) => round2(((100 - houseChance) * ways) / 216);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -381,6 +411,7 @@ export default function K3LotteryScreen() {
       const bets = await loadMyBets();
       const mine = (bets ?? []).filter((b) => b.periodNumber === period && b.durationSeconds === d);
       if (mine.length > 0) refreshWallet();
+      if (mine.length > 0 && h?.[0].house) showToast('⭐ House result — every bet loses this period');
       const won = round2(mine.reduce((s, b) => s + (b.status === 'WON' ? Number(b.payout) : 0), 0));
       if (won > 0 && h) {
         setTimeout(() => {
@@ -391,7 +422,7 @@ export default function K3LotteryScreen() {
         }, 900);
       }
     })();
-  }, [round, srvNow, endMs, duration, loadRound, loadMyBets, refreshWallet, winPop]);
+  }, [round, srvNow, endMs, duration, loadRound, loadMyBets, refreshWallet, showToast, winPop]);
 
   useEffect(() => {
     if (!win) return;
@@ -569,11 +600,7 @@ export default function K3LotteryScreen() {
               <Text style={styles.howText}>How to play</Text>
             </Pressable>
             <Text style={styles.ticketGame}>K3 Lotre {DURATION_LABEL[duration]}</Text>
-            <View style={styles.ticketDice}>
-              {shownDice.map((v, i) => (
-                <DieFace key={i} value={v} size={20} />
-              ))}
-            </View>
+            <View style={styles.ticketDice}>{last?.house ? <HousePill /> : shownDice.map((v, i) => <DieFace key={i} value={v} size={20} />)}</View>
           </View>
           <View style={styles.ticketDivider} />
           <View style={styles.ticketRight}>
@@ -607,14 +634,18 @@ export default function K3LotteryScreen() {
               {shownDice.map((v, i) => (
                 <View key={i} style={[styles.window, { width: dieSize + 22, height: dieSize + 26 }]}>
                   <LinearGradient colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.1)', 'rgba(255,255,255,0.08)']} style={[StyleSheet.absoluteFill, { borderRadius: 12 }]} />
-                  <RollingDie value={v} rolling={rolling} size={dieSize} delay={i * 180} />
+                  <RollingDie value={v} house={!!last?.house} rolling={rolling} size={dieSize} delay={i * 180} />
                 </View>
               ))}
             </LinearGradient>
             <View style={[styles.pointer, styles.pointerRight]} />
           </View>
           <View style={styles.resultRow}>
-            {last && !rolling ? (
+            {last?.house && !rolling ? (
+              <View style={[styles.resultChip, { backgroundColor: HOUSE_BG }]}>
+                <Text style={[styles.resultChipText, { color: GOLD }]}>⭐ House · every bet loses</Text>
+              </View>
+            ) : last && !rolling ? (
               <>
                 <View style={[styles.resultChip, { backgroundColor: GOLD }]}>
                   <Text style={[styles.resultChipText, { color: '#4A3200' }]}>Sum {last.sum}</Text>
@@ -683,7 +714,7 @@ export default function K3LotteryScreen() {
                       <Pressable key={b.key} onPress={() => setSelTotal(on ? null : b.key)} style={[styles.bsBtn, on && styles.bsBtnOn]}>
                         <LinearGradient colors={[b.color[0], b.color[1]]} style={[StyleSheet.absoluteFill, { borderRadius: 10 }]} />
                         <Text style={styles.bsText}>{b.label}</Text>
-                        <Text style={styles.bsOdds}>{multOf(b.key) || 1.84}X</Text>
+                        <Text style={styles.bsOdds}>{multOf(b.key) || 2}X</Text>
                       </Pressable>
                     );
                   })}
@@ -789,14 +820,23 @@ export default function K3LotteryScreen() {
               {pageRows.map((h, i) => (
                 <View key={h.periodNumber} style={[styles.tr, i % 2 === 1 && { backgroundColor: '#F7FAF8' }]}>
                   <Text style={[styles.td, { flex: 1.5, fontSize: 11 }]}>{h.periodNumber}</Text>
-                  <Text style={[styles.td, { flex: 0.7, fontWeight: '900', color: G2 }]}>{h.sum}</Text>
-                  <View style={{ flex: 1.3, flexDirection: 'row', justifyContent: 'center', gap: 3 }}>
-                    {h.dice.map((v, j) => (
-                      <DieFace key={j} value={v} size={17} />
-                    ))}
-                  </View>
-                  <Text style={[styles.td, { flex: 1, fontWeight: '800', color: h.size === 'BIG' ? '#E07F0A' : '#2F7DE0' }]}>{h.size === 'BIG' ? 'Big' : 'Small'}</Text>
-                  <Text style={[styles.td, { flex: 0.9, fontWeight: '800', color: h.parity === 'ODD' ? '#D91F37' : '#159A52' }]}>{h.parity === 'ODD' ? 'Odd' : 'Even'}</Text>
+                  {h.house ? (
+                    // Sum, dice, Big/Small and Odd/Even don't count: every bet lost.
+                    <View style={{ flex: 3.9, alignItems: 'center' }}>
+                      <HousePill label="House · every bet loses" />
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={[styles.td, { flex: 0.7, fontWeight: '900', color: G2 }]}>{h.sum}</Text>
+                      <View style={{ flex: 1.3, flexDirection: 'row', justifyContent: 'center', gap: 3 }}>
+                        {h.dice.map((v, j) => (
+                          <DieFace key={j} value={v} size={17} />
+                        ))}
+                      </View>
+                      <Text style={[styles.td, { flex: 1, fontWeight: '800', color: h.size === 'BIG' ? '#E07F0A' : '#2F7DE0' }]}>{h.size === 'BIG' ? 'Big' : 'Small'}</Text>
+                      <Text style={[styles.td, { flex: 0.9, fontWeight: '800', color: h.parity === 'ODD' ? '#D91F37' : '#159A52' }]}>{h.parity === 'ODD' ? 'Odd' : 'Even'}</Text>
+                    </>
+                  )}
                 </View>
               ))}
               {pageRows.length === 0 && <Text style={styles.empty}>No results yet</Text>}
@@ -817,21 +857,29 @@ export default function K3LotteryScreen() {
               {pageRows.map((h, i) => (
                 <View key={h.periodNumber} style={[styles.tr, i % 2 === 1 && { backgroundColor: '#F7FAF8' }]}>
                   <Text style={[styles.td, { flex: 1.5, fontSize: 11 }]}>{h.periodNumber.slice(-6)}</Text>
-                  {[1, 2, 3, 4, 5, 6].map((n) => {
-                    const c = h.dice.filter((d) => d === n).length;
-                    return (
-                      <View key={n} style={{ flex: 0.5, alignItems: 'center' }}>
-                        {c > 0 ? (
-                          <View style={[styles.chartDot, { backgroundColor: c === 3 ? '#8E44AD' : c === 2 ? '#F08A12' : '#E5283F' }]}>
-                            <Text style={styles.chartDotText}>{c > 1 ? `${n}×${c}` : n}</Text>
+                  {h.house ? (
+                    <View style={{ flex: 3.8, alignItems: 'center' }}>
+                      <HousePill />
+                    </View>
+                  ) : (
+                    <>
+                      {[1, 2, 3, 4, 5, 6].map((n) => {
+                        const c = h.dice.filter((d) => d === n).length;
+                        return (
+                          <View key={n} style={{ flex: 0.5, alignItems: 'center' }}>
+                            {c > 0 ? (
+                              <View style={[styles.chartDot, { backgroundColor: c === 3 ? '#8E44AD' : c === 2 ? '#F08A12' : '#E5283F' }]}>
+                                <Text style={styles.chartDotText}>{c > 1 ? `${n}×${c}` : n}</Text>
+                              </View>
+                            ) : (
+                              <Text style={styles.chartEmpty}>{n}</Text>
+                            )}
                           </View>
-                        ) : (
-                          <Text style={styles.chartEmpty}>{n}</Text>
-                        )}
-                      </View>
-                    );
-                  })}
-                  <Text style={[styles.td, { flex: 0.8, fontWeight: '900', color: G2 }]}>{h.sum}</Text>
+                        );
+                      })}
+                      <Text style={[styles.td, { flex: 0.8, fontWeight: '900', color: G2 }]}>{h.sum}</Text>
+                    </>
+                  )}
                 </View>
               ))}
               {pageRows.length === 0 && <Text style={styles.empty}>No results yet</Text>}
@@ -855,7 +903,7 @@ export default function K3LotteryScreen() {
                         {b.periodNumber} · {DURATION_LABEL[b.durationSeconds]}
                       </Text>
                       <Text style={styles.myMeta}>
-                        ₹{Number(b.amount).toFixed(2)} @ {Number(b.multiplier)}X{b.result ? `  ·  ${b.result.dice.join(' ')} = ${b.result.sum}` : ''}
+                        ₹{Number(b.amount).toFixed(2)} @ {Number(b.multiplier)}X{b.result ? (b.result.house ? '  ·  ⭐ House' : `  ·  ${b.result.dice.join(' ')} = ${b.result.sum}`) : ''}
                       </Text>
                     </View>
                     <Text style={[styles.myStatus, { color: won ? '#159A52' : lost ? '#D91F37' : MUTED }]}>
@@ -982,12 +1030,13 @@ export default function K3LotteryScreen() {
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
               {[
                 `Three dice are thrown at the end of every period. ${DURATION_LABEL[duration]} per period; betting closes in the last ${lockSeconds} seconds.`,
-                `Total: bet on the sum (3–18). Big = 11–18, Small = 3–10, Odd / Even on the sum — ${multOf('BIG') || 1.84}X.`,
-                `2 same: a pair such as 22 wins when at least two dice show 2 (${multOf('PAIR:2')}X). A pair plus a number, e.g. 22+5, needs exactly 2, 2, 5 (${multOf('PAIRSINGLE:2-5')}X).`,
-                `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X), or any triple (${multOf('ANYTRIPLE')}X).`,
-                `Different: pick 3+ numbers for "3 different" — every group of three you picked is one bet (${multOf('DIFF3:1-2-3')}X). "2 different" wins when both numbers show (${multOf('DIFF2:1-2')}X). 3 continuous: 123, 234, 345 or 456 in any order (${multOf('STRAIGHT')}X).`,
+                `⭐ House: one period in ten is a House result, on which every bet loses, whatever the dice show. Every other period pays fair odds on the dice, so each bet returns ${rtpPercent}% of what is staked over time.`,
+                `Total: bet on the sum (3–18). Big = 11–18, Small = 3–10, Odd / Even on the sum — ${multOf('BIG') || 2}X, each wins ${chance(WAYS.size)}% of periods. A single sum pays from ${multOf('SUM:10')}X (10 or 11, wins ${chance(SUM_WAYS[10])}%) to ${multOf('SUM:3')}X (3 or 18, wins ${chance(SUM_WAYS[3])}%).`,
+                `2 same: a pair such as 22 wins when at least two dice show 2 (${multOf('PAIR:2')}X, wins ${chance(WAYS.pair)}% of periods). A pair plus a number, e.g. 22+5, needs exactly 2, 2, 5 (${multOf('PAIRSINGLE:2-5')}X, ${chance(WAYS.pairSingle)}%).`,
+                `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X, wins ${chance(WAYS.triple)}% of periods), or any triple (${multOf('ANYTRIPLE')}X, ${chance(WAYS.anyTriple)}%).`,
+                `Different: pick 3+ numbers for "3 different" — every group of three you picked is one bet (${multOf('DIFF3:1-2-3')}X, wins ${chance(WAYS.diff3)}% of periods). "2 different" wins when both numbers show (${multOf('DIFF2:1-2')}X, ${chance(WAYS.diff2)}%). 3 continuous: 123, 234, 345 or 456 in any order (${multOf('STRAIGHT')}X, ${chance(WAYS.straight)}%).`,
                 `Bet ₹${minStake}–₹${maxStake} per selection, max win ₹${maxPayout} per bet. Amount = balance × quantity × multiplier.`,
-                'Provably fair: each period’s dice come from a server seed whose hash is published before the period, and the seed itself after it.',
+                'Provably fair: each period’s dice, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
               ].map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
@@ -1083,6 +1132,10 @@ const styles = StyleSheet.create({
   windowsWrap: { flex: 1, flexDirection: 'row', justifyContent: 'space-evenly', paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
   window: { borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   dieShadow: { position: 'absolute', left: 3, top: 5, backgroundColor: 'rgba(0,0,0,0.4)' },
+  houseFace: { backgroundColor: HOUSE_BG, borderWidth: 1.5, borderColor: GOLD, alignItems: 'center', justifyContent: 'center' },
+  houseFaceText: { color: GOLD, fontWeight: '900', letterSpacing: 1 },
+  housePill: { flexDirection: 'row', alignItems: 'center', height: 20, paddingHorizontal: 8, borderRadius: 10, backgroundColor: HOUSE_BG },
+  housePillText: { color: GOLD, fontSize: 11, fontWeight: '900' },
   resultRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 10, minHeight: 26, alignItems: 'center' },
   resultChip: { paddingHorizontal: 14, paddingVertical: 4, borderRadius: 13 },
   resultChipText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },

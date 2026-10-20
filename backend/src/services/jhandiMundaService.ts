@@ -4,12 +4,14 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { HOUSE_CHANCE, isHouseRound } from "./lotteryHouse";
 
 /**
  * "Jhandi Munda": six dice, each with the same six symbols, are shaken and
  * thrown. A bet on a symbol wins when it shows on two or more dice, and pays
  * more the more dice show it. Shared rounds on fixed wall-clock slots, same
- * shape as Andar Bahar.
+ * shape as Andar Bahar. One round in ten is a ⭐ House result
+ * (lotteryHouse.ts) on which every bet loses, whatever the dice show.
  */
 export const ROUND_SECONDS = 25;
 /** Bets are accepted while less than this much of the round has passed. */
@@ -28,12 +30,13 @@ export const DICE = 6;
  * Total return per unit staked (stake included) by how many of the six dice
  * show the symbol; 0 or 1 loses. Matches follow Binomial(6, 1/6), so out of
  * 6^6 = 46656 equally likely throws: 2 -> 9375, 3 -> 2500, 4 -> 375,
- * 5 -> 30, 6 -> 1. Expected return =
- * (9375*3 + 2500*4.8 + 375*6.5 + 30*10 + 1*20) / 46656 = 42882.5 / 46656
- * = 91.91% — never above the 92% lottery rtp. The top pays 20x, so a full
- * box (maxStake) can never win more than maxPayout.
+ * 5 -> 30, 6 -> 1. On a round that is not House the table returns
+ * (9375*3.25 + 2500*5.25 + 375*7 + 30*12 + 1*20) / 46656 = 46598.75 / 46656
+ * = 99.88% — fair odds, never above 100% — so with the House rounds a bet
+ * returns 89.89%, just under the 90% lottery rtp. The top pays 20x, so a
+ * full box (maxStake) can never win more than maxPayout.
  */
-export const PAYTABLE: Record<number, number> = { 2: 3, 3: 4.8, 4: 6.5, 5: 10, 6: 20 };
+export const PAYTABLE: Record<number, number> = { 2: 3.25, 3: 5.25, 4: 7, 5: 12, 6: 20 };
 const TOP_MULTIPLIER = 20;
 
 function round2(n: number): number {
@@ -55,10 +58,23 @@ function matchChance(k: number): number {
   return (choose(DICE, k) * 5 ** (DICE - k)) / 6 ** DICE;
 }
 
-export function rtp(): number {
+/** Return of a bet on a round that is not House. */
+export function paytableReturn(): number {
   let r = 0;
   for (const [k, m] of Object.entries(PAYTABLE)) r += matchChance(Number(k)) * m;
   return r;
+}
+
+/** Return of a bet, House rounds included. */
+export function rtp(): number {
+  return (1 - HOUSE_CHANCE) * paytableReturn();
+}
+
+/** Chance a bet on one symbol wins: not House, and on 2 or more dice. */
+export function winChance(): number {
+  let p = 0;
+  for (const k of Object.keys(PAYTABLE)) p += matchChance(Number(k));
+  return (1 - HOUSE_CHANCE) * p;
 }
 
 export function matchesFor(area: Area, dice: number[]): number {
@@ -68,6 +84,11 @@ export function matchesFor(area: Area, dice: number[]): number {
 
 export function multiplierFor(matches: number): number {
   return PAYTABLE[matches] ?? 0;
+}
+
+/** What a bet pays per unit staked: nothing on a House round, else the table. */
+export function payMultiplier(matches: number, house: boolean): number {
+  return house ? 0 : multiplierFor(matches);
 }
 
 /** Each die lands on a face picked independently and uniformly from the
@@ -123,6 +144,8 @@ async function getOrCreateRound(now: Date): Promise<RoundRow> {
         resultTime: new Date(startTime.getTime() + RESULT_AT_SECONDS * 1000),
         endTime: new Date(startTime.getTime() + slotMs),
         dice,
+        // Fixed (and stored) now, from the same seed; settlement reads it.
+        house: isHouseRound(serverSeed, periodNumber),
         serverSeed,
         serverSeedHash: hashServerSeed(serverSeed),
       },
@@ -134,9 +157,9 @@ async function getOrCreateRound(now: Date): Promise<RoundRow> {
   }
 }
 
-/** Pays out every still-pending bet on a revealed round. Each bet is
- * claimed with a guarded PENDING -> WON/LOST update, so two requests
- * settling at once can never pay the same bet twice. */
+/** Pays out every still-pending bet on a revealed round (none on a House
+ * round). Each bet is claimed with a guarded PENDING -> WON/LOST update, so
+ * two requests settling at once can never pay the same bet twice. */
 async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "JhandiMundaRound" WHERE id = ${round.id} FOR UPDATE`;
@@ -144,8 +167,9 @@ async function settleRound(round: RoundRow) {
 
   for (const bet of pending) {
     const matches = matchesFor(bet.area as Area, round.dice);
-    const won = multiplierFor(matches) > 0;
-    const payout = won ? Math.min(floor2(Number(bet.amount) * multiplierFor(matches)), env.games.maxPayout) : 0;
+    const m = payMultiplier(matches, round.house);
+    const won = m > 0;
+    const payout = won ? Math.min(floor2(Number(bet.amount) * m), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.jhandiMundaBet.updateMany({
         where: { id: bet.id, status: "PENDING" },
@@ -203,9 +227,12 @@ function toView(round: RoundRow, now: Date) {
     serverTime: now,
     phase,
     serverSeedHash: round.serverSeedHash,
-    // The dice (and the seed that produced them) stay hidden until reveal.
+    // The dice, the House flag and the seed that produced them stay hidden
+    // until reveal. On a House round the dice are still sent (older app
+    // builds read them, and they check the seed); `house` says they don't count.
     dice: revealed ? round.dice.map((d) => AREAS[d]) : null,
     counts: revealed ? countsOf(round.dice) : null,
+    house: revealed ? round.house : null,
     serverSeed: revealed ? round.serverSeed : null,
   };
 }
@@ -226,6 +253,9 @@ export function getJhandiMundaConfig() {
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
     rtpPercent: round2(rtp() * 100),
+    houseChancePercent: round2(HOUSE_CHANCE * 100),
+    // Chance a bet on one symbol wins, House rounds included.
+    winChancePercent: round2(winChance() * 100),
     symbols: AREAS,
     paytable: PAYTABLE,
   };
@@ -241,6 +271,9 @@ export async function placeJhandiMundaBets(userId: string, bets: BetInput[]) {
   for (const b of bets) {
     if (!AREAS.includes(b.area)) throw new ApiError(400, "Unknown symbol.");
     if (b.amount < env.games.minStake) throw new ApiError(400, `Minimum bet is ${env.games.minStake}.`);
+    // Whole paise only: the charge, the stored chip (2 decimals), its refund
+    // and its payout must all be the same amount.
+    if (Math.abs(b.amount * 100 - Math.round(b.amount * 100)) > 1e-6) throw new ApiError(400, "Amount can have at most 2 decimals.");
   }
 
   await assertCanTransact(userId);
@@ -358,12 +391,13 @@ export async function getJhandiMundaHistory(limit = 100) {
     where: { settled: true },
     orderBy: { startTime: "desc" },
     take: limit,
-    select: { periodNumber: true, dice: true, serverSeed: true, serverSeedHash: true },
+    select: { periodNumber: true, dice: true, house: true, serverSeed: true, serverSeedHash: true },
   });
   return rounds.map((r) => ({
     periodNumber: r.periodNumber,
     dice: r.dice.map((d) => AREAS[d]),
     counts: countsOf(r.dice),
+    house: r.house,
     serverSeed: r.serverSeed,
     serverSeedHash: r.serverSeedHash,
   }));
@@ -374,11 +408,12 @@ export async function getMyJhandiMundaBets(userId: string, limit = 50) {
     where: { userId, status: { not: "VOID" } },
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { round: { select: { periodNumber: true, dice: true, settled: true } } },
+    include: { round: { select: { periodNumber: true, dice: true, house: true, settled: true } } },
   });
   return bets.map(({ round, ...bet }) => ({
     ...bet,
     periodNumber: round.periodNumber,
     dice: round.settled ? round.dice.map((d) => AREAS[d]) : null,
+    house: round.settled ? round.house : null,
   }));
 }

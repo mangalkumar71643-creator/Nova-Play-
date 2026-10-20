@@ -8,6 +8,7 @@ import { paymentProvider } from "../services/paymentService";
 import { completeDeposit } from "../services/depositService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
+import { LOTTERY_RTP } from "../services/lotteryHouse";
 import { FAST2SMS_ROUTES, fast2SmsFromEnv } from "../services/smsService";
 import { INTEGRATION_FIELDS, integration, integrationView, saveIntegrationSettings } from "../services/integrationSettings";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
@@ -207,7 +208,7 @@ router.get(
       allTime: { staked: allTimeStaked, paid: allTimePaid, profit: Math.round((allTimeStaked - allTimePaid) * 100) / 100 },
       // Most games keep env.games.rtp; the lottery games keep the lower lottery edge.
       targetHouseEdgePercent: Math.round((1 - env.games.rtp) * 1000) / 10,
-      lotteryTargetHouseEdgePercent: Math.round((1 - env.games.lotteryRtp) * 1000) / 10,
+      lotteryTargetHouseEdgePercent: Math.round((1 - LOTTERY_RTP) * 1000) / 10,
     });
   })
 );
@@ -301,7 +302,7 @@ router.get(
         cashIfAllWithdrew: r2((out.all as { cashIn: number }).cashIn - playerBalances - pendingWithdrawals),
       },
       targetHouseEdgePercent: Math.round((1 - env.games.rtp) * 1000) / 10,
-      lotteryTargetHouseEdgePercent: Math.round((1 - env.games.lotteryRtp) * 1000) / 10,
+      lotteryTargetHouseEdgePercent: Math.round((1 - LOTTERY_RTP) * 1000) / 10,
     });
   })
 );

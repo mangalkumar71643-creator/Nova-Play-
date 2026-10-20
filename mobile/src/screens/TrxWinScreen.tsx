@@ -21,7 +21,7 @@ import {
   placeTrxBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
-import { NumberBall } from './WinGoScreen';
+import { HouseBall, HousePill, NumberBall, pctText } from './WinGoScreen';
 
 // ---------- theme ----------
 
@@ -36,6 +36,9 @@ const C_RED = '#F0445A';
 const C_VIOLET = '#A559E6';
 const C_BIG = '#F6A93B';
 const C_SMALL = '#5C9DF2';
+// The ⭐ House result: gold, darker for text on white.
+const HOUSE_2 = '#E59A12';
+const HOUSE_INK = '#9A5F00';
 const DURATIONS: TrxDuration[] = [60, 180, 300, 600];
 /** The original Win Go's serif lettering for labels and buttons. */
 const SERIF = 'serif';
@@ -59,7 +62,10 @@ const MULTIPLIERS = [1, 5, 10, 20, 50, 100];
 const ROWS_PER_PAGE = 10;
 const TOAST_MS = 1800;
 const WIN_MS = 3500;
-const FALLBACK = { number: 9.2, size: 1.84, violet: 4.6, color: 1.94, colorMixed: 1.44 };
+// Fair odds on the 9 periods in 10 that are not House (90% return).
+const FALLBACK = { number: 10, size: 2, violet: 5, color: 2.1, colorMixed: 1.6 };
+const FALLBACK_HOUSE_PERCENT = 10;
+const FALLBACK_RTP_PERCENT = 90;
 
 type HistoryTab = 'game' | 'chart' | 'my';
 
@@ -124,6 +130,13 @@ function digitIndexOf(hash: string): number {
   return -1;
 }
 
+/** Where the House digit sits: the decimal digit before the result digit
+ * (a 0 there makes the period ⭐ House). */
+function houseIndexOf(hash: string): number {
+  for (let i = digitIndexOf(hash) - 1; i >= 0; i--) if (hash[i] >= '0' && hash[i] <= '9') return i;
+  return -1;
+}
+
 const HEX_CHARS = '0123456789abcdef';
 function randomHex(n: number): string {
   let out = '';
@@ -131,10 +144,12 @@ function randomHex(n: number): string {
   return out;
 }
 
-/** "…c7e2" with the result digit marked: from the digit to the end. */
-function HashTail({ hash, size = 12 }: { hash: string; size?: number }) {
+/** "…c7e2" with the result digit marked: from the digit to the end (from
+ * the House 0 before it on a House period). */
+function HashTail({ hash, size = 12, house = false }: { hash: string; size?: number; house?: boolean }) {
   const idx = digitIndexOf(hash);
-  const from = Math.max(0, Math.min(idx, hash.length - 4));
+  const hIdx = house ? houseIndexOf(hash) : -1;
+  const from = Math.max(0, Math.min(hIdx >= 0 ? hIdx : idx, hash.length - 4));
   return (
     <Text style={{ fontFamily: MONO, fontSize: size, color: MUTED }}>
       …
@@ -142,7 +157,7 @@ function HashTail({ hash, size = 12 }: { hash: string; size?: number }) {
         .slice(from)
         .split('')
         .map((c, i) => (
-          <Text key={i} style={from + i === idx ? { color: C_RED, fontWeight: '900' } : undefined}>
+          <Text key={i} style={from + i === idx ? { color: C_RED, fontWeight: '900' } : from + i === hIdx ? { color: HOUSE_INK, fontWeight: '900' } : undefined}>
             {c}
           </Text>
         ))}
@@ -154,9 +169,10 @@ function HashTail({ hash, size = 12 }: { hash: string; size?: number }) {
  * The block hash as a 2 x 32 grid of characters. While `scrambling` it
  * cycles random hex; when the scramble ends on a hash it settles left to
  * right, then the result digit lights up. Characters after the digit are
- * dimmed: they are the letters skipped on the way to it.
+ * dimmed: they are the letters skipped on the way to it. On a House period
+ * the 0 before the result digit is ringed too.
  */
-function HashGrid({ hash, scrambling, width }: { hash: string | null; scrambling: boolean; width: number }) {
+function HashGrid({ hash, scrambling, width, house = false }: { hash: string | null; scrambling: boolean; width: number; house?: boolean }) {
   const [text, setText] = useState(() => hash ?? randomHex(64));
   const [settled, setSettled] = useState(!!hash);
   const glow = useRef(new Animated.Value(hash ? 1 : 0)).current;
@@ -208,6 +224,7 @@ function HashGrid({ hash, scrambling, width }: { hash: string | null; scrambling
   }, [hash, scrambling]);
 
   const idx = settled && hash ? digitIndexOf(hash) : -1;
+  const hIdx = settled && hash && house ? houseIndexOf(hash) : -1;
   const cellW = width / 32;
   return (
     <View style={{ width, gap: 4 }}>
@@ -236,6 +253,7 @@ function HashGrid({ hash, scrambling, width }: { hash: string | null; scrambling
                     !settled && { color: 'rgba(255,255,255,0.55)' },
                     settled && i < 16 && { color: 'rgba(244,207,106,0.75)' },
                     skipped && { color: 'rgba(255,255,255,0.3)' },
+                    i === hIdx && styles.hashHouse,
                   ]}
                 >
                   {c}
@@ -323,7 +341,7 @@ function BlockPanel({
       </View>
 
       <View style={styles.blockHashWrap}>
-        <HashGrid hash={drawing ? null : entry?.blockHash ?? null} scrambling={drawing} width={gridW} />
+        <HashGrid hash={drawing ? null : entry?.blockHash ?? null} scrambling={drawing} width={gridW} house={!drawing && !!entry?.house} />
       </View>
 
       <View style={styles.blockFoot}>
@@ -345,13 +363,14 @@ function BlockPanel({
         ) : (
           <View style={{ flex: 1 }}>
             <Text style={styles.blockRule}>Result = last digit in the block hash</Text>
+            {entry?.house && ballOn ? <Text style={styles.blockHouse}>⭐ House: the digit before it is 0 — every bet loses</Text> : null}
             {nextDrawAt ? <Text style={styles.blockNext}>Next draw: first block at or after {fmtTime(nextDrawAt)}</Text> : null}
           </View>
         )}
         <View style={styles.blockBallWrap}>
           {ballOn && entry && !drawing ? (
             <Animated.View style={{ transform: [{ scale: ballPop }] }}>
-              <NumberBall n={entry.number} size={44} />
+              {entry.house ? <HouseBall size={44} /> : <NumberBall n={entry.number} size={44} />}
             </Animated.View>
           ) : (
             <View style={styles.blockBallWait}>
@@ -415,6 +434,8 @@ export default function TrxWinScreen() {
   const lockPulse = useRef(new Animated.Value(1)).current;
 
   const P = config?.payouts ?? FALLBACK;
+  const housePercent = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
+  const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP_PERCENT;
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
@@ -539,6 +560,7 @@ export default function TrxWinScreen() {
       const bets = await loadMyBets();
       const mine = (bets ?? []).filter((b) => b.periodNumber === period && b.durationSeconds === d);
       if (mine.length > 0) refreshWallet();
+      if (h[0].house && mine.length > 0) showToast('⭐ House result — every bet this period loses');
       const won = round2(mine.reduce((s, b) => s + (b.status === 'WON' ? Number(b.payout) : 0), 0));
       if (won > 0) {
         setWin({ amount: won, period, result: h[0] });
@@ -705,9 +727,7 @@ export default function TrxWinScreen() {
             </Pressable>
             <Text style={styles.ticketGame}>Trx Win Go {DURATION_LABEL[duration]}</Text>
             <View style={styles.ticketBalls}>
-              {history.slice(0, 5).map((h) => (
-                <NumberBall key={h.periodNumber} n={h.number} size={24} />
-              ))}
+              {history.slice(0, 5).map((h) => (h.house ? <HouseBall key={h.periodNumber} size={24} /> : <NumberBall key={h.periodNumber} n={h.number} size={24} />))}
             </View>
           </View>
           <View style={styles.ticketDivider} />
@@ -847,13 +867,23 @@ export default function TrxWinScreen() {
                   <Text style={[styles.td, { flex: 1.15, fontSize: 11, fontWeight: '700', color: G2 }]}>{h.blockNumber}</Text>
                   <Text style={[styles.td, { flex: 0.95, fontSize: 11 }]}>{fmtTime(h.blockTime)}</Text>
                   <View style={{ flex: 1, alignItems: 'center' }}>
-                    <HashTail hash={h.blockHash} size={11} />
+                    <HashTail hash={h.blockHash} size={11} house={h.house} />
                   </View>
                   <View style={{ flex: 0.95, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                    <NumberBall n={h.number} size={22} />
-                    <View style={[styles.sizeBadge, { marginLeft: 0, width: 18, height: 18, backgroundColor: h.size === 'BIG' ? C_BIG : C_SMALL }]}>
-                      <Text style={[styles.sizeBadgeText, { fontSize: 10 }]}>{h.size === 'BIG' ? 'B' : 'S'}</Text>
-                    </View>
+                    {h.house ? (
+                      // A narrow column: the star ball over its name.
+                      <View style={{ alignItems: 'center' }}>
+                        <HouseBall size={20} />
+                        <Text style={styles.houseTiny}>⭐ House</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <NumberBall n={h.number} size={22} />
+                        <View style={[styles.sizeBadge, { marginLeft: 0, width: 18, height: 18, backgroundColor: h.size === 'BIG' ? C_BIG : C_SMALL }]}>
+                          <Text style={[styles.sizeBadgeText, { fontSize: 10 }]}>{h.size === 'BIG' ? 'B' : 'S'}</Text>
+                        </View>
+                      </>
+                    )}
                   </View>
                 </Pressable>
               ))}
@@ -872,6 +902,8 @@ export default function TrxWinScreen() {
                 <Svg width={chartW} height={Math.max(1, pageRows.length) * chartRowH} style={StyleSheet.absoluteFill}>
                   {pageRows.slice(0, -1).map((h, i) => {
                     const next = pageRows[i + 1];
+                    // The trend line breaks at House rows (no number).
+                    if (h.house || next.house) return null;
                     return (
                       <Line
                         key={h.periodNumber}
@@ -888,18 +920,24 @@ export default function TrxWinScreen() {
                 {pageRows.map((h, i) => (
                   <View key={h.periodNumber} style={[styles.chartRow, { height: chartRowH, top: i * chartRowH }]}>
                     <Text style={[styles.td, { width: chartX0, fontSize: 11 }]}>{h.periodNumber}</Text>
-                    {Array.from({ length: 10 }, (_, n) => {
-                      const hit = n === h.number;
-                      return (
-                        <View key={n} style={{ width: chartStep, alignItems: 'center' }}>
-                          <View style={[styles.chartCell, hit && { backgroundColor: HEX[h.colors[0]], borderColor: HEX[h.colors[0]] }]}>
-                            <Text style={[styles.chartCellText, hit && { color: '#FFFFFF' }]}>{n}</Text>
+                    {h.house ? (
+                      <View style={{ width: chartStep * 10, alignItems: 'center' }}>
+                        <HousePill size={11} />
+                      </View>
+                    ) : (
+                      Array.from({ length: 10 }, (_, n) => {
+                        const hit = n === h.number;
+                        return (
+                          <View key={n} style={{ width: chartStep, alignItems: 'center' }}>
+                            <View style={[styles.chartCell, hit && { backgroundColor: HEX[h.colors[0]], borderColor: HEX[h.colors[0]] }]}>
+                              <Text style={[styles.chartCellText, hit && { color: '#FFFFFF' }]}>{n}</Text>
+                            </View>
                           </View>
-                        </View>
-                      );
-                    })}
-                    <View style={[styles.sizeBadge, { backgroundColor: h.size === 'BIG' ? C_BIG : C_SMALL }]}>
-                      <Text style={styles.sizeBadgeText}>{h.size === 'BIG' ? 'B' : 'S'}</Text>
+                        );
+                      })
+                    )}
+                    <View style={[styles.sizeBadge, { backgroundColor: h.house ? HOUSE_2 : h.size === 'BIG' ? C_BIG : C_SMALL }]}>
+                      <Text style={styles.sizeBadgeText}>{h.house ? 'H' : h.size === 'BIG' ? 'B' : 'S'}</Text>
                     </View>
                   </View>
                 ))}
@@ -923,7 +961,7 @@ export default function TrxWinScreen() {
                       <Text style={styles.myPeriod}>{b.periodNumber}</Text>
                       <Text style={styles.myMeta}>
                         Trx {DURATION_LABEL[b.durationSeconds]} · ₹{Number(b.amount).toFixed(2)}
-                        {b.result ? `  ·  Result ${b.result.number} · #${b.result.blockNumber}` : ''}
+                        {b.result ? `  ·  Result ${b.result.house ? '⭐ House' : b.result.number} · #${b.result.blockNumber}` : ''}
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
@@ -1065,17 +1103,25 @@ export default function TrxWinScreen() {
               </View>
               <View style={[styles.block, { padding: 12, marginTop: 0 }]}>
                 <LinearGradient colors={[LEDGER_1, LEDGER_2]} style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} />
-                <HashGrid hash={detail.blockHash} scrambling={false} width={Math.min(W * 0.88, 380) - 28 - 24} />
+                <HashGrid hash={detail.blockHash} scrambling={false} width={Math.min(W * 0.88, 380) - 28 - 24} house={detail.house} />
               </View>
               <View style={[styles.detailRow, { alignItems: 'center' }]}>
                 <Text style={styles.detailLabel}>Result</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <NumberBall n={detail.number} size={30} />
-                  <Text style={styles.detailValue}>
-                    {detail.size === 'BIG' ? 'Big' : 'Small'} · {detail.colors.map((c) => c[0] + c.slice(1).toLowerCase()).join(' + ')}
-                  </Text>
-                </View>
+                {detail.house ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <HouseBall size={30} />
+                    <Text style={[styles.detailValue, { color: HOUSE_INK }]}>⭐ House · every bet lost</Text>
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <NumberBall n={detail.number} size={30} />
+                    <Text style={styles.detailValue}>
+                      {detail.size === 'BIG' ? 'Big' : 'Small'} · {detail.colors.map((c) => c[0] + c.slice(1).toLowerCase()).join(' + ')}
+                    </Text>
+                  </View>
+                )}
               </View>
+              {detail.house && <Text style={styles.detailNote}>The digit before the result digit ({detail.number}) is 0, so this period is a ⭐ House result.</Text>}
               <Pressable onPress={() => openBlock(detail)} style={[styles.verifyBtn, { alignSelf: 'stretch', justifyContent: 'center', marginTop: 4 }]}>
                 <MaterialCommunityIcons name="shield-check" size={15} color={LEDGER_2} />
                 <Text style={styles.verifyText}>Verify on TronScan</Text>
@@ -1098,11 +1144,13 @@ export default function TrxWinScreen() {
                 `Each period (${DURATION_LABEL[duration]}) ends at a set time. Betting closes ${lockSeconds} seconds before it.`,
                 'The number is the last digit (0–9) in the hash of the first TRON block produced at or after that time. Letters a–f are skipped, reading from the end.',
                 'The block does not exist while betting is open, so nobody — not you, not us — can know or choose it. It is used once 3 more blocks are built on it (about 10 seconds), then anyone can check it on TronScan.',
+                `⭐ House: one period in ten (${housePercent}%) is a House result — when the decimal digit just before the result digit in the hash is 0. Every bet on a House period loses, whatever the number. All other periods pay the odds below.`,
                 `Green: 1, 3, 7, 9 pay ${P.color}X; 5 pays ${P.colorMixed}X.`,
                 `Red: 2, 4, 6, 8 pay ${P.color}X; 0 pays ${P.colorMixed}X.`,
                 `Violet: 0 or 5 pays ${P.violet}X.`,
                 `Number: the exact number pays ${P.number}X.`,
                 `Big (5–9) / Small (0–4): ${P.size}X.`,
+                `Win chances, House included: a number wins ${pctText(0.1 * (1 - housePercent / 100))} of periods, Big or Small ${pctText(0.5 * (1 - housePercent / 100))}, Green or Red ${pctText(0.5 * (1 - housePercent / 100))}, Violet ${pctText(0.2 * (1 - housePercent / 100))}. Every bet returns ${rtpPercent}% of stakes on average.`,
                 `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
                 `If the TRON network can't be read for ${config?.voidAfterMinutes ?? 60} minutes after a draw, that period is cancelled and every bet on it refunded.`,
               ].map((t, i) => (
@@ -1173,11 +1221,13 @@ const styles = StyleSheet.create({
   hashChar: { fontFamily: MONO, color: '#E8F3EC', fontSize: 12.5, textAlign: 'center' },
   hashHit: { borderRadius: 6, backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center', shadowColor: GOLD, shadowOpacity: 0.9, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
   hashHitText: { fontFamily: MONO, color: LEDGER_2, fontSize: 13.5, fontWeight: '900' },
+  hashHouse: { color: GOLD, fontWeight: '900', borderRadius: 6, borderWidth: 1, borderColor: GOLD },
   blockFoot: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   blockDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: GOLD },
   blockStatus: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   blockRule: { color: '#FFFFFF', fontSize: 12.5, fontWeight: '800' },
   blockNext: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '600', marginTop: 3 },
+  blockHouse: { color: GOLD, fontSize: 12, fontWeight: '800', marginTop: 3 },
   blockBallWrap: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.1)' },
   blockBallWait: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: 'rgba(244,207,106,0.7)', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   blockBallWaitText: { color: GOLD, fontSize: 20, fontWeight: '900' },
@@ -1272,6 +1322,8 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', justifyContent: 'space-between' },
   detailLabel: { color: MUTED, fontSize: 13, fontWeight: '700' },
   detailValue: { color: INK, fontSize: 13, fontWeight: '800' },
+  detailNote: { color: HOUSE_INK, fontSize: 12, fontWeight: '600' },
+  houseTiny: { color: HOUSE_INK, fontSize: 9, fontWeight: '900', marginTop: 1 },
   rulesCard: { width: '88%', borderRadius: 18, overflow: 'hidden', backgroundColor: '#FFFFFF' },
   rulesHead: { paddingVertical: 12, alignItems: 'center' },
   rulesTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '900' },

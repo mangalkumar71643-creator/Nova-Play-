@@ -1,4 +1,5 @@
 import { prisma } from "../db/prismaClient";
+import { LOTTERY_RTP } from "./lotteryHouse";
 import { env } from "../config/env";
 
 /**
@@ -151,7 +152,7 @@ export async function getGameReport() {
   };
   // Retired games have no target any more.
   const targetEdge = (category: string) =>
-    category === "Retired" ? null : Math.round((1 - (category === "Lottery" ? env.games.lotteryRtp : env.games.rtp)) * 1000) / 10;
+    category === "Retired" ? null : Math.round((1 - (category === "Lottery" ? LOTTERY_RTP : env.games.rtp)) * 1000) / 10;
 
   const games = SOURCES.map((src) => {
     const r = byKey.get(src.key)!;

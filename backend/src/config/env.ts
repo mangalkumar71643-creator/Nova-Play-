@@ -25,9 +25,6 @@ export const env = {
     // (0.85 = a 15% house edge on Aviator, Chicken Road, Mines, dice and the
     // other games that share it).
     rtp: Number(process.env.GAME_RTP ?? 0.85),
-    // The lottery games (Win Go, Trx Win Go, K3, 5D, Jhandi Munda, Fortune Six)
-    // pay back more than the rest (0.92 = an 8% house edge).
-    lotteryRtp: Number(process.env.LOTTERY_RTP ?? 0.92),
     // 7 Up Down runs its own, higher edge (0.85 = 15%).
     sevenUpDownRtp: Number(process.env.SEVEN_UP_DOWN_RTP ?? 0.85),
     // Win pays out at this multiple of the stake; win probability is derived
