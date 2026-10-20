@@ -1,4 +1,5 @@
-node_modules/
+# Also matches a node_modules symlink, not just a folder.
+node_modules
 dist/
 .env
 *.log
