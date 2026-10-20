@@ -19,6 +19,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.novaplayhub",
+      "versionCode": 22,
       "permissions": [
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]

@@ -1,0 +1,9 @@
+// Point every Maven Central repo at Google's mirror to avoid repo.maven.apache.org rate limits.
+def MIRROR = "https://maven-central.storage-download.googleapis.com/maven2/"
+def redirect = { RepositoryHandler repos ->
+  repos.withType(MavenArtifactRepository).configureEach { r ->
+    if (r.url.toString().contains("repo.maven.apache.org")) r.url = MIRROR
+  }
+}
+beforeSettings { s -> redirect(s.pluginManagement.repositories); redirect(s.buildscript.repositories) }
+allprojects { redirect(buildscript.repositories); redirect(repositories) }
