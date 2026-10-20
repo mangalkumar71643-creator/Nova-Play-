@@ -5,18 +5,24 @@ import { env } from "../config/env";
 import { fairGameFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
+import { INSTANT_HOUSE_CHANCE, INSTANT_RTP, isInstantHouse } from "./lotteryHouse";
 
 /**
  * Dice: a roll from 0.00 to 100.00 (10,001 equally likely results). The
  * player picks a target and Roll Over (win if the roll is above it) or
- * Roll Under (win if below). Win chance is the share of the bar that wins
- * and the multiplier is rtp x 100 / chance, so every target returns the
- * same rtp: 85 / chance x (100 x chance) / 10,001 = 84.99%.
+ * Roll Under (win if below). Win chance is the share of the bar that wins,
+ * chance x 100 of the 10,001 results, and the multiplier is the fair odds
+ * on it, 10,001 / (chance x 100) rounded down to the cent (2.00x at 50%).
+ *
+ * One roll in five is a ⭐ House roll (lotteryHouse.ts, drawn from the same
+ * seeds): it loses whatever the roll is. So every target returns at most
+ * 80% (a 20% house edge): 0.8 x (chance x 100 / 10,001) x multiplier, which
+ * the cent rounding keeps between 79.2% and 80% for every target.
  */
 export const OUTCOMES = 10001;
-/** Win chance limits, in percent. The top keeps the multiplier above 1.01x. */
+/** Win chance limits, in percent. The top keeps the multiplier at 1.01x or more. */
 export const MIN_CHANCE = 0.01;
-export const MAX_CHANCE = 84;
+export const MAX_CHANCE = 99;
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -24,10 +30,6 @@ function round2(n: number): number {
 
 function floor2(n: number): number {
   return Math.floor(n * 100 + 1e-9) / 100;
-}
-
-function floor4(n: number): number {
-  return Math.floor(n * 10000 + 1e-9) / 10000;
 }
 
 /** The roll for these seeds: 0.00 to 100.00 in steps of 0.01. */
@@ -39,8 +41,14 @@ export function winChance(target: number, rollOver: boolean): number {
   return round2(rollOver ? 100 - target : target);
 }
 
+/** Fair odds on a roll that is not House: 1 / P(win), rounded down to the cent. */
 export function multiplierFor(chance: number): number {
-  return floor4((env.games.rtp * 100) / chance);
+  return floor2(OUTCOMES / Math.round(chance * 100));
+}
+
+/** Exact return of a bet at this win chance, House rolls included. */
+export function diceRtp(chance: number): number {
+  return INSTANT_RTP * (Math.round(chance * 100) / OUTCOMES) * multiplierFor(chance);
 }
 
 type DiceBetRow = Prisma.DiceBetGetPayload<Record<string, never>>;
@@ -58,12 +66,14 @@ export function getDiceConfig() {
     maxPayout: env.games.maxPayout,
     minChance: MIN_CHANCE,
     maxChance: MAX_CHANCE,
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(INSTANT_RTP * 100),
+    houseChancePercent: round2(INSTANT_HOUSE_CHANCE * 100),
   };
 }
 
-/** Rolls once: debits the stake, rolls from the player's provably-fair
- * seeds and pays stake x multiplier on a win, all in one transaction. */
+/** Rolls once: debits the stake, rolls (and draws whether it is House) from
+ * the player's provably-fair seeds and pays stake x multiplier on a win
+ * that is not House, all in one transaction. */
 export async function rollDice(userId: string, stake: number, target: number, rollOver: boolean) {
   if (stake < env.games.minStake || stake > env.games.maxStake) {
     throw new ApiError(400, `Stake must be between ${env.games.minStake} and ${env.games.maxStake}.`);
@@ -84,7 +94,10 @@ export async function rollDice(userId: string, stake: number, target: number, ro
 
   const { serverSeed, serverSeedHash, clientSeed, nonce } = await nextRoundSeedMaterial(userId);
   const result = rollFor(serverSeed, clientSeed, nonce);
-  const won = rollOver ? result > target : result < target;
+  // Fixed (and stored) with the roll, from the same seeds. The roll is still
+  // made and kept, so the seeds can be checked against it.
+  const house = isInstantHouse(serverSeed, clientSeed, "dice", nonce);
+  const won = !house && (rollOver ? result > target : result < target);
   // Rounded down, so rounding never pays more than the multiplier says.
   const payout = won ? floor2(stake * multiplier) : 0;
 
@@ -118,7 +131,7 @@ export async function rollDice(userId: string, stake: number, target: number, ro
     }
 
     return tx.diceBet.create({
-      data: { userId, stake, target, rollOver, multiplier, result, won, payout, serverSeed, serverSeedHash, clientSeed, nonce },
+      data: { userId, stake, target, rollOver, multiplier, result, won, house, payout, serverSeed, serverSeedHash, clientSeed, nonce },
     });
   });
 

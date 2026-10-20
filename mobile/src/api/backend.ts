@@ -705,9 +705,11 @@ export interface WheelConfig {
   maxStake: number;
   maxPayout: number;
   rtpPercent: number;
+  /** Share of spins that are a ⭐ House spin (the spin loses). */
+  houseChancePercent?: number;
   segments: number;
-  /** Each risk level's multipliers, clockwise from the top. */
-  wheels: { risk: WheelRisk; segments: number[]; rtpPercent: number }[];
+  /** Each risk level's multipliers, clockwise from the top, and which segments are ⭐ House segments (listed as 0). */
+  wheels: { risk: WheelRisk; segments: number[]; houseSegments?: number[]; rtpPercent: number }[];
 }
 
 export interface WheelSpinRow {
@@ -715,6 +717,8 @@ export interface WheelSpinRow {
   risk: WheelRisk;
   stake: string;
   segment: number;
+  /** ⭐ House spin: the pointer stopped on a ⭐ segment and the spin lost. */
+  house?: boolean;
   multiplier: string;
   payout: string;
   serverSeedHash: string;
@@ -742,18 +746,22 @@ export interface ScratchConfig {
   maxStake: number;
   maxPayout: number;
   rtpPercent: number;
+  /** Share of tickets that are a ⭐ House ticket (the ticket loses). */
+  houseChancePercent?: number;
   panels: number;
-  /** The prize table, lowest first; `chance` is the chance a ticket carries that prize. */
+  /** The prize table, lowest first; `chance` is the chance a ticket wins that prize (House tickets lose). */
   symbols: { key: string; multiplier: number; chance: number }[];
 }
 
 export interface ScratchTicketRow {
   id: string;
   stake: string;
-  /** The nine panels' symbols (indices into `symbols`), left to right, top to bottom. */
+  /** The nine panels' symbols (indices into `symbols`), left to right, top to bottom; -1 is the ⭐ on a House ticket. */
   panels: number[];
-  /** The symbol shown three times, or -1 for no win. */
+  /** The symbol shown three times, or -1 for no win (or a House ticket). */
   prize: number;
+  /** ⭐ House ticket: lost, whatever prize was drawn (one panel shows the ⭐). */
+  house?: boolean;
   multiplier: string;
   payout: string;
   serverSeedHash: string;
@@ -782,7 +790,11 @@ export interface DiceDuelConfig {
   minStake: number;
   maxStake: number;
   maxPayout: number;
-  /** Each pick's pay (stake included), its chance and its exact return. */
+  /** Return of the pick that returns least, House rolls included. */
+  rtpPercent?: number;
+  /** Share of rolls that are a ⭐ House result (every pick loses). */
+  houseChancePercent?: number;
+  /** Each pick's pay (stake included), its real win chance (House rolls lose) and its exact return. */
   picks: { pick: DuelPick; multiplier: number; chance: number; rtpPercent: number }[];
 }
 
@@ -793,6 +805,8 @@ export interface DiceDuelBetRow {
   playerDice: number[];
   houseDice: number[];
   outcome: DuelPick;
+  /** ⭐ House result: every pick lost, HOUSE included (the dice are still rolled, for checking the seeds). */
+  house?: boolean;
   multiplier: string;
   payout: string;
   serverSeedHash: string;
@@ -823,8 +837,12 @@ export interface ColorBallConfig {
   maxPayout: number;
   /** The drum: ball n (1-20) has colour balls[n - 1]. */
   balls: BallColor[];
-  /** Each colour's ball count, pay (stake included) and exact return. */
-  colors: { color: BallColor; balls: number; multiplier: number; rtpPercent: number }[];
+  /** Return of the colour that returns least, House draws included. */
+  rtpPercent?: number;
+  /** Share of draws that are a ⭐ House result (the bet loses). */
+  houseChancePercent?: number;
+  /** Each colour's ball count, pay (stake included), real win chance (House draws lose) and exact return. */
+  colors: { color: BallColor; balls: number; multiplier: number; chance?: number; rtpPercent: number }[];
 }
 
 export interface ColorBallBetRow {
@@ -833,6 +851,8 @@ export interface ColorBallBetRow {
   pick: BallColor;
   ball: number;
   color: BallColor;
+  /** ⭐ House result: lost, whatever ball was drawn (it is still drawn, for checking the seeds). */
+  house?: boolean;
   multiplier: string;
   payout: string;
   serverSeedHash: string;
@@ -998,6 +1018,12 @@ export interface SevenUpDownConfig {
   betSeconds: number;
   resultAtSeconds: number;
   multipliers: Record<SevenUpDownArea, number>;
+  /** Return of every box, House rounds included. */
+  rtpPercent?: number;
+  /** Share of rounds that are a ⭐ House result (every bet loses). */
+  houseChancePercent?: number;
+  /** Chance each box wins, House rounds included. */
+  winChances?: Record<SevenUpDownArea, number>;
 }
 
 export interface SevenUpDownRoundView {
@@ -1011,6 +1037,8 @@ export interface SevenUpDownRoundView {
   serverSeedHash: string;
   dice: [number, number] | null;
   total: number | null;
+  /** ⭐ House result, once revealed: every bet lost (the dice are still thrown, for checking the seed). */
+  house?: boolean | null;
   serverSeed: string | null;
 }
 
@@ -1028,6 +1056,8 @@ export interface SevenUpDownHistoryEntry {
   dice1: number;
   dice2: number;
   total: number;
+  /** ⭐ House result: every bet lost (the dice are still thrown, for checking the seed). */
+  house?: boolean;
 }
 
 export function fetchSevenUpDownConfig() {
@@ -1073,7 +1103,11 @@ export interface PlinkoConfig {
   maxRows: number;
   risks: PlinkoRisk[];
   rtpPercent: number;
-  // multipliers[risk][rows] = payout for each landing slot, left to right
+  /** Lowest and highest return of any rows / risk table, ⭐ House drops included. */
+  rtpRange?: [number, number];
+  /** Chance a drop is a ⭐ House result, which loses (20). */
+  houseChancePercent?: number;
+  // multipliers[risk][rows] = payout for each landing slot, left to right (on a drop that is not House)
   multipliers: Record<PlinkoRisk, Record<string, number[]>>;
 }
 
@@ -1084,6 +1118,8 @@ export interface PlinkoBet {
   risk: PlinkoRisk;
   path: number[]; // 0 = bounced left, 1 = bounced right, one per row
   slot: number;
+  /** ⭐ House drop: the bet lost, whatever slot the ball reached (multiplier 0). */
+  house?: boolean;
   multiplier: string;
   payout: string;
   serverSeedHash: string;
@@ -2458,6 +2494,8 @@ export interface DiceBet {
   multiplier: string;
   result: string;
   won: boolean;
+  /** ⭐ House roll: lost, whatever the roll (the roll is still made, for checking the seeds). */
+  house?: boolean;
   payout: string;
   serverSeedHash: string;
   clientSeed: string;
@@ -2471,6 +2509,8 @@ export interface DiceConfig {
   minChance: number;
   maxChance: number;
   rtpPercent: number;
+  /** Share of rolls that are a ⭐ House roll (the bet loses). */
+  houseChancePercent?: number;
 }
 
 export function fetchDiceConfig() {
@@ -2493,6 +2533,8 @@ export interface LimboBet {
   target: string;
   result: string;
   won: boolean;
+  /** ⭐ House result: lost, whatever the multiplier drawn (it is still drawn, for checking the seeds). */
+  house?: boolean;
   payout: string;
   serverSeedHash: string;
   clientSeed: string;
@@ -2506,6 +2548,8 @@ export interface LimboConfig {
   minTarget: number;
   maxTarget: number;
   rtpPercent: number;
+  /** Share of results that are a ⭐ House result (the bet loses). */
+  houseChancePercent?: number;
 }
 
 export function fetchLimboConfig() {
@@ -2595,7 +2639,9 @@ export interface KenoBet {
   picks: number[];
   risk: KenoRisk;
   drawn: number[];
-  hits: number;
+  hits: number; // 0 on a ⭐ House bet (count it from picks and drawn)
+  /** ⭐ House draw: the bet lost, whatever numbers were drawn (multiplier 0). */
+  house?: boolean;
   multiplier: string;
   payout: string;
   serverSeedHash: string;
@@ -2611,10 +2657,13 @@ export interface KenoConfig {
   drawn: number;
   maxPicks: number;
   risks: KenoRisk[];
-  /** tables[risk][picks - 1][hits] = multiplier */
+  /** tables[risk][picks - 1][hits] = multiplier (on a draw that is not House) */
   tables: Record<KenoRisk, number[][]>;
+  /** Returns with the ⭐ House draws included. */
   rtpPercent: number;
   rtpRange: [number, number];
+  /** Chance a draw is a ⭐ House result, which loses (20). */
+  houseChancePercent?: number;
 }
 
 export function fetchKenoConfig() {
@@ -2801,7 +2850,10 @@ export interface DiamondsBet {
   stake: string;
   /** Colour (0-6) of each of the five gems, left to right. */
   gems: number[];
+  /** NONE on a House play. */
   result: DiamondsResult;
+  /** ⭐ House play: lost, whatever the gems (they are still dropped, for checking the seeds). */
+  house?: boolean;
   multiplier: string;
   payout: string;
   serverSeedHash: string;
@@ -2814,9 +2866,11 @@ export interface DiamondsConfig {
   maxStake: number;
   maxPayout: number;
   colors: number;
-  /** Best result first. */
+  /** Best result first. `chancePercent` is the chance a play wins that pay (House plays lose). */
   paytable: { result: DiamondsResult; multiplier: number; chancePercent: number }[];
   rtpPercent: number;
+  /** Share of plays that are a ⭐ House play (the play loses). */
+  houseChancePercent?: number;
 }
 
 export function fetchDiamondsConfig() {

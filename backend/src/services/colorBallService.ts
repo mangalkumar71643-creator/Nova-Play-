@@ -5,18 +5,24 @@ import { env } from "../config/env";
 import { fairGameFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
+import { INSTANT_HOUSE_CHANCE, isInstantHouse } from "./lotteryHouse";
 
 /**
  * Color Ball: a glass drum holds 20 numbered balls — 9 red, 7 blue, 3 green
  * and 1 gold. The player backs a colour, one ball is drawn (ball floor(r * 20)
- * with r from the player's provably-fair seeds) and a matching colour pays
- * floor2(0.85 / its chance), so every colour returns 85% or a hair under (a
- * 15% house edge; rounding down never favours the player).
+ * with r from the player's provably-fair seeds) and a matching colour pays.
+ *
+ * One draw in five is a ⭐ House result (lotteryHouse.ts, drawn from the same
+ * seeds): the app shows a ⭐ ball dropping (its drum holds 5 ⭐ balls beside
+ * the 20, so 5 in 25 is the real chance) and the bet loses whatever ball was
+ * drawn. Every other draw pays fair odds, floor2(20 / the colour's balls):
+ * red 2.22x, blue 2.85x, green 6.66x, gold 20x. With the House draws each
+ * colour returns 80% or a hair under (79.8%-80%: a 20% house edge; rounding
+ * down never favours the player).
  */
 
 export type BallColor = "RED" | "BLUE" | "GREEN" | "GOLD";
 export const COLORS: BallColor[] = ["RED", "BLUE", "GREEN", "GOLD"];
-export const TARGET_RTP = 0.85;
 export const BALLS = 20;
 
 /** Ball n (1-20) is the colour at index n-1: balls 1-9 red, 10-16 blue, 17-19 green, 20 gold. */
@@ -33,12 +39,17 @@ function floor2(n: number): number {
 
 export const COUNTS = Object.fromEntries(COLORS.map((c) => [c, BALL_COLORS.filter((b) => b === c).length])) as Record<BallColor, number>;
 
-/** What a winning colour pays, stake included. */
-export const PAYS = Object.fromEntries(COLORS.map((c) => [c, floor2((TARGET_RTP * BALLS) / COUNTS[c])])) as Record<BallColor, number>;
+/** What a winning colour pays, stake included: fair odds on a draw that is not House. */
+export const PAYS = Object.fromEntries(COLORS.map((c) => [c, floor2(BALLS / COUNTS[c])])) as Record<BallColor, number>;
 
-/** Exact return of backing a colour. */
+/** Chance a colour wins: the draw is not House and the ball is that colour. */
+export function colorChance(color: BallColor): number {
+  return ((1 - INSTANT_HOUSE_CHANCE) * COUNTS[color]) / BALLS;
+}
+
+/** Exact return of backing a colour, House draws included. */
 export function colorRtp(color: BallColor): number {
-  return (COUNTS[color] * PAYS[color]) / BALLS;
+  return colorChance(color) * PAYS[color];
 }
 
 /** The ball drawn (1-20). */
@@ -60,11 +71,15 @@ export function getColorBallConfig() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     balls: BALL_COLORS,
-    colors: COLORS.map((color) => ({ color, balls: COUNTS[color], multiplier: PAYS[color], rtpPercent: Math.round(colorRtp(color) * 10000) / 100 })),
+    // The colour that returns least (each colour's own return is in `colors`).
+    rtpPercent: Math.min(...COLORS.map((color) => Math.round(colorRtp(color) * 10000) / 100)),
+    houseChancePercent: Math.round(INSTANT_HOUSE_CHANCE * 10000) / 100,
+    // `chance` is the real chance a colour wins (House draws lose), so `rtpPercent` = chance x multiplier.
+    colors: COLORS.map((color) => ({ color, balls: COUNTS[color], multiplier: PAYS[color], chance: colorChance(color), rtpPercent: Math.round(colorRtp(color) * 10000) / 100 })),
   };
 }
 
-/** One draw: debits the stake, draws the ball from the player's seeds and pays a matching colour, all in one transaction. */
+/** One draw: debits the stake, draws the ball (and whether it is House) from the player's seeds and pays a matching colour on a draw that is not House, all in one transaction. */
 export async function playColorBall(userId: string, stake: number, pick: BallColor) {
   if (stake < env.games.minStake || stake > env.games.maxStake) {
     throw new ApiError(400, `Stake must be between ${env.games.minStake} and ${env.games.maxStake}.`);
@@ -76,7 +91,10 @@ export async function playColorBall(userId: string, stake: number, pick: BallCol
   const { serverSeed, serverSeedHash, clientSeed, nonce } = await nextRoundSeedMaterial(userId);
   const ball = drawBall(serverSeed, clientSeed, nonce);
   const color = BALL_COLORS[ball - 1];
-  const multiplier = color === pick ? PAYS[pick] : 0;
+  // Fixed (and stored) with the draw, from the same seeds. The ball is still
+  // drawn and kept, so the seeds can be checked against it.
+  const house = isInstantHouse(serverSeed, clientSeed, "color-ball", nonce);
+  const multiplier = !house && color === pick ? PAYS[pick] : 0;
   // Rounded down, so rounding never pays more than the table says.
   const payout = Math.min(floor2(stake * multiplier), env.games.maxPayout);
 
@@ -104,7 +122,7 @@ export async function playColorBall(userId: string, stake: number, pick: BallCol
     await tx.transaction.create({ data: { userId, type: "GAME_STAKE", amount: stake, status: "COMPLETED" } });
     if (payout > 0) await tx.transaction.create({ data: { userId, type: "GAME_PAYOUT", amount: payout, status: "COMPLETED" } });
 
-    return tx.colorBallBet.create({ data: { userId, stake, pick, ball, color, multiplier, payout, serverSeed, serverSeedHash, clientSeed, nonce } });
+    return tx.colorBallBet.create({ data: { userId, stake, pick, ball, color, house, multiplier, payout, serverSeed, serverSeedHash, clientSeed, nonce } });
   });
 
   return toPublicBet(bet);

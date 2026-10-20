@@ -4,11 +4,14 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { INSTANT_HOUSE_CHANCE, isInstantHouseRound } from "./lotteryHouse";
 
 /**
  * "7 Up Down": two dice per shared round, bets on the total. Rounds sit on
  * fixed wall-clock slots (like Win Go) so every player sees the same
- * timer: betting, then the cup shakes, then the dice are revealed.
+ * timer: betting, then the cup shakes, then the dice are revealed. One
+ * round in five is a ⭐ House result (lotteryHouse.ts) on which every bet
+ * loses, whatever the dice show; the rest pay fair odds on the dice.
  */
 export const ROUND_SECONDS = 20;
 /** Bets are accepted while less than this much of the round has passed. */
@@ -39,12 +42,22 @@ function winningWays(area: Area): number {
   return waysFor(Number(area.slice(1)));
 }
 
-/** Total return per unit staked (stake included), so that
- * multiplier * P(win) = sevenUpDownRtp on every box (this game carries
- * its own edge, separate from the other games). Rounded down so the edge
- * is never smaller than advertised. */
+/** Total return per unit staked (stake included): fair odds on the rounds
+ * that are not House, 36 / the dice pairs that win (Down or Up 2.4x, 7 6x,
+ * 2 or 12 36x), rounded down so it never pays above fair. With the House
+ * rounds every box returns 80% (INSTANT_RTP). */
 export function multiplierFor(area: Area): number {
-  return floor2((env.games.sevenUpDownRtp * 36) / winningWays(area));
+  return floor2(36 / winningWays(area));
+}
+
+/** Chance a bet on this box wins: the round is not House and the dice make its total. */
+export function winChance(area: Area): number {
+  return ((1 - INSTANT_HOUSE_CHANCE) * winningWays(area)) / 36;
+}
+
+/** Exact return of the box that returns least, House rounds included (80%: every box is exact). */
+export function sevenUpDownRtp(): number {
+  return Math.min(...AREAS.map((a) => winChance(a) * multiplierFor(a)));
 }
 
 export function areaWins(area: Area, total: number): boolean {
@@ -56,7 +69,8 @@ export function areaWins(area: Area, total: number): boolean {
 
 /** Each die comes from its own HMAC draw on the round's server seed, so the
  * result is fixed the moment the round is created (commit-reveal: only the
- * seed hash is public until the dice are shown). */
+ * seed hash is public until the dice are shown), as is whether the round is
+ * House (isInstantHouseRound, a separate draw from the same seed). */
 export function diceFor(serverSeed: string, periodNumber: string): [number, number] {
   const d1 = Math.floor(fairRandomFloat(serverSeed, periodNumber, 0) * 6) + 1;
   const d2 = Math.floor(fairRandomFloat(serverSeed, periodNumber, 1) * 6) + 1;
@@ -106,6 +120,7 @@ async function getOrCreateRound(now: Date): Promise<RoundRow> {
         endTime: new Date(startTime.getTime() + slotMs),
         dice1,
         dice2,
+        house: isInstantHouseRound(serverSeed, periodNumber),
         serverSeed,
         serverSeedHash: hashServerSeed(serverSeed),
       },
@@ -117,7 +132,8 @@ async function getOrCreateRound(now: Date): Promise<RoundRow> {
   }
 }
 
-/** Pays out every still-pending bet on a round whose dice are revealed.
+/** Pays out every still-pending bet on a round whose dice are revealed
+ * (none on a House round: its flag was stored when the round was created).
  * Each bet is claimed with a guarded PENDING -> WON/LOST update, so two
  * requests settling at once can never pay the same bet twice. */
 async function settleRound(round: RoundRow) {
@@ -127,7 +143,7 @@ async function settleRound(round: RoundRow) {
   const pending = await prisma.sevenUpDownBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
 
   for (const bet of pending) {
-    const won = areaWins(bet.area as Area, total);
+    const won = !round.house && areaWins(bet.area as Area, total);
     const payout = won ? Math.min(floor2(Number(bet.amount) * Number(bet.multiplier)), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.sevenUpDownBet.updateMany({
@@ -186,9 +202,12 @@ function toView(round: RoundRow, now: Date) {
     serverTime: now,
     phase,
     serverSeedHash: round.serverSeedHash,
-    // The dice (and the seed that produced them) stay hidden until reveal.
+    // The dice, the House flag and the seed that produced them stay hidden
+    // until reveal. On a House round the dice are still sent (older app
+    // builds read them, and they check the seed); `house` says they don't count.
     dice: revealed ? [round.dice1, round.dice2] : null,
     total: revealed ? round.dice1 + round.dice2 : null,
+    house: revealed ? round.house : null,
     serverSeed: revealed ? round.serverSeed : null,
   };
 }
@@ -210,6 +229,10 @@ export function getSevenUpDownConfig() {
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
     multipliers,
+    rtpPercent: round2(sevenUpDownRtp() * 100),
+    houseChancePercent: round2(INSTANT_HOUSE_CHANCE * 100),
+    // Chance each box wins, House rounds included.
+    winChances: Object.fromEntries(AREAS.map((a) => [a, winChance(a)])),
   };
 }
 
@@ -343,16 +366,23 @@ export async function getSevenUpDownHistory(limit = 100) {
     where: { settled: true },
     orderBy: { startTime: "desc" },
     take: limit,
-    select: { periodNumber: true, dice1: true, dice2: true, serverSeed: true, serverSeedHash: true },
+    select: { periodNumber: true, dice1: true, dice2: true, house: true, serverSeed: true, serverSeedHash: true },
   });
+  // On a House round the dice are still listed (they check the seed); `house` says every bet lost.
   return rounds.map((r) => ({ ...r, total: r.dice1 + r.dice2 }));
 }
 
 export async function getMySevenUpDownBets(userId: string, limit = 50) {
-  return prisma.sevenUpDownBet.findMany({
+  const bets = await prisma.sevenUpDownBet.findMany({
     where: { userId, status: { not: "VOID" } },
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { round: { select: { periodNumber: true, dice1: true, dice2: true, settled: true } } },
+    include: { round: { select: { periodNumber: true, dice1: true, dice2: true, house: true, settled: true } } },
   });
+  // A round's dice and House flag stay hidden until it is settled, like the
+  // round view: a pending bet must not reveal the round it is on.
+  return bets.map(({ round, ...bet }) => ({
+    ...bet,
+    round: round.settled ? round : { periodNumber: round.periodNumber, dice1: null, dice2: null, house: null, settled: false },
+  }));
 }

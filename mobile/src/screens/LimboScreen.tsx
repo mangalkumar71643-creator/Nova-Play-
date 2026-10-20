@@ -17,6 +17,8 @@ const GOLD = '#FFD66B';
 const WIN = '#35F5A0';
 const LOSE = '#FF4D6A';
 const INK = '#F5EEFF';
+/** ⭐ House result marker: dark plum with gold, unlike the win and lose colours. */
+const HOUSE_BG = 'rgba(58,20,82,0.85)';
 const BET_LEVELS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
 const DEFAULT_BET = 10;
 const AUTO_OPTIONS = [10, 25, 50, 100];
@@ -160,8 +162,8 @@ export function LimboTileArt({ size }: { size: number }) {
 
 // ---------- screen ----------
 
-type Recent = { id: string; v: number; won: boolean };
-type Last = { result: number; won: boolean; target: number; payout: number };
+type Recent = { id: string; v: number; won: boolean; house: boolean };
+type Last = { result: number; won: boolean; house: boolean; target: number; payout: number };
 
 export default function LimboScreen() {
   const navigation = useNavigation();
@@ -212,7 +214,8 @@ export default function LimboScreen() {
   const shake = useRef(new Animated.Value(0)).current;
   const rocketSpin = useRef(new Animated.Value(0)).current;
 
-  const rtp = config?.rtpPercent ?? 85;
+  // Return with the ⭐ House results included, so rtp / target is the real win chance.
+  const rtp = config?.rtpPercent ?? 80;
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
@@ -248,7 +251,7 @@ export default function LimboScreen() {
       .then((c) => mountedRef.current && setConfig(c))
       .catch(() => {});
     fetchLimboHistory(RECENT_MAX)
-      .then((h) => mountedRef.current && setRecent(h.reverse().map((b) => ({ id: b.id, v: Number(b.result), won: b.won }))))
+      .then((h) => mountedRef.current && setRecent(h.reverse().map((b) => ({ id: b.id, v: Number(b.result), won: b.won, house: !!b.house }))))
       .catch(() => {});
     AsyncStorage.getItem(SOUND_KEY)
       .then((v) => v === 'off' && setSoundOn(false))
@@ -358,17 +361,24 @@ export default function LimboScreen() {
 
     const result = Number(b.result);
     const payout = Number(b.payout);
+    const house = !!b.house;
     const fast = turboRef.current;
-    // Longer climbs for bigger results, but never slow.
-    const dur = result <= 1 ? 120 : Math.min(fast ? 520 : 1300, (fast ? 180 : 380) + Math.log10(result) * (fast ? 110 : 300));
-    climbTo.current = result;
-    setClimbing(true);
-    await new Promise<void>((resolve) => Animated.timing(climb, { toValue: 1, duration: dur, easing: Easing.out(Easing.quad), useNativeDriver: false }).start(() => resolve()));
+    if (house) {
+      // ⭐ House result: it loses whatever the multiplier drawn, so nothing
+      // climbs and the ⭐ shows instead (the result stays on the bet, for checking the seeds).
+      await new Promise<void>((resolve) => setTimeout(resolve, fast ? 180 : 420));
+    } else {
+      // Longer climbs for bigger results, but never slow.
+      const dur = result <= 1 ? 120 : Math.min(fast ? 520 : 1300, (fast ? 180 : 380) + Math.log10(result) * (fast ? 110 : 300));
+      climbTo.current = result;
+      setClimbing(true);
+      await new Promise<void>((resolve) => Animated.timing(climb, { toValue: 1, duration: dur, easing: Easing.out(Easing.quad), useNativeDriver: false }).start(() => resolve()));
+    }
     if (!mountedRef.current) return;
     setClimbing(false);
-    setShownX(result);
-    setLast({ result, won: b.won, target: t, payout });
-    setRecent((r) => [...r, { id: b.id, v: result, won: b.won }].slice(-RECENT_MAX));
+    setShownX(house ? 1 : result);
+    setLast({ result, won: b.won, house, target: t, payout });
+    setRecent((r) => [...r, { id: b.id, v: result, won: b.won, house }].slice(-RECENT_MAX));
     if (b.won) {
       play('win');
       setShownBalance((v) => round2(v + payout));
@@ -423,10 +433,10 @@ export default function LimboScreen() {
   const R = ring / 2 - 12;
   const circ = 2 * Math.PI * R;
   // Ring fills as the number climbs towards the target; full (and green) at the target.
-  const progress = last ? (last.won ? 1 : Math.min(0.999, Math.log(Math.max(1, last.result)) / Math.log(last.target))) : climbing || busy ? Math.min(1, Math.log(Math.max(1, shownX)) / Math.log(stateRef.current.target)) : 0;
+  const progress = last ? (last.house ? 0 : last.won ? 1 : Math.min(0.999, Math.log(Math.max(1, last.result)) / Math.log(last.target))) : climbing || busy ? Math.min(1, Math.log(Math.max(1, shownX)) / Math.log(stateRef.current.target)) : 0;
   const reached = shownX >= (last?.target ?? target);
-  const numColor = last ? (last.won ? WIN : LOSE) : reached && climbing ? WIN : INK;
-  const ringColor = last ? (last.won ? WIN : LOSE) : reached ? WIN : PINK;
+  const numColor = last ? (last.house ? GOLD : last.won ? WIN : LOSE) : reached && climbing ? WIN : INK;
+  const ringColor = last ? (last.house ? GOLD : last.won ? WIN : LOSE) : reached ? WIN : PINK;
   const label = fmtX(shownX);
   const numSize = Math.min(ring * 0.3, (ring * 1.55) / Math.max(4, label.length + 1));
   const locked = busy || autoLeft > 0;
@@ -466,11 +476,17 @@ export default function LimboScreen() {
           {recent.length === 0 ? (
             <Text style={styles.recentEmpty}>Your recent results show here</Text>
           ) : (
-            recent.slice(-(compact ? 6 : 7)).map((r, i, arr) => (
-              <View key={r.id} style={[styles.recentPill, { backgroundColor: r.won ? 'rgba(53,245,160,0.15)' : 'rgba(255,255,255,0.06)', borderColor: r.won ? WIN : 'rgba(255,255,255,0.14)' }, i === arr.length - 1 && styles.recentPillNew]}>
-                <Text style={[styles.recentText, { color: r.won ? WIN : 'rgba(245,238,255,0.75)' }]}>{fmtX(r.v)}x</Text>
-              </View>
-            ))
+            recent.slice(-(compact ? 6 : 7)).map((r, i, arr) =>
+              r.house ? (
+                <View key={r.id} style={[styles.recentPill, { backgroundColor: HOUSE_BG, borderColor: GOLD }, i === arr.length - 1 && styles.recentPillNew]}>
+                  <Text style={[styles.recentText, { color: GOLD }]}>⭐ House</Text>
+                </View>
+              ) : (
+                <View key={r.id} style={[styles.recentPill, { backgroundColor: r.won ? 'rgba(53,245,160,0.15)' : 'rgba(255,255,255,0.06)', borderColor: r.won ? WIN : 'rgba(255,255,255,0.14)' }, i === arr.length - 1 && styles.recentPillNew]}>
+                  <Text style={[styles.recentText, { color: r.won ? WIN : 'rgba(245,238,255,0.75)' }]}>{fmtX(r.v)}x</Text>
+                </View>
+              )
+            )
           )}
         </View>
 
@@ -516,11 +532,17 @@ export default function LimboScreen() {
                 <Rocket size={26} />
               </View>
             </Animated.View>
-            <Text style={[styles.bigX, { color: numColor, fontSize: numSize }]} numberOfLines={1}>
-              {label}
-              <Text style={{ fontSize: numSize * 0.6 }}>x</Text>
+            {last?.house ? (
+              <Text style={[styles.bigX, { fontSize: ring * 0.24 }]}>⭐</Text>
+            ) : (
+              <Text style={[styles.bigX, { color: numColor, fontSize: numSize }]} numberOfLines={1}>
+                {label}
+                <Text style={{ fontSize: numSize * 0.6 }}>x</Text>
+              </Text>
+            )}
+            <Text style={[styles.stageSub, last?.house && { color: GOLD }]}>
+              {last ? (last.house ? 'HOUSE · NO WIN' : last.won ? `WON ₹${last.payout.toFixed(2)}` : `TARGET ${fmtX(last.target)}x`) : busy ? 'LAUNCHING' : `TARGET ${fmtX(target)}x`}
             </Text>
-            <Text style={styles.stageSub}>{last ? (last.won ? `WON ₹${last.payout.toFixed(2)}` : `TARGET ${fmtX(last.target)}x`) : busy ? 'LAUNCHING' : `TARGET ${fmtX(target)}x`}</Text>
             {last?.won && (
               <Animated.View
                 pointerEvents="none"
@@ -700,13 +722,18 @@ export default function LimboScreen() {
 }
 
 function Rules({ config }: { config: LimboConfig | null }) {
-  const rtp = config?.rtpPercent ?? 85;
+  const rtp = config?.rtpPercent ?? 80;
+  const house = config?.houseChancePercent ?? 20;
   return (
     <View>
       <Text style={styles.ruleHead}>How to play</Text>
       <Text style={styles.ruleLine}>Set a target multiplier and your bet, then tap BET. A result multiplier climbs from 1.00x and stops at a random point. If it reaches your target or goes past it, you win bet × target.</Text>
+      <Text style={styles.ruleHead}>⭐ House result</Text>
+      <Text style={styles.ruleLine}>
+        One result in {Math.round(100 / house)} ({house}%) is a ⭐ House result. It shows a ⭐ instead of a multiplier and the bet loses, whatever the target. Every other result is fair: it reaches a target with a chance of 100 ÷ target (50% for 2x).
+      </Text>
       <Text style={styles.ruleHead}>Target & win chance</Text>
-      <Text style={styles.ruleLine}>The higher the target, the lower the chance: win chance = {rtp} ÷ target. You can type a target or a win chance, or use the quick buttons.</Text>
+      <Text style={styles.ruleLine}>The higher the target, the lower the chance. With the ⭐ House results, your real win chance = {rtp} ÷ target. You can type a target or a win chance, or use the quick buttons.</Text>
       <View style={styles.exampleBox}>
         {[1.5, 2, 10, 100].map((t) => (
           <View key={t} style={styles.exampleRow}>
@@ -717,9 +744,9 @@ function Rules({ config }: { config: LimboConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {rtp}%. Target {config?.minTarget ?? 1.01}x – {config?.maxTarget ?? 10000}x. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per bet ₹{config?.maxPayout ?? 10000}.
+        Return to player {rtp}%, House results included. Target {config?.minTarget ?? 1.01}x – {config?.maxTarget ?? 10000}x. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per bet ₹{config?.maxPayout ?? 10000}.
       </Text>
-      <Text style={styles.ruleLine}>Every result is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
+      <Text style={styles.ruleLine}>Every result, and whether it is a House result, is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>
   );
 }
@@ -734,9 +761,15 @@ function History({ bets }: { bets: LimboBet[] | null }) {
         const stake = Number(b.stake);
         return (
           <View key={b.id} style={styles.histRow}>
-            <View style={[styles.histChip, { borderColor: b.won ? WIN : LOSE }]}>
-              <Text style={[styles.histChipText, { color: b.won ? WIN : LOSE }]}>{fmtX(Number(b.result))}x</Text>
-            </View>
+            {b.house ? (
+              <View style={[styles.histChip, { borderColor: GOLD, backgroundColor: HOUSE_BG }]}>
+                <Text style={[styles.histChipText, { color: GOLD }]}>⭐ House</Text>
+              </View>
+            ) : (
+              <View style={[styles.histChip, { borderColor: b.won ? WIN : LOSE }]}>
+                <Text style={[styles.histChipText, { color: b.won ? WIN : LOSE }]}>{fmtX(Number(b.result))}x</Text>
+              </View>
+            )}
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={styles.histMain}>Target {fmtX(Number(b.target))}x</Text>
               <Text style={styles.histSub}>

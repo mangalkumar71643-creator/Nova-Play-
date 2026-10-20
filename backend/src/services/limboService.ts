@@ -5,13 +5,18 @@ import { env } from "../config/env";
 import { fairGameFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
+import { INSTANT_HOUSE_CHANCE, INSTANT_RTP, isInstantHouse } from "./lotteryHouse";
 
 /**
  * Limbo: the player picks a target multiplier, the round draws a result
  * multiplier and the bet wins stake x target when the result reaches the
- * target. The result is rtp / (1 - r) for a fair float r, so
- * P(result >= t) = rtp / t and every target returns exactly rtp.
- * About 15% of results land under 1.00x and show as 1.00x.
+ * target. The result is 1 / (1 - r) for a fair float r, rounded down to the
+ * cent, so P(result >= t) = 1 / t: fair odds on every target.
+ *
+ * One result in five is a ⭐ House result (lotteryHouse.ts, drawn from the
+ * same seeds), which loses whatever the multiplier drawn. So a bet wins with
+ * chance 0.8 / t and every target returns 80% (a 20% house edge), less the
+ * cent the payout is rounded down by.
  */
 export const MIN_TARGET = 1.01;
 /** Highest a result is shown as; far above any target that can be bet. */
@@ -33,7 +38,7 @@ export function maxTarget(): number {
 /** The result multiplier for these seeds, rounded down to 2 decimals. */
 export function resultFor(serverSeed: string, clientSeed: string, nonce: number): number {
   const r = fairGameFloat(serverSeed, clientSeed, "limbo", nonce);
-  const x = env.games.rtp / (1 - r);
+  const x = 1 / (1 - r);
   return Math.min(Math.max(Math.floor(x * 100) / 100, 1), MAX_RESULT);
 }
 
@@ -52,12 +57,14 @@ export function getLimboConfig() {
     maxPayout: env.games.maxPayout,
     minTarget: MIN_TARGET,
     maxTarget: maxTarget(),
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(INSTANT_RTP * 100),
+    houseChancePercent: round2(INSTANT_HOUSE_CHANCE * 100),
   };
 }
 
-/** Plays once: debits the stake, draws the result from the player's
- * provably-fair seeds and pays stake x target on a win, in one transaction. */
+/** Plays once: debits the stake, draws the result (and whether it is House)
+ * from the player's provably-fair seeds and pays stake x target on a win
+ * that is not House, in one transaction. */
 export async function playLimbo(userId: string, stake: number, target: number) {
   if (stake < env.games.minStake || stake > env.games.maxStake) {
     throw new ApiError(400, `Stake must be between ${env.games.minStake} and ${env.games.maxStake}.`);
@@ -76,7 +83,10 @@ export async function playLimbo(userId: string, stake: number, target: number) {
 
   const { serverSeed, serverSeedHash, clientSeed, nonce } = await nextRoundSeedMaterial(userId);
   const result = resultFor(serverSeed, clientSeed, nonce);
-  const won = result >= target;
+  // Fixed (and stored) with the bet, from the same seeds. The result is still
+  // drawn and kept, so the seeds can be checked against it.
+  const house = isInstantHouse(serverSeed, clientSeed, "limbo", nonce);
+  const won = !house && result >= target;
   const payout = won ? floor2(stake * target) : 0;
 
   const bet = await prisma.$transaction(async (tx) => {
@@ -109,7 +119,7 @@ export async function playLimbo(userId: string, stake: number, target: number) {
     }
 
     return tx.limboBet.create({
-      data: { userId, stake, target, result, won, payout, serverSeed, serverSeedHash, clientSeed, nonce },
+      data: { userId, stake, target, result, won, house, payout, serverSeed, serverSeedHash, clientSeed, nonce },
     });
   });
 

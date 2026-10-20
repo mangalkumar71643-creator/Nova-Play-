@@ -23,6 +23,26 @@ export const HOUSE_DIGITS = 2;
 /** Return of every lottery bet: fair odds on the 80% of results that are not House. */
 export const LOTTERY_RTP = 1 - HOUSE_CHANCE;
 
+/**
+ * The same open rule on the Dice & Instant games (7 Up Down, Dice, Limbo,
+ * Plinko, Diamonds, Keno, Lucky Wheel, Scratch Card, Dice Duel, Color Ball):
+ * one round, roll, drop, spin or ticket in five is a ⭐ House result on which
+ * the bet loses, and everything else pays fair odds — 80% return. Kept as
+ * its own setting so it can move apart from the lottery's.
+ */
+export const INSTANT_HOUSE_CHANCE = 0.2;
+export const INSTANT_RTP = 1 - INSTANT_HOUSE_CHANCE;
+
+/** Per-bet instant games: House drawn from the bet's own seeds and nonce, like isHouseTicket. */
+export function isInstantHouse(serverSeed: string, clientSeed: string, game: string, nonce: number): boolean {
+  return fairGameFloat(serverSeed, clientSeed, `${game}:house`, nonce) < INSTANT_HOUSE_CHANCE;
+}
+
+/** Round-based instant games (7 Up Down): drawn from the round's seed and period number. */
+export function isInstantHouseRound(serverSeed: string, periodNumber: string): boolean {
+  return fairGameFloat(serverSeed, periodNumber, "house", 0) < INSTANT_HOUSE_CHANCE;
+}
+
 /** Round-based games (Win Go, K3, 5D, Jhandi Munda): drawn from the round's seed and period number. */
 export function isHouseRound(serverSeed: string, periodNumber: string): boolean {
   return fairGameFloat(serverSeed, periodNumber, "house", 0) < HOUSE_CHANCE;

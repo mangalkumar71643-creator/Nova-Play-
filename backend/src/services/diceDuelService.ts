@@ -5,19 +5,24 @@ import { env } from "../config/env";
 import { fairGameFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
+import { INSTANT_HOUSE_CHANCE, isInstantHouse } from "./lotteryHouse";
 
 /**
  * Dice Duel: the player and the house each roll two dice; the higher total
  * wins. The player backs PLAYER, HOUSE or TIE before the roll. All four dice
  * come from the player's provably-fair seeds, so each of the 6^4 = 1296 rolls
- * is equally likely: PLAYER and HOUSE each win 575 of them and TIE 146. Each
- * pick pays floor2(0.85 / its chance), so every pick returns just under 85%
- * (a 15% house edge; the rounding down never favours the player).
+ * is equally likely: PLAYER and HOUSE each win 575 of them and TIE 146.
+ *
+ * One roll in five is a ⭐ House result (lotteryHouse.ts, drawn from the same
+ * seeds), on which every pick loses — HOUSE included — whatever the dice
+ * show. Every other roll pays fair odds: floor2(1296 / the rolls a pick
+ * wins), so PLAYER and HOUSE pay 2.25x and TIE 8.87x, and with the House
+ * rolls each pick returns just under 80% (79.86% and 79.94%: a 20% house
+ * edge, the rounding down never favouring the player).
  */
 
 export type DuelPick = "PLAYER" | "HOUSE" | "TIE";
 export const PICKS: DuelPick[] = ["PLAYER", "HOUSE", "TIE"];
-export const TARGET_RTP = 0.85;
 const ROLLS = 1296;
 
 /** Of the 1296 equally likely rolls, how many each pick wins. */
@@ -27,16 +32,21 @@ function floor2(n: number): number {
   return Math.floor(Number((n * 100).toPrecision(12))) / 100;
 }
 
-/** What a winning pick pays, stake included. */
+/** What a winning pick pays, stake included: fair odds on a roll that is not House. */
 export const PAYS: Record<DuelPick, number> = {
-  PLAYER: floor2((TARGET_RTP * ROLLS) / WAYS.PLAYER),
-  HOUSE: floor2((TARGET_RTP * ROLLS) / WAYS.HOUSE),
-  TIE: floor2((TARGET_RTP * ROLLS) / WAYS.TIE),
+  PLAYER: floor2(ROLLS / WAYS.PLAYER),
+  HOUSE: floor2(ROLLS / WAYS.HOUSE),
+  TIE: floor2(ROLLS / WAYS.TIE),
 };
 
-/** Exact return of a pick. */
+/** Chance a pick wins: the roll is not House and its side comes up. */
+export function duelChance(pick: DuelPick): number {
+  return ((1 - INSTANT_HOUSE_CHANCE) * WAYS[pick]) / ROLLS;
+}
+
+/** Exact return of a pick, House rolls included. */
 export function duelRtp(pick: DuelPick): number {
-  return (WAYS[pick] * PAYS[pick]) / ROLLS;
+  return duelChance(pick) * PAYS[pick];
 }
 
 /** The four dice of a roll: the player's two, then the house's two. */
@@ -63,11 +73,15 @@ export function getDiceDuelConfig() {
     minStake: env.games.minStake,
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
-    picks: PICKS.map((pick) => ({ pick, multiplier: PAYS[pick], chance: WAYS[pick] / ROLLS, rtpPercent: Math.round(duelRtp(pick) * 10000) / 100 })),
+    // The pick that returns least (each pick's own return is in `picks`).
+    rtpPercent: Math.min(...PICKS.map((pick) => Math.round(duelRtp(pick) * 10000) / 100)),
+    houseChancePercent: Math.round(INSTANT_HOUSE_CHANCE * 10000) / 100,
+    // `chance` is the real chance a pick wins (House rolls lose), so `rtpPercent` = chance x multiplier.
+    picks: PICKS.map((pick) => ({ pick, multiplier: PAYS[pick], chance: duelChance(pick), rtpPercent: Math.round(duelRtp(pick) * 10000) / 100 })),
   };
 }
 
-/** One duel: debits the stake, rolls the four dice from the player's seeds and pays a winning pick, all in one transaction. */
+/** One duel: debits the stake, rolls the four dice (and whether it is House) from the player's seeds and pays a winning pick on a roll that is not House, all in one transaction. */
 export async function playDiceDuel(userId: string, stake: number, pick: DuelPick) {
   if (stake < env.games.minStake || stake > env.games.maxStake) {
     throw new ApiError(400, `Stake must be between ${env.games.minStake} and ${env.games.maxStake}.`);
@@ -79,7 +93,10 @@ export async function playDiceDuel(userId: string, stake: number, pick: DuelPick
   const { serverSeed, serverSeedHash, clientSeed, nonce } = await nextRoundSeedMaterial(userId);
   const dice = duelDice(serverSeed, clientSeed, nonce);
   const outcome = duelOutcome(dice);
-  const multiplier = outcome === pick ? PAYS[pick] : 0;
+  // Fixed (and stored) with the roll, from the same seeds. The dice are
+  // still rolled and kept, so the seeds can be checked against them.
+  const house = isInstantHouse(serverSeed, clientSeed, "dice-duel", nonce);
+  const multiplier = !house && outcome === pick ? PAYS[pick] : 0;
   // Rounded down, so rounding never pays more than the table says.
   const payout = Math.min(floor2(stake * multiplier), env.games.maxPayout);
 
@@ -108,7 +125,7 @@ export async function playDiceDuel(userId: string, stake: number, pick: DuelPick
     if (payout > 0) await tx.transaction.create({ data: { userId, type: "GAME_PAYOUT", amount: payout, status: "COMPLETED" } });
 
     return tx.diceDuelBet.create({
-      data: { userId, stake, pick, playerDice: dice.slice(0, 2), houseDice: dice.slice(2), outcome, multiplier, payout, serverSeed, serverSeedHash, clientSeed, nonce },
+      data: { userId, stake, pick, playerDice: dice.slice(0, 2), houseDice: dice.slice(2), outcome, house, multiplier, payout, serverSeed, serverSeedHash, clientSeed, nonce },
     });
   });
 

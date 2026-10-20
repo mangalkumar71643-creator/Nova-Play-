@@ -30,6 +30,7 @@ import {
   fetchSevenUpDownMyRound,
   placeSevenUpDownBets,
 } from '../api/backend';
+import GameInfoButton from '../components/GameInfoButton';
 import { useGameState } from '../state/GameStateContext';
 
 const W = Dimensions.get('window').width;
@@ -46,23 +47,28 @@ const CHIP_COLORS: Record<number, string> = {
 };
 const DEFAULT_CHIP = 10;
 
-// Shown when the config hasn't loaded yet — same formula as the server
-// (rtp * 36 / ways, rounded down at 85% RTP).
+// Shown when the config hasn't loaded yet — same formula as the server:
+// fair odds on the 4 rounds in 5 that are not House (36 / ways), so with
+// the ⭐ House rounds every box returns 80%.
 const FALLBACK_MULTIPLIERS: Record<SevenUpDownArea, number> = {
-  DOWN: 2.04,
-  SEVEN: 5.1,
-  UP: 2.04,
-  N2: 30.6,
-  N3: 15.3,
-  N4: 10.2,
-  N5: 7.65,
-  N6: 6.12,
-  N8: 6.12,
-  N9: 7.65,
-  N10: 10.2,
-  N11: 15.3,
-  N12: 30.6,
+  DOWN: 2.4,
+  SEVEN: 6,
+  UP: 2.4,
+  N2: 36,
+  N3: 18,
+  N4: 12,
+  N5: 9,
+  N6: 7.2,
+  N8: 7.2,
+  N9: 9,
+  N10: 12,
+  N11: 18,
+  N12: 36,
 };
+const FALLBACK_RTP = 80;
+const FALLBACK_HOUSE_PERCENT = 20;
+/** ⭐ House round marker: dark plum with gold, unlike any box. */
+const HOUSE_BG = '#3A1452';
 
 // Every box on the board has its own background.
 const BIG_BOXES: { area: SevenUpDownArea; label: string; watermark: string; colors: [string, string]; border: string }[] =
@@ -119,6 +125,17 @@ function areaWins(area: SevenUpDownArea, total: number): boolean {
   if (area === 'UP') return total >= 8;
   if (area === 'SEVEN') return total === 7;
   return total === Number(area.slice(1));
+}
+
+/** Dice pairs (of 36) that win each box, for the win chances in the rules. */
+function waysFor(area: SevenUpDownArea): number {
+  if (area === 'DOWN' || area === 'UP') return 15;
+  const n = area === 'SEVEN' ? 7 : Number(area.slice(1));
+  return 6 - Math.abs(n - 7);
+}
+
+function pctText(x: number): string {
+  return `${(x * 100).toFixed(2).replace(/\.?0+$/, '')}%`;
 }
 
 function totalColor(total: number): string {
@@ -548,6 +565,9 @@ export default function SevenUpDownScreen() {
   const multipliers = config?.multipliers ?? FALLBACK_MULTIPLIERS;
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
+  const housePercent = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
+  const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP;
+  const winChance = (area: SevenUpDownArea) => config?.winChances?.[area] ?? ((1 - housePercent / 100) * waysFor(area)) / 36;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -662,19 +682,23 @@ export default function SevenUpDownScreen() {
       : view.phase === 'RESULT' && view.dice
         ? 'RESULT'
         : 'ROLLING';
-  const resultTotal = phase === 'RESULT' && view?.total ? view.total : null;
+  // ⭐ House: the cup lifts on a ⭐ instead of the dice, and no box wins.
+  const resultHouse = phase === 'RESULT' && !!view?.house;
+  const resultTotal = phase === 'RESULT' && !resultHouse && view?.total ? view.total : null;
 
   // Reveal: record the result, then work out this player's winnings.
   useEffect(() => {
     if (!view || view.phase !== 'RESULT' || !view.dice || resultHandledRef.current === view.periodNumber) return;
     const period = view.periodNumber;
     resultHandledRef.current = period;
+    const house = !!view.house;
     setHistory((h) =>
       h[0]?.periodNumber === period
         ? h
-        : [{ periodNumber: period, dice1: view.dice![0], dice2: view.dice![1], total: view.total! }, ...h].slice(0, 100)
+        : [{ periodNumber: period, dice1: view.dice![0], dice2: view.dice![1], total: view.total!, house }, ...h].slice(0, 100)
     );
     const hadBets = chipsRef.current.length > 0;
+    if (hadBets && house) showToast('⭐ House round — every bet this round loses');
     if (hadBets) {
       // Let queued placements finish first so every bet is counted.
       enqueue(async () => {
@@ -688,7 +712,7 @@ export default function SevenUpDownScreen() {
         refreshWallet();
       });
     }
-  }, [view, enqueue, refreshWallet]);
+  }, [view, enqueue, refreshWallet, showToast]);
 
   useEffect(() => {
     if (win === null) return;
@@ -891,15 +915,18 @@ export default function SevenUpDownScreen() {
   };
 
   const recent = history.slice(0, HISTORY_COLUMNS).reverse();
+  // How often each side actually won: a House round counts for none of them.
   const stats = useMemo(() => {
     const n = history.length;
     if (n === 0) return null;
-    const down = history.filter((h) => h.total <= 6).length;
-    const seven = history.filter((h) => h.total === 7).length;
+    const house = history.filter((h) => h.house).length;
+    const down = history.filter((h) => !h.house && h.total <= 6).length;
+    const seven = history.filter((h) => !h.house && h.total === 7).length;
     return {
       down: Math.round((down / n) * 100),
-      up: Math.round(((n - down - seven) / n) * 100),
+      up: Math.round(((n - house - down - seven) / n) * 100),
       seven: Math.round((seven / n) * 100),
+      house: Math.round((house / n) * 100),
       n,
     };
   }, [history]);
@@ -909,15 +936,21 @@ export default function SevenUpDownScreen() {
       ? view.dice
       : phase === 'ROLLING'
         ? rollFaces
-        : history[0]
+        : history[0] && !history[0].house
           ? [history[0].dice1, history[0].dice2]
           : [3, 4];
 
   const statusText =
-    phase === 'BETTING' ? 'PLACE YOUR BETS' : phase === 'ROLLING' ? 'NO MORE BETS' : `RESULT  ${resultTotal ?? ''}`;
+    phase === 'BETTING'
+      ? 'PLACE YOUR BETS'
+      : phase === 'ROLLING'
+        ? 'NO MORE BETS'
+        : resultHouse
+          ? '⭐ HOUSE · ALL BETS LOSE'
+          : `RESULT  ${resultTotal ?? ''}`;
 
   const areaState = (area: SevenUpDownArea): AreaState =>
-    resultTotal === null ? 'normal' : areaWins(area, resultTotal) ? 'win' : 'lose';
+    resultHouse ? 'lose' : resultTotal === null ? 'normal' : areaWins(area, resultTotal) ? 'win' : 'lose';
 
   const shakeX = shake.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] });
   const domeY = domeLift.interpolate({ inputRange: [0, 1], outputRange: [0, -CUP_W * 0.5] });
@@ -931,10 +964,22 @@ export default function SevenUpDownScreen() {
           <MaterialCommunityIcons name="chevron-left" size={30} color="#F5B942" />
           <Text style={styles.title}>7 UP DOWN</Text>
         </Pressable>
-        <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.depositPill}>
-          <MaterialCommunityIcons name="wallet-plus" size={20} color="#F5B942" />
-          <Text style={styles.depositText}>Deposit</Text>
-        </Pressable>
+        <View style={styles.headerRight}>
+          <GameInfoButton compact style={styles.infoBtn}>
+            HOW TO PLAY{'\n'}
+            Bet on the total of the two dice before the timer ends: DOWN (2–6) and UP (8–12) pay {multipliers.DOWN}x, LUCKY 7 pays {multipliers.SEVEN}x, and an exact total pays{' '}
+            {multipliers.N6}x–{multipliers.N2}x (shown on each box).{'\n\n'}
+            ⭐ House: one round in five ({housePercent}%) is a House result — the cup lifts on a ⭐ instead of the dice, and every bet on the round loses.{'\n\n'}
+            Win chances, House rounds included: Down or Up {pctText(winChance('DOWN'))}, 7 {pctText(winChance('SEVEN'))}, 6 or 8 {pctText(winChance('N6'))}, 5 or 9 {pctText(winChance('N5'))}, 4 or 10{' '}
+            {pctText(winChance('N4'))}, 3 or 11 {pctText(winChance('N3'))}, 2 or 12 {pctText(winChance('N2'))}. Every bet returns {rtpPercent}% of stakes on average.{'\n\n'}
+            Bet ₹{minStake}–₹{maxStake} per box · max win ₹{config?.maxPayout ?? 10000} per box · provably fair: the dice, and whether the round is House, come from the round&apos;s server seed, whose
+            hash is published before the round and the seed itself after it.
+          </GameInfoButton>
+          <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.depositPill}>
+            <MaterialCommunityIcons name="wallet-plus" size={20} color="#F5B942" />
+            <Text style={styles.depositText}>Deposit</Text>
+          </Pressable>
+        </View>
       </LinearGradient>
 
       {/* Table */}
@@ -978,8 +1023,13 @@ export default function SevenUpDownScreen() {
               <Text style={styles.statKey}>7 </Text>
               {stats ? `${stats.seven}%` : '—'}
             </Text>
+            <View style={styles.statDivider} />
+            <Text style={styles.statText}>
+              <Text style={styles.statKey}>⭐ </Text>
+              {stats ? `${stats.house}%` : '—'}
+            </Text>
             <Text style={styles.statNote} numberOfLines={1}>
-              Last {stats?.n ?? 100} rounds
+              Last {stats?.n ?? 100}
             </Text>
           </View>
           <View style={styles.historyRow}>
@@ -987,12 +1037,26 @@ export default function SevenUpDownScreen() {
               const latest = i === recent.length - 1;
               return (
                 <View key={h.periodNumber} style={[styles.historyCol, latest && styles.historyColLatest]}>
-                  <View style={[styles.historyBadge, { backgroundColor: totalColor(h.total) }]}>
-                    <Text style={styles.historyBadgeText}>{h.total}</Text>
-                  </View>
-                  <Die value={h.dice1} size={16} />
-                  <View style={{ height: 3 }} />
-                  <Die value={h.dice2} size={16} />
+                  {h.house ? (
+                    // House round: a ⭐ in place of the total and the dice (every bet lost).
+                    <>
+                      <View style={[styles.historyBadge, styles.historyBadgeHouse]}>
+                        <Text style={[styles.historyBadgeText, { color: GOLD }]}>H</Text>
+                      </View>
+                      <View style={styles.historyHouse}>
+                        <Text style={styles.historyHouseStar}>⭐</Text>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <View style={[styles.historyBadge, { backgroundColor: totalColor(h.total) }]}>
+                        <Text style={styles.historyBadgeText}>{h.total}</Text>
+                      </View>
+                      <Die value={h.dice1} size={16} />
+                      <View style={{ height: 3 }} />
+                      <Die value={h.dice2} size={16} />
+                    </>
+                  )}
                 </View>
               );
             })}
@@ -1006,7 +1070,7 @@ export default function SevenUpDownScreen() {
             <View style={styles.cupBase}>
               <CupBase />
             </View>
-            {[0, 1].map((i) => {
+            {!resultHouse && [0, 1].map((i) => {
               const rest = DIE_REST[i];
               const phaseShift = i * 0.5;
               const orbitX = orbit.interpolate({
@@ -1049,6 +1113,14 @@ export default function SevenUpDownScreen() {
             >
               <Dome />
             </Animated.View>
+            {resultHouse && (
+              // ⭐ House: the dice don't count, so the felt shows the ⭐ in their place.
+              <Animated.View pointerEvents="none" style={[styles.houseBadge, { opacity: totalPop, transform: [{ scale: totalPop }] }]}>
+                <Text style={styles.houseBadgeStar}>⭐</Text>
+                <Text style={styles.houseBadgeText}>HOUSE</Text>
+                <Text style={styles.houseBadgeSub}>every bet loses</Text>
+              </Animated.View>
+            )}
             {resultTotal !== null && (
               <Animated.View style={[styles.totalBadgeWrap, { transform: [{ scale: totalPop }] }]} pointerEvents="none">
                 <LinearGradient colors={['#FFE08A', '#D99A1E']} style={styles.totalBadgeRing}>
@@ -1221,6 +1293,8 @@ const styles = StyleSheet.create({
     borderColor: '#8A2E38',
   },
   depositText: { color: '#F5B942', fontSize: 15, fontWeight: '700' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  infoBtn: { marginTop: 0 },
 
   table: { flex: 1, minHeight: 250, overflow: 'hidden' },
   historyPanel: {
@@ -1250,6 +1324,18 @@ const styles = StyleSheet.create({
   historyColLatest: { borderColor: '#FFD84D', backgroundColor: 'rgba(255,216,77,0.12)' },
   historyBadge: { minWidth: 18, paddingHorizontal: 2, borderRadius: 2, alignItems: 'center', marginBottom: 3 },
   historyBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  historyBadgeHouse: { backgroundColor: HOUSE_BG, borderWidth: 1, borderColor: GOLD },
+  historyHouse: {
+    width: 18,
+    height: 35,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: HOUSE_BG,
+    borderWidth: 1,
+    borderColor: GOLD,
+  },
+  historyHouseStar: { fontSize: 10 },
 
   cupArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   feltLogo: {
@@ -1284,6 +1370,22 @@ const styles = StyleSheet.create({
   totalBadgeRing: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
   totalBadge: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   totalBadgeText: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
+  houseBadge: {
+    position: 'absolute',
+    left: CUP_W / 2 - DIE_SIZE * 1.35,
+    top: FELT_CY - DIE_SIZE * 1.15,
+    width: DIE_SIZE * 2.7,
+    height: DIE_SIZE * 1.7,
+    borderRadius: DIE_SIZE * 0.35,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(58,20,82,0.94)',
+    borderWidth: 2.5,
+    borderColor: GOLD,
+  },
+  houseBadgeStar: { fontSize: DIE_SIZE * 0.55 },
+  houseBadgeText: { color: GOLD, fontSize: Math.max(11, DIE_SIZE * 0.26), fontWeight: '900', letterSpacing: 3 },
+  houseBadgeSub: { color: 'rgba(255,255,255,0.8)', fontSize: Math.max(9, DIE_SIZE * 0.14), fontWeight: '800', letterSpacing: 1 },
   die: {
     elevation: 5,
     shadowColor: '#000',

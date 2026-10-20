@@ -29,8 +29,11 @@ const HOUSE_LANDS_MS = 2200;
 const PICKS: DuelPick[] = ['PLAYER', 'TIE', 'HOUSE'];
 const PICK_COLOR: Record<DuelPick, string> = { PLAYER: BLUE, TIE: VIOLET, HOUSE: RED };
 const PICK_LABEL: Record<DuelPick, string> = { PLAYER: 'YOU WIN', TIE: 'TIE', HOUSE: 'HOUSE WINS' };
-/** Used until the config arrives; the server's table replaces it. */
-const FALLBACK_PAYS: Record<DuelPick, number> = { PLAYER: 1.91, TIE: 7.54, HOUSE: 1.91 };
+/** Used until the config arrives; the server's table replaces it. Fair odds on the 4 rolls in 5 that are not House (80% return). */
+const FALLBACK_PAYS: Record<DuelPick, number> = { PLAYER: 2.25, TIE: 8.87, HOUSE: 2.25 };
+const FALLBACK_HOUSE_PERCENT = 20;
+/** ⭐ House result marker: dark plum with gold, unlike either side's colour. */
+const HOUSE_BG = '#3A1452';
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -187,8 +190,18 @@ function RollingDie({ face, size, side, rolling, tilt }: { face: number; size: n
 
 // ---------- screen ----------
 
-type Banner = { title: string; sub?: string; tone: DuelPick };
-type Shown = { pick: DuelPick; outcome: DuelPick; payout: number; stake: number; m: number };
+type Banner = { title: string; sub?: string; tone: DuelPick | 'STAR' };
+type Shown = { pick: DuelPick; outcome: DuelPick; house: boolean; payout: number; stake: number; m: number };
+
+/** What a tray shows in place of its dice on a ⭐ House result. */
+function HouseMark({ size }: { size: number }) {
+  return (
+    <View style={[styles.houseMark, { width: size * 2.1, height: size * 1.3, borderRadius: size * 0.3 }]}>
+      <Text style={{ fontSize: size * 0.55 }}>⭐</Text>
+      <Text style={[styles.houseMarkText, { fontSize: Math.max(9, size * 0.17) }]}>HOUSE</Text>
+    </View>
+  );
+}
 
 export default function DiceDuelScreen() {
   const navigation = useNavigation();
@@ -205,7 +218,9 @@ export default function DiceDuelScreen() {
   const [tilts, setTilts] = useState([-8, 6, 7, -5]);
   const [totals, setTotals] = useState<{ p: number | null; h: number | null }>({ p: null, h: null });
   const [shown, setShown] = useState<Shown | null>(null);
-  const [recent, setRecent] = useState<{ p: number; h: number; o: DuelPick }[]>([]);
+  // ⭐ House result on show: both trays show the ⭐ instead of their dice.
+  const [star, setStar] = useState(false);
+  const [recent, setRecent] = useState<{ p: number; h: number; o: DuelPick; house: boolean }[]>([]);
   const [shownBalance, setShownBalance] = useState(coins);
   const [banner, setBanner] = useState<Banner | null>(null);
   const [panel, setPanel] = useState<'info' | 'history' | null>(null);
@@ -304,6 +319,7 @@ export default function DiceDuelScreen() {
     busyRef.current = true;
     setBusy(true);
     setShown(null);
+    setStar(false);
     setTotals({ p: null, h: null });
     sideGlow.setValue(0);
     setShownBalance((b) => round2(b - bet));
@@ -314,27 +330,38 @@ export default function DiceDuelScreen() {
       const res = await playDiceDuel(bet, backed);
       if (!mountedRef.current) return;
       const tilt = () => Math.round((Math.random() - 0.5) * 22);
-      // The player's dice land first, then the house answers.
-      await wait(Math.max(0, PLAYER_LANDS_MS - (Date.now() - t0)));
-      if (!mountedRef.current) return;
-      setTilts((t) => [tilt(), tilt(), t[2], t[3]]);
-      setFaces((f) => [res.playerDice[0], res.playerDice[1], f[2], f[3]]);
-      setRollingBoth([false, false, true, true]);
+      const house = !!res.house;
       const p = res.playerDice[0] + res.playerDice[1];
-      setTotals({ p, h: null });
-      await wait(Math.max(0, HOUSE_LANDS_MS - (Date.now() - t0)));
-      if (!mountedRef.current) return;
-      setTilts((t) => [t[0], t[1], tilt(), tilt()]);
-      setFaces((f) => [f[0], f[1], res.houseDice[0], res.houseDice[1]]);
-      setRollingBoth([false, false, false, false]);
       const h = res.houseDice[0] + res.houseDice[1];
-      setTotals({ p, h });
+      if (house) {
+        // ⭐ House: every pick loses whatever the dice show, so the dice tumble
+        // until both sides would have landed and the ⭐ takes their place (the
+        // dice are still on the roll, for checking the seeds).
+        await wait(Math.max(0, HOUSE_LANDS_MS - (Date.now() - t0)));
+        if (!mountedRef.current) return;
+        setRollingBoth([false, false, false, false]);
+        setStar(true);
+      } else {
+        // The player's dice land first, then the house answers.
+        await wait(Math.max(0, PLAYER_LANDS_MS - (Date.now() - t0)));
+        if (!mountedRef.current) return;
+        setTilts((t) => [tilt(), tilt(), t[2], t[3]]);
+        setFaces((f) => [res.playerDice[0], res.playerDice[1], f[2], f[3]]);
+        setRollingBoth([false, false, true, true]);
+        setTotals({ p, h: null });
+        await wait(Math.max(0, HOUSE_LANDS_MS - (Date.now() - t0)));
+        if (!mountedRef.current) return;
+        setTilts((t) => [t[0], t[1], tilt(), tilt()]);
+        setFaces((f) => [f[0], f[1], res.houseDice[0], res.houseDice[1]]);
+        setRollingBoth([false, false, false, false]);
+        setTotals({ p, h });
+      }
       await wait(Math.max(0, MIN_ROLL_MS - (Date.now() - t0)));
       if (!mountedRef.current) return;
       const payout = Number(res.payout);
       const m = Number(res.multiplier);
-      setShown({ pick: res.pick, outcome: res.outcome, payout, stake: bet, m });
-      setRecent((r) => [{ p, h, o: res.outcome }, ...r].slice(0, 12));
+      setShown({ pick: res.pick, outcome: res.outcome, house, payout, stake: bet, m });
+      setRecent((r) => [{ p, h, o: res.outcome, house }, ...r].slice(0, 12));
       setShownBalance((b) => round2(b + payout));
       setSessionNet((v) => round2(v + payout - bet));
       refreshWallet();
@@ -346,6 +373,8 @@ export default function DiceDuelScreen() {
       // Only a return above the stake is celebrated.
       if (payout > bet) {
         await flashBanner({ title: res.outcome === 'TIE' ? 'TIE PAYS!' : 'YOU WIN!', sub: `${m}x · ${money(payout)}`, tone: res.outcome }, res.outcome === 'TIE' ? 1400 : 900);
+      } else if (house) {
+        await flashBanner({ title: '⭐ HOUSE', sub: 'One roll in five · every pick loses', tone: 'STAR' }, 1000);
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -376,8 +405,9 @@ export default function DiceDuelScreen() {
 
   const minutes = Math.floor((now - sessionStart.current) / 60000);
   const seconds = Math.floor(((now - sessionStart.current) % 60000) / 1000);
-  const outcome = shown?.outcome ?? null;
-  const rtpLine = config ? [...new Set(config.picks.map((p) => p.rtpPercent))].join('% / ') + '%' : '85%';
+  // A House result has no winning side: no tray lights up.
+  const outcome = shown && !shown.house ? shown.outcome : null;
+  const rtpLine = config ? [...new Set(config.picks.map((p) => p.rtpPercent))].join('% / ') + '%' : '80%';
 
   const tray = (side: 'PLAYER' | 'HOUSE') => {
     const isP = side === 'PLAYER';
@@ -387,7 +417,7 @@ export default function DiceDuelScreen() {
     const lost = outcome !== null && outcome !== side && outcome !== 'TIE';
     const idx = isP ? [0, 1] : [2, 3];
     return (
-      <View style={[styles.tray, { width: trayW, borderColor: color }, lost && { opacity: 0.55 }]}>
+      <View style={[styles.tray, { width: trayW, borderColor: star ? GOLD : color }, lost && { opacity: 0.55 }]}>
         <LinearGradient colors={isP ? ['#0E3A62', '#06182E'] : ['#5A0A1E', '#24040C']} style={StyleSheet.absoluteFill} />
         {won && <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.trayGlow, { borderColor: color, opacity: sideGlow }]} />}
         <View style={styles.trayHead}>
@@ -395,12 +425,10 @@ export default function DiceDuelScreen() {
           <Text style={[styles.trayName, { color }]}>{isP ? 'YOU' : 'HOUSE'}</Text>
         </View>
         <View style={[styles.felt, { height: dieSize * 1.75 }]}>
-          {idx.map((i) => (
-            <RollingDie key={i} face={faces[i]} size={dieSize} side={side} rolling={rolling[i]} tilt={tilts[i]} />
-          ))}
+          {star ? <HouseMark size={dieSize} /> : idx.map((i) => <RollingDie key={i} face={faces[i]} size={dieSize} side={side} rolling={rolling[i]} tilt={tilts[i]} />)}
         </View>
-        <View style={[styles.totalBox, { borderColor: total !== null ? color : 'rgba(255,255,255,0.15)' }]}>
-          <Text style={[styles.totalText, { color: total !== null ? '#FFFFFF' : '#5A6A80' }]}>{total ?? '–'}</Text>
+        <View style={[styles.totalBox, { borderColor: star ? GOLD : total !== null ? color : 'rgba(255,255,255,0.15)' }]}>
+          <Text style={[styles.totalText, { color: total !== null ? '#FFFFFF' : '#5A6A80' }]}>{star ? '⭐' : (total ?? '–')}</Text>
         </View>
         {won && <Text style={[styles.winTag, { color }]}>{isP ? 'WINNER' : 'WINS'}</Text>}
       </View>
@@ -429,13 +457,19 @@ export default function DiceDuelScreen() {
           {recent.length === 0 ? (
             <Text style={styles.recentEmpty}>Your last duels show here</Text>
           ) : (
-            recent.map((r, i) => (
-              <View key={i} style={[styles.recentChip, { borderColor: PICK_COLOR[r.o], opacity: 1 - i * 0.06 }]}>
-                <Text style={[styles.recentText, { color: PICK_COLOR[r.o] }]}>
-                  {r.p}–{r.h}
-                </Text>
-              </View>
-            ))
+            recent.map((r, i) =>
+              r.house ? (
+                <View key={i} style={[styles.recentChip, { borderColor: GOLD, backgroundColor: HOUSE_BG, opacity: 1 - i * 0.06 }]}>
+                  <Text style={[styles.recentText, { color: GOLD }]}>⭐ House</Text>
+                </View>
+              ) : (
+                <View key={i} style={[styles.recentChip, { borderColor: PICK_COLOR[r.o], opacity: 1 - i * 0.06 }]}>
+                  <Text style={[styles.recentText, { color: PICK_COLOR[r.o] }]}>
+                    {r.p}–{r.h}
+                  </Text>
+                </View>
+              ),
+            )
           )}
         </View>
 
@@ -452,9 +486,9 @@ export default function DiceDuelScreen() {
           </View>
           <View style={styles.arenaRow}>
             {tray('PLAYER')}
-            <Animated.View style={[styles.vs, outcome === 'TIE' && { borderColor: VIOLET }, { transform: [{ scale: vsPulse.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1.08] }) }] }]}>
-              <LinearGradient colors={outcome === 'TIE' ? ['#E8D0FF', VIOLET, '#5A2A9A'] : ['#FFF4C8', GOLD, DEEP_GOLD]} style={styles.vsInner}>
-                <Text style={styles.vsText}>{outcome === 'TIE' ? '=' : 'VS'}</Text>
+            <Animated.View style={[styles.vs, outcome === 'TIE' && { borderColor: VIOLET }, star && { borderColor: GOLD }, { transform: [{ scale: vsPulse.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1.08] }) }] }]}>
+              <LinearGradient colors={star ? ['#7A3AAA', HOUSE_BG] : outcome === 'TIE' ? ['#E8D0FF', VIOLET, '#5A2A9A'] : ['#FFF4C8', GOLD, DEEP_GOLD]} style={styles.vsInner}>
+                <Text style={styles.vsText}>{star ? '⭐' : outcome === 'TIE' ? '=' : 'VS'}</Text>
               </LinearGradient>
             </Animated.View>
             {tray('HOUSE')}
@@ -462,7 +496,9 @@ export default function DiceDuelScreen() {
           {/* Result plate */}
           <View style={styles.plate}>
             {shown ? (
-              shown.payout > shown.stake ? (
+              shown.house ? (
+                <Text style={styles.plateHouse}>⭐ HOUSE · EVERY PICK LOSES</Text>
+              ) : shown.payout > shown.stake ? (
                 <Text style={styles.plateWin}>
                   WIN {money(shown.payout)} <Text style={styles.plateSub}>({shown.m}x)</Text>
                 </Text>
@@ -480,7 +516,7 @@ export default function DiceDuelScreen() {
           {PICKS.map((p) => {
             const on = p === pick;
             const c = PICK_COLOR[p];
-            const hit = shown && shown.pick === p && shown.outcome === p;
+            const hit = shown && !shown.house && shown.pick === p && shown.outcome === p;
             return (
               <Pressable
                 key={p}
@@ -543,6 +579,7 @@ export default function DiceDuelScreen() {
 
         <GameInfoButton>
           RTP {rtpLine} · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per roll{'\n'}
+          One roll in five is a ⭐ House result, on which every pick loses{'\n'}
           No autoplay or turbo · each roll takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>
@@ -550,7 +587,7 @@ export default function DiceDuelScreen() {
       {banner && (
         <Animated.View pointerEvents="none" style={[styles.banner, { opacity: bannerAnim, transform: [{ scale: bannerAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] }]}>
           <LinearGradient
-            colors={banner.tone === 'TIE' ? ['#FFF4C8', GOLD, '#B87800'] : ['#1A5A9A', '#0A2440']}
+            colors={banner.tone === 'TIE' ? ['#FFF4C8', GOLD, '#B87800'] : banner.tone === 'STAR' ? ['#5A1A8A', HOUSE_BG] : ['#1A5A9A', '#0A2440']}
             style={[styles.bannerInner, { borderColor: banner.tone === 'TIE' ? '#FFFFFF' : GOLD }]}
           >
             <MaterialCommunityIcons name="star-four-points" size={30} color={banner.tone === 'TIE' ? '#5A2A00' : GOLD} />
@@ -585,13 +622,20 @@ export default function DiceDuelScreen() {
 
 function Rules({ bet, config }: { bet: number; config: DiceDuelConfig | null }) {
   if (!config) return <Text style={styles.note}>Loading…</Text>;
+  const housePercent = config.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
   return (
     <View style={{ gap: 8 }}>
       <Text style={styles.note}>
         Back a side, set your bet and ROLL. You and the house each roll two dice; the higher total wins. Back YOU WIN, HOUSE WINS or TIE (both totals equal). If your side comes up, your bet pays its
         multiplier; otherwise the bet is lost.
       </Text>
-      <Text style={styles.section}>PAYS</Text>
+      <View style={styles.houseNote}>
+        <Text style={styles.note}>
+          ⭐ House: one roll in five ({housePercent}%) is a House result. Both trays show a ⭐ instead of the dice and every pick loses — HOUSE WINS included (a ⭐ House result is not the house&apos;s
+          dice winning).
+        </Text>
+      </View>
+      <Text style={styles.section}>PAYS · WIN CHANCE</Text>
       {config.picks.map((p) => (
         <View key={p.pick} style={styles.tRow}>
           <Text style={[styles.tCell, { color: PICK_COLOR[p.pick] }]}>{PICK_LABEL[p.pick]}</Text>
@@ -602,9 +646,9 @@ function Rules({ bet, config }: { bet: number; config: DiceDuelConfig | null }) 
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Every one of the 1,296 ways the four dice can land is equally likely: you win 575 of them, the house 575 and a tie 146. Returns:{' '}
-        {config.picks.map((p) => `${PICK_LABEL[p.pick]} ${p.rtpPercent}%`).join(' · ')}. No autoplay or turbo; each roll takes at least 2.5 seconds. The dice come from your provably-fair seeds (server
-        seed hash, client seed and nonce on each roll).
+        On a roll that is not House, every one of the 1,296 ways the four dice can land is equally likely: you win 575 of them, the house 575 and a tie 146. The win chances above include the House
+        rolls. Returns, House rolls included: {config.picks.map((p) => `${PICK_LABEL[p.pick]} ${p.rtpPercent}%`).join(' · ')}. No autoplay or turbo; each roll takes at least 2.5 seconds. The dice, and
+        whether the roll is House, come from your provably-fair seeds (server seed hash, client seed and nonce on each roll).
       </Text>
     </View>
   );
@@ -625,9 +669,13 @@ function History({ bets }: { bets: DiceDuelBetRow[] | null }) {
             <Text style={styles.histTime}>{d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
             <Text style={styles.histStake}>{money(Number(b.stake))}</Text>
             <Text style={[styles.histPick, { color: PICK_COLOR[b.pick] }]}>{b.pick === 'PLAYER' ? 'YOU' : b.pick}</Text>
-            <Text style={styles.histMult}>
-              {p}–{h}
-            </Text>
+            {b.house ? (
+              <Text style={[styles.histMult, { color: GOLD }]}>⭐ House</Text>
+            ) : (
+              <Text style={styles.histMult}>
+                {p}–{h}
+              </Text>
+            )}
             <Text style={[styles.histWin, { color: payout > 0 ? GREEN : '#8A8FA8' }]}>{payout > 0 ? `+${money(payout)}` : '—'}</Text>
           </View>
         );
@@ -678,6 +726,10 @@ const styles = StyleSheet.create({
   plateText: { color: TEXT, fontSize: 13, fontWeight: '900', letterSpacing: 1.5 },
   plateWin: { color: GREEN, fontSize: 16, fontWeight: '900', letterSpacing: 1 },
   plateSub: { color: GOLD, fontSize: 13 },
+  plateHouse: { color: GOLD, fontSize: 13, fontWeight: '900', letterSpacing: 1.5 },
+  houseMark: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(58,20,82,0.92)', borderWidth: 2, borderColor: GOLD },
+  houseMarkText: { color: GOLD, fontWeight: '900', letterSpacing: 2 },
+  houseNote: { padding: 8, borderRadius: 10, backgroundColor: 'rgba(58,20,82,0.6)', borderWidth: 1, borderColor: 'rgba(255,214,107,0.4)' },
   pickRow: { flexDirection: 'row', gap: 6, marginTop: 10 },
   pick: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 12, borderWidth: 1.5, borderColor: '#2A3A52' },
   pickCheck: { position: 'absolute', top: 4, right: 5 },

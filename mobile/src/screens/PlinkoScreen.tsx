@@ -30,6 +30,12 @@ const COLORS: { risk: PlinkoRisk; label: string; tile: [string, string]; button:
   { risk: 'HIGH', label: 'RED', tile: ['#F0343F', '#B8111F'], button: ['#E8202E', '#9E0C18'], border: '#4A0008', ball: ['#FFB4BA', '#F0343F', '#9E0C18'] },
 ];
 const RISK_INDEX: Record<PlinkoRisk, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 };
+// ⭐ House drop: a gold star ball on dark plum, unlike any tile colour.
+const GOLD = '#FFD66B';
+const HOUSE_BG = '#3A1452';
+const HOUSE_BALL: [string, string, string] = ['#FFF1C2', '#F5B820', '#7A3A00'];
+/** Until the config arrives: one drop in five is House. */
+const DEFAULT_HOUSE_PERCENT = 20;
 
 const DEFAULT_ROWS = 8;
 const DEFAULT_STAKE = 10;
@@ -65,11 +71,17 @@ const TEXT = {
       'Choose from different pins options, and from either red, yellow or green tiles for higher odds as your bet multiplier increases!',
     rules3:
       'Every bounce comes from your provably-fair seeds — the Encrypted Result at the top is the hash of the server seed, and the ⟳ button reveals it and starts a new one.',
+    rulesHouse:
+      '⭐ House: one drop in five is a House drop. The ball falls as a gold ⭐ and the bet loses, whatever tile it reaches. Every other drop pays the tile it lands on, at fair odds. Whether a drop is House also comes from your seeds.',
+    chancesTitle: 'WIN CHANCES',
+    chancesIntro: (pins: number) => `Chance a drop pays more than its bet with ${pins} pins, ⭐ House drops included:`,
+    house: 'House',
     limitsIntro: 'Game limits are managed by operator. Current game limits for this game are below:',
     maxBet: 'Maximum bet INR:',
     minBet: 'Minimum bet INR:',
     maxWin: 'Maximum win for one bet INR:',
-    rtp: 'Return to player:',
+    rtp: 'Return to player (⭐ House included):',
+    houseLimit: '⭐ House drops (bet loses):',
     noBets: 'No balls dropped yet.',
     autoColour: 'Auto play colour',
     autoBalls: 'Number of balls',
@@ -93,11 +105,17 @@ const TEXT = {
     rules2: 'पिन की संख्या चुनें और हरी, पीली या लाल टाइल चुनें — ज़्यादा जोखिम पर मल्टीप्लायर भी ज़्यादा मिलता है!',
     rules3:
       'हर उछाल आपके provably-fair seeds से तय होता है — ऊपर दिखा Encrypted Result सर्वर seed का hash है, और ⟳ बटन उसे दिखाकर नया seed शुरू करता है।',
+    rulesHouse:
+      '⭐ हाउस: हर पाँच में से एक ड्रॉप हाउस ड्रॉप होता है। बॉल सुनहरे ⭐ के रूप में गिरती है और बेट हार जाती है, चाहे वह किसी भी टाइल तक पहुँचे। बाकी हर ड्रॉप उसी टाइल का भुगतान करता है जिस पर वह गिरता है, fair ऑड्स पर। कोई ड्रॉप हाउस है या नहीं, यह भी आपके seeds से तय होता है।',
+    chancesTitle: 'जीतने की संभावना',
+    chancesIntro: (pins: number) => `${pins} पिन पर किसी ड्रॉप के बेट से ज़्यादा लौटाने की संभावना, ⭐ हाउस ड्रॉप सहित:`,
+    house: 'हाउस',
     limitsIntro: 'गेम लिमिट ऑपरेटर तय करता है। इस गेम की मौजूदा लिमिट नीचे हैं:',
     maxBet: 'अधिकतम बेट INR:',
     minBet: 'न्यूनतम बेट INR:',
     maxWin: 'एक बेट पर अधिकतम जीत INR:',
-    rtp: 'खिलाड़ी को वापसी (RTP):',
+    rtp: 'खिलाड़ी को वापसी (RTP, ⭐ हाउस सहित):',
+    houseLimit: '⭐ हाउस ड्रॉप (बेट हारती है):',
     noBets: 'अभी तक कोई बॉल नहीं गिराई।',
     autoColour: 'ऑटो प्ले रंग',
     autoBalls: 'बॉल की संख्या',
@@ -118,6 +136,19 @@ function errorMessage(err: unknown): string {
 function formatMult(m: number): string {
   if (m >= 100) return String(Math.floor(m));
   return String(m);
+}
+
+/** Real chance a drop pays more than its bet: the ball reaches a tile above
+ * 1x (slot k with chance C(rows, k) / 2^rows) and the drop is not House. */
+function winChance(table: number[], housePercent: number): number {
+  const rows = table.length - 1;
+  let c = 1;
+  let p = 0;
+  for (let k = 0; k <= rows; k++) {
+    if (table[k] > 1) p += c / 2 ** rows;
+    c = (c * (rows - k)) / (k + 1);
+  }
+  return p * (1 - housePercent / 100);
 }
 
 type Geometry = {
@@ -142,15 +173,17 @@ function slotX(g: Geometry, k: number) {
 }
 
 /** Keyframes for a ball following `path`: dropped onto the top pin, one
- * little arc per row onto the next pin, then onto its colour's tile. */
-function ballKeyframes(g: Geometry, path: number[], riskIndex: number) {
+ * little arc per row onto the next pin, then onto its colour's tile. A ⭐
+ * House ball never reaches a tile: it stops just above them, as it pays nothing. */
+function ballKeyframes(g: Geometry, path: number[], riskIndex: number, house: boolean) {
   const pts: { x: number; y: number; h: number }[] = [{ x: g.cx, y: g.top - g.sy * 1.1, h: 0 }];
   let rights = 0;
   for (let i = 0; i < g.rows; i++) {
     pts.push({ x: g.cx + (rights - i / 2) * g.sx, y: rowY(g, i) - g.pinR - g.ballR, h: i === 0 ? 0 : g.sy * 0.32 });
     rights += path[i];
   }
-  pts.push({ x: slotX(g, rights), y: g.tilesTop + (riskIndex + 0.5) * g.tileH, h: g.sy * 0.25 });
+  const endY = house ? g.tilesTop - g.ballR - 2 : g.tilesTop + (riskIndex + 0.5) * g.tileH;
+  pts.push({ x: slotX(g, rights), y: endY, h: g.sy * 0.25 });
 
   const input: number[] = [];
   const xs: number[] = [];
@@ -208,8 +241,8 @@ const Board = memo(function Board({ g, width }: { g: Geometry; width: number }) 
   );
 });
 
-type Ball = { id: number; risk: PlinkoRisk; payout: number; multiplier: number; anim: Animated.Value; frames: ReturnType<typeof ballKeyframes> };
-type Floater = { id: number; x: number; y: number; text: string; anim: Animated.Value };
+type Ball = { id: number; risk: PlinkoRisk; payout: number; multiplier: number; house: boolean; anim: Animated.Value; frames: ReturnType<typeof ballKeyframes> };
+type Floater = { id: number; x: number; y: number; text: string; house: boolean; anim: Animated.Value };
 type Popover = 'pins' | 'stake' | 'auto' | 'menu' | null;
 type Sheet = 'rules' | 'limits' | null;
 
@@ -225,7 +258,7 @@ export default function PlinkoScreen() {
   const [boardSize, setBoardSize] = useState<{ w: number; h: number } | null>(null);
   const [balls, setBalls] = useState<Ball[]>([]);
   const [floaters, setFloaters] = useState<Floater[]>([]);
-  const [recent, setRecent] = useState<{ id: number; m: number; risk: PlinkoRisk }[]>([]);
+  const [recent, setRecent] = useState<{ id: number; m: number; risk: PlinkoRisk; house: boolean }[]>([]);
   const [localBalance, setLocalBalance] = useState(coins);
   const [bigWin, setBigWin] = useState<{ m: number; amount: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -258,6 +291,7 @@ export default function PlinkoScreen() {
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
+  const housePercent = config?.houseChancePercent ?? DEFAULT_HOUSE_PERCENT;
   const busy = inFlight > 0 || autoLeft > 0;
 
   useEffect(() => {
@@ -374,26 +408,25 @@ export default function PlinkoScreen() {
       if (!mountedRef.current) return;
       const g = geometryRef.current;
       const ri = RISK_INDEX[ball.risk];
-      const bump = tileAnimsRef.current[ri]?.[ball.frames.slot];
+      // A ⭐ House ball stops above the tiles, so no tile lights up.
+      const bump = ball.house ? undefined : tileAnimsRef.current[ri]?.[ball.frames.slot];
       if (bump) {
         bump.setValue(1);
         Animated.timing(bump, { toValue: 0, duration: 450, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
       }
       setBalls((prev) => prev.filter((b) => b.id !== ball.id));
       setLocalBalance((b) => round2(b + ball.payout));
-      setRecent((prev) => [{ id: ball.id, m: ball.multiplier, risk: ball.risk }, ...prev].slice(0, HISTORY_LEN));
-      if (g && ball.payout > 0) {
+      setRecent((prev) => [{ id: ball.id, m: ball.multiplier, risk: ball.risk, house: ball.house }, ...prev].slice(0, HISTORY_LEN));
+      if (g && (ball.payout > 0 || ball.house)) {
         const fid = idRef.current++;
         const anim = new Animated.Value(0);
-        setFloaters((prev) => [
-          ...prev,
-          { id: fid, x: slotX(g, ball.frames.slot), y: g.tilesTop - 20, text: `+₹${ball.payout.toFixed(2)}`, anim },
-        ]);
+        const text = ball.house ? `⭐ ${TEXT[langRef.current].house}` : `+₹${ball.payout.toFixed(2)}`;
+        setFloaters((prev) => [...prev, { id: fid, x: slotX(g, ball.frames.slot), y: g.tilesTop - 20, text, house: ball.house, anim }]);
         Animated.timing(anim, { toValue: 1, duration: 950, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() =>
           setFloaters((prev) => prev.filter((f) => f.id !== fid))
         );
       }
-      if (ball.multiplier >= BIG_WIN_MULTIPLIER) setBigWin({ m: ball.multiplier, amount: ball.payout });
+      if (!ball.house && ball.multiplier >= BIG_WIN_MULTIPLIER) setBigWin({ m: ball.multiplier, amount: ball.payout });
       play(ball.multiplier > 1 ? 'win' : 'land');
       inFlightRef.current -= 1;
       setInFlight(inFlightRef.current);
@@ -426,12 +459,15 @@ export default function PlinkoScreen() {
         const res = await dropPlinkoBall(amount, g.rows, risk);
         if (!mountedRef.current) return false;
         setSeedHash(res.serverSeedHash);
-        const frames = ballKeyframes(g, res.path, RISK_INDEX[risk]);
+        // ⭐ House drop: it falls as a gold star ball and loses, whatever slot its path reaches.
+        const house = !!res.house;
+        const frames = ballKeyframes(g, res.path, RISK_INDEX[risk], house);
         const ball: Ball = {
           id: idRef.current++,
           risk,
           payout: Number(res.payout),
           multiplier: Number(res.multiplier),
+          house,
           anim: new Animated.Value(0),
           frames,
         };
@@ -539,20 +575,14 @@ export default function PlinkoScreen() {
                 {recent.length === 0 ? (
                   <Text style={styles.recentEmpty}>{t.noResults}</Text>
                 ) : (
-                  recent.map((r) => (
-                    <LinearGradient key={r.id} colors={COLORS[RISK_INDEX[r.risk]].tile} style={styles.recentChip}>
-                      <Text style={styles.recentText}>{formatMult(r.m)}x</Text>
-                    </LinearGradient>
-                  ))
+                  recent.map((r) => <RecentChip key={r.id} m={r.m} risk={r.risk} house={r.house} houseLabel={t.house} />)
                 )}
               </View>
             </View>
           ) : (
             <View style={styles.recentStrip}>
               {recent.map((r) => (
-                <LinearGradient key={r.id} colors={COLORS[RISK_INDEX[r.risk]].tile} style={styles.recentChip}>
-                  <Text style={styles.recentText}>{formatMult(r.m)}x</Text>
-                </LinearGradient>
+                <RecentChip key={r.id} m={r.m} risk={r.risk} house={r.house} houseLabel={t.house} />
               ))}
             </View>
           )}

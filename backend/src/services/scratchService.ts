@@ -5,36 +5,51 @@ import { env } from "../config/env";
 import { fairGameFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
+import { INSTANT_HOUSE_CHANCE, isInstantHouse } from "./lotteryHouse";
 
 /**
  * Scratch Card: an instant ticket with nine hidden panels. Three matching
  * symbols win that symbol's prize. The ticket's prize is drawn first, from
- * weights out of 1,000,000 whose expected return is exactly 0.85 (85% RTP, a
- * 15% house edge); the nine panels are then dealt to show it: the prize
- * symbol three times on a win, and every other symbol at most twice, so a
- * ticket never shows more than one three-of-a-kind. Everything comes from the
- * player's provably-fair seeds.
+ * weights out of 1,000,000 whose expected return is exactly 1.00 (fair odds);
+ * the nine panels are then dealt to show it: the prize symbol three times on
+ * a win, and every other symbol at most twice, so a ticket never shows more
+ * than one three-of-a-kind. Everything comes from the player's provably-fair
+ * seeds.
+ *
+ * One ticket in five is a ⭐ House ticket (lotteryHouse.ts, drawn from the
+ * same seeds), which loses whatever prize was drawn: its panels are dealt as
+ * a ticket with no prize, and one of them (also from the seeds) holds a ⭐
+ * instead of a symbol. With the House tickets a ticket returns 80% (a 20%
+ * house edge), before the per-ticket payout cap.
  */
 
 export const PRIZE_WEIGHT_TOTAL = 1_000_000;
 
-/** The symbols, lowest prize first; `weight` is the chance of that prize in a million. */
+/** The symbols, lowest prize first; `weight` is the chance of that prize in a million on a ticket that is not House. */
 export const SYMBOLS = [
-  { key: "COIN", multiplier: 1, weight: 200_000 },
-  { key: "CHERRY", multiplier: 2, weight: 120_000 },
-  { key: "BELL", multiplier: 4, weight: 30_000 },
-  { key: "CLOVER", multiplier: 10, weight: 10_000 },
-  { key: "HORSESHOE", multiplier: 20, weight: 3_500 },
-  { key: "DIAMOND", multiplier: 50, weight: 1_200 },
-  { key: "SEVEN", multiplier: 100, weight: 400 },
-  { key: "CROWN", multiplier: 1000, weight: 20 },
+  { key: "COIN", multiplier: 1, weight: 235_000 },
+  { key: "CHERRY", multiplier: 2, weight: 141_000 },
+  { key: "BELL", multiplier: 4, weight: 35_000 },
+  { key: "CLOVER", multiplier: 10, weight: 12_000 },
+  { key: "HORSESHOE", multiplier: 20, weight: 4_100 },
+  { key: "DIAMOND", multiplier: 50, weight: 1_400 },
+  { key: "SEVEN", multiplier: 100, weight: 470 },
+  { key: "CROWN", multiplier: 1000, weight: 24 },
 ] as const;
 
 export const PANELS = 9;
 
-/** Exact return of a ticket: the sum of each prize times its chance. */
-export function scratchRtp(): number {
+/** The panel value that marks the ⭐ on a House ticket (symbols are 0 and up). */
+export const HOUSE_PANEL = -1;
+
+/** Exact return of a ticket that is not House: the sum of each prize times its chance (1.00). */
+export function paytableReturn(): number {
   return SYMBOLS.reduce((s, x) => s + x.multiplier * x.weight, 0) / PRIZE_WEIGHT_TOTAL;
+}
+
+/** Exact return of a ticket, House tickets included (before the per-ticket payout cap). */
+export function scratchRtp(): number {
+  return (1 - INSTANT_HOUSE_CHANCE) * paytableReturn();
 }
 
 function floor2(n: number): number {
@@ -72,12 +87,23 @@ export function scratchPanels(serverSeed: string, clientSeed: string, nonce: num
   return seededShuffle(panels, serverSeed, clientSeed, nonce, 100);
 }
 
+/** The nine panels of a ⭐ House ticket: dealt as a ticket with no prize (no
+ * three of a kind), then one panel, picked from the seeds, shows the ⭐. */
+export function scratchHousePanels(serverSeed: string, clientSeed: string, nonce: number): number[] {
+  const panels = scratchPanels(serverSeed, clientSeed, nonce, -1);
+  const star = Math.floor(fairGameFloat(serverSeed, clientSeed, "scratch", nonce * 1000 + 200) * PANELS);
+  panels[star] = HOUSE_PANEL;
+  return panels;
+}
+
 type TicketRow = Prisma.ScratchTicketGetPayload<Record<string, never>>;
 
-/** The player's live server seed is never sent — only its hash. */
+/** The player's live server seed is never sent — only its hash. A House
+ * ticket is sent without the prize that was drawn for it (the row keeps it),
+ * so older app builds that read only `prize` don't show it as a win. */
 function toPublicTicket(ticket: TicketRow) {
   const { serverSeed: _hidden, ...rest } = ticket;
-  return rest;
+  return { ...rest, prize: ticket.house ? -1 : ticket.prize };
 }
 
 export function getScratchConfig() {
@@ -86,12 +112,15 @@ export function getScratchConfig() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     rtpPercent: Math.round(scratchRtp() * 10000) / 100,
+    houseChancePercent: Math.round(INSTANT_HOUSE_CHANCE * 10000) / 100,
     panels: PANELS,
-    symbols: SYMBOLS.map((s) => ({ key: s.key, multiplier: s.multiplier, chance: s.weight / PRIZE_WEIGHT_TOTAL })),
+    // `chance` is the chance a ticket wins that prize: drawn and not House, so
+    // the chances add up to the ticket's real win chance.
+    symbols: SYMBOLS.map((s) => ({ key: s.key, multiplier: s.multiplier, chance: ((1 - INSTANT_HOUSE_CHANCE) * s.weight) / PRIZE_WEIGHT_TOTAL })),
   };
 }
 
-/** Buys one ticket: debits the stake, deals the panels from the player's seeds and pays the prize, all in one transaction. */
+/** Buys one ticket: debits the stake, draws the prize (and whether it is House) and deals the panels from the player's seeds and pays the prize on a ticket that is not House, all in one transaction. */
 export async function buyScratchTicket(userId: string, stake: number) {
   if (stake < env.games.minStake || stake > env.games.maxStake) {
     throw new ApiError(400, `Stake must be between ${env.games.minStake} and ${env.games.maxStake}.`);
@@ -100,9 +129,12 @@ export async function buyScratchTicket(userId: string, stake: number) {
   await assertCanTransact(userId);
 
   const { serverSeed, serverSeedHash, clientSeed, nonce } = await nextRoundSeedMaterial(userId);
+  // The prize is drawn on every ticket (and kept on the row, so the seeds can
+  // be checked); whether the ticket is House is fixed and stored with it.
   const prize = scratchPrize(serverSeed, clientSeed, nonce);
-  const panels = scratchPanels(serverSeed, clientSeed, nonce, prize);
-  const multiplier = prize >= 0 ? SYMBOLS[prize].multiplier : 0;
+  const house = isInstantHouse(serverSeed, clientSeed, "scratch-card", nonce);
+  const panels = house ? scratchHousePanels(serverSeed, clientSeed, nonce) : scratchPanels(serverSeed, clientSeed, nonce, prize);
+  const multiplier = !house && prize >= 0 ? SYMBOLS[prize].multiplier : 0;
   // Rounded down, so rounding never pays more than the ticket says.
   const payout = Math.min(floor2(stake * multiplier), env.games.maxPayout);
 
@@ -130,7 +162,7 @@ export async function buyScratchTicket(userId: string, stake: number) {
     await tx.transaction.create({ data: { userId, type: "GAME_STAKE", amount: stake, status: "COMPLETED" } });
     if (payout > 0) await tx.transaction.create({ data: { userId, type: "GAME_PAYOUT", amount: payout, status: "COMPLETED" } });
 
-    return tx.scratchTicket.create({ data: { userId, stake, panels, prize, multiplier, payout, serverSeed, serverSeedHash, clientSeed, nonce } });
+    return tx.scratchTicket.create({ data: { userId, stake, panels, prize, house, multiplier, payout, serverSeed, serverSeedHash, clientSeed, nonce } });
   });
 
   return toPublicTicket(ticket);

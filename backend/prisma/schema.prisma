@@ -594,6 +594,9 @@ model SevenUpDownRound {
   createdAt      DateTime         @default(now())
   bets           SevenUpDownBet[]
 
+  // ⭐ House round (lotteryHouse.ts INSTANT_HOUSE_CHANCE): every bet loses. Fixed at creation; older rounds are never House.
+  house Boolean @default(false)
+
   @@index([startTime])
   @@index([settled, resultTime])
 }
@@ -637,6 +640,9 @@ model PlinkoBet {
   clientSeed     String
   nonce          Int
   createdAt      DateTime @default(now())
+
+  /// ⭐ House result (lotteryHouse.ts isInstantHouse): this bet lost whatever else was drawn.
+  house Boolean @default(false)
 
   @@index([userId, createdAt])
 }
@@ -1205,6 +1211,9 @@ model DiceBet {
   nonce          Int
   createdAt      DateTime @default(now())
 
+  /// ⭐ House result (lotteryHouse.ts isInstantHouse): this bet lost whatever else was drawn.
+  house Boolean @default(false)
+
   @@index([userId, createdAt])
 }
 
@@ -1222,6 +1231,9 @@ model LimboBet {
   clientSeed     String
   nonce          Int
   createdAt      DateTime @default(now())
+
+  /// ⭐ House result (lotteryHouse.ts isInstantHouse): this bet lost whatever else was drawn.
+  house Boolean @default(false)
 
   @@index([userId, createdAt])
 }
@@ -1264,6 +1276,9 @@ model KenoBet {
   clientSeed     String
   nonce          Int
   createdAt      DateTime @default(now())
+
+  /// ⭐ House result (lotteryHouse.ts isInstantHouse): this bet lost whatever else was drawn.
+  house Boolean @default(false)
 
   @@index([userId, createdAt])
 }
@@ -1355,6 +1370,9 @@ model DiamondsBet {
   clientSeed     String
   nonce          Int
   createdAt      DateTime @default(now())
+
+  /// ⭐ House result (lotteryHouse.ts isInstantHouse): this bet lost whatever else was drawn.
+  house Boolean @default(false)
 
   @@index([userId, createdAt])
 }
@@ -2129,6 +2147,9 @@ model WheelSpin {
   nonce          Int
   createdAt      DateTime @default(now())
 
+  /// ⭐ House result (lotteryHouse.ts isInstantHouse): this bet lost whatever else was drawn.
+  house Boolean @default(false)
+
   @@index([userId, createdAt])
 }
 
@@ -2148,6 +2169,9 @@ model ScratchTicket {
   clientSeed     String
   nonce          Int
   createdAt      DateTime @default(now())
+
+  /// ⭐ House result (lotteryHouse.ts isInstantHouse): this bet lost whatever else was drawn.
+  house Boolean @default(false)
 
   @@index([userId, createdAt])
 }
@@ -2171,6 +2195,9 @@ model DiceDuelBet {
   nonce          Int
   createdAt      DateTime @default(now())
 
+  /// ⭐ House result (lotteryHouse.ts isInstantHouse): this bet lost whatever else was drawn.
+  house Boolean @default(false)
+
   @@index([userId, createdAt])
 }
 
@@ -2192,6 +2219,9 @@ model ColorBallBet {
   clientSeed     String
   nonce          Int
   createdAt      DateTime @default(now())
+
+  /// ⭐ House result (lotteryHouse.ts isInstantHouse): this bet lost whatever else was drawn.
+  house Boolean @default(false)
 
   @@index([userId, createdAt])
 }

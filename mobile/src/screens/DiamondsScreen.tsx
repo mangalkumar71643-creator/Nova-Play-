@@ -48,15 +48,19 @@ const PATTERN: Record<DiamondsResult, number[]> = {
   PAIR: [0, 0, -1, -1, -1],
   NONE: [-1, -1, -1, -1, -1],
 };
+/** Used until the config arrives. Each chance is the real chance of that pay: the result, on a play that is not ⭐ House. */
 const FALLBACK_PAYTABLE: DiamondsConfig['paytable'] = [
-  { result: 'FIVE_OF_A_KIND', multiplier: 50, chancePercent: 0.04 },
-  { result: 'FOUR_OF_A_KIND', multiplier: 5, chancePercent: 1.25 },
-  { result: 'FULL_HOUSE', multiplier: 4, chancePercent: 2.5 },
-  { result: 'THREE_OF_A_KIND', multiplier: 2.3, chancePercent: 12.49 },
-  { result: 'TWO_PAIR', multiplier: 1.75, chancePercent: 18.74 },
-  { result: 'PAIR', multiplier: 0.1, chancePercent: 49.98 },
-  { result: 'NONE', multiplier: 0, chancePercent: 14.99 },
+  { result: 'FIVE_OF_A_KIND', multiplier: 60, chancePercent: 0.03 },
+  { result: 'FOUR_OF_A_KIND', multiplier: 6, chancePercent: 1 },
+  { result: 'FULL_HOUSE', multiplier: 4.75, chancePercent: 2 },
+  { result: 'THREE_OF_A_KIND', multiplier: 2.7, chancePercent: 10 },
+  { result: 'TWO_PAIR', multiplier: 2.1, chancePercent: 14.99 },
+  { result: 'PAIR', multiplier: 0.1, chancePercent: 39.98 },
+  { result: 'NONE', multiplier: 0, chancePercent: 12 },
 ];
+/** One play in five is a ⭐ House play, which loses whatever the gems. */
+const FALLBACK_HOUSE_PERCENT = 20;
+const FALLBACK_RTP = 79.97;
 const BIG: DiamondsResult[] = ['FULL_HOUSE', 'FOUR_OF_A_KIND', 'FIVE_OF_A_KIND'];
 
 function round2(n: number): number {
@@ -81,6 +85,16 @@ function matchedGems(gems: number[]): boolean[] {
 }
 
 // ---------- art ----------
+
+/** A ⭐ House gem: a gold star dropped in place of a gem on a House play. */
+const StarGem = memo(function StarGem({ size }: { size: number }) {
+  return (
+    <Svg width={size} height={size * 0.9} viewBox="0 0 100 90">
+      <Path d="M50 5 L60.6 34.4 L91.8 35.4 L67.1 54.6 L75.9 84.6 L50 67 L24.1 84.6 L32.9 54.6 L8.2 35.4 L39.4 34.4 Z" fill="#FFC83A" stroke="#FFF3C4" strokeWidth={3} strokeLinejoin="round" />
+      <Path d="M50 18 L56.5 37 L50 58 L43.5 37 Z" fill="#FFF8DC" opacity={0.6} />
+    </Svg>
+  );
+});
 
 /** A brilliant-cut gem seen from the side: crown facets over a pointed pavilion. */
 const Gem = memo(function Gem({ color, size, ghost = false }: { color: number; size: number; ghost?: boolean }) {
@@ -193,6 +207,8 @@ export default function DiamondsScreen() {
   const [last, setLast] = useState<DiamondsBet | null>(null);
   const [shown, setShown] = useState<(number | null)[]>([null, null, null, null, null]);
   const [revealed, setRevealed] = useState(false);
+  // The drop on show is a ⭐ House play: stars fall in place of the gems.
+  const [starRow, setStarRow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [shownBalance, setShownBalance] = useState(coins);
@@ -219,6 +235,7 @@ export default function DiamondsScreen() {
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const paytable = config?.paytable ?? FALLBACK_PAYTABLE;
+  const houseChance = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
   const showToast = useCallback((msg: string) => {
@@ -318,6 +335,9 @@ export default function DiamondsScreen() {
     if (!mountedRef.current) return;
     setShownBalance((x) => round2(x - bet));
     setShown([null, null, null, null, null]);
+    // ⭐ House play: it loses whatever the gems, so stars drop in their place
+    // (the gems stay on the bet, for checking the seeds).
+    setStarRow(!!b.house);
     drops.forEach((v) => v.setValue(0));
     // Gems drop into their cushions one by one.
     for (let i = 0; i < 5; i++) {
@@ -332,7 +352,10 @@ export default function DiamondsScreen() {
     setRevealed(true);
     const payout = Number(b.payout);
     if (payout > 0) setShownBalance((x) => round2(x + payout));
-    if (BIG.includes(b.result)) {
+    if (b.house) {
+      play('land');
+      showBanner({ title: '⭐ HOUSE', sub: `One play in ${Math.round(100 / houseChance)} · this play loses` });
+    } else if (BIG.includes(b.result)) {
       play('win');
       showBanner({ title: RESULT_NAME[b.result].toUpperCase(), sub: `₹${payout.toFixed(2)}  ·  ${fmtMult(Number(b.multiplier))}` });
     } else if (payout > Number(b.stake)) play('win');
@@ -340,7 +363,7 @@ export default function DiamondsScreen() {
     refreshWallet().catch(() => {});
     busyRef.current = false;
     setBusy(false);
-  }, [bet, drops, last, play, refreshWallet, showBanner, showToast]);
+  }, [bet, drops, houseChance, last, play, refreshWallet, showBanner, showToast]);
 
   const changeBet = (dir: -1 | 1) => {
     if (busy) return;
@@ -383,17 +406,19 @@ export default function DiamondsScreen() {
   const stageH = stagePad * 2 + slot * 1.15 + 34;
   // Leaves room above the gems for the win banner.
   const rowSpace = H - headerH - insets.bottom - 10 - logoH - stageH - 118 - 14 - (compact ? 80 : 40);
-  const rowH = Math.max(28, Math.min(compact ? 32 : 40, Math.floor(rowSpace / 7)));
+  // Seven results and the ⭐ House row.
+  const rowH = Math.max(26, Math.min(compact ? 30 : 38, Math.floor(rowSpace / 8)));
   const mini = Math.min(rowH * 0.62, 20);
-  const lit = revealed && last ? last.result : null;
+  const lit: DiamondsResult | 'HOUSE' | null = revealed && last ? (last.house ? 'HOUSE' : last.result) : null;
   // The banner sits just over the top edge of the gem stage, clear of the gems and the paytable.
   const bannerTop = stageBox ? Math.max(stageBox.y - 64, (payBottom ?? 0) + 4) : H * 0.55;
   const nameSize = rowH < 32 || contentW < 380 ? 12 : 13.5;
-  const matched = revealed && last ? matchedGems(last.gems) : null;
+  const matched = revealed && last && !last.house ? matchedGems(last.gems) : null;
 
   let status: React.ReactNode;
   if (busy) status = <Text style={styles.statusText}>Dropping gems…</Text>;
-  else if (!last) status = <Text style={styles.statusText}>Match gem colours to win — up to 50x</Text>;
+  else if (!last) status = <Text style={styles.statusText}>Match gem colours to win — up to {fmtMult(paytable[0].multiplier)}</Text>;
+  else if (last.house) status = <Text style={[styles.statusText, { color: GOLD }]}>⭐ House · this play loses</Text>;
   else {
     const payout = Number(last.payout);
     const stake = Number(last.stake);
@@ -465,6 +490,19 @@ export default function DiamondsScreen() {
               </View>
             );
           })}
+          <View style={[styles.payRow, { height: rowH }, lit === 'HOUSE' && styles.payRowOn]}>
+            {lit === 'HOUSE' && <LinearGradient colors={['#FFF1B0', GOLD, '#E0A526']} style={StyleSheet.absoluteFill} />}
+            {lit === 'HOUSE' && <Animated.View style={[StyleSheet.absoluteFill, styles.payGlow, { opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] }) }]} />}
+            <View style={[styles.pattern, { width: mini * 5 + 8 }]}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <StarGem key={i} size={mini} />
+              ))}
+            </View>
+            <Text style={[styles.payName, { fontSize: nameSize }, lit === 'HOUSE' && styles.payDark]} numberOfLines={1}>
+              HOUSE · 1 IN {Math.round(100 / houseChance)}
+            </Text>
+            <Text style={[styles.payMult, { fontSize: rowH < 32 ? 12.5 : 14, opacity: 0.5 }, lit === 'HOUSE' && styles.payDark]}>0x</Text>
+          </View>
         </LinearGradient>
 
         {/* Gem stage */}
@@ -496,9 +534,7 @@ export default function DiamondsScreen() {
                         transform: [{ translateY: drops[i].interpolate({ inputRange: [0, 1, 2], outputRange: [-slot * 1.6, 0, slot * 0.25] }) }, { scale: drops[i].interpolate({ inputRange: [0, 1, 2], outputRange: [0.7, 1, 0.6] }) }],
                       }}
                     >
-                      <View style={{ opacity: dim ? 0.4 : 1 }}>
-                        <Gem color={g} size={gemSize} />
-                      </View>
+                      <View style={{ opacity: dim ? 0.4 : 1 }}>{starRow ? <StarGem size={gemSize} /> : <Gem color={g} size={gemSize} />}</View>
                     </Animated.View>
                   )}
                 </View>
@@ -594,10 +630,17 @@ function groupColours(gems: number[]): number[] {
 
 function Rules({ config }: { config: DiamondsConfig | null }) {
   const paytable = config?.paytable ?? FALLBACK_PAYTABLE;
+  const house = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
+  const winChance = paytable.filter((p) => p.multiplier > 1).reduce((s, p) => s + p.chancePercent, 0);
+  const partChance = paytable.filter((p) => p.multiplier > 0 && p.multiplier <= 1).reduce((s, p) => s + p.chancePercent, 0);
   return (
     <View>
       <Text style={styles.ruleHead}>How to play</Text>
       <Text style={styles.ruleLine}>Set your bet and press Play. Five gems drop, each one of seven colours with equal chance. You are paid for how many gems share a colour — like a poker hand, the order doesn't matter.</Text>
+      <Text style={styles.ruleHead}>⭐ House play</Text>
+      <Text style={styles.ruleLine}>
+        One play in {Math.round(100 / house)} ({house}%) is a ⭐ House play. Gold stars drop instead of gems and the play loses, whatever the gems. Every other play is paid by the table below. The chances in the table are the real ones, House plays included: a play wins more than your bet {winChance.toFixed(2)}% of the time, and gives part of it back {partChance.toFixed(2)}% of the time.
+      </Text>
       <Text style={styles.ruleHead}>Paytable</Text>
       <View style={styles.ruleBox}>
         <View style={styles.ruleRow}>
@@ -612,12 +655,17 @@ function Rules({ config }: { config: DiamondsConfig | null }) {
             <Text style={styles.ruleVal}>{fmtMult(multiplier)}</Text>
           </View>
         ))}
+        <View style={styles.ruleRow}>
+          <Text style={[styles.ruleKey, { color: GOLD }]}>⭐ House</Text>
+          <Text style={styles.ruleMid}>{house.toFixed(2)}%</Text>
+          <Text style={styles.ruleVal}>0x</Text>
+        </View>
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Payouts are the total returned for your bet. Return to player {config?.rtpPercent ?? 84.86}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per bet ₹{config?.maxPayout ?? 10000}.
+        Payouts are the total returned for your bet. Return to player {config?.rtpPercent ?? FALLBACK_RTP}%, House plays included. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per bet ₹{config?.maxPayout ?? 10000}.
       </Text>
-      <Text style={styles.ruleLine}>Every gem comes from your provably-fair seeds (Settings → Provably Fair).</Text>
+      <Text style={styles.ruleLine}>Every gem, and whether a play is House, comes from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>
   );
 }
@@ -635,15 +683,21 @@ function History({ bets }: { bets: DiamondsBet[] | null }) {
           <View key={b.id} style={styles.histRow}>
             <View style={{ flex: 1 }}>
               <View style={styles.histGems}>
-                {b.gems.map((g, i) => (
-                  <View key={i} style={{ opacity: b.result !== 'NONE' && !hits[i] ? 0.4 : 1 }}>
-                    <Gem color={g} size={24} />
-                  </View>
-                ))}
+                {b.house
+                  ? b.gems.map((_, i) => <StarGem key={i} size={24} />)
+                  : b.gems.map((g, i) => (
+                      <View key={i} style={{ opacity: b.result !== 'NONE' && !hits[i] ? 0.4 : 1 }}>
+                        <Gem color={g} size={24} />
+                      </View>
+                    ))}
               </View>
-              <Text style={styles.histMain}>
-                {RESULT_NAME[b.result]} · {fmtMult(Number(b.multiplier))}
-              </Text>
+              {b.house ? (
+                <Text style={[styles.histMain, { color: GOLD }]}>⭐ House · 0x</Text>
+              ) : (
+                <Text style={styles.histMain}>
+                  {RESULT_NAME[b.result]} · {fmtMult(Number(b.multiplier))}
+                </Text>
+              )}
               <Text style={styles.histSub}>
                 ₹{stake.toFixed(2)} · {new Date(b.createdAt).toLocaleString()}
               </Text>

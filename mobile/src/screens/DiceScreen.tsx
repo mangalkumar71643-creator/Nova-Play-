@@ -17,13 +17,17 @@ const GOLD = '#FFD66B';
 const WIN = '#2BF59A';
 const LOSE = '#FF4D6A';
 const INK = '#E9FBFF';
+/** ⭐ House roll marker: dark plum with gold, unlike the win and lose colours. */
+const HOUSE_BG = 'rgba(58,20,82,0.85)';
+/** The roll lands on one of 10,001 results, 0.00 to 100.00. */
+const OUTCOMES = 10001;
 const BET_LEVELS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
 const DEFAULT_BET = 10;
 const AUTO_OPTIONS = [10, 25, 50, 100];
 const SOUND_KEY = 'novaplay:dice:sound';
 const TOAST_MS = 1800;
 const RECENT_MAX = 12;
-/** Slider stops: win chance 2%–84% whichever way the roll goes. */
+/** Slider stops: win chance 2%–99% whichever way the roll goes. */
 const SLIDE_MIN_CHANCE = 2;
 
 function round2(n: number): number {
@@ -34,8 +38,9 @@ function floor2(n: number): number {
   return Math.floor(n * 100 + 1e-9) / 100;
 }
 
-function floor4(n: number): number {
-  return Math.floor(n * 10000 + 1e-9) / 10000;
+/** Fair odds on a roll that is not House, like the server: 10,001 results / the winning ones, rounded down to the cent. */
+function multFor(chance: number): number {
+  return floor2(OUTCOMES / Math.round(chance * 100));
 }
 
 function errorMessage(err: unknown): string {
@@ -179,8 +184,8 @@ export function DiceTileArt({ size }: { size: number }) {
 
 // ---------- screen ----------
 
-type Recent = { id: string; v: number; won: boolean };
-type Last = { result: number; won: boolean; target: number; rollOver: boolean; payout: number; stake: number };
+type Recent = { id: string; v: number; won: boolean; house: boolean };
+type Last = { result: number; won: boolean; house: boolean; target: number; rollOver: boolean; payout: number; stake: number };
 
 export default function DiceScreen() {
   const navigation = useNavigation();
@@ -236,16 +241,18 @@ export default function DiceScreen() {
   const resultAnim = useRef(new Animated.Value(0)).current;
   const tumbleLoop = useRef<Animated.CompositeAnimation | null>(null);
 
-  const rtp = config?.rtpPercent ?? 85;
+  const houseChance = config?.houseChancePercent ?? 20;
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const minChance = config?.minChance ?? 0.01;
-  const maxChance = config?.maxChance ?? 84;
+  const maxChance = config?.maxChance ?? 99;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
   const chance = round2(rollOver ? 100 - target : target);
-  const multiplier = floor4(rtp / chance);
+  const multiplier = multFor(chance);
+  // The real chance a roll wins: the green share of the 10,001 results, on a roll that is not ⭐ House.
+  const realChance = (1 - houseChance / 100) * (Math.round(chance * 100) / OUTCOMES) * 100;
   const winAmount = floor2(bet * multiplier);
   const overCap = winAmount > maxPayout;
 
@@ -273,7 +280,7 @@ export default function DiceScreen() {
       .then((c) => mountedRef.current && setConfig(c))
       .catch(() => {});
     fetchDiceHistory(RECENT_MAX)
-      .then((h) => mountedRef.current && setRecent(h.reverse().map((b) => ({ id: b.id, v: Number(b.result), won: b.won }))))
+      .then((h) => mountedRef.current && setRecent(h.reverse().map((b) => ({ id: b.id, v: Number(b.result), won: b.won, house: !!b.house }))))
       .catch(() => {});
     AsyncStorage.getItem(SOUND_KEY)
       .then((v) => v === 'off' && setSoundOn(false))
@@ -359,7 +366,8 @@ export default function DiceScreen() {
     setMultText(null);
     const m = Number(text.replace(',', '.'));
     if (!Number.isFinite(m) || m <= 0) return;
-    const c = Math.min(maxChance, Math.max(minChance, round2(rtp / m)));
+    // The biggest win chance that still pays this multiplier.
+    const c = Math.min(maxChance, Math.max(minChance, floor2(OUTCOMES / 100 / m)));
     setTarget(round2(rollOver ? 100 - c : c));
   };
 
@@ -395,7 +403,7 @@ export default function DiceScreen() {
     if (busyRef.current) return;
     const { bet: stake, target: t, rollOver: over } = stateRef.current;
     const c = round2(over ? 100 - t : t);
-    const m = floor4(rtp / c);
+    const m = multFor(c);
     if (stake > balanceRef.current) {
       showToast('Insufficient balance');
       setAutoLeft(0);
@@ -436,20 +444,28 @@ export default function DiceScreen() {
 
     const result = Number(b.result);
     const payout = Number(b.payout);
+    const house = !!b.house;
     const dur = fast ? 170 : 420;
     tumbleLoop.current?.stop();
     Animated.timing(tumble, { toValue: 1, duration: dur, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    markerIn.setValue(1);
-    await new Promise<void>((resolve) =>
-      Animated.parallel([
-        Animated.timing(markerFrac, { toValue: result / 100, duration: dur, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-        Animated.timing(resultAnim, { toValue: result, duration: dur, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      ]).start(() => resolve())
-    );
+    if (house) {
+      // ⭐ House roll: it loses whatever the roll, so it shows the ⭐ instead
+      // of the number and no marker on the bar (the roll stays on the bet, for checking the seeds).
+      markerIn.setValue(0);
+      await new Promise<void>((resolve) => setTimeout(resolve, dur));
+    } else {
+      markerIn.setValue(1);
+      await new Promise<void>((resolve) =>
+        Animated.parallel([
+          Animated.timing(markerFrac, { toValue: result / 100, duration: dur, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+          Animated.timing(resultAnim, { toValue: result, duration: dur, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+        ]).start(() => resolve())
+      );
+    }
     if (!mountedRef.current) return;
-    setShownResult(result);
-    setLast({ result, won: b.won, target: t, rollOver: over, payout, stake });
-    setRecent((r) => [...r, { id: b.id, v: result, won: b.won }].slice(-RECENT_MAX));
+    setShownResult(house ? null : result);
+    setLast({ result, won: b.won, house, target: t, rollOver: over, payout, stake });
+    setRecent((r) => [...r, { id: b.id, v: result, won: b.won, house }].slice(-RECENT_MAX));
     flash.setValue(0);
     Animated.timing(flash, { toValue: 1, duration: 700, useNativeDriver: false }).start();
     if (b.won) {
@@ -469,7 +485,7 @@ export default function DiceScreen() {
       setAutoLeft(next);
       if (next > 0) autoTimer.current = setTimeout(() => mountedRef.current && doRollRef.current(), fast ? 160 : 520);
     }
-  }, [flash, gain, hop, markerFrac, markerIn, maxPayout, play, refreshWallet, resultAnim, rtp, showToast, tumble]);
+  }, [flash, gain, hop, markerFrac, markerIn, maxPayout, play, refreshWallet, resultAnim, showToast, tumble]);
   doRollRef.current = doRoll;
 
   const startAuto = (n: number) => {
@@ -499,7 +515,7 @@ export default function DiceScreen() {
   const headerH = insets.top + 50;
   const compact = H < 760;
   const dieSize = compact ? 64 : 96;
-  const lastColor = last ? (last.won ? WIN : LOSE) : INK;
+  const lastColor = last ? (last.house ? GOLD : last.won ? WIN : LOSE) : INK;
   const locked = busy || autoLeft > 0;
   const markerW = 58;
 
@@ -541,11 +557,17 @@ export default function DiceScreen() {
             {recent.length === 0 ? (
               <Text style={styles.recentEmpty}>Your recent rolls show here</Text>
             ) : (
-              recent.slice(-(compact ? 6 : 7)).map((r, i, arr) => (
-                <View key={r.id} style={[styles.recentPill, { backgroundColor: r.won ? 'rgba(43,245,154,0.16)' : 'rgba(255,255,255,0.06)', borderColor: r.won ? WIN : 'rgba(255,255,255,0.14)' }, i === arr.length - 1 && styles.recentPillNew]}>
-                  <Text style={[styles.recentText, { color: r.won ? WIN : 'rgba(233,251,255,0.75)' }]}>{r.v.toFixed(2)}</Text>
-                </View>
-              ))
+              recent.slice(-(compact ? 6 : 7)).map((r, i, arr) =>
+                r.house ? (
+                  <View key={r.id} style={[styles.recentPill, { backgroundColor: HOUSE_BG, borderColor: GOLD }, i === arr.length - 1 && styles.recentPillNew]}>
+                    <Text style={[styles.recentText, { color: GOLD }]}>⭐ House</Text>
+                  </View>
+                ) : (
+                  <View key={r.id} style={[styles.recentPill, { backgroundColor: r.won ? 'rgba(43,245,154,0.16)' : 'rgba(255,255,255,0.06)', borderColor: r.won ? WIN : 'rgba(255,255,255,0.14)' }, i === arr.length - 1 && styles.recentPillNew]}>
+                    <Text style={[styles.recentText, { color: r.won ? WIN : 'rgba(233,251,255,0.75)' }]}>{r.v.toFixed(2)}</Text>
+                  </View>
+                )
+              )
             )}
           </View>
         </View>
@@ -573,10 +595,20 @@ export default function DiceScreen() {
               <DieArt size={dieSize} glow={last && !busy ? lastColor : CYAN} />
             </Animated.View>
             <View style={{ marginLeft: 18, alignItems: 'flex-start' }}>
-              <Text style={styles.stageLabel}>{busy ? 'ROLLING' : last ? 'RESULT' : 'READY'}</Text>
-              <Text style={[styles.stageNumber, { color: busy ? INK : lastColor, fontSize: compact ? 46 : 62 }]}>{shownResult === null ? '--.--' : shownResult.toFixed(2)}</Text>
-              <Text style={styles.stageSub}>
-                {busy ? `Rolling ${rollOver ? 'over' : 'under'} ${target.toFixed(2)}` : last ? `${last.rollOver ? 'Over' : 'Under'} ${last.target.toFixed(2)} · ${last.won ? `WON ₹${last.payout.toFixed(2)}` : 'LOST'}` : `Roll ${rollOver ? 'over' : 'under'} ${target.toFixed(2)} to win`}
+              <Text style={styles.stageLabel}>{busy ? 'ROLLING' : last?.house ? 'HOUSE ROLL' : last ? 'RESULT' : 'READY'}</Text>
+              {!busy && last?.house ? (
+                <Text style={[styles.stageNumber, { fontSize: compact ? 46 : 62 }]}>⭐</Text>
+              ) : (
+                <Text style={[styles.stageNumber, { color: busy ? INK : lastColor, fontSize: compact ? 46 : 62 }]}>{shownResult === null ? '--.--' : shownResult.toFixed(2)}</Text>
+              )}
+              <Text style={[styles.stageSub, !busy && last?.house && { color: GOLD }]}>
+                {busy
+                  ? `Rolling ${rollOver ? 'over' : 'under'} ${target.toFixed(2)}`
+                  : last?.house
+                    ? `1 roll in ${Math.round(100 / houseChance)} · this roll loses`
+                    : last
+                      ? `${last.rollOver ? 'Over' : 'Under'} ${last.target.toFixed(2)} · ${last.won ? `WON ₹${last.payout.toFixed(2)}` : 'LOST'}`
+                      : `Roll ${rollOver ? 'over' : 'under'} ${target.toFixed(2)} to win`}
               </Text>
             </View>
           </View>
@@ -662,9 +694,9 @@ export default function DiceScreen() {
               <Text style={styles.statLabel}>MULTIPLIER</Text>
               <View style={styles.statInputRow}>
                 <TextInput
-                  value={multText ?? multiplier.toFixed(4)}
+                  value={multText ?? multiplier.toFixed(2)}
                   onChangeText={setMultText}
-                  onFocus={() => setMultText(multiplier.toFixed(4))}
+                  onFocus={() => setMultText(multiplier.toFixed(2))}
                   onEndEditing={(e) => commitMultiplier(e.nativeEvent.text)}
                   onSubmitEditing={(e) => commitMultiplier(e.nativeEvent.text)}
                   onBlur={() => multText !== null && commitMultiplier(multText)}
@@ -730,6 +762,9 @@ export default function DiceScreen() {
             <Text style={styles.profitLabel}>WIN AMOUNT</Text>
             <Text style={[styles.profitValue, overCap && { color: LOSE }]}>{overCap ? `Max win ₹${maxPayout}` : `₹${winAmount.toFixed(2)}`}</Text>
           </View>
+          <Text style={styles.houseHint} numberOfLines={1}>
+            ⭐ 1 roll in {Math.round(100 / houseChance)} is House · real win chance {realChance.toFixed(2)}%
+          </Text>
 
           {/* Actions */}
           <View style={styles.actions}>
@@ -814,31 +849,40 @@ export default function DiceScreen() {
 }
 
 function Rules({ config }: { config: DiceConfig | null }) {
-  const rtp = config?.rtpPercent ?? 85;
+  const rtp = config?.rtpPercent ?? 80;
+  const house = config?.houseChancePercent ?? 20;
+  const real = (c: number) => (1 - house / 100) * (Math.round(c * 100) / OUTCOMES) * 100;
   return (
     <View>
       <Text style={styles.ruleHead}>How to play</Text>
       <Text style={styles.ruleLine}>Every roll lands on a number from 0.00 to 100.00. Drag the slider to set your target, then pick ROLL OVER (win if the roll is above the target) or ROLL UNDER (win if it is below). Tap the middle box to switch.</Text>
+      <Text style={styles.ruleHead}>⭐ House roll</Text>
+      <Text style={styles.ruleLine}>
+        One roll in {Math.round(100 / house)} ({house}%) is a ⭐ House roll. It shows a ⭐ instead of the number and the bet loses, whatever the roll. Every other roll is played as normal.
+      </Text>
       <Text style={styles.ruleHead}>Win chance & multiplier</Text>
-      <Text style={styles.ruleLine}>The green part of the bar is your win chance. The smaller it is, the bigger the multiplier: multiplier = {rtp} ÷ win chance. You can also type a multiplier or a win chance directly.</Text>
+      <Text style={styles.ruleLine}>
+        The green part of the bar is the win chance on a roll that is not House. The multiplier is fair odds on it: 100.01 ÷ win chance (the roll has 10,001 results), rounded down to the cent. Your real chance of winning is {100 - house}% of the green part, because of the ⭐ House rolls. You can also type a multiplier or a win chance directly.
+      </Text>
       <View style={styles.exampleBox}>
-        {[
-          [50, floor4(rtp / 50)],
-          [25, floor4(rtp / 25)],
-          [10, floor4(rtp / 10)],
-          [1, floor4(rtp / 1)],
-        ].map(([c, m]) => (
+        <View style={styles.exampleRow}>
+          <Text style={[styles.exampleText, styles.exampleCell, styles.exampleCap]}>GREEN</Text>
+          <Text style={[styles.exampleText, styles.exampleCell, styles.exampleCap, styles.exampleMid]}>REAL CHANCE</Text>
+          <Text style={[styles.exampleText, styles.exampleCell, styles.exampleCap, styles.exampleEnd]}>PAYS</Text>
+        </View>
+        {[90, 50, 25, 10, 1].map((c) => (
           <View key={c} style={styles.exampleRow}>
-            <Text style={styles.exampleText}>{c}% chance</Text>
-            <Text style={[styles.exampleText, { color: CYAN }]}>{m}x</Text>
+            <Text style={[styles.exampleText, styles.exampleCell]}>{c}%</Text>
+            <Text style={[styles.exampleText, styles.exampleCell, styles.exampleMid]}>{real(c).toFixed(2)}%</Text>
+            <Text style={[styles.exampleText, styles.exampleCell, styles.exampleEnd, { color: CYAN }]}>{multFor(c).toFixed(2)}x</Text>
           </View>
         ))}
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {rtp}%. Win chance {config?.minChance ?? 0.01}% – {config?.maxChance ?? 84}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per roll ₹{config?.maxPayout ?? 10000}.
+        Return to player {rtp}%, House rolls included. Win chance {config?.minChance ?? 0.01}% – {config?.maxChance ?? 99}% of the bar. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per roll ₹{config?.maxPayout ?? 10000}.
       </Text>
-      <Text style={styles.ruleLine}>Every roll is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
+      <Text style={styles.ruleLine}>Every roll, and whether it is a House roll, is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>
   );
 }
@@ -853,12 +897,18 @@ function History({ bets }: { bets: DiceBet[] | null }) {
         const stake = Number(b.stake);
         return (
           <View key={b.id} style={styles.histRow}>
-            <View style={[styles.histChip, { borderColor: b.won ? WIN : LOSE }]}>
-              <Text style={[styles.histChipText, { color: b.won ? WIN : LOSE }]}>{Number(b.result).toFixed(2)}</Text>
-            </View>
+            {b.house ? (
+              <View style={[styles.histChip, { borderColor: GOLD, backgroundColor: HOUSE_BG }]}>
+                <Text style={[styles.histChipText, { color: GOLD }]}>⭐ House</Text>
+              </View>
+            ) : (
+              <View style={[styles.histChip, { borderColor: b.won ? WIN : LOSE }]}>
+                <Text style={[styles.histChipText, { color: b.won ? WIN : LOSE }]}>{Number(b.result).toFixed(2)}</Text>
+              </View>
+            )}
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={styles.histMain}>
-                {b.rollOver ? 'Over' : 'Under'} {Number(b.target).toFixed(2)} · {Number(b.multiplier).toFixed(4)}x
+                {b.rollOver ? 'Over' : 'Under'} {Number(b.target).toFixed(2)} · {Number(b.multiplier).toFixed(2)}x
               </Text>
               <Text style={styles.histSub}>
                 ₹{stake.toFixed(2)} · {new Date(b.createdAt).toLocaleString()}
@@ -922,6 +972,7 @@ const styles = StyleSheet.create({
   profitRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 6, marginTop: 8 },
   profitLabel: { color: 'rgba(233,251,255,0.5)', fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
   profitValue: { color: WIN, fontSize: 15, fontWeight: '900' },
+  houseHint: { color: 'rgba(255,214,107,0.85)', fontSize: 11, fontWeight: '800', paddingHorizontal: 6, marginTop: 3 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
   rollBtn: { flex: 1, height: 64, borderRadius: 20, overflow: 'hidden', shadowColor: CYAN, shadowOpacity: 0.6, shadowRadius: 14, elevation: 8 },
   rollInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)' },
@@ -947,6 +998,10 @@ const styles = StyleSheet.create({
   exampleBox: { marginTop: 8, borderRadius: 12, padding: 10, backgroundColor: 'rgba(61,242,255,0.06)', borderWidth: 1, borderColor: 'rgba(61,242,255,0.2)', gap: 6 },
   exampleRow: { flexDirection: 'row', justifyContent: 'space-between' },
   exampleText: { color: INK, fontWeight: '800', fontSize: 13 },
+  exampleCell: { flex: 1 },
+  exampleMid: { textAlign: 'center' },
+  exampleEnd: { textAlign: 'right' },
+  exampleCap: { color: 'rgba(233,251,255,0.55)', fontSize: 10.5, letterSpacing: 1 },
   histRow: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(61,242,255,0.15)' },
   histChip: { minWidth: 62, paddingHorizontal: 6, height: 30, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   histChipText: { fontWeight: '900', fontSize: 14 },

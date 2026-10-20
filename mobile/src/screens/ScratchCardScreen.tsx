@@ -27,17 +27,24 @@ const FULL = '1'.repeat(CHUNKS * CHUNKS);
 const CLEAR_SHARE = 0.55;
 const GAP = 8;
 
-/** Used until the config arrives; the server's table replaces it. */
+/** Used until the config arrives; the server's table replaces it. Each chance is the real one: House tickets lose. */
 const FALLBACK_SYMBOLS = [
-  { key: 'COIN', multiplier: 1, chance: 0.2 },
-  { key: 'CHERRY', multiplier: 2, chance: 0.12 },
-  { key: 'BELL', multiplier: 4, chance: 0.03 },
-  { key: 'CLOVER', multiplier: 10, chance: 0.01 },
-  { key: 'HORSESHOE', multiplier: 20, chance: 0.0035 },
-  { key: 'DIAMOND', multiplier: 50, chance: 0.0012 },
-  { key: 'SEVEN', multiplier: 100, chance: 0.0004 },
-  { key: 'CROWN', multiplier: 1000, chance: 0.00002 },
+  { key: 'COIN', multiplier: 1, chance: 0.188 },
+  { key: 'CHERRY', multiplier: 2, chance: 0.1128 },
+  { key: 'BELL', multiplier: 4, chance: 0.028 },
+  { key: 'CLOVER', multiplier: 10, chance: 0.0096 },
+  { key: 'HORSESHOE', multiplier: 20, chance: 0.00328 },
+  { key: 'DIAMOND', multiplier: 50, chance: 0.00112 },
+  { key: 'SEVEN', multiplier: 100, chance: 0.000376 },
+  { key: 'CROWN', multiplier: 1000, chance: 0.0000192 },
 ];
+const FALLBACK_RTP = 80;
+const FALLBACK_HOUSE_PERCENT = 20;
+/** The panel value (and art key) of the ⭐ on a House ticket. */
+const HOUSE_PANEL = -1;
+const HOUSE_KEY = 'HOUSE';
+/** ⭐ House marker: dark plum with gold, unlike the card's reds. */
+const HOUSE_BG = '#3A1452';
 
 const SYMBOL_NAME: Record<string, string> = {
   COIN: 'Gold Coin',
@@ -205,6 +212,14 @@ const SymbolArt = memo(function SymbolArt({ k, size }: { k: string; size: number
           <Circle cx={50} cy={52} r={6} fill={`url(#${u}red)`} stroke="#8A5A00" strokeWidth={1} />
         </G>
       )}
+      {k === HOUSE_KEY && (
+        <G>
+          <Circle cx={50} cy={52} r={42} fill="#1A0430" />
+          <Circle cx={50} cy={50} r={42} fill={HOUSE_BG} stroke={`url(#${u}gold)`} strokeWidth={3} />
+          <Polygon points="50,18 58.8,40.5 82.5,41.5 63.8,56.5 70.3,79.5 50,66.5 29.7,79.5 36.2,56.5 17.5,41.5 41.2,40.5" fill={`url(#${u}gold)`} stroke="#8A5A00" strokeWidth={2} strokeLinejoin="round" />
+          <Ellipse cx={36} cy={28} rx={9} ry={4} fill="#FFFFFF" opacity={0.35} transform="rotate(-30 36 28)" />
+        </G>
+      )}
     </Svg>
   );
 });
@@ -284,13 +299,14 @@ const Panel = memo(function Panel({
   win: WinLook;
   pulse: Animated.Value;
 }) {
+  const house = symbolKey === HOUSE_KEY;
   return (
     <View style={[styles.panel, { width: size, height: size }]}>
-      <LinearGradient colors={win === 'big' ? ['#FFF6D0', '#FFD86A'] : ['#FFFAEC', '#EED9A8']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={house ? ['#5A1A8A', HOUSE_BG] : win === 'big' ? ['#FFF6D0', '#FFD86A'] : ['#FFFAEC', '#EED9A8']} style={StyleSheet.absoluteFill} />
       {symbolKey && (
         <View style={{ alignItems: 'center', marginTop: size * 0.04 }}>
           <SymbolArt k={symbolKey} size={size * 0.6} />
-          <Text style={[styles.panelLabel, { fontSize: Math.max(10, size * 0.13) }]} numberOfLines={1}>
+          <Text style={[styles.panelLabel, house && { color: GOLD }, { fontSize: Math.max(10, size * 0.13) }]} numberOfLines={1}>
             {label}
           </Text>
         </View>
@@ -366,8 +382,8 @@ export function ScratchCardTileArt({ size }: { size: number }) {
 // ---------- screen ----------
 
 type Phase = 'idle' | 'buying' | 'scratching' | 'done';
-type Banner = { title: string; sub?: string; tone: 'win' | 'big' };
-type Result = { payout: number; m: number; stake: number };
+type Banner = { title: string; sub?: string; tone: 'win' | 'big' | 'house' };
+type Result = { payout: number; m: number; stake: number; house: boolean };
 
 const freshMasks = () => Array.from({ length: 9 }, () => FULL);
 const freshChunks = () => Array.from({ length: 9 }, () => new Uint8Array(CHUNKS * CHUNKS).fill(1));
@@ -386,7 +402,7 @@ export default function ScratchCardScreen() {
   const [revealed, setRevealed] = useState<boolean[]>(() => Array(9).fill(false));
   const [sparks, setSparks] = useState<{ id: number; x: number; y: number }[]>([]);
   const [result, setResult] = useState<Result | null>(null);
-  const [recent, setRecent] = useState<number[]>([]);
+  const [recent, setRecent] = useState<{ m: number; house: boolean }[]>([]);
   const [shownBalance, setShownBalance] = useState(coins);
   const [banner, setBanner] = useState<Banner | null>(null);
   const [panel, setPanel] = useState<'info' | 'history' | null>(null);
@@ -503,9 +519,10 @@ export default function ScratchCardScreen() {
     const payout = Number(t.payout);
     const m = Number(t.multiplier);
     const stake = Number(t.stake);
+    const house = !!t.house;
     setPhaseBoth('done');
-    setResult({ payout, m, stake });
-    setRecent((r) => [m, ...r].slice(0, 12));
+    setResult({ payout, m, stake, house });
+    setRecent((r) => [{ m, house }, ...r].slice(0, 12));
     setShownBalance((b) => round2(b + payout));
     setSessionNet((v) => round2(v + payout - stake));
     refreshWallet();
@@ -524,6 +541,8 @@ export default function ScratchCardScreen() {
       );
       winLoop.current.start();
       await flashBanner({ title: m >= 20 ? 'BIG WIN!' : 'WIN!', sub: `${fmtX(m)} · ${money(payout)}`, tone: m >= 20 ? 'big' : 'win' }, m >= 20 ? 1500 : 900);
+    } else if (house) {
+      await flashBanner({ title: '⭐ HOUSE', sub: 'One ticket in five · this ticket loses', tone: 'house' }, 1000);
     }
   };
 
@@ -696,11 +715,17 @@ export default function ScratchCardScreen() {
           {recent.length === 0 ? (
             <Text style={styles.recentEmpty}>Your last tickets show here</Text>
           ) : (
-            recent.map((m, i) => (
-              <View key={i} style={[styles.recentChip, { borderColor: m > 1 ? GOLD : m > 0 ? '#D8C0C8' : '#6A4A54', opacity: 1 - i * 0.06 }]}>
-                <Text style={[styles.recentText, { color: m > 1 ? GOLD : m > 0 ? '#F0E0E4' : '#9A7A84' }]}>{fmtX(m)}</Text>
-              </View>
-            ))
+            recent.map(({ m, house }, i) =>
+              house ? (
+                <View key={i} style={[styles.recentChip, { borderColor: GOLD, backgroundColor: HOUSE_BG, opacity: 1 - i * 0.06 }]}>
+                  <Text style={[styles.recentText, { color: GOLD }]}>⭐ House</Text>
+                </View>
+              ) : (
+                <View key={i} style={[styles.recentChip, { borderColor: m > 1 ? GOLD : m > 0 ? '#D8C0C8' : '#6A4A54', opacity: 1 - i * 0.06 }]}>
+                  <Text style={[styles.recentText, { color: m > 1 ? GOLD : m > 0 ? '#F0E0E4' : '#9A7A84' }]}>{fmtX(m)}</Text>
+                </View>
+              ),
+            )
           )}
         </View>
 
@@ -727,14 +752,16 @@ export default function ScratchCardScreen() {
             <View style={{ width: G, height: G }}>
               {Array.from({ length: 9 }, (_, i) => {
                 const sym = ticket ? ticket.panels[i] : null;
-                const k = sym !== null && sym !== undefined ? (symbols[sym]?.key ?? null) : null;
-                const isWin = ticket !== null && ticket.prize >= 0 && sym === ticket.prize;
+                // A House ticket has a ⭐ in one panel instead of a symbol.
+                const star = sym === HOUSE_PANEL;
+                const k = star ? HOUSE_KEY : sym !== null && sym !== undefined ? (symbols[sym]?.key ?? null) : null;
+                const isWin = ticket !== null && !ticket.house && ticket.prize >= 0 && sym === ticket.prize;
                 return (
                   <View key={i} style={{ position: 'absolute', left: (i % 3) * (P + GAP), top: Math.floor(i / 3) * (P + GAP) }}>
                     <Panel
                       size={P}
                       symbolKey={k}
-                      label={k && sym !== null ? shortMoney(prizeFor(symbols[sym].multiplier)) : ''}
+                      label={star ? 'HOUSE' : k && sym !== null ? shortMoney(prizeFor(symbols[sym].multiplier)) : ''}
                       mask={masks[i]}
                       revealed={revealed[i]}
                       win={phase === 'done' && isWin ? winLook : 'none'}
@@ -769,6 +796,10 @@ export default function ScratchCardScreen() {
                 <Text style={[styles.keyX, s.multiplier >= 100 && { color: GOLD }]}>{fmtX(s.multiplier)}</Text>
               </View>
             ))}
+            <View style={[styles.keyItem, styles.keyHouse]}>
+              <SymbolArt k={HOUSE_KEY} size={22} />
+              <Text style={[styles.keyX, { color: GOLD }]}>LOSES</Text>
+            </View>
           </View>
           <Text style={styles.serial} numberOfLines={1}>
             {ticket ? `TICKET #${ticket.nonce} · ${ticket.serverSeedHash.slice(0, 16)}…` : 'PROVABLY FAIR · 3 OF A KIND WINS'}
@@ -778,7 +809,9 @@ export default function ScratchCardScreen() {
         {/* Result plate */}
         <View style={styles.plate}>
           {phase === 'done' && result ? (
-            result.payout > result.stake ? (
+            result.house ? (
+              <Text style={styles.plateHouse}>⭐ HOUSE TICKET · NO WIN</Text>
+            ) : result.payout > result.stake ? (
               <Text style={styles.plateWin}>
                 WIN {money(result.payout)} <Text style={styles.plateSub}>({fmtX(result.m)})</Text>
               </Text>
@@ -845,7 +878,8 @@ export default function ScratchCardScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
+          RTP {config?.rtpPercent ?? FALLBACK_RTP}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
+          One ticket in five is a ⭐ House ticket, which loses{'\n'}
           No autoplay or turbo · each ticket takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>
@@ -853,7 +887,7 @@ export default function ScratchCardScreen() {
       {banner && (
         <Animated.View pointerEvents="none" style={[styles.banner, { opacity: bannerAnim, transform: [{ scale: bannerAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] }]}>
           <LinearGradient
-            colors={banner.tone === 'big' ? ['#FFF4C8', GOLD, '#B87800'] : ['#9A1A40', '#4A0618']}
+            colors={banner.tone === 'big' ? ['#FFF4C8', GOLD, '#B87800'] : banner.tone === 'house' ? ['#5A1A8A', HOUSE_BG] : ['#9A1A40', '#4A0618']}
             style={[styles.bannerInner, { borderColor: banner.tone === 'big' ? '#FFFFFF' : GOLD }]}
           >
             <MaterialCommunityIcons name="star-four-points" size={30} color={banner.tone === 'big' ? '#5A2A00' : GOLD} />
@@ -888,12 +922,22 @@ export default function ScratchCardScreen() {
 
 function Rules({ bet, config }: { bet: number; config: ScratchConfig | null }) {
   if (!config) return <Text style={styles.note}>Loading…</Text>;
+  const housePercent = config.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
+  // Each prize's chance already leaves out House tickets, so this is the real win chance.
+  const win = config.symbols.reduce((s, x) => s + x.chance, 0);
   return (
     <View style={{ gap: 8 }}>
       <Text style={styles.note}>
         Pick a ticket price and BUY. Scratch the nine gold panels with your finger (or tap REVEAL). Find the same symbol three times and you win that symbol&apos;s prize. A ticket has at most one
         winning symbol.
       </Text>
+      <View style={[styles.houseNote, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+        <SymbolArt k={HOUSE_KEY} size={28} />
+        <Text style={[styles.note, { flex: 1 }]}>
+          ⭐ House: one ticket in five ({housePercent}%) is a House ticket. One of its panels shows a ⭐, it never has three of a kind, and it loses. A ticket wins a prize about {(win * 100).toFixed(1)}% of
+          the time.
+        </Text>
+      </View>
       <Text style={styles.section}>PRIZES</Text>
       {[...config.symbols].reverse().map((s) => (
         <View key={s.key} style={[styles.tRow, { alignItems: 'center' }]}>
@@ -908,8 +952,9 @@ function Rules({ bet, config }: { bet: number; config: ScratchConfig | null }) {
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Chance of any prize: about 1 in {(1 / config.symbols.reduce((s, x) => s + x.chance, 0)).toFixed(2)} tickets. A Gold Coin prize returns your ticket price. Tickets return {config.rtpPercent}%
-        over time. No autoplay or turbo; each ticket takes at least 2.5 seconds. The prize and the panels come from your provably-fair seeds (server seed hash, client seed and nonce on each ticket).
+        Chance of any prize: about 1 in {(1 / win).toFixed(2)} tickets (the chances above include House tickets). A Gold Coin prize returns your ticket price. Tickets return {config.rtpPercent}% over
+        time, House tickets included (before the {money(config.maxPayout)} per-ticket limit). No autoplay or turbo; each ticket takes at least 2.5 seconds. The prize, the panels and whether a ticket is
+        House come from your provably-fair seeds (server seed hash, client seed and nonce on each ticket).
       </Text>
     </View>
   );
@@ -923,13 +968,13 @@ function History({ tickets, symbols }: { tickets: ScratchTicketRow[] | null; sym
       {tickets.map((t) => {
         const payout = Number(t.payout);
         const d = new Date(t.createdAt);
-        const k = t.prize >= 0 ? symbols[t.prize]?.key : null;
+        const k = t.house ? HOUSE_KEY : t.prize >= 0 ? symbols[t.prize]?.key : null;
         return (
           <View key={t.id} style={styles.histRow}>
             <Text style={styles.histTime}>{d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
             <Text style={styles.histStake}>{money(Number(t.stake))}</Text>
             <View style={{ width: 26 }}>{k ? <SymbolArt k={k} size={20} /> : null}</View>
-            <Text style={styles.histMult}>{fmtX(Number(t.multiplier))}</Text>
+            {t.house ? <Text style={[styles.histMult, { color: GOLD }]}>⭐ House</Text> : <Text style={styles.histMult}>{fmtX(Number(t.multiplier))}</Text>}
             <Text style={[styles.histWin, { color: payout > 0 ? GREEN : '#9A8A90' }]}>{payout > 0 ? `+${money(payout)}` : '—'}</Text>
           </View>
         );
@@ -976,6 +1021,9 @@ const styles = StyleSheet.create({
   keyGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 10, paddingHorizontal: 8 },
   keyItem: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.3)', minWidth: 72 },
   keyX: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
+  keyHouse: { backgroundColor: 'rgba(58,20,82,0.85)', borderWidth: 1, borderColor: 'rgba(255,214,107,0.5)' },
+  houseNote: { padding: 8, borderRadius: 10, backgroundColor: 'rgba(58,20,82,0.6)', borderWidth: 1, borderColor: 'rgba(255,214,107,0.4)' },
+  plateHouse: { color: GOLD, fontSize: 13, fontWeight: '900', letterSpacing: 1.5 },
   serial: { color: 'rgba(255,214,107,0.6)', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginTop: 8 },
   plate: { marginTop: 10, paddingHorizontal: 18, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(10,2,6,0.85)', borderWidth: 1.5, borderColor: GOLD },
   plateText: { color: TEXT, fontSize: 13, fontWeight: '900', letterSpacing: 1.5 },

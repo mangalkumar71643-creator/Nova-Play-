@@ -25,7 +25,11 @@ const MIX_MS = 1500;
 const COLORS: BallColor[] = ['RED', 'BLUE', 'GREEN', 'GOLD'];
 /** Used until the config arrives; the server's drum replaces it. */
 const FALLBACK_BALLS: BallColor[] = [...Array<BallColor>(9).fill('RED'), ...Array<BallColor>(7).fill('BLUE'), ...Array<BallColor>(3).fill('GREEN'), 'GOLD'];
-const FALLBACK_PAYS: Record<BallColor, number> = { RED: 1.88, BLUE: 2.42, GREEN: 5.66, GOLD: 17 };
+// Fair odds on the 4 draws in 5 that are not House (80% return).
+const FALLBACK_PAYS: Record<BallColor, number> = { RED: 2.22, BLUE: 2.85, GREEN: 6.66, GOLD: 20 };
+const FALLBACK_HOUSE_PERCENT = 20;
+/** ⭐ House ball: dark plum with a gold star, unlike any colour. */
+const HOUSE_BG = '#3A1452';
 
 /** Sphere shading per colour: highlight, body, shadow. */
 const SHADE: Record<BallColor, [string, string, string]> = {
@@ -84,6 +88,45 @@ export const Ball = memo(function Ball({ color, n, size }: { color: BallColor; n
     </Svg>
   );
 });
+
+/** A ⭐ House ball: plum glass with a gold star where the number would be. */
+export const HouseBall = memo(function HouseBall({ size }: { size: number }) {
+  const u = `hb${useId().replace(/:/g, '')}`;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      <Defs>
+        <RadialGradient id={`${u}g`} cx="0.36" cy="0.3" r="0.78">
+          <Stop offset="0" stopColor="#C88AF0" />
+          <Stop offset="0.45" stopColor="#5A1A8A" />
+          <Stop offset="1" stopColor="#1A0430" />
+        </RadialGradient>
+        <SvgLinearGradient id={`${u}s`} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor="#FFF4C0" />
+          <Stop offset="0.5" stopColor={GOLD} />
+          <Stop offset="1" stopColor={DEEP_GOLD} />
+        </SvgLinearGradient>
+      </Defs>
+      <Circle cx={50} cy={50} r={47} fill={`url(#${u}g)`} />
+      <Circle cx={50} cy={52} r={47} fill="none" stroke={GOLD} strokeWidth={2} opacity={0.5} />
+      <Path d="M50,26 L56.5,43 L74.5,43.5 L60.3,54.5 L65.3,72 L50,61.8 L34.7,72 L39.7,54.5 L25.5,43.5 L43.5,43 Z" fill={`url(#${u}s)`} stroke="#8A5A00" strokeWidth={1.5} strokeLinejoin="round" />
+      <Ellipse cx={34} cy={24} rx={15} ry={8} fill="#FFFFFF" opacity={0.4} transform="rotate(-25 34 24)" />
+    </Svg>
+  );
+});
+
+/** The drum's contents: the colour balls (1-20) with the ⭐ House balls mixed in evenly. */
+type DrumBall = { kind: 'color'; color: BallColor; n: number } | { kind: 'house'; k: number };
+
+function drumOrder(balls: BallColor[], houseBalls: number): DrumBall[] {
+  const out: DrumBall[] = [];
+  let k = 0;
+  balls.forEach((color, i) => {
+    out.push({ kind: 'color', color, n: i + 1 });
+    // A ⭐ ball after every (balls / houseBalls) colour balls.
+    while (k < houseBalls && (i + 1) * houseBalls >= (k + 1) * balls.length) out.push({ kind: 'house', k: k++ });
+  });
+  return out;
+}
 
 /** The glass drum: clear sphere, reflections and a brass rim. Drawn over the balls. */
 const GlobeGlass = memo(function GlobeGlass({ size }: { size: number }) {
@@ -145,8 +188,10 @@ export function ColorBallTileArt({ size }: { size: number }) {
 
 // ---------- screen ----------
 
-type Banner = { title: string; sub?: string; tone: BallColor };
-type Shown = { pick: BallColor; ball: number; color: BallColor; payout: number; stake: number; m: number };
+type Banner = { title: string; sub?: string; tone: BallColor | 'HOUSE' };
+type Shown = { pick: BallColor; ball: number; color: BallColor; house: boolean; payout: number; stake: number; m: number };
+/** A drawn ball: a colour ball, or (house) the k-th ⭐ ball of the drum. */
+type Drawn = { ball: number; color: BallColor; house: boolean; k: number };
 
 /** Where each ball rests (piled at the bottom) and where it flies while mixing, inside a drum of radius R. */
 function layout(R: number, b: number, n: number) {
@@ -180,9 +225,9 @@ export default function ColorBallScreen() {
   const [bet, setBet] = useState(DEFAULT_BET);
   const [pick, setPick] = useState<BallColor>('RED');
   const [busy, setBusy] = useState(false);
-  const [drawn, setDrawn] = useState<{ ball: number; color: BallColor } | null>(null);
+  const [drawn, setDrawn] = useState<Drawn | null>(null);
   const [shown, setShown] = useState<Shown | null>(null);
-  const [recent, setRecent] = useState<{ ball: number; color: BallColor }[]>([]);
+  const [recent, setRecent] = useState<{ ball: number; color: BallColor; house: boolean }[]>([]);
   const [shownBalance, setShownBalance] = useState(coins);
   const [banner, setBanner] = useState<Banner | null>(null);
   const [panel, setPanel] = useState<'info' | 'history' | null>(null);
@@ -207,17 +252,23 @@ export default function ColorBallScreen() {
   const S = Math.min(W - 12, 470);
   const G = Math.min(S * 0.62, 280);
   const R = G / 2;
-  const b = G * 0.15;
   const big = Math.min(S * 0.24, 104);
 
   const balls = config?.balls ?? FALLBACK_BALLS;
-  const { rest, fly } = useMemo(() => layout(R, b, balls.length), [R, b, balls.length]);
+  const housePercent = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
+  // The drum shows the House share as ⭐ balls beside the colour ones (5 beside 20 is 1 in 5), so
+  // each colour's share of the drum is its real chance of winning.
+  const houseBalls = Math.round((balls.length * housePercent) / Math.max(1, 100 - housePercent));
+  const drum = useMemo(() => drumOrder(balls, houseBalls), [balls, houseBalls]);
+  // Balls shrink with the count so a fuller drum packs the same.
+  const b = G * 0.15 * Math.sqrt(20 / Math.max(20, drum.length));
+  const { rest, fly } = useMemo(() => layout(R, b, drum.length), [R, b, drum.length]);
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const betLevels = useMemo(() => BET_LEVELS.filter((v) => v >= minStake && v <= maxStake), [minStake, maxStake]);
   const info = useCallback(
-    (c: BallColor) => config?.colors.find((x) => x.color === c) ?? { color: c, balls: FALLBACK_BALLS.filter((x) => x === c).length, multiplier: FALLBACK_PAYS[c], rtpPercent: 85 },
+    (c: BallColor) => config?.colors.find((x) => x.color === c) ?? { color: c, balls: FALLBACK_BALLS.filter((x) => x === c).length, multiplier: FALLBACK_PAYS[c], rtpPercent: 80 },
     [config],
   );
 
@@ -306,7 +357,10 @@ export default function ColorBallScreen() {
       );
       if (!mountedRef.current) return;
       spin.setValue(0);
-      setDrawn({ ball: res.ball, color: res.color });
+      // ⭐ House: a ⭐ ball drops instead of the colour ball (which is still
+      // drawn and kept on the bet, for checking the seeds); it loses.
+      const house = !!res.house;
+      setDrawn({ ball: res.ball, color: res.color, house, k: (res.ball - 1) % Math.max(1, houseBalls) });
       drop.setValue(0);
       pop.setValue(0.5);
       await run(
@@ -319,8 +373,8 @@ export default function ColorBallScreen() {
       if (!mountedRef.current) return;
       const payout = Number(res.payout);
       const m = Number(res.multiplier);
-      setShown({ pick: res.pick, ball: res.ball, color: res.color, payout, stake: bet, m });
-      setRecent((r) => [{ ball: res.ball, color: res.color }, ...r].slice(0, 12));
+      setShown({ pick: res.pick, ball: res.ball, color: res.color, house, payout, stake: bet, m });
+      setRecent((r) => [{ ball: res.ball, color: res.color, house }, ...r].slice(0, 12));
       setShownBalance((v) => round2(v + payout));
       setSessionNet((v) => round2(v + payout - bet));
       refreshWallet();
@@ -332,6 +386,8 @@ export default function ColorBallScreen() {
       if (payout > bet) {
         Animated.sequence([Animated.timing(glow, { toValue: 1, duration: 180, useNativeDriver: true }), Animated.timing(glow, { toValue: 0.35, duration: 900, useNativeDriver: true })]).start();
         await flashBanner({ title: res.color === 'GOLD' ? 'GOLD BALL!' : 'WIN!', sub: `${m}x · ${money(payout)}`, tone: res.color }, res.color === 'GOLD' ? 1500 : 900);
+      } else if (house) {
+        await flashBanner({ title: '⭐ HOUSE', sub: 'One draw in five · this draw loses', tone: 'HOUSE' }, 1000);
       }
     } catch (err) {
       turning.stop();
@@ -346,7 +402,7 @@ export default function ColorBallScreen() {
       busyRef.current = false;
       if (mountedRef.current) setBusy(false);
     }
-  }, [config, bet, shownBalance, pick, mix, spin, drop, pop, glow, flashBanner, panel, coins, refreshWallet, showToast]);
+  }, [config, bet, shownBalance, pick, mix, spin, drop, pop, glow, flashBanner, panel, coins, refreshWallet, showToast, houseBalls]);
 
   const stepBet = (dir: 1 | -1) => {
     if (busy) return;
@@ -364,7 +420,7 @@ export default function ColorBallScreen() {
 
   const minutes = Math.floor((now - sessionStart.current) / 60000);
   const seconds = Math.floor(((now - sessionStart.current) % 60000) / 1000);
-  const rtpLine = config ? `${Math.min(...config.colors.map((c) => c.rtpPercent))}–${Math.max(...config.colors.map((c) => c.rtpPercent))}%` : '85%';
+  const rtpLine = config ? `${Math.min(...config.colors.map((c) => c.rtpPercent))}–${Math.max(...config.colors.map((c) => c.rtpPercent))}%` : '80%';
   const won = shown !== null && shown.payout > shown.stake;
   const stageH = G + big + 92;
 
@@ -392,7 +448,7 @@ export default function ColorBallScreen() {
           ) : (
             recent.map((r, i) => (
               <View key={i} style={{ opacity: 1 - i * 0.06 }}>
-                <Ball color={r.color} n={r.ball} size={26} />
+                {r.house ? <HouseBall size={26} /> : <Ball color={r.color} n={r.ball} size={26} />}
               </View>
             ))
           )}
@@ -417,11 +473,11 @@ export default function ColorBallScreen() {
                   transform: [{ rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
                 }}
               >
-                {balls.map((c, i) => {
+                {drum.map((d, i) => {
                   const sign = i % 2 ? 1 : -1;
                   const jx = Animated.multiply(jig.interpolate({ inputRange: [-1, 1], outputRange: [-b * 0.35 * sign, b * 0.35 * sign] }), mix);
                   const jy = Animated.multiply(jig.interpolate({ inputRange: [-1, 1], outputRange: [b * 0.3 * (i % 3 ? 1 : -1), -b * 0.3 * (i % 3 ? 1 : -1)] }), mix);
-                  const gone = drawn !== null && drawn.ball === i + 1;
+                  const gone = drawn !== null && (d.kind === 'house' ? drawn.house && drawn.k === d.k : !drawn.house && drawn.ball === d.n);
                   return (
                     <Animated.View
                       key={i}
@@ -436,7 +492,7 @@ export default function ColorBallScreen() {
                         ],
                       }}
                     >
-                      <Ball color={c} n={i + 1} size={b} />
+                      {d.kind === 'house' ? <HouseBall size={b} /> : <Ball color={d.color} n={d.n} size={b} />}
                     </Animated.View>
                   );
                 })}
@@ -448,14 +504,14 @@ export default function ColorBallScreen() {
           <LinearGradient colors={['#FFF0B0', DEEP_GOLD, '#5A3A00']} style={[styles.stand, { top: 14 + G - 4, left: S / 2 - 34 }]} />
           {/* the drawn ball's cradle */}
           <View style={[styles.cradle, { top: 14 + G + 18, width: big + 26, height: big + 26, borderRadius: (big + 26) / 2, left: (S - big - 26) / 2 }]}>
-            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: (big + 26) / 2, backgroundColor: drawn ? SHADE[drawn.color][1] : GOLD, opacity: glow }]} />
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: (big + 26) / 2, backgroundColor: drawn ? (drawn.house ? HOUSE_BG : SHADE[drawn.color][1]) : GOLD, opacity: glow }]} />
             {drawn ? (
               <Animated.View
                 style={{
                   transform: [{ translateY: drop.interpolate({ inputRange: [0, 1], outputRange: [-big * 0.9, 0] }) }, { scale: pop }],
                 }}
               >
-                <Ball color={drawn.color} n={drawn.ball} size={big} />
+                {drawn.house ? <HouseBall size={big} /> : <Ball color={drawn.color} n={drawn.ball} size={big} />}
               </Animated.View>
             ) : (
               <Text style={styles.cradleText}>{busy ? 'MIXING…' : '?'}</Text>
@@ -464,7 +520,9 @@ export default function ColorBallScreen() {
           {/* Result plate */}
           <View style={[styles.plate, { top: 14 + G + big + 32 }]}>
             {shown ? (
-              won ? (
+              shown.house ? (
+                <Text style={styles.plateHouse}>⭐ HOUSE BALL · NO WIN</Text>
+              ) : won ? (
                 <Text style={styles.plateWin}>
                   WIN {money(shown.payout)} <Text style={styles.plateSub}>({shown.m}x)</Text>
                 </Text>
@@ -484,7 +542,7 @@ export default function ColorBallScreen() {
           {COLORS.map((c) => {
             const on = c === pick;
             const it = info(c);
-            const hit = shown !== null && shown.pick === c && shown.color === c;
+            const hit = shown !== null && !shown.house && shown.pick === c && shown.color === c;
             return (
               <Pressable
                 key={c}
@@ -497,7 +555,7 @@ export default function ColorBallScreen() {
                 <Text style={[styles.pickName, { color: on ? LABEL_COLOR[c] : '#C8B8E0' }]}>{c}</Text>
                 <Text style={[styles.pickPay, hit && { color: GREEN_TEXT }]}>{it.multiplier}x</Text>
                 <Text style={styles.pickSub}>
-                  {it.balls} of {balls.length}
+                  {it.balls} of {drum.length}
                 </Text>
               </Pressable>
             );
@@ -553,6 +611,7 @@ export default function ColorBallScreen() {
 
         <GameInfoButton>
           RTP {rtpLine} · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per draw{'\n'}
+          One draw in five is a ⭐ House ball, which loses{'\n'}
           No autoplay or turbo · each draw takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>
@@ -560,7 +619,7 @@ export default function ColorBallScreen() {
       {banner && (
         <Animated.View pointerEvents="none" style={[styles.banner, { opacity: bannerAnim, transform: [{ scale: bannerAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] }]}>
           <LinearGradient
-            colors={banner.tone === 'GOLD' ? ['#FFF4C8', GOLD, '#B87800'] : [SHADE[banner.tone][1], SHADE[banner.tone][2]]}
+            colors={banner.tone === 'GOLD' ? ['#FFF4C8', GOLD, '#B87800'] : banner.tone === 'HOUSE' ? ['#5A1A8A', HOUSE_BG] : [SHADE[banner.tone][1], SHADE[banner.tone][2]]}
             style={[styles.bannerInner, { borderColor: banner.tone === 'GOLD' ? '#FFFFFF' : GOLD }]}
           >
             <MaterialCommunityIcons name="star-four-points" size={30} color={banner.tone === 'GOLD' ? '#5A2A00' : GOLD} />
@@ -595,13 +654,23 @@ export default function ColorBallScreen() {
 
 function Rules({ bet, config }: { bet: number; config: ColorBallConfig | null }) {
   if (!config) return <Text style={styles.note}>Loading…</Text>;
-  const total = config.balls.length;
+  const colours = config.balls.length;
+  const housePercent = config.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
+  const houseBalls = Math.round((colours * housePercent) / Math.max(1, 100 - housePercent));
+  const total = colours + houseBalls;
   return (
     <View style={{ gap: 8 }}>
       <Text style={styles.note}>
-        Pick a colour and your bet, then DRAW. The drum holds {total} numbered balls; one is drawn. If it is your colour, your bet pays that colour&apos;s multiplier; otherwise the bet is lost.
+        Pick a colour and your bet, then DRAW. The drum holds {colours} numbered colour balls and {houseBalls} ⭐ House balls; one ball is drawn. If it is your colour, your bet pays that colour&apos;s
+        multiplier; otherwise the bet is lost.
       </Text>
-      <Text style={styles.section}>PAYS</Text>
+      <View style={[styles.houseNote, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+        <HouseBall size={26} />
+        <Text style={[styles.note, { flex: 1 }]}>
+          ⭐ House: one draw in five ({housePercent}%) is a House ball. It loses whatever colour you backed — no colour wins on a ⭐.
+        </Text>
+      </View>
+      <Text style={styles.section}>PAYS · WIN CHANCE</Text>
       {config.colors.map((c) => (
         <View key={c.color} style={[styles.tRow, { alignItems: 'center' }]}>
           <View style={{ flex: 1.1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -609,16 +678,16 @@ function Rules({ bet, config }: { bet: number; config: ColorBallConfig | null })
             <Text style={[styles.tCell, { color: LABEL_COLOR[c.color] }]}>{c.color}</Text>
           </View>
           <Text style={[styles.tCell, { color: '#B8A8D0' }]}>
-            {c.balls} of {total}
+            {c.balls} of {total} · {((c.chance ?? c.balls / total) * 100).toFixed(0)}%
           </Text>
-          <Text style={styles.tCell}>{c.multiplier}x</Text>
+          <Text style={[styles.tCell, { flex: 0.7 }]}>{c.multiplier}x</Text>
           <Text style={[styles.tCell, { textAlign: 'right' }]}>{money(Math.min(floor2(bet * c.multiplier), config.maxPayout))}</Text>
         </View>
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Every ball is equally likely to be drawn. Returns: {config.colors.map((c) => `${c.color} ${c.rtpPercent}%`).join(' · ')}. No autoplay or turbo; each draw takes at least 2.5 seconds. The ball
-        comes from your provably-fair seeds (server seed hash, client seed and nonce on each draw).
+        Every ball in the drum is equally likely to be drawn. Returns, House draws included: {config.colors.map((c) => `${c.color} ${c.rtpPercent}%`).join(' · ')}. No autoplay or turbo; each draw takes
+        at least 2.5 seconds. The ball, and whether the draw is House, come from your provably-fair seeds (server seed hash, client seed and nonce on each draw).
       </Text>
     </View>
   );
@@ -637,8 +706,15 @@ function History({ bets }: { bets: ColorBallBetRow[] | null }) {
             <Text style={styles.histTime}>{d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
             <Text style={styles.histStake}>{money(Number(row.stake))}</Text>
             <Text style={[styles.histPick, { color: LABEL_COLOR[row.pick] }]}>{row.pick}</Text>
-            <View style={{ flex: 1 }}>
-              <Ball color={row.color} n={row.ball} size={22} />
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {row.house ? (
+                <>
+                  <HouseBall size={22} />
+                  <Text style={styles.histHouse}>⭐ House</Text>
+                </>
+              ) : (
+                <Ball color={row.color} n={row.ball} size={22} />
+              )}
             </View>
             <Text style={[styles.histWin, { color: payout > 0 ? GREEN_TEXT : '#8A8FA8' }]}>{payout > 0 ? `+${money(payout)}` : '—'}</Text>
           </View>
@@ -685,6 +761,9 @@ const styles = StyleSheet.create({
   plateText: { color: TEXT, fontSize: 13, fontWeight: '900', letterSpacing: 1.5 },
   plateWin: { color: GREEN_TEXT, fontSize: 16, fontWeight: '900', letterSpacing: 1 },
   plateSub: { color: GOLD, fontSize: 13 },
+  plateHouse: { color: GOLD, fontSize: 13, fontWeight: '900', letterSpacing: 1.5 },
+  houseNote: { padding: 8, borderRadius: 10, backgroundColor: 'rgba(58,20,82,0.6)', borderWidth: 1, borderColor: 'rgba(255,214,107,0.4)' },
+  histHouse: { color: GOLD, fontSize: 11, fontWeight: '900' },
   pickRow: { flexDirection: 'row', gap: 6, marginTop: 10 },
   pick: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 12, borderWidth: 1.5, borderColor: '#3A2A5A', gap: 1 },
   pickCheck: { position: 'absolute', top: 4, right: 5 },

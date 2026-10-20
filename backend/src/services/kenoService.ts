@@ -5,11 +5,19 @@ import { env } from "../config/env";
 import { fairGameFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
+import { INSTANT_HOUSE_CHANCE, isInstantHouse } from "./lotteryHouse";
 
 /**
  * Keno: the player picks 1-10 numbers from 1-40, ten numbers are drawn
  * without replacement, and the bet pays the multiplier for the number of
  * picks that were drawn ("hits"), from the table for the chosen risk.
+ *
+ * One draw in five is a ⭐ House result (lotteryHouse.ts, drawn from the same
+ * seeds): the ten numbers are still drawn and kept, so the seeds can be
+ * checked against them, but the bet loses whatever they hit. Every other draw
+ * pays fair odds: each row returns as close to 100% as its rounded values
+ * allow, never more (99.71%-100%), so with the House draws every row returns
+ * 79.77%-80% (a 20% house edge; rounding down never favours the player).
  */
 export const BOARD = 40;
 export const DRAWN = 10;
@@ -17,10 +25,15 @@ export const MAX_PICKS = 10;
 export const RISKS = ["CLASSIC", "LOW", "MEDIUM", "HIGH"] as const;
 export type KenoRisk = (typeof RISKS)[number];
 
+/** What each row returns on a draw that is not House: fair odds. */
+const FAIR_RTP = 1;
+/** Float slack for "at most FAIR_RTP": far below the smallest real step over it (0.01 / C(40, 10)). */
+const EPS = 1e-12;
+
 /**
  * Shape of each table (index = hits), the common online layout: Classic pays
  * small wins often, Low/Medium move value to bigger hits, High pays only on
- * the top hits. Each row is scaled to the rtp and rounded down below.
+ * the top hits. Each row is scaled to fair odds and rounded below.
  */
 const SHAPES: Record<KenoRisk, number[][]> = {
   CLASSIC: [
@@ -100,20 +113,52 @@ function displayFloor(v: number): number {
   return Math.floor(v * 100 + 1e-9) / 100;
 }
 
+/** The next readable value at or above v (displayFloor's counterpart). */
+function displayCeil(v: number): number {
+  if (v >= 100) return Math.ceil(v - 1e-9);
+  if (v >= 10) return Math.ceil(v * 10 - 1e-9) / 10;
+  return Math.ceil(v * 100 - 1e-9) / 100;
+}
+
+/** Return of a row on a draw that is not House. */
 export function rowRtp(row: number[]): number {
   const picks = row.length - 1;
   return row.reduce((s, m, h) => s + m * hitChance(picks, h), 0);
 }
 
-/** Each shape row scaled so its return is exactly the rtp, then rounded down. */
+/**
+ * Each shape row scaled so its return is exactly 100%, then rounded down.
+ * Rounding down leaves a little under 100%, so values are then raised to
+ * their next readable value (the biggest gain first) while the row stays at
+ * most 100% and still rises with the hits. Each value ends within one
+ * readable step of the exact fair one.
+ */
+function fairRow(shape: number[]): number[] {
+  const k = FAIR_RTP / rowRtp(shape);
+  const exact = shape.map((m) => m * k);
+  let row = exact.map(displayFloor);
+  for (;;) {
+    let best: number[] | null = null;
+    let bestRtp = rowRtp(row);
+    for (let h = 0; h < row.length; h++) {
+      const up = displayCeil(exact[h]);
+      if (up === row[h] || (h + 1 < row.length && up > row[h + 1])) continue;
+      const trial = [...row];
+      trial[h] = up;
+      const r = rowRtp(trial);
+      if (r <= FAIR_RTP + EPS && r > bestRtp) {
+        best = trial;
+        bestRtp = r;
+      }
+    }
+    if (!best) return row;
+    row = best;
+  }
+}
+
 function buildTables(): Record<KenoRisk, number[][]> {
   const out = {} as Record<KenoRisk, number[][]>;
-  for (const risk of RISKS) {
-    out[risk] = SHAPES[risk].map((row) => {
-      const k = env.games.rtp / rowRtp(row);
-      return row.map((m) => displayFloor(m * k));
-    });
-  }
+  for (const risk of RISKS) out[risk] = SHAPES[risk].map(fairRow);
   return out;
 }
 
@@ -121,6 +166,16 @@ const TABLES = buildTables();
 
 export function multiplierFor(risk: KenoRisk, picks: number, hits: number): number {
   return TABLES[risk][picks - 1][hits];
+}
+
+/** What a bet pays per unit staked: nothing on a House draw. */
+export function payMultiplier(risk: KenoRisk, picks: number, hits: number, house: boolean): number {
+  return house ? 0 : multiplierFor(risk, picks, hits);
+}
+
+/** Exact return of a bet with this many picks and risk, House draws included (before the per-bet payout cap). */
+export function kenoRtp(risk: KenoRisk, picks: number): number {
+  return (1 - INSTANT_HOUSE_CHANCE) * rowRtp(TABLES[risk][picks - 1]);
 }
 
 /**
@@ -139,18 +194,21 @@ export function drawFor(serverSeed: string, clientSeed: string, nonce: number): 
 
 type KenoBetRow = Prisma.KenoBetGetPayload<Record<string, never>>;
 
-/** The player's live server seed is never sent — only its hash. */
+/** The player's live server seed is never sent — only its hash. A House
+ * bet is sent with 0 hits (the row keeps the real count), so older app
+ * builds that light up the pay for `hits` don't show it as a win; the picks
+ * and drawn numbers still go out, for checking the seeds. */
 function toPublicBet(bet: KenoBetRow) {
   const { serverSeed: _hidden, ...rest } = bet;
-  return rest;
+  return { ...rest, hits: bet.house ? 0 : bet.hits };
 }
 
 export function getKenoConfig() {
   let lo = Infinity;
   let hi = 0;
   for (const risk of RISKS) {
-    for (const row of TABLES[risk]) {
-      const r = rowRtp(row);
+    for (let picks = 1; picks <= MAX_PICKS; picks++) {
+      const r = kenoRtp(risk, picks);
       lo = Math.min(lo, r);
       hi = Math.max(hi, r);
     }
@@ -163,14 +221,17 @@ export function getKenoConfig() {
     drawn: DRAWN,
     maxPicks: MAX_PICKS,
     risks: RISKS,
+    // What a draw that is not House pays; the returns below include the House draws.
     tables: TABLES,
     rtpPercent: round2(hi * 100),
     rtpRange: [round2(lo * 100), round2(hi * 100)],
+    houseChancePercent: round2(INSTANT_HOUSE_CHANCE * 100),
   };
 }
 
-/** One draw: debits the stake, draws from the player's provably-fair seeds
- * and pays the table multiplier for the hits (capped), in one transaction. */
+/** One draw: debits the stake, draws (and decides whether the draw is House)
+ * from the player's provably-fair seeds and pays the table multiplier for the
+ * hits (capped) on a draw that is not House, in one transaction. */
 export async function playKeno(userId: string, stake: number, picks: number[], risk: KenoRisk) {
   if (stake < env.games.minStake || stake > env.games.maxStake) {
     throw new ApiError(400, `Stake must be between ${env.games.minStake} and ${env.games.maxStake}.`);
@@ -185,8 +246,11 @@ export async function playKeno(userId: string, stake: number, picks: number[], r
 
   const { serverSeed, serverSeedHash, clientSeed, nonce } = await nextRoundSeedMaterial(userId);
   const drawn = drawFor(serverSeed, clientSeed, nonce);
+  // Fixed (and stored) with the bet, from the same seeds. The numbers are
+  // still drawn and kept, so the seeds can be checked against them.
+  const house = isInstantHouse(serverSeed, clientSeed, "keno", nonce);
   const hits = picks.filter((p) => drawn.includes(p)).length;
-  const multiplier = multiplierFor(risk, picks.length, hits);
+  const multiplier = payMultiplier(risk, picks.length, hits, house);
   // Rounded down, and never more than the max payout.
   const payout = Math.min(floor2(stake * multiplier), env.games.maxPayout);
   const sortedPicks = [...picks].sort((a, b) => a - b);
@@ -221,7 +285,7 @@ export async function playKeno(userId: string, stake: number, picks: number[], r
     }
 
     return tx.kenoBet.create({
-      data: { userId, stake, picks: sortedPicks, risk, drawn, hits, multiplier, payout, serverSeed, serverSeedHash, clientSeed, nonce },
+      data: { userId, stake, picks: sortedPicks, risk, drawn, hits, house, multiplier, payout, serverSeed, serverSeedHash, clientSeed, nonce },
     });
   });
 

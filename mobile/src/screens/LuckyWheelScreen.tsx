@@ -25,12 +25,19 @@ const SPIN_MS = 4200;
 const RISKS: WheelRisk[] = ['LOW', 'MEDIUM', 'HIGH'];
 const RISK_COLOR: Record<WheelRisk, string> = { LOW: GREEN, MEDIUM: '#5AC8FF', HIGH: '#FF5A7A' };
 
-/** Used until the config arrives; the server's wheels replace it. */
+/** Used until the config arrives; the server's wheels replace it. ⭐ House segments are listed as 0. */
 const FALLBACK: Record<WheelRisk, number[]> = {
-  LOW: [1.2, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.4, 0, 1.2, 0, 1.2, 1.4, 1.7, 0],
-  MEDIUM: [6, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0],
-  HIGH: [20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  LOW: [1.2, 0, 0, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.2, 0, 0, 1.4, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 0, 1.4, 1.2, 0, 1.2, 0, 1.6, 1.2],
+  MEDIUM: [6, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 3, 0, 0, 0, 2, 0, 0, 0, 0],
+  HIGH: [20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 };
+/** The ⭐ House segments (every fifth): one spin in five stops on one of them and loses. */
+const FALLBACK_HOUSE = [2, 7, 12, 17, 22, 27];
+/** A server from before the House rule sends no ⭐ segments. */
+const NO_HOUSE: number[] = [];
+const FALLBACK_HOUSE_PERCENT = 20;
+/** ⭐ House segment colours: deep magenta under a gold star, unlike any prize. */
+const HOUSE_SEG: [string, string] = ['#A0287E', '#4A0A3A'];
 
 /** Segment colours by multiplier: dark for a blank, warmer and brighter as it pays more. */
 function segColor(m: number): [string, string] {
@@ -64,13 +71,22 @@ function errorMessage(err: unknown): string {
   return err instanceof ApiClientError ? err.message : 'Network error — please try again.';
 }
 
+/** A five-point star around (cx, cy), its top point turned by `rot` radians. */
+function starPoints(cx: number, cy: number, R: number, rot = 0): string {
+  return Array.from({ length: 10 }, (_, k) => {
+    const a = rot + (k * Math.PI) / 5 - Math.PI / 2;
+    const rad = k % 2 === 0 ? R : R * 0.42;
+    return `${cx + Math.cos(a) * rad},${cy + Math.sin(a) * rad}`;
+  }).join(' ');
+}
+
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const run = (a: Animated.CompositeAnimation) => new Promise<void>((r) => a.start(() => r()));
 
 // ---------- art ----------
 
-/** The wheel face: coloured segments with their multipliers, rotating as one. */
-const WheelFace = memo(function WheelFace({ size, segments, lit }: { size: number; segments: number[]; lit: number | null }) {
+/** The wheel face: coloured segments with their multipliers (a gold ⭐ on House segments), rotating as one. */
+const WheelFace = memo(function WheelFace({ size, segments, house, lit }: { size: number; segments: number[]; house: number[]; lit: number | null }) {
   const u = `wf${useId().replace(/:/g, '')}`;
   const n = segments.length;
   const r = 50;
@@ -80,7 +96,7 @@ const WheelFace = memo(function WheelFace({ size, segments, lit }: { size: numbe
     <Svg width={size} height={size} viewBox="0 0 100 100">
       <Defs>
         {segments.map((m, i) => {
-          const [a, b] = segColor(m);
+          const [a, b] = house.includes(i) ? HOUSE_SEG : segColor(m);
           return (
             <RadialGradient key={i} id={`${u}s${i}`} cx="50" cy="50" r="48" gradientUnits="userSpaceOnUse">
               <Stop offset="0.3" stopColor={b} />
@@ -99,6 +115,7 @@ const WheelFace = memo(function WheelFace({ size, segments, lit }: { size: numbe
         const x = 50 + Math.sin(a) * 37;
         const y = 50 - Math.cos(a) * 37;
         const deg = (a * 180) / Math.PI;
+        if (house.includes(i)) return <Polygon key={`t${i}`} points={starPoints(x, y, 3.8, a)} fill={GOLD} stroke="#6A4400" strokeWidth={0.4} strokeLinejoin="round" />;
         return (
           <SvgText
             key={`t${i}`}
@@ -177,7 +194,7 @@ export function LuckyWheelTileArt({ size }: { size: number }) {
       <LinearGradient colors={['#4A1A7A', '#1A0626']} style={StyleSheet.absoluteFill} />
       <View style={{ marginTop: size * 0.03, width: d, height: d, alignItems: 'center', justifyContent: 'center' }}>
         <View style={{ width: (d * 100) / 120, height: (d * 100) / 120, transform: [{ rotate: '-18deg' }] }}>
-          <WheelFace size={(d * 100) / 120} segments={FALLBACK.MEDIUM} lit={null} />
+          <WheelFace size={(d * 100) / 120} segments={FALLBACK.MEDIUM} house={FALLBACK_HOUSE} lit={null} />
         </View>
         <Frame size={d} blink />
       </View>
@@ -200,8 +217,8 @@ export default function LuckyWheelScreen() {
   const [risk, setRisk] = useState<WheelRisk>('MEDIUM');
   const [busy, setBusy] = useState(false);
   const [lit, setLit] = useState<number | null>(null);
-  const [lastWin, setLastWin] = useState<{ payout: number; m: number } | null>(null);
-  const [recent, setRecent] = useState<{ m: number; risk: WheelRisk }[]>([]);
+  const [lastWin, setLastWin] = useState<{ payout: number; m: number; house: boolean } | null>(null);
+  const [recent, setRecent] = useState<{ m: number; risk: WheelRisk; house: boolean }[]>([]);
   const [shownBalance, setShownBalance] = useState(coins);
   const [banner, setBanner] = useState<Banner | null>(null);
   const [panel, setPanel] = useState<'info' | 'history' | null>(null);
@@ -230,7 +247,10 @@ export default function LuckyWheelScreen() {
   const maxPayout = config?.maxPayout ?? 10000;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const segmentsFor = useCallback((r: WheelRisk) => config?.wheels.find((w) => w.risk === r)?.segments ?? FALLBACK[r], [config]);
+  const houseFor = useCallback((r: WheelRisk) => (config ? config.wheels.find((w) => w.risk === r)?.houseSegments ?? NO_HOUSE : FALLBACK_HOUSE), [config]);
   const segments = segmentsFor(risk);
+  const houseSegs = houseFor(risk);
+  const houseChance = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
   const n = segments.length;
 
   useEffect(() => {
@@ -314,11 +334,13 @@ export default function LuckyWheelScreen() {
       await wait(Math.max(0, MIN_SPIN_MS - (Date.now() - t0)));
       const payout = Number(res.payout);
       const m = Number(res.multiplier);
+      // ⭐ House spin: the pointer is on a ⭐ segment and the spin loses.
+      const house = !!res.house;
       setLit(res.segment);
-      setRecent((r) => [{ m, risk: res.risk }, ...r].slice(0, 12));
+      setRecent((r) => [{ m, risk: res.risk, house }, ...r].slice(0, 12));
       setShownBalance((b) => round2(b + payout));
       setSessionNet((v) => round2(v + payout - bet));
-      setLastWin({ payout, m });
+      setLastWin({ payout, m, house });
       refreshWallet();
       if (panel === 'history')
         fetchWheelHistory(30)
@@ -329,6 +351,8 @@ export default function LuckyWheelScreen() {
         glow.setValue(0);
         Animated.sequence([Animated.timing(glow, { toValue: 1, duration: 160, useNativeDriver: true }), Animated.timing(glow, { toValue: 0, duration: 900, useNativeDriver: true })]).start();
         await flashBanner({ title: m >= 5 ? 'BIG WIN!' : 'WIN!', sub: `${fmtX(m)} · ${money(payout)}`, tone: m >= 5 ? 'big' : 'win' }, m >= 5 ? 1500 : 900);
+      } else if (house) {
+        await flashBanner({ title: '⭐ HOUSE', sub: `One spin in ${Math.round(100 / houseChance)} · this spin loses`, tone: 'plain' }, 1000);
       }
     } catch (err) {
       turn.stopAnimation((v) => (turnDeg.current = v));
@@ -341,7 +365,7 @@ export default function LuckyWheelScreen() {
       busyRef.current = false;
       if (mountedRef.current) setBusy(false);
     }
-  }, [config, bet, shownBalance, risk, n, turn, glow, flashBanner, panel, coins, refreshWallet, showToast]);
+  }, [config, bet, shownBalance, risk, n, turn, glow, flashBanner, panel, coins, refreshWallet, showToast, houseChance]);
 
   const stepBet = (dir: 1 | -1) => {
     if (busy) return;
@@ -366,12 +390,12 @@ export default function LuckyWheelScreen() {
 
   const minutes = Math.floor((now - sessionStart.current) / 60000);
   const seconds = Math.floor(((now - sessionStart.current) % 60000) / 1000);
-  // The distinct prizes on this wheel and how many segments carry each.
+  // The distinct prizes on this wheel and how many segments carry each (⭐ House segments apart).
   const prizes = useMemo(() => {
     const counts = new Map<number, number>();
-    segments.forEach((m) => counts.set(m, (counts.get(m) ?? 0) + 1));
+    segments.forEach((m, i) => !houseSegs.includes(i) && counts.set(m, (counts.get(m) ?? 0) + 1));
     return [...counts.entries()].sort((a, b) => b[0] - a[0]);
-  }, [segments]);
+  }, [segments, houseSegs]);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -396,6 +420,12 @@ export default function LuckyWheelScreen() {
             <Text style={styles.recentEmpty}>Your last spins show here</Text>
           ) : (
             recent.map((r, i) => {
+              if (r.house)
+                return (
+                  <View key={i} style={[styles.recentChip, { borderColor: GOLD, backgroundColor: HOUSE_SEG[1], opacity: 1 - i * 0.06 }]}>
+                    <Text style={[styles.recentText, { color: GOLD }]}>⭐ House</Text>
+                  </View>
+                );
               const [a] = segColor(r.m);
               return (
                 <View key={i} style={[styles.recentChip, { borderColor: a, opacity: 1 - i * 0.06 }]}>
@@ -422,14 +452,16 @@ export default function LuckyWheelScreen() {
           />
           <View style={{ position: 'absolute', top: 34, left: (S - frameSize) / 2, width: frameSize, height: frameSize, alignItems: 'center', justifyContent: 'center' }}>
             <Animated.View style={{ width: faceSize, height: faceSize, transform: [{ rotate: turn.interpolate({ inputRange: [-3600, 3600], outputRange: ['-3600deg', '3600deg'] }) }] }}>
-              <WheelFace size={faceSize} segments={segments} lit={lit} />
+              <WheelFace size={faceSize} segments={segments} house={houseSegs} lit={lit} />
             </Animated.View>
             <Frame size={frameSize} blink={busy ? blink : !blink} />
           </View>
           {/* Result plate */}
           <View style={[styles.plate, { top: 34 + frameSize + 6 }]}>
             {lastWin ? (
-              lastWin.payout > bet ? (
+              lastWin.house ? (
+                <Text style={[styles.plateText, { color: GOLD }]}>⭐ HOUSE · NO WIN</Text>
+              ) : lastWin.payout > bet ? (
                 <Text style={styles.plateWin}>
                   WIN {money(lastWin.payout)} <Text style={styles.plateSub}>({fmtX(lastWin.m)})</Text>
                 </Text>
@@ -479,6 +511,12 @@ export default function LuckyWheelScreen() {
               </LinearGradient>
             );
           })}
+          {houseSegs.length > 0 && (
+            <LinearGradient colors={HOUSE_SEG} style={styles.prize}>
+              <Text style={[styles.prizeX, { color: GOLD }]}>⭐ House</Text>
+              <Text style={styles.prizeC}>×{houseSegs.length}</Text>
+            </LinearGradient>
+          )}
         </View>
 
         {/* Session (time played and net position, always on show) */}
@@ -526,7 +564,7 @@ export default function LuckyWheelScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% on every risk level · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per spin{'\n'}
+          RTP {config?.rtpPercent ?? 80}% on every risk level · ⭐ 1 spin in {Math.round(100 / houseChance)} is House and loses · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per spin{'\n'}
           No autoplay or turbo · each spin takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>
@@ -569,18 +607,25 @@ export default function LuckyWheelScreen() {
 
 function Rules({ bet, config }: { bet: number; config: WheelConfig | null }) {
   if (!config) return <Text style={styles.note}>Loading…</Text>;
+  const house = config.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
   return (
     <View style={{ gap: 8 }}>
       <Text style={styles.note}>
         Pick a risk level and your bet, then SPIN. The wheel has {config.segments} equal segments; your bet pays the multiplier of the segment the pointer stops on. A 0 segment pays nothing.
       </Text>
+      <Text style={styles.note}>
+        ⭐ House: one spin in {Math.round(100 / house)} ({house}%) is a House spin. The pointer stops on one of the gold ⭐ segments and the spin loses. Every segment, ⭐ or not, comes up 1 time in {config.segments}, so the chance of a prize is the number of
+        prize segments out of {config.segments}.
+      </Text>
       {config.wheels.map((w) => {
+        const stars = w.houseSegments ?? [];
         const counts = new Map<number, number>();
-        w.segments.forEach((m) => counts.set(m, (counts.get(m) ?? 0) + 1));
+        w.segments.forEach((m, i) => !stars.includes(i) && counts.set(m, (counts.get(m) ?? 0) + 1));
+        const paying = w.segments.filter((m, i) => m > 0 && !stars.includes(i)).length;
         return (
           <View key={w.risk} style={{ marginTop: 4 }}>
             <Text style={[styles.section, { color: RISK_COLOR[w.risk] }]}>
-              {w.risk} · RTP {w.rtpPercent}%
+              {w.risk} · RTP {w.rtpPercent}% · wins {((paying / w.segments.length) * 100).toFixed(1)}% of spins
             </Text>
             {[...counts.entries()]
               .sort((a, b) => b[0] - a[0])
@@ -593,13 +638,22 @@ function Rules({ bet, config }: { bet: number; config: WheelConfig | null }) {
                   <Text style={[styles.tCell, { textAlign: 'right' }]}>{m > 0 ? money(Math.min(floor2(bet * m), config.maxPayout)) : '—'}</Text>
                 </View>
               ))}
+            {stars.length > 0 && (
+              <View style={styles.tRow}>
+                <Text style={[styles.tCell, { color: GOLD }]}>⭐ House</Text>
+                <Text style={styles.tCell}>
+                  {stars.length} of {w.segments.length}
+                </Text>
+                <Text style={[styles.tCell, { textAlign: 'right' }]}>—</Text>
+              </View>
+            )}
           </View>
         );
       })}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Every risk level returns exactly {config.rtpPercent}% over time (the average segment). No autoplay or turbo; each spin takes at least 2.5 seconds. The segment comes from your provably-fair
-        seeds (server seed hash, client seed and nonce in each spin).
+        Every risk level returns exactly {config.rtpPercent}% over time (the average segment, ⭐ House segments paying 0). No autoplay or turbo; each spin takes at least 2.5 seconds. Whether a spin is House,
+        and the segment, come from your provably-fair seeds (server seed hash, client seed and nonce in each spin).
       </Text>
     </View>
   );
@@ -618,7 +672,7 @@ function History({ spins }: { spins: WheelSpinRow[] | null }) {
             <Text style={styles.histTime}>{d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
             <Text style={styles.histStake}>{money(Number(s.stake))}</Text>
             <Text style={[styles.histRisk, { color: RISK_COLOR[s.risk] }]}>{s.risk}</Text>
-            <Text style={styles.histMult}>{fmtX(Number(s.multiplier))}</Text>
+            {s.house ? <Text style={[styles.histMult, { color: GOLD }]}>⭐ House</Text> : <Text style={styles.histMult}>{fmtX(Number(s.multiplier))}</Text>}
             <Text style={[styles.histWin, { color: payout > 0 ? GREEN : '#8A8FA8' }]}>{payout > 0 ? `+${money(payout)}` : '—'}</Text>
           </View>
         );
