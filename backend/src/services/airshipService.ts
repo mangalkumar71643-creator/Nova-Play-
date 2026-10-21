@@ -3,7 +3,7 @@
  * off from its mooring mast, the multiplier climbs as it rises into a
  * gathering storm, and the round ends when lightning strikes it (the crash
  * point). Same provably fair crash-point formula, timing and money-safety
- * rules as goalRushService.ts, on its own tables. RTP is 85% (a 15% house
+ * rules as goalRushService.ts, on its own tables. RTP is 75% (a 25% house
  * edge) for every cash-out strategy.
  */
 import { Prisma } from "@prisma/client";
@@ -31,7 +31,7 @@ const GROWTH_RATE = Math.log(2) / 5;
 /** House edge baked into the crash-point distribution itself (see
  * crashMultiplierFromSeed): cashing out at any target m succeeds with
  * probability (1 - edge) / m, so every strategy returns 85%. */
-const HOUSE_EDGE = 0.15;
+const HOUSE_EDGE = env.games.crashHouseEdge;
 
 const MIN_AUTO_CASHOUT = 1.01;
 

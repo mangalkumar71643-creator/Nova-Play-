@@ -22,14 +22,18 @@ export const env = {
     minStake: Number(process.env.GAME_MIN_STAKE ?? 1),
     maxStake: Number(process.env.GAME_MAX_STAKE ?? 500),
     // Return-to-player: long-run share of total stakes paid back as winnings
-    // (0.85 = a 15% house edge on Aviator, Chicken Road, Mines, dice and the
-    // other games that share it).
+    // (0.85 = a 15% house edge on Chicken Road, Mines, dice and the other
+    // games that share it; the crash games use crashHouseEdge below).
     rtp: Number(process.env.GAME_RTP ?? 0.85),
     // 7 Up Down runs its own, higher edge (0.85 = 15%).
     sevenUpDownRtp: Number(process.env.SEVEN_UP_DOWN_RTP ?? 0.85),
     // Win pays out at this multiple of the stake; win probability is derived
     // from rtp / winMultiplier so the long-run expected value matches rtp.
     winMultiplier: Number(process.env.GAME_WIN_MULTIPLIER ?? 2),
+    // House edge of every crash game (Aviator, Rocket, Cricket X, Goal Rush,
+    // Airship, Big Catch, Cosmonaut, Night Racer, Sky Jet incl. its jackpot)
+    // and Vortex: 0.25 = players get 75% back over time. Each game shows it.
+    crashHouseEdge: Number(process.env.CRASH_HOUSE_EDGE ?? 0.25),
     // Win Go result rule. Off: the number comes from the round's server
     // seed. On ("true"): the least-staked rule (winGoService.leastStakedNumber),
     // which the app's How to play shows from 1.0.24 — only turn it on once

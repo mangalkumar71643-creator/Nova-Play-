@@ -868,7 +868,7 @@ export default function NightRacerScreen() {
           })
         )}
         <GameInfoButton>
-          Provably fair · RTP {config ? 100 - config.houseEdgePercent : 85}% with or without nitro · bet ₹{minStake}–₹{maxStake} · max win ₹{config?.maxPayout ?? 10000} per bet
+          Provably fair · RTP {config ? 100 - config.houseEdgePercent : 75}% with or without nitro · bet ₹{minStake}–₹{maxStake} · max win ₹{config?.maxPayout ?? 10000} per bet
         </GameInfoButton>
       </ScrollView>
 

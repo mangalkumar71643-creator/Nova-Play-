@@ -3,7 +3,7 @@
  * launches off the line, the multiplier climbs with its speed, and the round
  * ends when it crashes (the crash point). Same provably fair crash-point
  * formula, timing and money-safety rules as goalRushService.ts, on its own
- * tables, at an 85% RTP (15% house edge).
+ * tables, at a 75% RTP (25% house edge, env.games.crashHouseEdge).
  *
  * Nitro: once per bet, while racing, a player can fire the nitro at the
  * live multiplier m0. From then on the bet runs on its own multiplier,
@@ -39,7 +39,7 @@ const GROWTH_RATE = Math.log(2) / 5;
 /** House edge baked into the crash-point distribution itself (see
  * crashMultiplierFromSeed): cashing out at any target m succeeds with
  * probability (1 - edge) / m, so every strategy returns 85%. */
-const HOUSE_EDGE = 0.15;
+const HOUSE_EDGE = env.games.crashHouseEdge;
 
 const MIN_AUTO_CASHOUT = 1.01;
 

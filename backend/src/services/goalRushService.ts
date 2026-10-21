@@ -3,8 +3,8 @@
  * shoots, the multiplier climbs while the ball is in the air, and the round
  * ends when the keeper saves it (the crash point). Same provably fair crash-point formula, timing and
  * money-safety rules as aviatorService.ts, on its own tables so its rounds
- * and history stay separate. RTP is 85% (a 15% house edge, set here rather
- * than by the shared env.games.rtp) for every cash-out strategy.
+ * and history stay separate. RTP is 75% (a 25% house edge, env.games.crashHouseEdge
+ * rather than the shared env.games.rtp) for every cash-out strategy.
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
@@ -31,7 +31,7 @@ const GROWTH_RATE = Math.log(2) / 5;
 /** House edge baked into the crash-point distribution itself (see
  * crashMultiplierFromSeed): cashing out at any target m succeeds with
  * probability (1 - edge) / m, so every strategy returns 85%. */
-const HOUSE_EDGE = 0.15;
+const HOUSE_EDGE = env.games.crashHouseEdge;
 
 const MIN_AUTO_CASHOUT = 1.01;
 

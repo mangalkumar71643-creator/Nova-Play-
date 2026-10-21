@@ -9,8 +9,8 @@
  * every bet placed on it gets one provably fair draw (HMAC of the round's
  * server seed and the bet id) that wins the whole pool with probability
  * stake / JACKPOT_ODDS_STAKE, whether the bet cashed out or not. The crash
- * itself carries a 16% edge, so the crash pays 84% and the jackpot returns
- * the other 1% to players: 85% RTP, a 15% house edge overall.
+ * itself carries env.games.crashHouseEdge + 1%, and the jackpot returns
+ * that 1% to players, so the overall house edge is env.games.crashHouseEdge.
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
@@ -36,10 +36,11 @@ const GROWTH_RATE = Math.log(2) / 5;
 
 /** Edge baked into the crash-point distribution itself (see
  * crashMultiplierFromSeed): cashing out at any target m succeeds with
- * probability (1 - edge) / m, so every strategy returns 84% from the crash.
- * The jackpot gives back JACKPOT_SHARE on top: 85% in all. */
-const HOUSE_EDGE = 0.16;
+ * probability (1 - edge) / m. The jackpot gives back JACKPOT_SHARE on top,
+ * so the house keeps env.games.crashHouseEdge in all, like the other crash
+ * games. */
 const JACKPOT_SHARE = 0.01;
+const HOUSE_EDGE = env.games.crashHouseEdge + JACKPOT_SHARE;
 /** A bet of this stake would hit the jackpot every time; ₹10 hits 1 in 5,000. */
 const JACKPOT_ODDS_STAKE = 50000;
 const JACKPOT_ID = "skyjet";
@@ -499,7 +500,7 @@ export function getSkyJetConfig() {
     resultPauseSeconds: RESULT_PAUSE_SECONDS,
     growthRate: GROWTH_RATE,
     houseEdgePercent: Math.round((HOUSE_EDGE - JACKPOT_SHARE) * 100),
-    crashEdgePercent: HOUSE_EDGE * 100,
+    crashEdgePercent: Math.round(HOUSE_EDGE * 100),
     jackpotSharePercent: JACKPOT_SHARE * 100,
     jackpotOddsStake: JACKPOT_ODDS_STAKE,
     minAutoCashout: MIN_AUTO_CASHOUT,

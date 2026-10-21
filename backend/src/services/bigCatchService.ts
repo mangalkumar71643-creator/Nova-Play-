@@ -3,7 +3,7 @@
  * the hook, the multiplier climbs while it is reeled up from the deep, and
  * the round ends when the line snaps (the crash point). Same provably fair
  * crash-point formula, timing and money-safety rules as goalRushService.ts,
- * on its own tables. RTP is 85% (a 15% house edge) for every cash-out
+ * on its own tables. RTP is 75% (a 25% house edge) for every cash-out
  * strategy.
  *
  * Its own feature is the half cash-out ("Half Reel"): once per bet, while
@@ -36,7 +36,7 @@ const GROWTH_RATE = Math.log(2) / 5;
 /** House edge baked into the crash-point distribution itself (see
  * crashMultiplierFromSeed): cashing out at any target m succeeds with
  * probability (1 - edge) / m, so every strategy returns 85%. */
-const HOUSE_EDGE = 0.15;
+const HOUSE_EDGE = env.games.crashHouseEdge;
 
 const MIN_AUTO_CASHOUT = 1.01;
 

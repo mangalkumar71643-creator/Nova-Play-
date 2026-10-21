@@ -26,7 +26,8 @@ export const WHEEL: VortexOutcome[] = [W, E, W, C, W, F, W, E, C, W, E, W, C, W,
  * The factors satisfy  P(water)*1.2 + P(earth)*1.4 + P(fire)*1.7 = 1
  * (0.40*1.2 + 0.25*1.4 + 0.10*1.7 = 1), i.e. one more spin is worth exactly
  * what the round is worth now (the vortex pays 0). So whenever a player
- * cashes out, the expected return is the starting value, `rtp` x stake —
+ * cashes out, the expected return is the starting value,
+ * (1 - env.games.crashHouseEdge) x stake —
  * no cash-out strategy beats the house edge, and rounding down only lowers
  * it further.
  */
@@ -44,7 +45,7 @@ type Fill = { water: number; earth: number; fire: number };
 
 export function vortexMultiplier(fill: Fill): number {
   return floor2(
-    env.games.rtp *
+    (1 - env.games.crashHouseEdge) *
       ELEMENTS.WATER.factor ** fill.water *
       ELEMENTS.EARTH.factor ** fill.earth *
       ELEMENTS.FIRE.factor ** fill.fire
@@ -56,7 +57,7 @@ export function getVortexConfig() {
     minStake: env.games.minStake,
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
-    rtpPercent: Math.round(env.games.rtp * 100),
+    rtpPercent: Math.round((1 - env.games.crashHouseEdge) * 100),
     wheel: WHEEL,
     elements: (Object.keys(ELEMENTS) as VortexElement[]).map((element) => {
       const { factor, sections } = ELEMENTS[element];
