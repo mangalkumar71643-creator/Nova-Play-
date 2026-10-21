@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 // Live NovaPlay backend on Vercel.
 export const API_BASE_URL = 'https://novaplay-server.vercel.app';
@@ -24,6 +25,8 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const token = await getBackendToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    // Lets the server turn away versions whose rules text is out of date.
+    'X-App-Version': Constants.expoConfig?.version ?? '0.0.0',
     ...(options.headers as Record<string, string>),
   };
   if (token) headers.Authorization = `Bearer ${token}`;

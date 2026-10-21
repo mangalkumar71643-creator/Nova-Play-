@@ -104,6 +104,22 @@ function leastStakedNumber(bets: { area: string; amount: Prisma.Decimal }[], ser
   return pick(side.filter((n) => on(`NUM:${n}`) === least), 1);
 }
 
+/** First app version whose How to play states the least-staked rule. */
+const LEAST_STAKED_MIN_APP = [1, 0, 24];
+
+/** Under the least-staked rule, older apps (which still describe a seeded
+ * draw, and send no X-App-Version) can't bet until they update. */
+export function assertAppShowsRules(appVersion: string | undefined) {
+  if (!env.games.winGoLeastStaked) return;
+  const v = (appVersion ?? "0").split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < LEAST_STAKED_MIN_APP.length; i++) {
+    if ((v[i] ?? 0) > LEAST_STAKED_MIN_APP[i]) return;
+    if ((v[i] ?? 0) < LEAST_STAKED_MIN_APP[i]) {
+      throw new ApiError(426, "Win Go rules have changed. Please update NovaPlay to the latest version to play Win Go.");
+    }
+  }
+}
+
 /** A round's result. On a House round the number is still drawn (and
  * shown, so the seed can be checked) but every bet on it lost. */
 function describe(n: number, house: boolean) {

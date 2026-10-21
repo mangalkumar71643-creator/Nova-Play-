@@ -786,6 +786,11 @@ export default function WinGoScreen() {
               </Pressable>
             ))}
           </View>
+          {leastStaked && (
+            <Text style={[styles.rulesText, { color: C_RED, marginTop: 6 }]}>
+              Result rule: the side and number with the least money bet on them win.
+            </Text>
+          )}
           <Pressable onPress={() => setAgree(!agree)} style={styles.agreeRow}>
             <MaterialCommunityIcons name={agree ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'} size={18} color={agree ? selColor : MUTED} />
             <Text style={styles.agreeText}>I agree</Text>

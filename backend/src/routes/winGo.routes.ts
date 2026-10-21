@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
-import { getCurrentRoundView, getMyWinGoBets, getWinGoConfig, getWinGoHistory, placeWinGoBets } from "../services/winGoService";
+import { assertAppShowsRules, getCurrentRoundView, getMyWinGoBets, getWinGoConfig, getWinGoHistory, placeWinGoBets } from "../services/winGoService";
 
 const router = Router();
 
@@ -47,6 +47,7 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { bets } = betSchema.parse(req.body);
+    assertAppShowsRules(req.header("X-App-Version"));
     res.status(201).json(await placeWinGoBets(req.user!.userId, Number(req.params.duration), bets));
   })
 );
