@@ -2493,6 +2493,8 @@ export interface DiceConfig {
   minChance: number;
   maxChance: number;
   rtpPercent: number;
+  /** A win never pays under this (high win chances). */
+  minWinMultiplier?: number;
 }
 
 export function fetchDiceConfig() {

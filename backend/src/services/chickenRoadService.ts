@@ -35,12 +35,13 @@ function floor2(n: number): number {
  * `rtp` used elsewhere (dice/coinflip) so the expected return is
  * identical whichever lane a player cashes out on: stake * multiplier(n)
  * * surviveProb^n === stake * rtp for every n, rounded down so no lane
- * returns more. Lane 0 (no lanes crossed yet) is always exactly 1x —
+ * returns more — but never under env.games.minWinMultiplier once a lane
+ * is crossed. Lane 0 (no lanes crossed yet) is always exactly 1x —
  * nothing risked, nothing gained.
  */
 function multiplierAt(config: { surviveProb: number }, step: number): number {
   if (step <= 0) return 1;
-  return floor2(env.games.rtp / Math.pow(config.surviveProb, step));
+  return Math.max(floor2(env.games.rtp / Math.pow(config.surviveProb, step)), env.games.minWinMultiplier);
 }
 
 export function getChickenRoadConfig() {

@@ -717,7 +717,7 @@ function Rules({ config }: { config: TowerConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Multiplier after each level = {rtp / 100} × (tiles ÷ eggs) for every level cleared, so the return is {rtp}% whenever you cash out. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per climb ₹{config?.maxPayout ?? 10000} — reaching it cashes out automatically.
+        Multiplier after each level = {rtp / 100} × (tiles ÷ eggs) for every level cleared, so the return is {rtp}% whenever you cash out — except that a win never pays less than 1.01x (the first level on Easy). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per climb ₹{config?.maxPayout ?? 10000} — reaching it cashes out automatically.
       </Text>
       <Text style={styles.ruleLine}>The whole tower is fixed from your provably-fair seeds when the climb starts and shown when it ends (Settings → Provably Fair).</Text>
     </View>

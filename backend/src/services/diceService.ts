@@ -40,7 +40,8 @@ export function winChance(target: number, rollOver: boolean): number {
 }
 
 export function multiplierFor(chance: number): number {
-  return floor4((env.games.rtp * 100) / chance);
+  // A win never pays under env.games.minWinMultiplier (high chances).
+  return Math.max(floor4((env.games.rtp * 100) / chance), env.games.minWinMultiplier);
 }
 
 type DiceBetRow = Prisma.DiceBetGetPayload<Record<string, never>>;
@@ -57,6 +58,7 @@ export function getDiceConfig() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     minChance: MIN_CHANCE,
+    minWinMultiplier: env.games.minWinMultiplier,
     maxChance: MAX_CHANCE,
     rtpPercent: round2(env.games.rtp * 100),
   };

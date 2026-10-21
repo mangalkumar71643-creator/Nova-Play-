@@ -242,10 +242,11 @@ export default function DiceScreen() {
   const maxPayout = config?.maxPayout ?? 10000;
   const minChance = config?.minChance ?? 0.01;
   const maxChance = config?.maxChance ?? 84;
+  const minWin = config?.minWinMultiplier ?? 1.01;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
   const chance = round2(rollOver ? 100 - target : target);
-  const multiplier = floor4(rtp / chance);
+  const multiplier = Math.max(floor4(rtp / chance), minWin);
   const winAmount = floor2(bet * multiplier);
   const overCap = winAmount > maxPayout;
 
@@ -395,7 +396,7 @@ export default function DiceScreen() {
     if (busyRef.current) return;
     const { bet: stake, target: t, rollOver: over } = stateRef.current;
     const c = round2(over ? 100 - t : t);
-    const m = floor4(rtp / c);
+    const m = Math.max(floor4(rtp / c), minWin);
     if (stake > balanceRef.current) {
       showToast('Insufficient balance');
       setAutoLeft(0);
@@ -815,12 +816,13 @@ export default function DiceScreen() {
 
 function Rules({ config }: { config: DiceConfig | null }) {
   const rtp = config?.rtpPercent ?? 85;
+  const minWinText = config?.minWinMultiplier ?? 1.01;
   return (
     <View>
       <Text style={styles.ruleHead}>How to play</Text>
       <Text style={styles.ruleLine}>Every roll lands on a number from 0.00 to 100.00. Drag the slider to set your target, then pick ROLL OVER (win if the roll is above the target) or ROLL UNDER (win if it is below). Tap the middle box to switch.</Text>
       <Text style={styles.ruleHead}>Win chance & multiplier</Text>
-      <Text style={styles.ruleLine}>The green part of the bar is your win chance. The smaller it is, the bigger the multiplier: multiplier = {rtp} ÷ win chance. You can also type a multiplier or a win chance directly.</Text>
+      <Text style={styles.ruleLine}>The green part of the bar is your win chance. The smaller it is, the bigger the multiplier: multiplier = {rtp} ÷ win chance, but never less than {minWinText}x. You can also type a multiplier or a win chance directly.</Text>
       <View style={styles.exampleBox}>
         {[
           [50, floor4(rtp / 50)],

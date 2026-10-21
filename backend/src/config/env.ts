@@ -30,6 +30,10 @@ export const env = {
     // multipliers from this (0.85). Under tableLeastPayout the result is
     // picked by the bets, so their real return is lower than this.
     tableRtp: Number(process.env.TABLE_GAME_RTP ?? 0.85),
+    // The least a win can pay in Mines, Chicken Road, Dragon Tower, Pump,
+    // Hi-Lo and Dice, so a win never returns less than the stake. Their
+    // easiest picks (win chance above rtp) return more than rtp as a result.
+    minWinMultiplier: Number(process.env.MIN_WIN_MULTIPLIER ?? 1.01),
     // 7 Up Down runs its own, higher edge (0.85 = 15%).
     sevenUpDownRtp: Number(process.env.SEVEN_UP_DOWN_RTP ?? 0.85),
     // Win pays out at this multiple of the stake; win probability is derived

@@ -675,7 +675,7 @@ function Rules({ config }: { config: HiloConfig | null }) {
       <Text style={styles.ruleLine}>On 2 to Q you choose HIGHER OR SAME or LOWER OR SAME — a card of the same rank wins either way. On an Ace you choose HIGHER or SAME, on a King LOWER or SAME.</Text>
       <Text style={styles.ruleHead}>Multiplier & cash out</Text>
       <Text style={styles.ruleLine}>Each button shows its chance and the multiplier you will have if it is right. Every right guess raises the multiplier; a wrong guess ends the round and the bet is lost. After at least one right guess you can CASH OUT at any time to take bet × multiplier.</Text>
-      <Text style={styles.ruleLine}>Your multiplier is {rtp / 100} × (100 ÷ chance) for each right guess, multiplied together — the house edge is taken once, however long you play.</Text>
+      <Text style={styles.ruleLine}>Your multiplier is {rtp / 100} × (100 ÷ chance) for each right guess, multiplied together — the house edge is taken once, however long you play. A win never pays less than 1.01x.</Text>
       <Text style={styles.ruleHead}>Skip</Text>
       <Text style={styles.ruleLine}>Don't like the card? SKIP it for a new one; your multiplier stays the same. Up to {config?.maxSkips ?? 52} skips a round.</Text>
       <Text style={styles.ruleHead}>Game info</Text>

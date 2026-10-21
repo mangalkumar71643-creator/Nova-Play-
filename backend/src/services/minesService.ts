@@ -23,9 +23,9 @@ function floor2(n: number): number {
  * same `rtp` as the other games. The chance of surviving k picks with m
  * mines on 25 tiles is prod((25-m-i)/(25-i)) for i < k, so stake *
  * multiplier * that chance === stake * rtp whenever the player cashes out.
- * Rounded down, so no cash-out point returns more than rtp. With 1-3 mines
- * the first pick or few are worth under 1x (0.88x after one pick with 1
- * mine).
+ * Rounded down, so no cash-out point returns more than rtp, except that a
+ * win never pays under env.games.minWinMultiplier: with few mines the first
+ * pick or few (worth under 1x by that formula) pay that instead.
  */
 export function multiplierFor(mineCount: number, safeRevealed: number): number {
   if (safeRevealed <= 0) return 1;
@@ -33,7 +33,7 @@ export function multiplierFor(mineCount: number, safeRevealed: number): number {
   for (let i = 0; i < safeRevealed; i++) {
     survive *= (TILE_COUNT - mineCount - i) / (TILE_COUNT - i);
   }
-  return floor2(env.games.rtp / survive);
+  return Math.max(floor2(env.games.rtp / survive), env.games.minWinMultiplier);
 }
 
 /**

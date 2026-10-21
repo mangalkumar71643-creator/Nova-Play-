@@ -32,13 +32,14 @@ export function cardStream(serverSeed: string, clientSeed: string, nonce: number
   return (i: number) => Math.floor(fairGameFloat(serverSeed, clientSeed, `hilo:${nonce}`, i) * 52);
 }
 
-/** Cash-out multiplier for a product of 1/chance (the house edge taken once). */
+/** Cash-out multiplier for a product of 1/chance (the house edge taken
+ * once), never under env.games.minWinMultiplier. */
 export function multiplierOf(raw: number): number {
-  return floor4(env.games.rtp * raw);
+  return Math.max(floor4(env.games.rtp * raw), env.games.minWinMultiplier);
 }
 
 function cashValue(stake: number, raw: number): number {
-  return Math.min(floor2(stake * env.games.rtp * raw), env.games.maxPayout);
+  return Math.min(floor2(stake * Math.max(env.games.rtp * raw, env.games.minWinMultiplier)), env.games.maxPayout);
 }
 
 type RoundRow = Prisma.HiloRoundGetPayload<Record<string, never>>;

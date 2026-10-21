@@ -49,11 +49,12 @@ function rawAt(difficulty: Difficulty, level: number): number {
 }
 
 export function multiplierAt(difficulty: Difficulty, level: number): number {
-  return level <= 0 ? 0 : floor4(env.games.rtp * rawAt(difficulty, level));
+  return level <= 0 ? 0 : Math.max(floor4(env.games.rtp * rawAt(difficulty, level)), env.games.minWinMultiplier);
 }
 
 function cashValue(stake: number, difficulty: Difficulty, level: number): number {
-  return Math.min(floor2(stake * env.games.rtp * rawAt(difficulty, level)), env.games.maxPayout);
+  // A win never pays under env.games.minWinMultiplier.
+  return Math.min(floor2(stake * Math.max(env.games.rtp * rawAt(difficulty, level), env.games.minWinMultiplier)), env.games.maxPayout);
 }
 
 /**

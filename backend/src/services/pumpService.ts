@@ -53,11 +53,12 @@ export function surviveChance(difficulty: Difficulty, pumps: number): number {
 }
 
 export function multiplierAt(difficulty: Difficulty, pumps: number): number {
-  return pumps <= 0 ? 0 : floor4(env.games.rtp / surviveChance(difficulty, pumps));
+  return pumps <= 0 ? 0 : Math.max(floor4(env.games.rtp / surviveChance(difficulty, pumps)), env.games.minWinMultiplier);
 }
 
 function cashValue(stake: number, difficulty: Difficulty, pumps: number): number {
-  return Math.min(floor2((stake * env.games.rtp) / surviveChance(difficulty, pumps)), env.games.maxPayout);
+  // A win never pays under env.games.minWinMultiplier.
+  return Math.min(floor2(stake * Math.max(env.games.rtp / surviveChance(difficulty, pumps), env.games.minWinMultiplier)), env.games.maxPayout);
 }
 
 /**
