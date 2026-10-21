@@ -142,24 +142,9 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
 async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "WinGoRound" WHERE id = ${round.id} FOR UPDATE`;
-  const pending = await prisma.winGoBet.findMany({ where: { roundId: round.id, status: "PENDING" } });     const lowestWingoNumber = calculateLowestWingoResult(pending);
-        round.result = lowestWingoNumber; 
-
-    // 🌟 नए नंबर के हिसाब से BIG/SMALL और Color का नाम भी ठीक करें ताकि रिकॉर्ड सही दिखे
-    // आपके डेटाबेस स्ट्रक्चर (Prisma) के अनुसार ये वैल्यूज सेट होंगी:
-    if (lowestWingoNumber >= 5) {
-      (round as any).size = "BIG";
-    } else {
-      (round as any).size = "SMALL";
-    }
-    
-    if (lowestWingoNumber === 0) (round as any).color = "RED_VIOLET";
-    else if (lowestWingoNumber === 5) (round as any).color = "GREEN_VIOLET";
-    else (round as any).color = lowestWingoNumber % 2 === 0 ? "RED" : "GREEN";
-
-
+  const pending = await prisma.winGoBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
   for (const bet of pending) {
-    const rate = round.house ? 0 : payoutMultiplier(bet.area, lowestWingoNumber
+    const rate = round.house ? 0 : payoutMultiplier(bet.area, round.result);
     const won = rate > 0;
     const payout = won ? Math.min(floor2(Number(bet.amount) * rate), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
@@ -300,56 +285,5 @@ export async function getMyWinGoBets(userId: string, limit = 50) {
     periodNumber: round.periodNumber,
     durationSeconds: round.durationSeconds,
     result: round.settled ? describe(round.result, round.house) : null,
-
-function calculateLowestWingoResult(activeBets: any[]) {
-  const colorPool = { GREEN: 0, RED: 0, VIOLET: 0 };
-  const sizePool = { BIG: 0, SMALL: 0 };
-  const numberPool: { [key: string]: number } = {};
-  for (let i = 0; i <= 9; i++) numberPool[`NUM:${i}`] = 0;
-
-  // 1. सभी बेट्स का टोटल अमाउंट कैलकुलेट करना
-  activeBets.forEach((bet) => {
-    const amount = Number(bet.amount || 0);
-    const key = bet.area; 
-
-    if (key in colorPool) {
-      colorPool[key as keyof typeof colorPool] += amount;
-    } else if (key in sizePool) {
-      sizePool[key as keyof typeof sizePool] += amount;
-    } else if (key in numberPool) {
-      numberPool[key] += amount;
-    }
-  });
-
-  // 2. सबसे कम बेट वाला SIZE (BIG या SMALL) तय करना
-  let winningSize = "BIG";
-  if (sizePool["SMALL"] < sizePool["BIG"]) {
-    winningSize = "SMALL";
-  } else if (sizePool["BIG"] < sizePool["SMALL"]) {
-    winningSize = "BIG";
-  } else {
-    // अगर दोनों पर बराबर बेट है, तो रैंडमली चुन लें
-    winningSize = Math.random() > 0.5 ? "BIG" : "SMALL";
-  }
-
-  // 3. जो SIZE जीता है, उसी के अंदर आने वाले नंबर्स में से सबसे कम बेट वाला नंबर चुनना
-  // BIG के लिए नंबर: 5,6,7,8,9 | SMALL के लिए नंबर: 0,1,2,3,4
-  const allowedNumbers = winningSize === "BIG" ? [5, 6, 7, 8, 9] :;
-  
-  let winningNumber = allowedNumbers[0];
-  let minNumAmount = Infinity;
-
-  allowedNumbers.forEach((num) => {
-    const numKey = `NUM:${num}`;
-    if (numberPool[numKey] < minNumAmount) {
-      minNumAmount = numberPool[numKey];
-      winningNumber = num;
-    } else if (numberPool[numKey] === minNumAmount) {
-      if (Math.random() > 0.5) winningNumber = num;
-    }
-  });
-
-  return winningNumber;
+  }));
 }
-
-
