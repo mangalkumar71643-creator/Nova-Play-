@@ -143,10 +143,23 @@ async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "WinGoRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.winGoBet.findMany({ where: { roundId: round.id, status: "PENDING" } });     const lowestWingoNumber = calculateLowestWingoResult(pending);
-    round.result = lowestWingoNumber;
+        round.result = lowestWingoNumber; 
+
+    // 🌟 नए नंबर के हिसाब से BIG/SMALL और Color का नाम भी ठीक करें ताकि रिकॉर्ड सही दिखे
+    // आपके डेटाबेस स्ट्रक्चर (Prisma) के अनुसार ये वैल्यूज सेट होंगी:
+    if (lowestWingoNumber >= 5) {
+      (round as any).size = "BIG";
+    } else {
+      (round as any).size = "SMALL";
+    }
+    
+    if (lowestWingoNumber === 0) (round as any).color = "RED_VIOLET";
+    else if (lowestWingoNumber === 5) (round as any).color = "GREEN_VIOLET";
+    else (round as any).color = lowestWingoNumber % 2 === 0 ? "RED" : "GREEN";
+
 
   for (const bet of pending) {
-    const rate = round.house ? 0 : payoutMultiplier(bet.area, round.result);
+    const rate = round.house ? 0 : payoutMultiplier(bet.area, lowestWingoNumber
     const won = rate > 0;
     const payout = won ? Math.min(floor2(Number(bet.amount) * rate), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
