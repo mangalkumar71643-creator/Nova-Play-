@@ -228,6 +228,7 @@ export default function WinGoScreen() {
   const P = config?.payouts ?? FALLBACK;
   const housePercent = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
   const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP_PERCENT;
+  const leastStaked = config?.resultRule === 'LEAST_STAKED';
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
@@ -838,18 +839,37 @@ export default function WinGoScreen() {
               <Text style={styles.rulesTitle}>How to play</Text>
             </LinearGradient>
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
-              {[
-                `One number 0–9 is drawn every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
+              {(leastStaked
+                ? [
+                    `One number 0–9 is chosen every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
+                    'Result rule — least money wins: when betting closes, whichever of Big or Small has less money bet on it by all players wins. The result is then the number on that side with the least money bet on it. Ties are decided at random. Colour bets do not change the result.',
+                    'This means the result goes against where most players’ money is: the more money is on a choice, the less likely it is to win. The number is not a random draw.',
+                  ]
+                : [
+                    `One number 0–9 is drawn every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
+                  ]
+              ).concat([
                 `⭐ House: one period in five (${housePercent}%) is a House result, shown as ⭐ House. Every bet on a House period loses, whatever the number. All other periods pay the odds below.`,
                 `Green: 1, 3, 7, 9 pay ${P.color}X; 5 pays ${P.colorMixed}X.`,
                 `Red: 2, 4, 6, 8 pay ${P.color}X; 0 pays ${P.colorMixed}X.`,
                 `Violet: 0 or 5 pays ${P.violet}X.`,
                 `Number: the exact number pays ${P.number}X.`,
                 `Big (5–9) / Small (0–4): ${P.size}X.`,
-                `Win chances, House included: a number wins ${pctText(0.1 * (1 - housePercent / 100))} of periods, Big or Small ${pctText(0.5 * (1 - housePercent / 100))}, Green or Red ${pctText(0.5 * (1 - housePercent / 100))}, Violet ${pctText(0.2 * (1 - housePercent / 100))}. Every bet returns ${rtpPercent}% of stakes on average.`,
-                `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
-                'Provably fair: each period’s number, and whether it is House, come from a server seed whose hash is published before the period, and the seed itself after it.',
-              ].map((t, i) => (
+              ])
+                .concat(
+                  leastStaked
+                    ? []
+                    : [
+                        `Win chances, House included: a number wins ${pctText(0.1 * (1 - housePercent / 100))} of periods, Big or Small ${pctText(0.5 * (1 - housePercent / 100))}, Green or Red ${pctText(0.5 * (1 - housePercent / 100))}, Violet ${pctText(0.2 * (1 - housePercent / 100))}. Every bet returns ${rtpPercent}% of stakes on average.`,
+                      ],
+                )
+                .concat([`Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`])
+                .concat(
+                  leastStaked
+                    ? ['Whether a period is ⭐ House, and how ties are decided, come from a server seed whose hash is published before the period and the seed itself after it.']
+                    : ['Provably fair: each period’s number, and whether it is House, come from a server seed whose hash is published before the period, and the seed itself after it.'],
+                )
+                .map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
                 </Text>

@@ -2013,6 +2013,8 @@ export interface WinGoConfig {
   /** Share of rounds that are a ⭐ House result (every bet loses). */
   houseChancePercent?: number;
   payouts: { number: number; size: number; violet: number; color: number; colorMixed: number };
+  /** How the number is chosen: SEED = drawn from the round's seed; LEAST_STAKED = least money staked wins. */
+  resultRule?: 'SEED' | 'LEAST_STAKED';
 }
 
 export interface WinGoRoundView {

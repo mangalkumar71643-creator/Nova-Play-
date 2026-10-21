@@ -30,6 +30,11 @@ export const env = {
     // Win pays out at this multiple of the stake; win probability is derived
     // from rtp / winMultiplier so the long-run expected value matches rtp.
     winMultiplier: Number(process.env.GAME_WIN_MULTIPLIER ?? 2),
+    // Win Go result rule. Off: the number comes from the round's server
+    // seed. On ("true"): the least-staked rule (winGoService.leastStakedNumber),
+    // which the app's How to play shows from 1.0.24 — only turn it on once
+    // that app version is out.
+    winGoLeastStaked: process.env.WINGO_LEAST_STAKED === "true",
     // Most a single bet can pay out in any game, whatever the stake and
     // multiplier — bounds the house's worst single-bet loss. The admin can
     // change it from the panel; this is the default until they do.

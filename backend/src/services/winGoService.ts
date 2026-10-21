@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
-import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
+import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
 
@@ -83,6 +83,27 @@ export function numberFor(serverSeed: string, periodNumber: string): number {
   return Math.floor(fairRandomFloat(serverSeed, periodNumber, 0) * 10);
 }
 
+/**
+ * The least-staked rule (env.games.winGoLeastStaked, shown in How to play):
+ * Big or Small, whichever has less staked on it by all players, then the
+ * number on that side with the least staked on it. Colour bets don't count.
+ * Ties go to a draw from the round's seed, so every settler of the round
+ * gets the same number from the same bets.
+ */
+function leastStakedNumber(bets: { area: string; amount: Prisma.Decimal }[], serverSeed: string, periodNumber: string): number {
+  const staked = new Map<string, number>();
+  for (const b of bets) staked.set(b.area, (staked.get(b.area) ?? 0) + Number(b.amount));
+  const on = (key: string) => staked.get(key) ?? 0;
+  const pick = <T>(tied: T[], nonce: number) => tied[Math.floor(fairGameFloat(serverSeed, periodNumber, "wingo-least", nonce) * tied.length)];
+
+  const big = on("BIG");
+  const small = on("SMALL");
+  const size = big === small ? pick(["BIG", "SMALL"], 0) : big < small ? "BIG" : "SMALL";
+  const side = size === "BIG" ? [5, 6, 7, 8, 9] : [0, 1, 2, 3, 4];
+  const least = Math.min(...side.map((n) => on(`NUM:${n}`)));
+  return pick(side.filter((n) => on(`NUM:${n}`) === least), 1);
+}
+
 /** A round's result. On a House round the number is still drawn (and
  * shown, so the seed can be checked) but every bet on it lost. */
 function describe(n: number, house: boolean) {
@@ -143,8 +164,16 @@ async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "WinGoRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.winGoBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  let result = round.result;
+  if (env.games.winGoLeastStaked) {
+    // From every bet on the round (betting has closed), not just the
+    // pending ones, so a second settler arrives at the same number.
+    const all = await prisma.winGoBet.findMany({ where: { roundId: round.id }, select: { area: true, amount: true } });
+    result = leastStakedNumber(all, round.serverSeed, round.periodNumber);
+    await prisma.winGoRound.updateMany({ where: { id: round.id, settled: false }, data: { result } });
+  }
   for (const bet of pending) {
-    const rate = round.house ? 0 : payoutMultiplier(bet.area, round.result);
+    const rate = round.house ? 0 : payoutMultiplier(bet.area, result);
     const won = rate > 0;
     const payout = won ? Math.min(floor2(Number(bet.amount) * rate), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
@@ -210,6 +239,7 @@ export function getWinGoConfig() {
     rtpPercent: round2(LOTTERY_RTP * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
     payouts: PAYOUTS,
+    resultRule: env.games.winGoLeastStaked ? ("LEAST_STAKED" as const) : ("SEED" as const),
   };
 }
 
