@@ -142,7 +142,9 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
 async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "WinGoRound" WHERE id = ${round.id} FOR UPDATE`;
-  const pending = await prisma.winGoBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  const pending = await prisma.winGoBet.findMany({ where: { roundId: round.id, status: "PENDING" } });     const lowestWingoNumber = calculateLowestWingoResult(pending);
+    round.result = lowestWingoNumber;
+
   for (const bet of pending) {
     const rate = round.house ? 0 : payoutMultiplier(bet.area, round.result);
     const won = rate > 0;
@@ -286,4 +288,37 @@ export async function getMyWinGoBets(userId: string, limit = 50) {
     durationSeconds: round.durationSeconds,
     result: round.settled ? describe(round.result, round.house) : null,
   }));
+} function calculateLowestWingoResult(activeBets: any[]) {
+  const colorPool = { GREEN: 0, RED: 0, VIOLET: 0 };
+  const sizePool = { BIG: 0, SMALL: 0 };
+  const numberPool: { [key: string]: number } = {};
+  for (let i = 0; i <= 9; i++) numberPool[`NUM:${i}`] = 0;
+
+  activeBets.forEach((bet) => {
+    const amount = Number(bet.amount || 0);
+    const key = bet.area;
+
+    if (key in colorPool) {
+      colorPool[key as keyof typeof colorPool] += amount;
+    } else if (key in sizePool) {
+      sizePool[key as keyof typeof sizePool] += amount;
+    } else if (key in numberPool) {
+      numberPool[key] += amount;
+    }
+  });
+
+  let winningNumKey = "NUM:0";
+  let minNumAmount = Infinity;
+  
+  Object.keys(numberPool).forEach((numKey) => {
+    if (numberPool[numKey] < minNumAmount) {
+      minNumAmount = numberPool[numKey];
+      winningNumKey = numKey;
+    } else if (numberPool[numKey] === minNumAmount) {
+      if (Math.random() > 0.5) winningNumKey = numKey;
+    }
+  });
+
+  return parseInt(winningNumKey.split(":")[1] || "0");
 }
+
