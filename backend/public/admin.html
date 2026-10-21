@@ -398,7 +398,17 @@
 
       <div class="panel" id="panel-transactions">
         <h1 class="page-title">Transactions</h1>
-        <div class="page-sub">Review and settle pending withdrawal requests.</div>
+        <div class="page-sub">Check a deposit by its number, and review and settle pending withdrawal requests.</div>
+        <div class="card">
+          <div class="card-head"><h2>Deposit tracker</h2></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Find any deposit by its deposit number (shown to the player with each deposit, e.g. NP… ), its UTR, or the player's UID. "Check with RupayEx" asks RupayEx about that payment right now: if RupayEx says the money was paid but the player's balance didn't get it, it is credited there and then. If RupayEx says it wasn't paid, the money never reached us.</div>
+          <div class="form-row">
+            <input id="depositSearchQ" placeholder="Deposit no. / UTR / UID" style="max-width:260px;" />
+            <button class="btn" id="depositSearchBtn">Search</button>
+          </div>
+          <div id="depositSearchList"></div>
+        </div>
+
         <div class="card">
           <div class="form-row">
             <select id="withdrawalStatus">
@@ -425,16 +435,6 @@
             </select>
           </div>
           <div id="upiDepositsList"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-head"><h2>Deposit tracker</h2></div>
-          <div class="item-meta" style="margin:-6px 0 12px;">Find any deposit by its deposit number (shown to the player with each deposit, e.g. NP… ), its UTR, or the player's UID. "Check with RupayEx" asks RupayEx about that payment right now: if RupayEx says the money was paid but the player's balance didn't get it, it is credited there and then. If RupayEx says it wasn't paid, the money never reached us.</div>
-          <div class="form-row">
-            <input id="depositSearchQ" placeholder="Deposit no. / UTR / UID" style="max-width:260px;" />
-            <button class="btn" id="depositSearchBtn">Search</button>
-          </div>
-          <div id="depositSearchList"></div>
         </div>
 
         <div class="card">
