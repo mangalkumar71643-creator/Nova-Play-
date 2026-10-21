@@ -114,6 +114,15 @@ const rupees = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
 /** An answer's fields, whether RupayEx puts them at the top level or under `data`. */
 const fieldsOf = (json: Json): Json => (typeof json.data === "object" && json.data !== null && !Array.isArray(json.data) ? { ...json, ...(json.data as Json) } : json);
 
+/** The bank / UPI reference RupayEx gives for a payment, under whichever name it uses. */
+function utrOf(o: Json): string | null {
+  for (const k of ["utr", "UTR", "utr_number", "bank_ref", "bank_reference", "rrn", "RRN", "upi_txn_id", "txn_id", "transaction_id"]) {
+    const v = o[k];
+    if ((typeof v === "string" || typeof v === "number") && String(v).trim()) return String(v).trim().slice(0, 64);
+  }
+  return null;
+}
+
 /** The payment page link. The docs don't show create-order's answer, so the usual names are tried. */
 function paymentUrl(json: Json): string | null {
   const places = [json, json.data, json.result].filter((p): p is Json => typeof p === "object" && p !== null);
@@ -193,7 +202,7 @@ async function settle(tx: DepositRow) {
       console.error(`[rupayex] mismatch on ${orderId}: order ${String(o.order_id)}, amount ${String(o.amount)} vs ${amount}`);
       throw new ApiError(400, "The paid amount does not match this deposit. Please contact support.");
     }
-    const done = await completeDeposit(tx.userId, amount, PROVIDER, orderId, tx.id);
+    const done = await completeDeposit(tx.userId, amount, PROVIDER, orderId, tx.id, { paymentUtr: utrOf(o) });
     // Reversed by the admin, or too old to credit: stays uncredited.
     if (done.refused) return { status: "FAILED" as const, amount, bonus: 0, alreadyCredited: false };
     return { status: "COMPLETED" as const, amount, bonus: done.bonus, alreadyCredited: done.alreadyCompleted };
@@ -278,6 +287,36 @@ export async function handleReturn(orderId: string | undefined) {
     console.error(`[rupayex] return could not settle ${orderId}:`, (err as Error).message);
     return { status: tx.status };
   }
+}
+
+/**
+ * The admin's deposit tracker: asks RupayEx about one deposit right now and
+ * reports what it says (status, amount, UTR). If RupayEx says it was paid,
+ * for this order and this amount, and it hasn't been credited, it is
+ * credited now — whatever its age, since the admin is looking at this very
+ * payment — but never a deposit the admin reversed.
+ */
+export async function adminRecheckDeposit(depositId: string) {
+  if (!token()) throw new ApiError(503, "RupayEx is not set up yet (no API token).");
+  const tx = await prisma.transaction.findUniqueOrThrow({ where: { id: depositId } });
+  if (tx.type !== "DEPOSIT" || tx.provider !== PROVIDER || !tx.providerReferenceId) throw new ApiError(400, "Only RupayEx deposits can be checked with RupayEx.");
+  const { ok, json } = await call("GET", "/order-status", { order_id: tx.providerReferenceId });
+  const o = fieldsOf(json);
+  const state = upper(o.payment_status ?? (typeof o.status === "string" && o.status !== "true" && o.status !== "1" ? o.status : ""));
+  const live = { answered: ok, state: state || null, amount: o.amount != null ? Number(o.amount) : null, utr: utrOf(o), message: ok ? null : message(json) };
+  let note: string;
+  if (tx.reversedAt) note = "This deposit was reversed by the admin, so it is never credited.";
+  else if (tx.status === "COMPLETED") note = "Already credited to the player.";
+  else if (!ok) note = "RupayEx did not answer about this order.";
+  else if (state !== "SUCCESS") note = `RupayEx says ${state || "no status"}: the money has not reached us, nothing to credit.`;
+  else if (String(o.order_id ?? "") !== tx.providerReferenceId || paise(o.amount) !== Math.round(Number(tx.amount) * 100)) {
+    note = `RupayEx says paid, but for ${String(o.amount)} / order ${String(o.order_id)} — it doesn't match this deposit. Not credited; check RupayEx's dashboard.`;
+  } else {
+    const done = await completeDeposit(tx.userId, Number(tx.amount), PROVIDER, tx.providerReferenceId, tx.id, { allowOld: true, paymentUtr: live.utr });
+    note = done.refused ? "Not credited (reversed)." : done.alreadyCompleted ? "Already credited to the player." : `Paid at RupayEx and now credited to the player${done.bonus ? ` (+₹${done.bonus} bonus)` : ""}.`;
+  }
+  const now = await prisma.transaction.findUniqueOrThrow({ where: { id: tx.id }, select: { status: true, paymentUtr: true } });
+  return { status: now.status, paymentUtr: now.paymentUtr, live, note };
 }
 
 // --- Payouts (admin only) ---

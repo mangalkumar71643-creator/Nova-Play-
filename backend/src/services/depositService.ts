@@ -19,9 +19,33 @@ import { ApiError } from "../middleware/errorHandler";
  * credited (refused): no payment company pays that late, and an old order
  * reporting "paid" again must not bring money back.
  */
+/**
+ * A deposit's own number, shown with it to the player and searchable in the
+ * admin panel: the order id we gave the payment company (RupayEx "NP…",
+ * StockPay "ord_…"), else "NP-" and the start of the row's id.
+ */
+export function depositNumberOf(t: { id: string; provider: string | null; providerReferenceId: string | null }): string {
+  if ((t.provider === "rupayex" || t.provider === "stockpay" || t.provider === "stockpay_live") && t.providerReferenceId) return t.providerReferenceId;
+  return `NP-${t.id.replace(/-/g, "").slice(0, 10).toUpperCase()}`;
+}
+
+/** The bank reference of a deposit: what the payment company gave, or the UTR the admin typed for one received by hand. */
+export function depositUtrOf(t: { provider: string | null; providerReferenceId: string | null; paymentUtr?: string | null }): string | null {
+  return t.paymentUtr ?? (t.provider === "admin-manual" ? t.providerReferenceId : null);
+}
+
 export const CLAIM_WINDOW_MS = 3 * 24 * 3600 * 1000;
 
-export async function completeDeposit(userId: string, amount: number, provider: string, providerReferenceId: string | null, pendingTransactionId?: string) {
+export async function completeDeposit(
+  userId: string,
+  amount: number,
+  provider: string,
+  providerReferenceId: string | null,
+  pendingTransactionId?: string,
+  // allowOld: the admin has just confirmed this very order with the payment
+  // company (rupayexService.adminRecheckDeposit), so its age doesn't matter.
+  opts: { allowOld?: boolean; paymentUtr?: string | null } = {}
+) {
   return prisma.$transaction(async (tx) => {
     // Lock the wallet so two deposits at once can't both count as the
     // first (or second) and both take that bonus.
@@ -39,14 +63,18 @@ export async function completeDeposit(userId: string, amount: number, provider: 
     let depositId: string;
     if (pendingTransactionId) {
       const row = await tx.transaction.findUnique({ where: { id: pendingTransactionId }, select: { reversedAt: true, createdAt: true } });
-      if (!row || row.reversedAt || Date.now() - row.createdAt.getTime() > CLAIM_WINDOW_MS) {
+      if (!row || row.reversedAt || (!opts.allowOld && Date.now() - row.createdAt.getTime() > CLAIM_WINDOW_MS)) {
         return { depositId: pendingTransactionId, bonus: 0, alreadyCompleted: false, refused: true };
       }
       const claimed = await tx.transaction.updateMany({
         where: { id: pendingTransactionId, userId, status: { in: ["PENDING", "FAILED"] }, reversedAt: null },
-        data: { status: "COMPLETED" },
+        data: { status: "COMPLETED", ...(opts.paymentUtr ? { paymentUtr: opts.paymentUtr } : {}) },
       });
-      if (claimed.count === 0) return { depositId: pendingTransactionId, bonus: 0, alreadyCompleted: true, refused: false };
+      if (claimed.count === 0) {
+        // Already credited: still keep the UTR if this answer is the first to carry one.
+        if (opts.paymentUtr) await tx.transaction.updateMany({ where: { id: pendingTransactionId, paymentUtr: null }, data: { paymentUtr: opts.paymentUtr } });
+        return { depositId: pendingTransactionId, bonus: 0, alreadyCompleted: true, refused: false };
+      }
       depositId = pendingTransactionId;
     } else {
       depositId = (await tx.transaction.create({ data: { userId, type: "DEPOSIT", amount, status: "COMPLETED", provider, providerReferenceId } })).id;

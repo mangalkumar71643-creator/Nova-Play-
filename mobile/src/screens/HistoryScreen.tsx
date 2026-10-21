@@ -115,6 +115,15 @@ export default function HistoryScreen() {
                   <Text style={styles.rowStatusDone}>{isDeposit ? 'Successful' : 'Payment successful'}</Text>
                 )}
                 {!isDeposit && t.status === 'COMPLETED' && t.utr ? <Text style={styles.rowTimestamp}>UTR {t.utr}</Text> : null}
+                {isDeposit && t.depositNo ? (
+                  <Text selectable style={styles.rowTimestamp}>
+                    Deposit no. {t.depositNo}
+                    {t.depositUtr ? `  ·  UTR ${t.depositUtr}` : ''}
+                  </Text>
+                ) : null}
+                {isDeposit && t.status !== 'COMPLETED' ? (
+                  <Text style={styles.rowTimestamp}>Paid but balance not added? Send this deposit no. to Support.</Text>
+                ) : null}
                 {!isDeposit && t.status !== 'FAILED' && (t.fee || t.providerFee) ? (
                   <Text style={styles.rowTimestamp}>
                     {t.fee ? `Fee ₹${t.fee.toLocaleString('en-IN')} · ` : ''}

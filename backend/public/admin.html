@@ -428,6 +428,16 @@
         </div>
 
         <div class="card">
+          <div class="card-head"><h2>Deposit tracker</h2></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Find any deposit by its deposit number (shown to the player with each deposit, e.g. NP… ), its UTR, or the player's UID. "Check with RupayEx" asks RupayEx about that payment right now: if RupayEx says the money was paid but the player's balance didn't get it, it is credited there and then. If RupayEx says it wasn't paid, the money never reached us.</div>
+          <div class="form-row">
+            <input id="depositSearchQ" placeholder="Deposit no. / UTR / UID" style="max-width:260px;" />
+            <button class="btn" id="depositSearchBtn">Search</button>
+          </div>
+          <div id="depositSearchList"></div>
+        </div>
+
+        <div class="card">
           <div class="card-head"><h2>Deposit safety</h2></div>
           <div class="item-meta" style="margin:-6px 0 12px;">Take back a player's StockPay TEST deposits (play money): each is marked reversed and can never be credited again, whatever StockPay later reports. Use "Reverse" on a single deposit in the list above for anything else. The balance check lists players whose balance differs from what their transactions add up to — a sign the balance was changed by hand.</div>
           <div class="form-row">
@@ -1439,6 +1449,46 @@
         loadUpiDeposits();
       })
       .catch(function (err) { btn.disabled = false; if (err.authError) doLogout(); else showAlert(err.message); });
+  });
+  function depositTrackRowHtml(d) {
+    var u = d.user || {};
+    var name = [u.firstName, u.lastName].filter(Boolean).join(' ') || '—';
+    var statusText = d.reversedAt ? 'REVERSED' : d.status === 'COMPLETED' ? 'CREDITED' : d.status;
+    var statusClass = d.reversedAt || d.status === 'FAILED' ? 'failed' : d.status === 'COMPLETED' ? 'approved' : 'pending';
+    var who = d.provider === 'rupayex' ? 'RupayEx' : d.provider === 'admin-manual' ? 'Manual (admin)' : (d.provider || '—');
+    return '<div class="item"><div class="item-top"><div>' +
+      '<div class="item-title">' + fmtMoney(d.amount) + ' — ' + escapeHtml(name) + ' (UID ' + (u.uid || '—') + ')</div>' +
+      '<div class="item-meta">Deposit no. <b>' + escapeHtml(d.depositNo) + '</b> · ' + escapeHtml(who) + ' · ' + new Date(d.createdAt).toLocaleString() + '</div>' +
+      '<div class="item-meta">UTR: ' + escapeHtml(d.utr || '— not known yet') + '</div>' +
+      '<div class="item-meta" id="track-' + escapeHtml(d.id) + '"></div>' +
+      '</div><div style="text-align:right;flex:0 0 auto;"><span class="pill ' + statusClass + '">' + statusText + '</span></div></div>' +
+      (d.provider === 'rupayex' ? '<div class="item-actions"><button class="icon-btn view" data-action="recheck" data-id="' + escapeHtml(d.id) + '">Check with RupayEx</button></div>' : '') +
+      '</div>';
+  }
+  function searchDeposits() {
+    var q = document.getElementById('depositSearchQ').value.trim();
+    if (q.length < 3) return showAlert('Enter a deposit number, UTR or UID.');
+    api('/admin/deposits/search?q=' + encodeURIComponent(q)).then(function (rows) {
+      document.getElementById('depositSearchList').innerHTML = rows.length ? rows.map(depositTrackRowHtml).join('') : '<div class="empty">No deposit found for "' + escapeHtml(q) + '".</div>';
+    }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  }
+  document.getElementById('depositSearchBtn').addEventListener('click', searchDeposits);
+  document.getElementById('depositSearchQ').addEventListener('keydown', function (e) { if (e.key === 'Enter') searchDeposits(); });
+  document.getElementById('depositSearchList').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-action="recheck"]');
+    if (!btn) return;
+    var id = btn.getAttribute('data-id');
+    btn.disabled = true;
+    api('/admin/deposits/' + encodeURIComponent(id) + '/recheck', { method: 'POST' })
+      .then(function (r) {
+        var live = r.live || {};
+        document.getElementById('track-' + id).innerHTML =
+          '<b>RupayEx now:</b> ' + escapeHtml(live.state || (live.answered ? 'no status' : 'no answer')) +
+          (live.amount != null ? ' · ' + fmtMoney(live.amount) : '') + (live.utr ? ' · UTR ' + escapeHtml(live.utr) : '') +
+          '<br/>' + escapeHtml(r.note);
+      })
+      .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); })
+      .finally(function () { btn.disabled = false; });
   });
   document.getElementById('reverseTestBtn').addEventListener('click', function () {
     var uid = document.getElementById('reverseTestUid').value.trim();

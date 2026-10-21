@@ -1,11 +1,12 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { asyncHandler, ApiError } from "../middleware/errorHandler";
 import { requireAdmin, requireAuth } from "../middleware/auth";
 import { prisma } from "../db/prismaClient";
 import { env } from "../config/env";
 import { paymentProvider } from "../services/paymentService";
-import { completeDeposit, reverseDeposit } from "../services/depositService";
+import { completeDeposit, depositNumberOf, depositUtrOf, reverseDeposit } from "../services/depositService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
 import { LOTTERY_RTP } from "../services/lotteryHouse";
@@ -482,6 +483,59 @@ router.get(
       select: { id: true, amount: true, status: true, provider: true, providerReferenceId: true, createdAt: true, reversedAt: true, user: { select: { id: true, ...userSummarySelect } } },
     });
     res.json(rows);
+  })
+);
+
+// --- Deposit tracker: find any deposit, and ask RupayEx about it ---
+
+/**
+ * Deposits matching a deposit number ("NP…" order id or "NP-…" short id), a
+ * UTR, or a player's UID — newest first, each with what the player sees and
+ * whether it was credited.
+ */
+router.get(
+  "/deposits/search",
+  asyncHandler(async (req, res) => {
+    const q = z.string().trim().min(3).max(64).parse(req.query.q);
+    const shortId = /^NP-[0-9A-F]{10}$/i.test(q) ? q.slice(3).toLowerCase() : null;
+    const or: Prisma.TransactionWhereInput[] = [
+      { providerReferenceId: { equals: q, mode: "insensitive" } },
+      { paymentUtr: { equals: q, mode: "insensitive" } },
+    ];
+    if (/^\d{4,7}$/.test(q)) or.push({ user: { uid: Number(q) } });
+    const rows = await prisma.transaction.findMany({
+      where: { type: "DEPOSIT", OR: or },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: { id: true, amount: true, status: true, provider: true, providerReferenceId: true, paymentUtr: true, reversedAt: true, createdAt: true, user: { select: { id: true, ...userSummarySelect } } },
+    });
+    // The short "NP-…" number is the start of the id (dashes left out).
+    const byShort = shortId
+      ? (await prisma.$queryRaw<{ id: string }[]>`SELECT id FROM "Transaction" WHERE type = 'DEPOSIT' AND replace(id, '-', '') LIKE ${shortId + "%"} LIMIT 5`).map((r) => r.id)
+      : [];
+    const extra = byShort.length
+      ? await prisma.transaction.findMany({
+          where: { id: { in: byShort.filter((id) => !rows.some((r) => r.id === id)) } },
+          select: { id: true, amount: true, status: true, provider: true, providerReferenceId: true, paymentUtr: true, reversedAt: true, createdAt: true, user: { select: { id: true, ...userSummarySelect } } },
+        })
+      : [];
+    res.json(
+      [...extra, ...rows].map((r) => ({
+        ...r,
+        amount: Number(r.amount),
+        depositNo: depositNumberOf(r),
+        utr: depositUtrOf(r),
+        credited: r.status === "COMPLETED" && !r.reversedAt,
+      }))
+    );
+  })
+);
+
+/** Asks RupayEx about one deposit now; credits it if RupayEx says it was paid and it wasn't credited (rupayexService.adminRecheckDeposit). */
+router.post(
+  "/deposits/:id/recheck",
+  asyncHandler(async (req, res) => {
+    res.json(await rupayex.adminRecheckDeposit(req.params.id));
   })
 );
 

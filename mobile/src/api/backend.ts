@@ -3685,6 +3685,9 @@ export type WalletHistory = {
     status: 'PENDING' | 'COMPLETED' | 'FAILED';
     createdAt: string;
     utr?: string | null;
+    /** Deposits: the deposit's own number (quote it to support) and the bank's UTR once known. */
+    depositNo?: string;
+    depositUtr?: string | null;
   }[];
 };
 

@@ -7,6 +7,7 @@ import { prisma } from "../db/prismaClient";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
 import * as rupayex from "../services/rupayexService";
 import { env } from "../config/env";
+import { depositNumberOf, depositUtrOf } from "../services/depositService";
 import { istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
 
 const router = Router();
@@ -276,7 +277,7 @@ router.get(
         where: { userId, type },
         orderBy: { createdAt: "desc" },
         take: 200,
-        select: { id: true, amount: true, fee: true, providerFee: true, status: true, createdAt: true, provider: true, providerReferenceId: true },
+        select: { id: true, amount: true, fee: true, providerFee: true, status: true, createdAt: true, provider: true, providerReferenceId: true, paymentUtr: true },
       }),
       prisma.transaction.aggregate({ where: { userId, type, status: "COMPLETED" }, _sum: { amount: true }, _count: true }),
       prisma.transaction.aggregate({ where: { userId, type, status: "PENDING" }, _sum: { amount: true } }),
@@ -286,8 +287,12 @@ router.get(
       total: Number(completed._sum.amount ?? 0),
       count: completed._count,
       pending: Number(pending._sum.amount ?? 0),
-      items: items.map(({ provider, providerReferenceId, ...t }) => ({
+      items: items.map(({ provider, providerReferenceId, paymentUtr, ...t }) => ({
         ...t,
+        // Deposits: their own number (to quote to support) and the bank's UTR once known.
+        ...(type === "DEPOSIT"
+          ? { depositNo: depositNumberOf({ id: t.id, provider, providerReferenceId }), depositUtr: depositUtrOf({ provider, providerReferenceId, paymentUtr }) }
+          : {}),
         amount: Number(t.amount),
         fee: Number(t.fee ?? 0),
         providerFee: t.providerFee == null ? null : Number(t.providerFee),

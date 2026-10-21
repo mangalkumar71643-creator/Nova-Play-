@@ -311,6 +311,9 @@ model Transaction {
   // credited, voided if it wasn't). A reversed deposit can never be credited
   // again, whatever its payment company later reports.
   reversedAt          DateTime?
+  // Deposits only: the bank / UPI reference (UTR) the payment company gave
+  // for this payment, kept for tracing a deposit with the player and the bank.
+  paymentUtr          String?
   betId               String?
   bet                 Bet?              @relation(fields: [betId], references: [id])
   createdAt           DateTime          @default(now())
