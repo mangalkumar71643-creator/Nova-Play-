@@ -194,6 +194,8 @@ async function settle(tx: DepositRow) {
       throw new ApiError(400, "The paid amount does not match this deposit. Please contact support.");
     }
     const done = await completeDeposit(tx.userId, amount, PROVIDER, orderId, tx.id);
+    // Reversed by the admin, or too old to credit: stays uncredited.
+    if (done.refused) return { status: "FAILED" as const, amount, bonus: 0, alreadyCredited: false };
     return { status: "COMPLETED" as const, amount, bonus: done.bonus, alreadyCredited: done.alreadyCompleted };
   }
   const expired = Date.now() - tx.createdAt.getTime() > ORDER_LIFETIME_MS;
@@ -204,17 +206,18 @@ async function settle(tx: DepositRow) {
   return { status: tx.status === "FAILED" ? ("FAILED" as const) : ("PENDING" as const), amount, bonus: 0, alreadyCredited: false };
 }
 
-/** Whether a row may still be asked about: not paid yet, and not FAILED beyond the late-payment window. */
-const checkable = (tx: { status: string; createdAt: Date }) =>
-  tx.status === "PENDING" || (tx.status === "FAILED" && Date.now() - tx.createdAt.getTime() < LATE_PAYMENT_WINDOW_MS);
+/** Whether a row may still be asked about: not paid yet, not reversed by the admin, and within the late-payment window. */
+const checkable = (tx: { status: string; createdAt: Date; reversedAt?: Date | null }) =>
+  !tx.reversedAt && (tx.status === "PENDING" || tx.status === "FAILED") && Date.now() - tx.createdAt.getTime() < LATE_PAYMENT_WINDOW_MS;
 
 /** Open rows worth asking RupayEx about: PENDING ones, and FAILED ones young enough for a late payment. */
 async function openRows(where: { userId?: string }, takePending: number, takeFailed: number) {
-  const base = { ...where, type: "DEPOSIT" as const, provider: PROVIDER };
+  const base = { ...where, type: "DEPOSIT" as const, provider: PROVIDER, reversedAt: null };
+  const since = new Date(Date.now() - LATE_PAYMENT_WINDOW_MS);
   const [pending, failed] = await Promise.all([
-    prisma.transaction.findMany({ where: { ...base, status: "PENDING" }, orderBy: { createdAt: "desc" }, take: takePending }),
+    prisma.transaction.findMany({ where: { ...base, status: "PENDING", createdAt: { gte: since } }, orderBy: { createdAt: "desc" }, take: takePending }),
     prisma.transaction.findMany({
-      where: { ...base, status: "FAILED", createdAt: { gte: new Date(Date.now() - LATE_PAYMENT_WINDOW_MS) } },
+      where: { ...base, status: "FAILED", createdAt: { gte: since } },
       orderBy: { createdAt: "desc" },
       take: takeFailed,
     }),

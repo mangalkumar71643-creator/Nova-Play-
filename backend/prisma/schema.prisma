@@ -48,6 +48,8 @@ enum TransactionType {
   BONUS
   DEPOSIT_BONUS
   WITHDRAWAL_REVERSAL
+  // Money taken back for a deposit the admin reversed (Transaction.reversedAt).
+  DEPOSIT_REVERSAL
 }
 
 enum TransactionStatus {
@@ -303,6 +305,10 @@ model Transaction {
   // of what it sent, and when the payout was sent to it.
   providerFee         Decimal?          @db.Decimal(12, 2)
   sentAt              DateTime?
+  // Deposits only: set when the admin reverses it (taken back if it was
+  // credited, voided if it wasn't). A reversed deposit can never be credited
+  // again, whatever its payment company later reports.
+  reversedAt          DateTime?
   betId               String?
   bet                 Bet?              @relation(fields: [betId], references: [id])
   createdAt           DateTime          @default(now())

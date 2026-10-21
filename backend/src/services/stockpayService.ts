@@ -212,6 +212,8 @@ async function settle(tx: { id: string; userId: string; amount: unknown; status?
       throw new ApiError(400, "The paid amount does not match this deposit. Please contact support.");
     }
     const done = await completeDeposit(tx.userId, amount, provider, order.id, tx.id);
+    // Reversed by the admin, or too old to credit: stays uncredited.
+    if (done.refused) return { status: "FAILED" as const, amount, bonus: 0, alreadyCredited: false };
     return { status: "COMPLETED" as const, amount, bonus: done.bonus, alreadyCredited: done.alreadyCompleted };
   }
   if (order.status === "expired" || order.status === "cancelled") {
@@ -224,12 +226,12 @@ async function settle(tx: { id: string; userId: string; amount: unknown; status?
 
 /** Open rows worth asking StockPay about: PENDING ones, and FAILED ones young enough for a late payment. */
 async function openRows(where: { userId?: string }, mode: Mode, takePending: number, takeFailed: number) {
-  const base = { ...where, type: "DEPOSIT" as const, provider: providerFor(mode) };
+  const base = { ...where, type: "DEPOSIT" as const, provider: providerFor(mode), reversedAt: null };
   const [pending, failed] = await Promise.all([
-    // A payment page lives 15 minutes by default, so an open row is settled
-    // the first time anyone looks; the window only bounds the work.
+    // A payment page lives 15 minutes by default and is paid within a day
+    // at the latest, so an older order is never asked about again.
     prisma.transaction.findMany({
-      where: { ...base, status: "PENDING", createdAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) } },
+      where: { ...base, status: "PENDING", createdAt: { gte: new Date(Date.now() - LATE_PAYMENT_WINDOW_MS) } },
       orderBy: { createdAt: "desc" },
       take: takePending,
     }),
@@ -315,7 +317,7 @@ export async function handleWebhook(rawBody: Buffer, headers: Record<string, str
   if (event.event !== "order.paid") return { ignored: true };
   // FAILED too: an order that expired can still be paid late.
   const tx = await prisma.transaction.findFirst({
-    where: { provider, providerReferenceId: orderId, type: "DEPOSIT", status: { in: ["PENDING", "FAILED"] } },
+    where: { provider, providerReferenceId: orderId, type: "DEPOSIT", status: { in: ["PENDING", "FAILED"] }, reversedAt: null },
     orderBy: { createdAt: "desc" },
   });
   if (!tx) return { ignored: true };

@@ -1,5 +1,5 @@
 {
-  "buildCommand": "if [ \"$VERCEL_ENV\" = \"preview\" ]; then echo 'Preview build: database left untouched'; else npx prisma db push --accept-data-loss --skip-generate && npx tsx prisma/seed.ts; fi",
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"preview\" ]; then echo 'Preview build: database left untouched'; else npx prisma db push --skip-generate && npx tsx prisma/seed.ts; fi",
   "outputDirectory": "public",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
 }

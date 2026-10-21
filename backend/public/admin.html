@@ -426,6 +426,17 @@
           </div>
           <div id="upiDepositsList"></div>
         </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Deposit safety</h2></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Take back a player's StockPay TEST deposits (play money): each is marked reversed and can never be credited again, whatever StockPay later reports. Use "Reverse" on a single deposit in the list above for anything else. The balance check lists players whose balance differs from what their transactions add up to — a sign the balance was changed by hand.</div>
+          <div class="form-row">
+            <input id="reverseTestUid" type="number" placeholder="Player UID" style="max-width:160px;" />
+            <button class="btn danger" id="reverseTestBtn">Take back TEST deposits</button>
+            <button class="btn secondary" id="balanceAuditBtn">Check balances</button>
+          </div>
+          <div id="balanceAuditList"></div>
+        </div>
       </div>
 
       <div class="panel" id="panel-game-colorpredict">
@@ -1356,9 +1367,13 @@
     // A deposit still PENDING after the payment page's lifetime is stuck
     // (player abandoned it, or the webhook never arrived) — flag it red.
     var stuck = d.status === 'PENDING' && (Date.now() - new Date(d.createdAt).getTime()) > STUCK_AFTER_MS;
-    var actions = d.status === 'PENDING'
+    var actions = (d.status === 'PENDING' && !d.reversedAt
       ? '<button class="icon-btn view" data-action="msg" data-user="' + escapeHtml(u.id || '') + '" data-name="' + escapeHtml(name) + '" data-amount="' + Number(d.amount) + '" data-order="' + escapeHtml(d.providerReferenceId || '') + '">Message player</button>'
-      : '';
+      : '') +
+      // Taking a deposit back (or voiding an open one) marks it so it can never be credited again.
+      (!d.reversedAt
+        ? ' <button class="icon-btn ban" data-action="reverse" data-id="' + escapeHtml(d.id) + '" data-amount="' + Number(d.amount) + '" data-status="' + d.status + '">' + (d.status === 'COMPLETED' ? 'Reverse (take back)' : 'Void') + '</button>'
+        : '');
     return (
       '<div class="item">' +
         '<div class="item-top">' +
@@ -1372,7 +1387,8 @@
             (d.provider === 'stockpay_live'
               ? '<br/><span class="pill approved" style="display:inline-block;margin-top:6px;">LIVE ₹</span>'
               : '<br/><span class="pill" style="display:inline-block;margin-top:6px;">TEST</span>') +
-            (stuck ? '<br/><span class="pill failed" style="display:inline-block;margin-top:6px;">STUCK &gt;30m</span>' : '') +
+            (stuck && !d.reversedAt ? '<br/><span class="pill failed" style="display:inline-block;margin-top:6px;">STUCK &gt;30m</span>' : '') +
+            (d.reversedAt ? '<br/><span class="pill failed" style="display:inline-block;margin-top:6px;">REVERSED</span>' : '') +
           '</div>' +
         '</div>' +
         (actions ? '<div class="item-actions">' + actions + '</div>' : '') +
@@ -1408,6 +1424,45 @@
       });
     }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
   }
+  document.getElementById('upiDepositsList').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-action="reverse"]');
+    if (!btn) return;
+    var completed = btn.getAttribute('data-status') === 'COMPLETED';
+    var msg = completed
+      ? 'Take back this ' + fmtMoney(btn.getAttribute('data-amount')) + ' deposit from the player\'s balance? It can never be credited again.'
+      : 'Void this deposit? It can never be credited, even if the payment company later reports it paid.';
+    if (!confirm(msg)) return;
+    btn.disabled = true;
+    api('/admin/deposits/' + encodeURIComponent(btn.getAttribute('data-id')) + '/reverse', { method: 'POST' })
+      .then(function (r) {
+        showAlert(r.voided ? 'Deposit voided.' : 'Taken back ' + fmtMoney(r.takenBack) + (r.shortfall > 0 ? ' — ' + fmtMoney(r.shortfall) + ' was already spent and could not be taken back.' : '.'));
+        loadUpiDeposits();
+      })
+      .catch(function (err) { btn.disabled = false; if (err.authError) doLogout(); else showAlert(err.message); });
+  });
+  document.getElementById('reverseTestBtn').addEventListener('click', function () {
+    var uid = document.getElementById('reverseTestUid').value.trim();
+    if (!uid) return showAlert('Enter the player\'s UID.');
+    if (!confirm('Take back every StockPay TEST deposit of UID ' + uid + ' and void their open test orders?')) return;
+    api('/admin/users/by-uid/' + encodeURIComponent(uid) + '/reverse-test-deposits', { method: 'POST' })
+      .then(function (r) {
+        showAlert('UID ' + uid + ': ' + r.reversed + ' test deposit(s) taken back (' + fmtMoney(r.takenBack) + ')' + (r.shortfall > 0 ? ', ' + fmtMoney(r.shortfall) + ' already spent' : '') + ', ' + r.voided + ' open order(s) voided. Balance now ' + fmtMoney(r.balance) + '.');
+        loadUpiDeposits();
+      })
+      .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  });
+  document.getElementById('balanceAuditBtn').addEventListener('click', function () {
+    api('/admin/audit/balances').then(function (rows) {
+      document.getElementById('balanceAuditList').innerHTML = rows.length
+        ? rows.map(function (r) {
+            return '<div class="item"><div class="item-top"><div>' +
+              '<div class="item-title">UID ' + (r.uid || '—') + ' — ' + escapeHtml(r.name || r.phone || '') + '</div>' +
+              '<div class="item-meta">Balance ' + fmtMoney(r.balance) + ' · transactions add up to ' + fmtMoney(r.ledger) + '</div>' +
+              '</div><div style="text-align:right;"><span class="pill ' + (r.difference > 0 ? 'failed' : 'pending') + '">' + (r.difference > 0 ? '+' : '') + fmtMoney(r.difference) + '</span></div></div></div>';
+          }).join('')
+        : '<div class="empty">Every balance matches its transactions.</div>';
+    }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  });
   document.getElementById('upiDepositsRefresh').addEventListener('click', loadUpiDeposits);
   document.getElementById('upiDepositStatus').addEventListener('change', loadUpiDeposits);
 

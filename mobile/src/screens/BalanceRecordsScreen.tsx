@@ -24,6 +24,8 @@ function recordLabel(r: BalanceRecord): string {
       return r.status === 'PENDING' ? 'Withdrawal (pending)' : r.status === 'FAILED' ? 'Withdrawal (rejected)' : 'Withdrawal';
     case 'WITHDRAWAL_REVERSAL':
       return 'Withdrawal refunded';
+    case 'DEPOSIT_REVERSAL':
+      return 'Deposit reversed';
     case 'DEPOSIT_BONUS':
       return 'Deposit bonus';
     case 'BONUS':

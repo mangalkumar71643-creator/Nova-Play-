@@ -111,7 +111,8 @@ export interface BackendTransaction {
     | 'GAME_PAYOUT'
     | 'BONUS'
     | 'DEPOSIT_BONUS'
-    | 'WITHDRAWAL_REVERSAL';
+    | 'WITHDRAWAL_REVERSAL'
+    | 'DEPOSIT_REVERSAL';
   amount: string;
   status: 'PENDING' | 'COMPLETED' | 'FAILED';
   provider: string | null;

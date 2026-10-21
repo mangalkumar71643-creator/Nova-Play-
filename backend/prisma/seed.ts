@@ -127,7 +127,7 @@ async function ensureUnplayedDepositTrigger() {
          AND (NEW.type = 'DEPOSIT' OR (NEW.type = 'BONUS' AND NEW.provider IN ('admin-credit', 'gift-code', 'vip-upgrade', 'vip-weekly', 'agent-reward')))
          AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'COMPLETED') THEN
         UPDATE "Wallet" SET "unplayedDeposit" = "unplayedDeposit" + NEW.amount WHERE "userId" = NEW."userId";
-      ELSIF TG_OP = 'INSERT' AND NEW.type IN ('GAME_STAKE', 'BET_STAKE') THEN
+      ELSIF TG_OP = 'INSERT' AND NEW.type IN ('GAME_STAKE', 'BET_STAKE', 'DEPOSIT_REVERSAL') THEN
         UPDATE "Wallet" SET "unplayedDeposit" = GREATEST(0, "unplayedDeposit" - NEW.amount) WHERE "userId" = NEW."userId";
       END IF;
       RETURN NEW;

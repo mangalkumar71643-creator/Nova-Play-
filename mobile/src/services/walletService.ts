@@ -22,6 +22,7 @@ const TX_ICONS: Record<BackendTransaction['type'], IconName> = {
   BONUS: 'gift-outline',
   DEPOSIT_BONUS: 'gift-outline',
   WITHDRAWAL_REVERSAL: 'bank-transfer',
+  DEPOSIT_REVERSAL: 'cash-minus',
 };
 
 const TX_TITLES: Record<BackendTransaction['type'], string> = {
@@ -35,6 +36,7 @@ const TX_TITLES: Record<BackendTransaction['type'], string> = {
   BONUS: 'Bonus credit',
   DEPOSIT_BONUS: 'Deposit bonus',
   WITHDRAWAL_REVERSAL: 'Withdrawal reversed',
+  DEPOSIT_REVERSAL: 'Deposit reversed',
 };
 
 const CREDIT_TYPES = new Set<BackendTransaction['type']>([

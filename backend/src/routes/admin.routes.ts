@@ -5,7 +5,7 @@ import { requireAdmin, requireAuth } from "../middleware/auth";
 import { prisma } from "../db/prismaClient";
 import { env } from "../config/env";
 import { paymentProvider } from "../services/paymentService";
-import { completeDeposit } from "../services/depositService";
+import { completeDeposit, reverseDeposit } from "../services/depositService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
 import { LOTTERY_RTP } from "../services/lotteryHouse";
@@ -479,9 +479,84 @@ router.get(
       where: { provider: { in: [rupayex.PROVIDER, ...STOCKPAY_PROVIDERS] }, type: "DEPOSIT", status },
       orderBy: { createdAt: "desc" },
       take: 200,
-      select: { id: true, amount: true, status: true, provider: true, providerReferenceId: true, createdAt: true, user: { select: { id: true, ...userSummarySelect } } },
+      select: { id: true, amount: true, status: true, provider: true, providerReferenceId: true, createdAt: true, reversedAt: true, user: { select: { id: true, ...userSummarySelect } } },
     });
     res.json(rows);
+  })
+);
+
+// --- Taking a deposit back, and checking balances against the ledger ---
+
+/** Reverses one deposit (depositService.reverseDeposit): a credited one is
+ * taken back, an uncredited one voided; either way it can never be credited
+ * again. */
+router.post(
+  "/deposits/:id/reverse",
+  asyncHandler(async (req, res) => {
+    res.json(await reverseDeposit(req.params.id));
+  })
+);
+
+/** Takes back every StockPay TEST deposit (play money) of one player, and
+ * voids their open test orders, so test money can't stay or come back. */
+router.post(
+  "/users/by-uid/:uid/reverse-test-deposits",
+  asyncHandler(async (req, res) => {
+    const user = await findPlayerByUid(req.params.uid);
+    const deposits = await prisma.transaction.findMany({
+      where: { userId: user.id, type: "DEPOSIT", provider: STOCKPAY_PROVIDER, reversedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    const results = [];
+    for (const d of deposits) results.push(await reverseDeposit(d.id));
+    const wallet = await prisma.wallet.findUnique({ where: { userId: user.id } });
+    res.json({
+      user,
+      reversed: results.filter((r) => !r.voided).length,
+      voided: results.filter((r) => r.voided).length,
+      takenBack: Math.round(results.reduce((t, r) => t + r.takenBack, 0) * 100) / 100,
+      shortfall: Math.round(results.reduce((t, r) => t + r.shortfall, 0) * 100) / 100,
+      balance: wallet?.balance ?? 0,
+    });
+  })
+);
+
+/**
+ * Players whose wallet balance differs from what their transactions add up
+ * to (the same sum the app's balance records use). A difference means the
+ * balance was changed without a transaction — by hand in the database, for
+ * instance — and is worth looking at.
+ */
+router.get(
+  "/audit/balances",
+  asyncHandler(async (_req, res) => {
+    const rows = await prisma.$queryRaw<{ userId: string; uid: number | null; firstName: string | null; lastName: string | null; phone: string | null; balance: unknown; ledger: unknown }[]>`
+      WITH ledger AS (
+        SELECT "userId", SUM(
+          CASE
+            WHEN type IN ('DEPOSIT', 'BET_PAYOUT', 'GAME_PAYOUT', 'BONUS', 'BET_REFUND', 'DEPOSIT_BONUS', 'WITHDRAWAL_REVERSAL')
+              THEN CASE WHEN status = 'COMPLETED' THEN amount ELSE 0 END
+            ELSE -amount
+          END) AS ledger
+        FROM "Transaction" GROUP BY "userId"
+      )
+      SELECT w."userId", u.uid, u."firstName", u."lastName", u.phone, w.balance, COALESCE(l.ledger, 0) AS ledger
+      FROM "Wallet" w JOIN "User" u ON u.id = w."userId" LEFT JOIN ledger l ON l."userId" = w."userId"
+      WHERE ABS(w.balance - COALESCE(l.ledger, 0)) >= 0.01
+      ORDER BY ABS(w.balance - COALESCE(l.ledger, 0)) DESC
+      LIMIT 200`;
+    res.json(
+      rows.map((r) => ({
+        userId: r.userId,
+        uid: r.uid,
+        name: [r.firstName, r.lastName].filter(Boolean).join(" ") || null,
+        phone: r.phone,
+        balance: Number(r.balance),
+        ledger: Number(r.ledger),
+        difference: Math.round((Number(r.balance) - Number(r.ledger)) * 100) / 100,
+      }))
+    );
   })
 );
 
