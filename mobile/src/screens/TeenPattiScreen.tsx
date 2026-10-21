@@ -24,6 +24,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { useAuth } from '../state/AuthContext';
+import ResultRuleNotice from '../components/ResultRuleNotice';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500, 1000];
 const CHIP_COLORS: Record<number, string> = {
@@ -813,6 +814,7 @@ export default function TeenPattiScreen() {
 
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Teen Patti" />
       <LinearGradient colors={['#3A0D16', '#1E060B']} style={StyleSheet.absoluteFill} />
 
       {/* Top bar */}

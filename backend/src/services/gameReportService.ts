@@ -150,9 +150,21 @@ export async function getGameReport() {
     const p = r2(Number(paid));
     return { staked: s, paid: p, profit: r2(s - p), edgePercent: s > 0 ? Math.round(((s - p) / s) * 10000) / 100 : null };
   };
-  // Retired games have no target any more.
-  const targetEdge = (category: string) =>
-    category === "Retired" ? null : Math.round((1 - (category === "Lottery" ? LOTTERY_RTP : env.games.rtp)) * 1000) / 10;
+  // Target house edge per game, where one setting fixes it. Retired games
+  // and games with their own paytables (slots, poker, ...) show none.
+  const edgeOf = (key: string, category: string): number | null => {
+    if (category === "Retired") return null;
+    if (category === "Lottery") return 1 - LOTTERY_RTP;
+    if (category === "Crash") return env.games.crashHouseEdge;
+    if (["AndarBahar", "TeenPatti", "DragonTiger", "Baccarat", "Roulette"].includes(key)) return 1 - env.games.tableRtp;
+    if (key === "SevenUpDown") return 1 - env.games.sevenUpDownRtp;
+    if (["Dice", "Limbo", "Plinko", "Keno", "Hilo", "Mines", "ChickenRoad", "DragonTower", "Pump", "CoinFlip"].includes(key)) return 1 - env.games.rtp;
+    return null;
+  };
+  const targetEdge = (key: string, category: string) => {
+    const e = edgeOf(key, category);
+    return e === null ? null : Math.round(e * 1000) / 10;
+  };
 
   const games = SOURCES.map((src) => {
     const r = byKey.get(src.key)!;
@@ -160,7 +172,7 @@ export async function getGameReport() {
       key: src.key,
       name: src.name,
       category: src.category,
-      targetEdgePercent: targetEdge(src.category),
+      targetEdgePercent: targetEdge(src.key, src.category),
       bets: Number(r.bets_all),
       players: Number(r.players_all),
       betsToday: Number(r.bets_today),

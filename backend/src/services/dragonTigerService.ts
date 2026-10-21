@@ -2,8 +2,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
-import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
+import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { assertTableAppShowsRules, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
  * "Dragon Tiger": one card to Dragon, one to Tiger, higher rank wins (Ace
@@ -47,7 +48,7 @@ function winChance(area: Area): number {
  * the shared rtp on every bet. Dragon / Tiger bets lose on a tie. Rounded
  * down so the edge is never smaller than advertised. */
 export function multiplierFor(area: Area): number {
-  return floor2(env.games.rtp / winChance(area));
+  return floor2(env.games.tableRtp / winChance(area));
 }
 
 export type Winner = "DRAGON" | "TIGER" | "TIE";
@@ -72,6 +73,24 @@ export function cardsFor(serverSeed: string, periodNumber: string): [number, num
   const dragon = Math.floor(fairRandomFloat(serverSeed, periodNumber, 0) * 52);
   const tiger = Math.floor(fairRandomFloat(serverSeed, periodNumber, 1) * 52);
   return [dragon, tiger];
+}
+
+/** Under the least-payout rule (leastPayout.ts): the Dragon and Tiger
+ * cards, of all 52 x 52, that pay the least on every chip on the round. */
+export function leastPayoutCards(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): [number, number] {
+  const staked = [...stakedByKey(bets)].map(([area, amount]) => ({ area: area as Area, pays: amount * multiplierFor(area as Area) }));
+  const deals: [number, number][] = [];
+  for (let d = 0; d < 52; d++) for (let t = 0; t < 52; t++) deals.push([d, t]);
+  return leastPayoutOutcome(
+    deals,
+    ([d, t]) => staked.reduce((s, x) => (areaWins(x.area, d, t) ? s + x.pays : s), 0),
+    fairGameFloat(serverSeed, periodNumber, "dragontiger-least", 0)
+  );
+}
+
+/** Older apps describe a random result: no bets from them under the rule. */
+export function assertAppShowsRules(appVersion: string | undefined) {
+  assertTableAppShowsRules(appVersion, env.games.tableLeastPayout);
 }
 
 /** IST has no DST, so a fixed offset is exact. Period = IST date + the
@@ -134,9 +153,16 @@ async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "DragonTigerRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.dragonTigerBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  let { dragonCard, tigerCard } = round;
+  if (env.games.tableLeastPayout) {
+    // From every chip still on the round, so a second settler arrives at
+    // the same cards.
+    [dragonCard, tigerCard] = leastPayoutCards(await prisma.dragonTigerBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
+    await prisma.dragonTigerRound.updateMany({ where: { id: round.id, settled: false }, data: { dragonCard, tigerCard } });
+  }
 
   for (const bet of pending) {
-    const won = areaWins(bet.area as Area, round.dragonCard, round.tigerCard);
+    const won = areaWins(bet.area as Area, dragonCard, tigerCard);
     const payout = won ? Math.min(floor2(Number(bet.amount) * Number(bet.multiplier)), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.dragonTigerBet.updateMany({
@@ -206,8 +232,16 @@ function toView(round: RoundRow, now: Date) {
 
 export async function getCurrentRoundView() {
   const now = new Date();
-  const round = await getOrCreateRound(now);
+  let round = await getOrCreateRound(now);
   await settleDueRounds(now);
+  // Settling may have just set the result (least-payout rule): show that.
+  if (phaseFor(round, now) === "RESULT") {
+    round = await prisma.dragonTigerRound.findUniqueOrThrow({ where: { id: round.id } });
+    if (!round.settled) {
+      await settleRound(round);
+      round = await prisma.dragonTigerRound.findUniqueOrThrow({ where: { id: round.id } });
+    }
+  }
   return toView(round, now);
 }
 
@@ -219,8 +253,9 @@ export function getDragonTigerConfig() {
     roundSeconds: ROUND_SECONDS,
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(env.games.tableRtp * 100),
     multipliers: Object.fromEntries(AREAS.map((a) => [a, multiplierFor(a)])),
+    resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
   };
 }
 

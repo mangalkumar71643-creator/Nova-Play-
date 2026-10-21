@@ -3,6 +3,7 @@ import { z } from "zod";
 import { asyncHandler } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import {
+  assertAppShowsRules,
   AREAS,
   cancelDragonTigerBets,
   getCurrentRoundView,
@@ -46,6 +47,7 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { bets } = betSchema.parse(req.body);
+    assertAppShowsRules(req.header("X-App-Version"));
     res.status(201).json(await placeDragonTigerBets(req.user!.userId, bets));
   })
 );

@@ -2,8 +2,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
-import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
+import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { assertTableAppShowsRules, leastPayoutByKind, stakedByKey } from "./leastPayout";
 
 /**
  * "Baccarat" (punto banco): two cards each to Player and Banker, the
@@ -62,7 +63,7 @@ export function handTotal(cards: number[]): number {
  * Rounded down so the edge is never smaller than advertised.
  */
 export function multiplierFor(area: Area): number {
-  const rtp = env.games.rtp;
+  const rtp = env.games.tableRtp;
   if (area === "PLAYER") return floor2((rtp - P_TIE) / P_PLAYER);
   if (area === "BANKER") return floor2((rtp - P_TIE) / P_BANKER);
   if (area === "TIE") return floor2(rtp / P_TIE);
@@ -132,6 +133,38 @@ export function drawsFor(serverSeed: string, periodNumber: string): number[] {
   return Array.from({ length: 6 }, (_, i) => Math.floor(fairRandomFloat(serverSeed, periodNumber, i) * 52));
 }
 
+/** What a Baccarat bet depends on: the winner and whether each hand
+ * opened with a pair. */
+type HandKind = { winner: Winner; playerPair: boolean; bankerPair: boolean };
+const HAND_KINDS: HandKind[] = (["PLAYER", "BANKER", "TIE"] as const).flatMap((winner) =>
+  [false, true].flatMap((playerPair) => [false, true].map((bankerPair) => ({ winner, playerPair, bankerPair })))
+);
+
+/** Under the least-payout rule (leastPayout.ts): the kind of hand that
+ * pays the least on every chip (a stake handed back on a tie counts as
+ * paid), dealt from the round's seed. */
+export function leastPayoutHand(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): { player: number[]; banker: number[] } {
+  const staked = [...stakedByKey(bets)].map(([area, amount]) => ({ area: area as Area, amount, multiplier: multiplierFor(area as Area) }));
+  const paidOn = (area: Area, multiplier: number, k: HandKind) => {
+    if (area === "PLAYER_PAIR") return k.playerPair ? multiplier : 0;
+    if (area === "BANKER_PAIR") return k.bankerPair ? multiplier : 0;
+    if (area === k.winner) return multiplier;
+    return k.winner === "TIE" && (area === "PLAYER" || area === "BANKER") ? 1 : 0;
+  };
+  return leastPayoutByKind(
+    HAND_KINDS,
+    (k) => staked.reduce((s, x) => s + x.amount * paidOn(x.area, x.multiplier, k), 0),
+    fairGameFloat(serverSeed, periodNumber, "baccarat-pick", 0),
+    (n) => dealHand(Array.from({ length: 6 }, (_, i) => Math.floor(fairGameFloat(serverSeed, periodNumber, "baccarat-least", n * 6 + i) * 52))),
+    ({ player, banker }) => HAND_KINDS.find((k) => k.winner === winnerOf(player, banker) && k.playerPair === isPair(player) && k.bankerPair === isPair(banker))!
+  );
+}
+
+/** Older apps describe a random result: no bets from them under the rule. */
+export function assertAppShowsRules(appVersion: string | undefined) {
+  assertTableAppShowsRules(appVersion, env.games.tableLeastPayout);
+}
+
 /** IST has no DST, so a fixed offset is exact. Period = IST date + the
  * slot's 1-based index within that day. */
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -192,9 +225,18 @@ async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "BaccaratRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.baccaratBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  let { playerCards, bankerCards } = round;
+  if (env.games.tableLeastPayout) {
+    // From every chip still on the round, so a second settler arrives at
+    // the same hand.
+    const hand = leastPayoutHand(await prisma.baccaratBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
+    playerCards = hand.player;
+    bankerCards = hand.banker;
+    await prisma.baccaratRound.updateMany({ where: { id: round.id, settled: false }, data: { playerCards, bankerCards } });
+  }
 
   for (const bet of pending) {
-    const paid = paidMultiplierFor(bet.area as Area, Number(bet.multiplier), round.playerCards, round.bankerCards);
+    const paid = paidMultiplierFor(bet.area as Area, Number(bet.multiplier), playerCards, bankerCards);
     const pushed = paid === 1;
     const payout = paid > 0 ? Math.min(floor2(Number(bet.amount) * paid), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
@@ -276,8 +318,16 @@ function toView(round: RoundRow, now: Date) {
 
 export async function getCurrentRoundView() {
   const now = new Date();
-  const round = await getOrCreateRound(now);
+  let round = await getOrCreateRound(now);
   await settleDueRounds(now);
+  // Settling may have just set the result (least-payout rule): show that.
+  if (phaseFor(round, now) === "RESULT") {
+    round = await prisma.baccaratRound.findUniqueOrThrow({ where: { id: round.id } });
+    if (!round.settled) {
+      await settleRound(round);
+      round = await prisma.baccaratRound.findUniqueOrThrow({ where: { id: round.id } });
+    }
+  }
   return toView(round, now);
 }
 
@@ -289,8 +339,9 @@ export function getBaccaratConfig() {
     roundSeconds: ROUND_SECONDS,
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(env.games.tableRtp * 100),
     multipliers: Object.fromEntries(AREAS.map((a) => [a, multiplierFor(a)])),
+    resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
   };
 }
 

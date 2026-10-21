@@ -2,8 +2,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
-import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
+import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { assertTableAppShowsRules, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
  * "7 Up Down": two dice per shared round, bets on the total. Rounds sit on
@@ -61,6 +62,24 @@ export function diceFor(serverSeed: string, periodNumber: string): [number, numb
   const d1 = Math.floor(fairRandomFloat(serverSeed, periodNumber, 0) * 6) + 1;
   const d2 = Math.floor(fairRandomFloat(serverSeed, periodNumber, 1) * 6) + 1;
   return [d1, d2];
+}
+
+/** Under the least-payout rule (leastPayout.ts): the pair of dice, of all
+ * 36, that pays the least on every chip still on the round. */
+export function leastPayoutDice(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): [number, number] {
+  const staked = [...stakedByKey(bets)].map(([area, amount]) => ({ area: area as Area, pays: amount * multiplierFor(area as Area) }));
+  const pairs: [number, number][] = [];
+  for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) pairs.push([a, b]);
+  return leastPayoutOutcome(
+    pairs,
+    ([a, b]) => staked.reduce((s, x) => (areaWins(x.area, a + b) ? s + x.pays : s), 0),
+    fairGameFloat(serverSeed, periodNumber, "7updown-least", 0)
+  );
+}
+
+/** Older apps describe a random result: no bets from them under the rule. */
+export function assertAppShowsRules(appVersion: string | undefined) {
+  assertTableAppShowsRules(appVersion, env.games.tableLeastPayout);
 }
 
 /** IST has no DST, so a fixed offset is exact. Period = IST date + the
@@ -123,8 +142,15 @@ async function getOrCreateRound(now: Date): Promise<RoundRow> {
 async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "SevenUpDownRound" WHERE id = ${round.id} FOR UPDATE`;
-  const total = round.dice1 + round.dice2;
+  let total = round.dice1 + round.dice2;
   const pending = await prisma.sevenUpDownBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  if (env.games.tableLeastPayout) {
+    // From every chip still on the round (betting has closed; removed chips
+    // are VOID), so a second settler arrives at the same dice.
+    const [dice1, dice2] = leastPayoutDice(await prisma.sevenUpDownBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
+    await prisma.sevenUpDownRound.updateMany({ where: { id: round.id, settled: false }, data: { dice1, dice2 } });
+    total = dice1 + dice2;
+  }
 
   for (const bet of pending) {
     const won = areaWins(bet.area as Area, total);
@@ -195,8 +221,16 @@ function toView(round: RoundRow, now: Date) {
 
 export async function getCurrentRoundView() {
   const now = new Date();
-  const round = await getOrCreateRound(now);
+  let round = await getOrCreateRound(now);
   await settleDueRounds(now);
+  // Settling may have just set the result (least-payout rule): show that.
+  if (phaseFor(round, now) === "RESULT") {
+    round = await prisma.sevenUpDownRound.findUniqueOrThrow({ where: { id: round.id } });
+    if (!round.settled) {
+      await settleRound(round);
+      round = await prisma.sevenUpDownRound.findUniqueOrThrow({ where: { id: round.id } });
+    }
+  }
   return toView(round, now);
 }
 
@@ -210,6 +244,7 @@ export function getSevenUpDownConfig() {
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
     multipliers,
+    resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
   };
 }
 

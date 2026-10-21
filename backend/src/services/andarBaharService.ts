@@ -2,8 +2,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
-import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
+import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { assertTableAppShowsRules, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
  * "Andar Bahar": a Joker card is turned up, then cards are dealt one at a
@@ -74,7 +75,7 @@ function winChance(area: Area): number {
  * the shared rtp on every bet, rounded down so the edge is never smaller
  * than advertised. */
 export function multiplierFor(area: Area): number {
-  return floor2(env.games.rtp / winChance(area));
+  return floor2(env.games.tableRtp / winChance(area));
 }
 
 export type Winner = "ANDAR" | "BAHAR";
@@ -108,6 +109,39 @@ export function dealFor(serverSeed: string, periodNumber: string): { joker: numb
     if (cardOf(card).rank === jokerRank) break;
   }
   return { joker, cards };
+}
+
+/**
+ * Under the least-payout rule (leastPayout.ts): every bet here depends only
+ * on how many cards get dealt (odd = Andar, even = Bahar, and the count
+ * ranges), so the count that pays the least on every chip is picked, then
+ * a deal of exactly that many cards is drawn from the round's seed: a
+ * Joker, count - 1 cards of other ranks, then one of the Joker's rank.
+ */
+export function leastPayoutDeal(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): { joker: number; cards: number[] } {
+  const staked = [...stakedByKey(bets)].map(([area, amount]) => ({ area: area as Area, pays: amount * multiplierFor(area as Area) }));
+  const counts = Array.from({ length: 49 }, (_, i) => i + 1);
+  const length = leastPayoutOutcome(
+    counts,
+    (k) => staked.reduce((s, x) => (areaWins(x.area, new Array<number>(k).fill(0)) ? s + x.pays : s), 0),
+    fairGameFloat(serverSeed, periodNumber, "andarbahar-least", 0)
+  );
+  let nonce = 1;
+  const pickFrom = (pool: number[]) => pool.splice(Math.floor(fairGameFloat(serverSeed, periodNumber, "andarbahar-deal", nonce++) * pool.length), 1)[0];
+  const deck = Array.from({ length: 52 }, (_, i) => i);
+  const joker = pickFrom(deck);
+  const jokerRank = cardOf(joker).rank;
+  const others = deck.filter((c) => cardOf(c).rank !== jokerRank);
+  const matches = deck.filter((c) => cardOf(c).rank === jokerRank);
+  const cards: number[] = [];
+  for (let i = 1; i < length; i++) cards.push(pickFrom(others));
+  cards.push(pickFrom(matches));
+  return { joker, cards };
+}
+
+/** Older apps describe a random result: no bets from them under the rule. */
+export function assertAppShowsRules(appVersion: string | undefined) {
+  assertTableAppShowsRules(appVersion, env.games.tableLeastPayout);
 }
 
 /** IST has no DST, so a fixed offset is exact. Period = IST date + the
@@ -170,9 +204,17 @@ async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "AndarBaharRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.andarBaharBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  let cards = round.cards;
+  if (env.games.tableLeastPayout) {
+    // From every chip still on the round, so a second settler arrives at
+    // the same deal.
+    const deal = leastPayoutDeal(await prisma.andarBaharBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
+    cards = deal.cards;
+    await prisma.andarBaharRound.updateMany({ where: { id: round.id, settled: false }, data: { joker: deal.joker, cards } });
+  }
 
   for (const bet of pending) {
-    const won = areaWins(bet.area as Area, round.cards);
+    const won = areaWins(bet.area as Area, cards);
     const payout = won ? Math.min(floor2(Number(bet.amount) * Number(bet.multiplier)), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.andarBaharBet.updateMany({
@@ -242,8 +284,16 @@ function toView(round: RoundRow, now: Date) {
 
 export async function getCurrentRoundView() {
   const now = new Date();
-  const round = await getOrCreateRound(now);
+  let round = await getOrCreateRound(now);
   await settleDueRounds(now);
+  // Settling may have just set the result (least-payout rule): show that.
+  if (phaseFor(round, now) === "RESULT") {
+    round = await prisma.andarBaharRound.findUniqueOrThrow({ where: { id: round.id } });
+    if (!round.settled) {
+      await settleRound(round);
+      round = await prisma.andarBaharRound.findUniqueOrThrow({ where: { id: round.id } });
+    }
+  }
   return toView(round, now);
 }
 
@@ -255,8 +305,9 @@ export function getAndarBaharConfig() {
     roundSeconds: ROUND_SECONDS,
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(env.games.tableRtp * 100),
     multipliers: Object.fromEntries(AREAS.map((a) => [a, multiplierFor(a)])),
+    resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
   };
 }
 

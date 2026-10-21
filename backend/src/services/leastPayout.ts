@@ -34,6 +34,40 @@ export function stakedByKey(bets: { area: string; amount: unknown }[]): Map<stri
 
 /** First app version whose rules text states the least-payout rule. */
 export const LEAST_PAYOUT_MIN_APP = [1, 0, 25];
+/** Same for the shared-table games (env.games.tableLeastPayout). */
+export const TABLE_LEAST_PAYOUT_MIN_APP = [1, 0, 26];
+
+/** Turns away bets from apps that don't show the table rule yet. */
+export function assertTableAppShowsRules(appVersion: string | undefined, enabled: boolean) {
+  if (enabled) assertAppAtLeast(appVersion, TABLE_LEAST_PAYOUT_MIN_APP);
+}
+
+/**
+ * For card games, whose deals are too many to list but whose bets only
+ * depend on a few kinds of result (Teen Patti: A / B / tie; Baccarat:
+ * winner and pairs): picks the kind that pays the least (ties to `draw`),
+ * then deals from the round's seed (nonce 0, 1, 2, ...) until a deal of
+ * that kind comes up. Should none within `maxTries` (only a kind too rare
+ * to matter), the cheapest kind that did come up is used.
+ */
+export function leastPayoutByKind<K, T>(
+  kinds: K[],
+  payoutOf: (kind: K) => number,
+  draw: number,
+  deal: (nonce: number) => T,
+  kindOf: (d: T) => K,
+  maxTries = 200000
+): T {
+  const target = leastPayoutOutcome(kinds, payoutOf, draw);
+  const seen = new Map<K, T>();
+  for (let n = 0; n < maxTries; n++) {
+    const d = deal(n);
+    const k = kindOf(d);
+    if (k === target) return d;
+    if (!seen.has(k)) seen.set(k, d);
+  }
+  return seen.get(leastPayoutOutcome([...seen.keys()], payoutOf, draw))!;
+}
 
 /** Turns away a bet from an app older than `min` (or one that sends no
  * X-App-Version): its rules text still describes a random draw. */

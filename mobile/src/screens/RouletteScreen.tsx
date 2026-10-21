@@ -21,6 +21,7 @@ import {
   placeRouletteBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import ResultRuleNotice from '../components/ResultRuleNotice';
 
 // ---------- table ----------
 
@@ -1095,6 +1096,7 @@ export default function RouletteScreen() {
 
   return (
     <View style={styles.root}>
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Roulette" />
       <LinearGradient colors={['#07140E', '#0B2A1B', '#051009']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
 
       {/* Top bar */}

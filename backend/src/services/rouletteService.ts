@@ -2,8 +2,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
-import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
+import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { assertTableAppShowsRules, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
  * European roulette: one ball, a single-zero wheel of 37 pockets (0-36).
@@ -71,7 +72,7 @@ function floor2(n: number): number {
  * `count` of the 37 pockets: multiplier * P(win) = the shared rtp, rounded
  * down so the edge is never smaller than advertised. */
 export function multiplierForCount(count: number): number {
-  return floor2((env.games.rtp * POCKETS) / count);
+  return floor2((env.games.tableRtp * POCKETS) / count);
 }
 
 export function multiplierFor(key: string): number {
@@ -84,6 +85,22 @@ export function spotWins(key: string, result: number): boolean {
 
 /** The winning number, fixed the moment the round is created from its
  * server seed (commit-reveal: only the seed hash is public until reveal). */
+/** Under the least-payout rule (leastPayout.ts): the pocket, of all 37,
+ * that pays the least on every chip on the round. */
+export function leastPayoutResult(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): number {
+  const staked = [...stakedByKey(bets)].map(([key, amount]) => ({ key, pays: amount * multiplierFor(key) }));
+  return leastPayoutOutcome(
+    Array.from({ length: POCKETS }, (_, n) => n),
+    (n) => staked.reduce((s, x) => (spotWins(x.key, n) ? s + x.pays : s), 0),
+    fairGameFloat(serverSeed, periodNumber, "roulette-least", 0)
+  );
+}
+
+/** Older apps describe a random result: no bets from them under the rule. */
+export function assertAppShowsRules(appVersion: string | undefined) {
+  assertTableAppShowsRules(appVersion, env.games.tableLeastPayout);
+}
+
 export function resultFor(serverSeed: string, periodNumber: string): number {
   return Math.floor(fairRandomFloat(serverSeed, periodNumber, 0) * POCKETS);
 }
@@ -147,9 +164,16 @@ async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "RouletteRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.rouletteBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  let result = round.result;
+  if (env.games.tableLeastPayout) {
+    // From every chip still on the round, so a second settler arrives at
+    // the same pocket.
+    result = leastPayoutResult(await prisma.rouletteBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
+    await prisma.rouletteRound.updateMany({ where: { id: round.id, settled: false }, data: { result } });
+  }
 
   for (const bet of pending) {
-    const won = spotWins(bet.area, round.result);
+    const won = spotWins(bet.area, result);
     const payout = won ? Math.min(floor2(Number(bet.amount) * Number(bet.multiplier)), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.rouletteBet.updateMany({
@@ -217,8 +241,16 @@ function toView(round: RoundRow, now: Date) {
 
 export async function getCurrentRoundView() {
   const now = new Date();
-  const round = await getOrCreateRound(now);
+  let round = await getOrCreateRound(now);
   await settleDueRounds(now);
+  // Settling may have just set the result (least-payout rule): show that.
+  if (phaseFor(round, now) === "RESULT") {
+    round = await prisma.rouletteRound.findUniqueOrThrow({ where: { id: round.id } });
+    if (!round.settled) {
+      await settleRound(round);
+      round = await prisma.rouletteRound.findUniqueOrThrow({ where: { id: round.id } });
+    }
+  }
   return toView(round, now);
 }
 
@@ -230,10 +262,11 @@ export function getRouletteConfig() {
     roundSeconds: ROUND_SECONDS,
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(env.games.tableRtp * 100),
     redNumbers: RED_NUMBERS,
     // Total return per unit staked, by how many numbers the bet covers.
     multipliers: Object.fromEntries([1, 2, 3, 4, 6, 12, 18].map((c) => [c, multiplierForCount(c)])),
+    resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
   };
 }
 

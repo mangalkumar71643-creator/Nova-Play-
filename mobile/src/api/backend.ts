@@ -998,6 +998,8 @@ export interface SevenUpDownConfig {
   betSeconds: number;
   resultAtSeconds: number;
   multipliers: Record<SevenUpDownArea, number>;
+  /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
 export interface SevenUpDownRoundView {
@@ -1125,6 +1127,8 @@ export interface DragonTigerConfig {
   resultAtSeconds: number;
   rtpPercent: number;
   multipliers: Record<DragonTigerArea, number>;
+  /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
 export interface DragonTigerRoundView {
@@ -1273,6 +1277,8 @@ export interface AndarBaharConfig {
   resultAtSeconds: number;
   rtpPercent: number;
   multipliers: Record<AndarBaharArea, number>;
+  /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
 export interface AndarBaharRoundView {
@@ -1349,6 +1355,8 @@ export interface TeenPattiConfig {
   resultAtSeconds: number;
   rtpPercent: number;
   multipliers: Record<TeenPattiArea, number>;
+  /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
 export interface TeenPattiRoundView {
@@ -1857,6 +1865,8 @@ export interface RouletteConfig {
   redNumbers: number[];
   /** Total return per unit staked, by how many numbers the bet covers. */
   multipliers: Record<string, number>;
+  /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
 export interface RouletteRoundView {
@@ -2263,6 +2273,8 @@ export interface BaccaratConfig {
   resultAtSeconds: number;
   rtpPercent: number;
   multipliers: Record<BaccaratArea, number>;
+  /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
 export interface BaccaratHand {

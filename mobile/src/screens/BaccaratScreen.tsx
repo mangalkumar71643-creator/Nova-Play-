@@ -39,6 +39,7 @@ import {
   placeBaccaratBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import ResultRuleNotice from '../components/ResultRuleNotice';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500];
 const CHIP_COLORS: Record<number, string> = {
@@ -1025,6 +1026,7 @@ export default function BaccaratScreen() {
 
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Baccarat" />
       {/* Salon, felt, rail and the painted boxes */}
       <Svg width={W} height={H} style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
@@ -1488,7 +1490,7 @@ export default function BaccaratScreen() {
             </View>
             <ScrollView contentContainerStyle={{ padding: 14 }}>
               {panel === 'rules' ? (
-                <Rules multipliers={multipliers} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? 10000} />
+                <Rules multipliers={multipliers} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? 10000} leastPayout={config?.resultRule === 'LEAST_PAYOUT'} />
               ) : (
                 <MyBets bets={myBets} />
               )}
@@ -1548,7 +1550,19 @@ function MyBets({ bets }: { bets: BaccaratMyBet[] | null }) {
   );
 }
 
-function Rules({ multipliers, minStake, maxStake, maxPayout }: { multipliers: Record<BaccaratArea, number>; minStake: number; maxStake: number; maxPayout: number }) {
+function Rules({
+  multipliers,
+  minStake,
+  maxStake,
+  maxPayout,
+  leastPayout = false,
+}: {
+  multipliers: Record<BaccaratArea, number>;
+  minStake: number;
+  maxStake: number;
+  maxPayout: number;
+  leastPayout?: boolean;
+}) {
   const line = (t: string) => (
     <Text key={t} style={styles.ruleLine}>
       •  {t}
@@ -1577,7 +1591,11 @@ function Rules({ multipliers, minStake, maxStake, maxPayout }: { multipliers: Re
       {line('Pair: the first two cards of that hand have the same rank.')}
       <Text style={styles.ruleHead}>Limits</Text>
       {line(`Bet per box ₹${minStake} – ₹${maxStake}. Max win per box ₹${maxPayout}.`)}
-      {line('Every hand is fixed from a server seed before betting opens; its hash is shown up front and the seed is revealed with the cards.')}
+      {leastPayout
+        ? line(
+            'Result rule — least payout wins: when betting closes, the hand dealt is the kind (winner and pairs) that pays the least in total on all players’ bets; ties are decided at random. The hand is not a random deal: the more money is on a bet, the less likely it is to win.'
+          )
+        : line('Every hand is fixed from a server seed before betting opens; its hash is shown up front and the seed is revealed with the cards.')}
     </View>
   );
 }

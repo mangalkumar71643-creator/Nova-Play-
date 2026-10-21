@@ -22,9 +22,14 @@ export const env = {
     minStake: Number(process.env.GAME_MIN_STAKE ?? 1),
     maxStake: Number(process.env.GAME_MAX_STAKE ?? 500),
     // Return-to-player: long-run share of total stakes paid back as winnings
-    // (0.85 = a 15% house edge on Chicken Road, Mines, dice and the other
-    // games that share it; the crash games use crashHouseEdge below).
-    rtp: Number(process.env.GAME_RTP ?? 0.85),
+    // (0.75 = a 25% house edge on Dice, Limbo, Plinko, Keno, Hi-Lo, Mines,
+    // Chicken Road, Dragon Tower, Pump and Coin Flip; the crash games use
+    // crashHouseEdge and the shared-table games tableRtp below).
+    rtp: Number(process.env.GAME_RTP ?? 0.75),
+    // Dragon Tiger, Andar Bahar, Teen Patti, Roulette and Baccarat set their
+    // multipliers from this (0.85). Under tableLeastPayout the result is
+    // picked by the bets, so their real return is lower than this.
+    tableRtp: Number(process.env.TABLE_GAME_RTP ?? 0.85),
     // 7 Up Down runs its own, higher edge (0.85 = 15%).
     sevenUpDownRtp: Number(process.env.SEVEN_UP_DOWN_RTP ?? 0.85),
     // Win pays out at this multiple of the stake; win probability is derived
@@ -43,6 +48,10 @@ export const env = {
     // Win Go (Win Go's least-staked rule): leastPayout.ts. Shown in the
     // app from 1.0.25; older apps are asked to update before they can bet.
     lotteryLeastPayout: process.env.LOTTERY_LEAST_PAYOUT === "true",
+    // Same for the shared-table games (7 Up Down, Dragon Tiger, Andar Bahar,
+    // Teen Patti, Roulette, Baccarat): the result that pays the least on all
+    // bets wins. Shown in the app from 1.0.26.
+    tableLeastPayout: process.env.TABLE_LEAST_PAYOUT === "true",
     // Most a single bet can pay out in any game, whatever the stake and
     // multiplier — bounds the house's worst single-bet loss. The admin can
     // change it from the panel; this is the default until they do.

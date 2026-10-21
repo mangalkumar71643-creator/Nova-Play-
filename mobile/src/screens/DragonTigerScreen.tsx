@@ -36,6 +36,7 @@ import {
   placeDragonTigerBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import ResultRuleNotice from '../components/ResultRuleNotice';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500, 1000];
 const CHIP_COLORS: Record<number, string> = {
@@ -1189,6 +1190,7 @@ export default function DragonTigerScreen() {
 
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Dragon Tiger" />
       <Image source={TABLE_BG} style={[styles.abs, frameOf([0, 0, IMG_W, IMG_H])]} resizeMode="stretch" />
 
       {/* Glass strip: light sweep and the glow on the painted heads */}

@@ -2,8 +2,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
-import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
+import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
+import { assertTableAppShowsRules, leastPayoutByKind, stakedByKey } from "./leastPayout";
 
 /**
  * "Teen Patti 20-20": three cards each to Player A and Player B from one
@@ -121,7 +122,7 @@ function winChance(area: Area): number {
  * the shared rtp on every bet, rounded down so the edge is never smaller
  * than advertised. */
 export function multiplierFor(area: Area): number {
-  return floor2(env.games.rtp / winChance(area));
+  return floor2(env.games.tableRtp / winChance(area));
 }
 
 export type Winner = "PLAYER_A" | "PLAYER_B" | "TIE";
@@ -146,6 +147,27 @@ export function dealFor(serverSeed: string, periodNumber: string): number[] {
     cards.push(deck.splice(j, 1)[0]);
   }
   return cards;
+}
+
+/** Under the least-payout rule (leastPayout.ts): whichever of A, B or a
+ * tie pays the least on every chip, dealt from the round's seed. */
+export function leastPayoutDeal(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): number[] {
+  const staked = stakedByKey(bets);
+  return leastPayoutByKind<Winner, number[]>(
+    ["PLAYER_A", "PLAYER_B", "TIE"],
+    (winner) => (staked.get(winner) ?? 0) * multiplierFor(winner),
+    fairGameFloat(serverSeed, periodNumber, "teenpatti-pick", 0),
+    (n) => {
+      const deck = Array.from({ length: 52 }, (_, i) => i);
+      return Array.from({ length: 6 }, (_, i) => deck.splice(Math.floor(fairGameFloat(serverSeed, periodNumber, "teenpatti-least", n * 6 + i) * deck.length), 1)[0]);
+    },
+    winnerOf
+  );
+}
+
+/** Older apps describe a random result: no bets from them under the rule. */
+export function assertAppShowsRules(appVersion: string | undefined) {
+  assertTableAppShowsRules(appVersion, env.games.tableLeastPayout);
 }
 
 function handsView(cards: number[]) {
@@ -219,9 +241,16 @@ async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "TeenPattiRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.teenPattiBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  let cards = round.cards;
+  if (env.games.tableLeastPayout) {
+    // From every chip still on the round, so a second settler arrives at
+    // the same deal.
+    cards = leastPayoutDeal(await prisma.teenPattiBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
+    await prisma.teenPattiRound.updateMany({ where: { id: round.id, settled: false }, data: { cards } });
+  }
 
   for (const bet of pending) {
-    const won = areaWins(bet.area as Area, round.cards);
+    const won = areaWins(bet.area as Area, cards);
     const payout = won ? Math.min(floor2(Number(bet.amount) * Number(bet.multiplier)), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.teenPattiBet.updateMany({
@@ -288,8 +317,16 @@ function toView(round: RoundRow, now: Date) {
 
 export async function getCurrentRoundView() {
   const now = new Date();
-  const round = await getOrCreateRound(now);
+  let round = await getOrCreateRound(now);
   await settleDueRounds(now);
+  // Settling may have just set the result (least-payout rule): show that.
+  if (phaseFor(round, now) === "RESULT") {
+    round = await prisma.teenPattiRound.findUniqueOrThrow({ where: { id: round.id } });
+    if (!round.settled) {
+      await settleRound(round);
+      round = await prisma.teenPattiRound.findUniqueOrThrow({ where: { id: round.id } });
+    }
+  }
   return toView(round, now);
 }
 
@@ -301,8 +338,9 @@ export function getTeenPattiConfig() {
     roundSeconds: ROUND_SECONDS,
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
-    rtpPercent: round2(env.games.rtp * 100),
+    rtpPercent: round2(env.games.tableRtp * 100),
     multipliers: Object.fromEntries(AREAS.map((a) => [a, multiplierFor(a)])),
+    resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
   };
 }
 
