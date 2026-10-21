@@ -13,7 +13,7 @@ import { LOTTERY_RTP } from "../services/lotteryHouse";
 import { FAST2SMS_ROUTES, fast2SmsFromEnv } from "../services/smsService";
 import { INTEGRATION_FIELDS, integration, integrationView, saveIntegrationSettings } from "../services/integrationSettings";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
-import { getGameReport } from "../services/gameReportService";
+import { gameCatalog, getGameBets, getGameReport } from "../services/gameReportService";
 import * as winGoService from "../services/winGoService";
 import * as aviatorService from "../services/aviatorService";
 import { getChickenRoadConfig } from "../services/chickenRoadService";
@@ -305,6 +305,24 @@ router.get(
       targetHouseEdgePercent: Math.round((1 - env.games.rtp) * 1000) / 10,
       lotteryTargetHouseEdgePercent: Math.round((1 - LOTTERY_RTP) * 1000) / 10,
     });
+  })
+);
+
+/** Every game the panel can track (gameReportService.SOURCES). */
+router.get("/games/catalog", (_req, res) => {
+  res.json(gameCatalog());
+});
+
+/** One game's latest bets with the player and result, and its totals (gameReportService.getGameBets). */
+router.get(
+  "/games/:key/bets",
+  asyncHandler(async (req, res) => {
+    const uid = req.query.uid ? Number(req.query.uid) : null;
+    if (uid !== null && !Number.isInteger(uid)) throw new ApiError(400, "Enter a valid UID.");
+    const limit = req.query.limit ? Number(req.query.limit) : 100;
+    const out = await getGameBets(req.params.key, uid, Number.isFinite(limit) ? limit : 100);
+    if (!out) throw new ApiError(404, "No such game.");
+    res.json(out);
   })
 );
 

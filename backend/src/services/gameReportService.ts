@@ -28,7 +28,7 @@ type Source = {
 
 const NOT_VOID = `status::text <> 'VOID'`;
 
-const SOURCES: Source[] = [
+export const SOURCES: Source[] = [
   // Crash
   { key: "Aviator", name: "Aviator", category: "Crash", table: "AviatorBet", stake: "amount", paid: "payout", where: NOT_VOID },
   { key: "CricketX", name: "Cricket X", category: "Crash", table: "CricketXBet", stake: "amount", paid: "payout", where: NOT_VOID },
@@ -240,4 +240,69 @@ export async function getHotGames(limit = 10) {
     .map(({ key, plays30d, players30d }) => ({ key, plays30d, players30d }));
   hotCache = { at: Date.now(), games };
   return games.slice(0, limit);
+}
+
+/** Every game the admin can track, in report order. */
+export function gameCatalog() {
+  return SOURCES.map(({ key, name, category }) => ({ key, name, category }));
+}
+
+/** Row fields never sent to the panel: a round's live server seed stays secret until it is revealed to the player. */
+const HIDDEN_FIELDS = new Set(["serverSeed", "nextServerSeed"]);
+
+/**
+ * One game's latest bets (or rounds / spins / hands), newest first, with
+ * the player, what was staked and paid, and the row itself for its details
+ * — plus the game's totals for today (India time) and all time. `key` must
+ * be one of SOURCES; the table and the SQL come only from that list, and
+ * the UID filter is a bound parameter.
+ */
+export async function getGameBets(key: string, uid: number | null, limit: number) {
+  const s = SOURCES.find((x) => x.key === key);
+  if (!s) return null;
+  const where = s.where ?? "TRUE";
+  const today = `(date_trunc('day', now() AT TIME ZONE 'Asia/Kolkata')) AT TIME ZONE 'Asia/Kolkata' AT TIME ZONE 'UTC'`;
+  const rows = await prisma.$queryRawUnsafe<{ row: Record<string, unknown>; staked: unknown; paid: unknown; uid: number | null; firstName: string | null; lastName: string | null; phone: string | null }[]>(
+    `SELECT row_to_json(t) AS row, (${s.stake}) AS staked, (${s.paid}) AS paid, u.uid, u."firstName", u."lastName", u.phone
+     FROM "${s.table}" t JOIN "User" u ON u.id = t."userId"
+     WHERE ${where} AND ($1::int IS NULL OR u.uid = $1::int)
+     ORDER BY t."createdAt" DESC
+     LIMIT ${Math.max(1, Math.min(200, Math.floor(limit)))}`,
+    uid
+  );
+  const [tot] = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
+    `SELECT COUNT(*) AS bets_all, COUNT(DISTINCT t."userId") AS players_all,
+       COALESCE(SUM(${s.stake}), 0) AS staked_all, COALESCE(SUM(${s.paid}), 0) AS paid_all,
+       COUNT(*) FILTER (WHERE t."createdAt" >= ${today}) AS bets_today,
+       COUNT(DISTINCT t."userId") FILTER (WHERE t."createdAt" >= ${today}) AS players_today,
+       COALESCE(SUM(${s.stake}) FILTER (WHERE t."createdAt" >= ${today}), 0) AS staked_today,
+       COALESCE(SUM(${s.paid}) FILTER (WHERE t."createdAt" >= ${today}), 0) AS paid_today
+     FROM "${s.table}" t WHERE ${where}`
+  );
+  const n = (k: string) => Number(tot[k] ?? 0);
+  const totals = (period: "today" | "all") => {
+    const staked = r2(n(`staked_${period}`));
+    const paid = r2(n(`paid_${period}`));
+    return { bets: n(`bets_${period}`), players: n(`players_${period}`), staked, paid, profit: r2(staked - paid) };
+  };
+  return {
+    game: { key: s.key, name: s.name, category: s.category },
+    today: totals("today"),
+    allTime: totals("all"),
+    bets: rows.map((r) => {
+      const detail = Object.fromEntries(Object.entries(r.row).filter(([k]) => !HIDDEN_FIELDS.has(k)));
+      const staked = r2(Number(r.staked));
+      const paid = r2(Number(r.paid));
+      return {
+        id: String(r.row.id),
+        createdAt: r.row.createdAt,
+        status: r.row.status ?? null,
+        player: { uid: r.uid, name: [r.firstName, r.lastName].filter(Boolean).join(" ") || null, phone: r.phone },
+        staked,
+        paid,
+        profit: r2(staked - paid),
+        detail,
+      };
+    }),
+  };
 }

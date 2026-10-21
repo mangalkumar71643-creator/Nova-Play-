@@ -477,6 +477,20 @@
         </div>
       </div>
 
+      <div class="panel" id="panel-game-all">
+        <h1 class="page-title">All games</h1>
+        <div class="page-sub">Pick any game to see its latest bets — who played, what they staked, the result and what they got — and how much it made today and in all. Refreshes every 10 seconds.</div>
+        <div class="card">
+          <div class="form-row">
+            <select id="allGamesPick" style="max-width:280px;"></select>
+            <input id="allGamesUid" type="number" placeholder="Player UID (optional)" style="max-width:200px;" />
+            <button class="btn secondary" id="allGamesRefresh" style="flex:0 0 auto;">Refresh</button>
+          </div>
+          <div id="allGamesTotals" style="margin:6px 0 14px;"></div>
+          <div class="table-scroll" id="allGamesBets"></div>
+        </div>
+      </div>
+
       <div class="panel" id="panel-game-aviator">
         <h1 class="page-title">Aviator</h1>
         <div class="page-sub">Watch the live round, check round history and see who's betting.</div>
@@ -937,6 +951,7 @@
     { id: 'users', label: 'Users', icon: 'users' },
     { id: 'transactions', label: 'Transactions', icon: 'transactions' },
     { id: 'games', label: 'Games', icon: 'games', children: [
+        { id: 'game-all', label: 'All games' },
         { id: 'game-colorpredict', label: 'Win Go' },
         { id: 'game-aviator', label: 'Aviator' },
       ] },
@@ -1002,6 +1017,10 @@
       activeGamePollInterval = setInterval(reportsTick, 1000);
     },
     settings: function () { loadSettings(); loadSmsStatus(); loadIntegrations(); },
+    'game-all': function () {
+      loadAllGamesCatalog().then(loadAllGamesBets);
+      activeGamePollInterval = setInterval(loadAllGamesBets, 10000);
+    },
   };
 
   function switchTab(tabId) {
@@ -1515,6 +1534,63 @@
   });
   document.getElementById('upiDepositsRefresh').addEventListener('click', loadUpiDeposits);
   document.getElementById('upiDepositStatus').addEventListener('change', loadUpiDeposits);
+
+  // ---------- Games: every game's latest bets (gameReportService.getGameBets) ----------
+  var allGamesCatalogLoaded = false;
+  function loadAllGamesCatalog() {
+    if (allGamesCatalogLoaded) return Promise.resolve();
+    return api('/admin/games/catalog').then(function (games) {
+      var byCat = {};
+      games.forEach(function (g) { (byCat[g.category] = byCat[g.category] || []).push(g); });
+      document.getElementById('allGamesPick').innerHTML = Object.keys(byCat).map(function (cat) {
+        return '<optgroup label="' + escapeHtml(cat) + '">' + byCat[cat].map(function (g) {
+          return '<option value="' + escapeHtml(g.key) + '">' + escapeHtml(g.name) + '</option>';
+        }).join('') + '</optgroup>';
+      }).join('');
+      allGamesCatalogLoaded = true;
+    }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  }
+  // The few details worth a glance in the bets table; the rest (ids, seeds, timestamps) is left out.
+  var ALL_GAMES_SKIP = { id: 1, userId: 1, createdAt: 1, updatedAt: 1, status: 1, amount: 1, stake: 1, payout: 1, roundId: 1, clientSeed: 1, serverSeedHash: 1, nonce: 1, version: 1, state: 1, totalStake: 1, staked: 1 };
+  function allGamesDetail(d) {
+    return Object.keys(d).filter(function (k) {
+      var v = d[k];
+      return !ALL_GAMES_SKIP[k] && v !== null && v !== '' && (typeof v !== 'object' || (Array.isArray(v) && v.length <= 12));
+    }).slice(0, 5).map(function (k) {
+      var v = d[k];
+      return '<span class="item-meta">' + escapeHtml(k) + ': ' + escapeHtml(Array.isArray(v) ? v.join(',') : String(v)) + '</span>';
+    }).join('<br/>');
+  }
+  function loadAllGamesBets() {
+    var key = document.getElementById('allGamesPick').value;
+    if (!key) return;
+    var uid = document.getElementById('allGamesUid').value.trim();
+    api('/admin/games/' + encodeURIComponent(key) + '/bets?limit=100' + (uid ? '&uid=' + encodeURIComponent(uid) : '')).then(function (r) {
+      function card(label, t) {
+        return '<div class="item"><div class="item-title">' + label + '</div><div class="item-meta">' +
+          t.bets + ' bets · ' + t.players + ' players · staked ' + fmtMoney(t.staked) + ' · paid ' + fmtMoney(t.paid) +
+          ' · <b style="color:' + (t.profit >= 0 ? 'var(--green)' : 'var(--red)') + '">profit ' + fmtMoney(t.profit) + '</b></div></div>';
+      }
+      document.getElementById('allGamesTotals').innerHTML = card('Today', r.today) + card('All time', r.allTime);
+      var rows = r.bets.map(function (b) {
+        var won = b.paid > 0;
+        return '<tr>' +
+          '<td>' + new Date(b.createdAt).toLocaleString() + '</td>' +
+          '<td>UID ' + (b.player.uid || '—') + '<br/><span class="item-meta">' + escapeHtml(b.player.name || b.player.phone || '') + '</span></td>' +
+          '<td>' + fmtMoney(b.staked) + '</td>' +
+          '<td style="color:' + (won ? 'var(--green)' : 'inherit') + '">' + fmtMoney(b.paid) + '</td>' +
+          '<td>' + escapeHtml(b.status || (won ? 'WON' : 'LOST')) + '</td>' +
+          '<td>' + allGamesDetail(b.detail) + '</td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('allGamesBets').innerHTML = r.bets.length
+        ? '<table><thead><tr><th>Time</th><th>Player</th><th>Staked</th><th>Paid</th><th>Status</th><th>Details</th></tr></thead><tbody>' + rows + '</tbody></table>'
+        : '<div class="empty">No bets yet' + (uid ? ' for UID ' + escapeHtml(uid) : '') + '.</div>';
+    }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  }
+  document.getElementById('allGamesPick').addEventListener('change', loadAllGamesBets);
+  document.getElementById('allGamesRefresh').addEventListener('click', loadAllGamesBets);
+  document.getElementById('allGamesUid').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadAllGamesBets(); });
 
   // ---------- Games: live monitoring / history / bet audit ----------
 
