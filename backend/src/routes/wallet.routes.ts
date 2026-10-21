@@ -276,7 +276,7 @@ router.get(
         where: { userId, type },
         orderBy: { createdAt: "desc" },
         take: 200,
-        select: { id: true, amount: true, fee: true, providerFee: true, status: true, createdAt: true },
+        select: { id: true, amount: true, fee: true, providerFee: true, status: true, createdAt: true, provider: true, providerReferenceId: true },
       }),
       prisma.transaction.aggregate({ where: { userId, type, status: "COMPLETED" }, _sum: { amount: true }, _count: true }),
       prisma.transaction.aggregate({ where: { userId, type, status: "PENDING" }, _sum: { amount: true } }),
@@ -286,7 +286,15 @@ router.get(
       total: Number(completed._sum.amount ?? 0),
       count: completed._count,
       pending: Number(pending._sum.amount ?? 0),
-      items: items.map((t) => ({ ...t, amount: Number(t.amount), fee: Number(t.fee ?? 0), providerFee: t.providerFee == null ? null : Number(t.providerFee) })),
+      items: items.map(({ provider, providerReferenceId, ...t }) => ({
+        ...t,
+        amount: Number(t.amount),
+        fee: Number(t.fee ?? 0),
+        providerFee: t.providerFee == null ? null : Number(t.providerFee),
+        // The UTR the admin entered when paying a withdrawal by hand, so the
+        // player can match it in their bank statement. Nothing else is sent.
+        utr: type === "WITHDRAWAL" && t.status === "COMPLETED" && provider === "admin-manual" ? providerReferenceId : null,
+      })),
     });
   })
 );

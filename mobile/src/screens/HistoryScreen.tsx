@@ -76,7 +76,7 @@ export default function HistoryScreen() {
           {history ? `${history.count} ${isDeposit ? 'deposit' : 'withdrawal'}${history.count === 1 ? '' : 's'} so far` : ' '}
         </Text>
         {!isDeposit && !!history?.pending && (
-          <Text style={styles.summaryPending}>₹{history.pending.toLocaleString('en-IN')} waiting for approval</Text>
+          <Text style={styles.summaryPending}>₹{history.pending.toLocaleString('en-IN')} processing</Text>
         )}
       </View>
 
@@ -108,12 +108,13 @@ export default function HistoryScreen() {
                 <Text style={styles.rowTitle}>{isDeposit ? 'Deposit' : 'Withdrawal'}</Text>
                 <Text style={styles.rowTimestamp}>{new Date(t.createdAt).toLocaleString()}</Text>
                 {t.status === 'PENDING' ? (
-                  <Text style={styles.rowStatusPending}>{isDeposit ? 'Pending' : 'Deducted — being sent to your bank'}</Text>
+                  <Text style={styles.rowStatusPending}>{isDeposit ? 'Pending' : 'Processing'}</Text>
                 ) : t.status === 'FAILED' ? (
                   <Text style={styles.rowStatusFailed}>{isDeposit ? 'Failed' : 'Rejected — refunded'}</Text>
                 ) : (
-                  <Text style={styles.rowStatusDone}>{isDeposit ? 'Successful' : 'Paid'}</Text>
+                  <Text style={styles.rowStatusDone}>{isDeposit ? 'Successful' : 'Payment successful'}</Text>
                 )}
+                {!isDeposit && t.status === 'COMPLETED' && t.utr ? <Text style={styles.rowTimestamp}>UTR {t.utr}</Text> : null}
                 {!isDeposit && t.status !== 'FAILED' && (t.fee || t.providerFee) ? (
                   <Text style={styles.rowTimestamp}>
                     {t.fee ? `Fee ₹${t.fee.toLocaleString('en-IN')} · ` : ''}
