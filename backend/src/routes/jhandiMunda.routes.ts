@@ -4,6 +4,7 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import {
   AREAS,
+  assertAppShowsRules,
   cancelJhandiMundaBets,
   getCurrentRoundView,
   getMyRoundBets,
@@ -46,6 +47,7 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { bets } = betSchema.parse(req.body);
+    assertAppShowsRules(req.header("X-App-Version"));
     res.status(201).json(await placeJhandiMundaBets(req.user!.userId, bets));
   })
 );

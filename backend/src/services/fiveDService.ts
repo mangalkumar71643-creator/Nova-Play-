@@ -2,9 +2,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
-import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
+import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
+import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
  * "5D Lottery": five digits A-E (each 0-9) every round, on the same fixed
@@ -88,6 +89,47 @@ export function digitsFor(serverSeed: string, periodNumber: string): number[] {
   return POSITIONS.map((_, i) => Math.floor(fairRandomFloat(serverSeed, periodNumber, i) * 10));
 }
 
+/**
+ * Under the least-payout rule (leastPayout.ts): the five digits, of all
+ * 100,000, that pay the least on every bet on the round. A position bet
+ * depends only on its own digit and a sum bet only on the sum, so the
+ * payout is a per-position table plus a per-sum table.
+ */
+export function leastPayoutDigits(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): number[] {
+  const atPos = POSITIONS.map(() => new Array<number>(10).fill(0));
+  const atSum = new Array<number>(46).fill(0);
+  for (const [key, amount] of stakedByKey(bets)) {
+    const pays = amount * multiplierFor(key);
+    const pos = key.split(":")[0];
+    if (pos === "SUM") {
+      for (let sum = 0; sum <= 45; sum++) if (winsWith(key, [sum, 0, 0, 0, 0])) atSum[sum] += pays;
+    } else {
+      const i = POSITIONS.indexOf(pos as (typeof POSITIONS)[number]);
+      for (let d = 0; d <= 9; d++) {
+        const digits = [0, 0, 0, 0, 0];
+        digits[i] = d;
+        if (winsWith(key, digits)) atPos[i][d] += pays;
+      }
+    }
+  }
+  const all: number[] = Array.from({ length: 100000 }, (_, n) => n);
+  const digitsOf = (n: number) => POSITIONS.map((_, i) => Math.floor(n / 10 ** (4 - i)) % 10);
+  const n = leastPayoutOutcome(
+    all,
+    (n) => {
+      const digits = digitsOf(n);
+      return digits.reduce((s, d, i) => s + atPos[i][d], 0) + atSum[digits.reduce((s, d) => s + d, 0)];
+    },
+    fairGameFloat(serverSeed, periodNumber, "5d-least", 0)
+  );
+  return digitsOf(n);
+}
+
+/** Older apps describe a seeded draw: no bets from them under the rule. */
+export function assertAppShowsRules(appVersion: string | undefined) {
+  if (env.games.lotteryLeastPayout) assertAppAtLeast(appVersion, LEAST_PAYOUT_MIN_APP);
+}
+
 /** A bet wins only when the round is not House and the digits match it. */
 export function betWins(key: string, digits: number[], house: boolean): boolean {
   return !house && winsWith(key, digits);
@@ -157,8 +199,16 @@ async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "FiveDRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.fiveDBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  let digits = round.digits;
+  if (env.games.lotteryLeastPayout) {
+    // From every bet on the round (betting has closed), so a second
+    // settler arrives at the same digits.
+    const all = await prisma.fiveDBet.findMany({ where: { roundId: round.id }, select: { area: true, amount: true } });
+    digits = leastPayoutDigits(all, round.serverSeed, round.periodNumber);
+    await prisma.fiveDRound.updateMany({ where: { id: round.id, settled: false }, data: { digits } });
+  }
   for (const bet of pending) {
-    const won = betWins(bet.area, round.digits, round.house);
+    const won = betWins(bet.area, digits, round.house);
     const payout = won ? Math.min(floor2(Number(bet.amount) * Number(bet.multiplier)), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.fiveDBet.updateMany({ where: { id: bet.id, status: "PENDING" }, data: { status: won ? "WON" : "LOST", payout } });
@@ -221,6 +271,7 @@ export function getFiveDConfig() {
     lockSeconds: LOCK_SECONDS,
     rtpPercent: round2(LOTTERY_RTP * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
+    resultRule: env.games.lotteryLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
     multipliers: Object.fromEntries(KEYS.map((k) => [k, multiplierFor(k)])),
   };
 }

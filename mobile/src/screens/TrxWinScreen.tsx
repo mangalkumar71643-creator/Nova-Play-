@@ -145,11 +145,12 @@ function randomHex(n: number): string {
 }
 
 /** "…c7e2" with the result digit marked: from the digit to the end (from
- * the House 0 before it on a House period). */
-function HashTail({ hash, size = 12, house = false }: { hash: string; size?: number; house?: boolean }) {
-  const idx = digitIndexOf(hash);
+ * the House 0 before it on a House period). `markResult` false (least-staked
+ * rule: the number isn't the hash digit) leaves only the House digit marked. */
+function HashTail({ hash, size = 12, house = false, markResult = true }: { hash: string; size?: number; house?: boolean; markResult?: boolean }) {
+  const idx = markResult ? digitIndexOf(hash) : -1;
   const hIdx = house ? houseIndexOf(hash) : -1;
-  const from = Math.max(0, Math.min(hIdx >= 0 ? hIdx : idx, hash.length - 4));
+  const from = Math.max(0, Math.min(hIdx >= 0 ? hIdx : idx >= 0 ? idx : digitIndexOf(hash), hash.length - 4));
   return (
     <Text style={{ fontFamily: MONO, fontSize: size, color: MUTED }}>
       …
@@ -172,7 +173,19 @@ function HashTail({ hash, size = 12, house = false }: { hash: string; size?: num
  * dimmed: they are the letters skipped on the way to it. On a House period
  * the 0 before the result digit is ringed too.
  */
-function HashGrid({ hash, scrambling, width, house = false }: { hash: string | null; scrambling: boolean; width: number; house?: boolean }) {
+function HashGrid({
+  hash,
+  scrambling,
+  width,
+  house = false,
+  markResult = true,
+}: {
+  hash: string | null;
+  scrambling: boolean;
+  width: number;
+  house?: boolean;
+  markResult?: boolean;
+}) {
   const [text, setText] = useState(() => hash ?? randomHex(64));
   const [settled, setSettled] = useState(!!hash);
   const glow = useRef(new Animated.Value(hash ? 1 : 0)).current;
@@ -223,7 +236,7 @@ function HashGrid({ hash, scrambling, width, house = false }: { hash: string | n
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hash, scrambling]);
 
-  const idx = settled && hash ? digitIndexOf(hash) : -1;
+  const idx = settled && hash && markResult ? digitIndexOf(hash) : -1;
   const hIdx = settled && hash && house ? houseIndexOf(hash) : -1;
   const cellW = width / 32;
   return (
@@ -279,6 +292,7 @@ function BlockPanel({
   nextDrawAt,
   width,
   onVerify,
+  leastStaked = false,
 }: {
   entry: TrxHistoryEntry | null;
   drawing: boolean;
@@ -286,6 +300,7 @@ function BlockPanel({
   nextDrawAt: number | null;
   width: number;
   onVerify: (e: TrxHistoryEntry) => void;
+  leastStaked?: boolean;
 }) {
   const wasDrawing = useRef(false);
   const [ballOn, setBallOn] = useState(!!entry);
@@ -341,7 +356,7 @@ function BlockPanel({
       </View>
 
       <View style={styles.blockHashWrap}>
-        <HashGrid hash={drawing ? null : entry?.blockHash ?? null} scrambling={drawing} width={gridW} house={!drawing && !!entry?.house} />
+        <HashGrid hash={drawing ? null : entry?.blockHash ?? null} scrambling={drawing} width={gridW} house={!drawing && !!entry?.house} markResult={!leastStaked} />
       </View>
 
       <View style={styles.blockFoot}>
@@ -362,8 +377,14 @@ function BlockPanel({
           </View>
         ) : (
           <View style={{ flex: 1 }}>
-            <Text style={styles.blockRule}>Result = last digit in the block hash</Text>
-            {entry?.house && ballOn ? <Text style={styles.blockHouse}>⭐ House: the digit before it is 0 or 1 — every bet loses</Text> : null}
+            <Text style={styles.blockRule}>
+              {leastStaked ? 'Result = the side and number with the least money bet on them (the block decides ties and House)' : 'Result = last digit in the block hash'}
+            </Text>
+            {entry?.house && ballOn ? (
+              <Text style={styles.blockHouse}>
+                {leastStaked ? '⭐ House: the second-last hash digit is 0 or 1 — every bet loses' : '⭐ House: the digit before it is 0 or 1 — every bet loses'}
+              </Text>
+            ) : null}
             {nextDrawAt ? <Text style={styles.blockNext}>Next draw: first block at or after {fmtTime(nextDrawAt)}</Text> : null}
           </View>
         )}
@@ -436,6 +457,7 @@ export default function TrxWinScreen() {
   const P = config?.payouts ?? FALLBACK;
   const housePercent = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
   const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP_PERCENT;
+  const leastStaked = config?.resultRule === 'LEAST_STAKED';
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
@@ -759,6 +781,7 @@ export default function TrxWinScreen() {
             nextDrawAt={round ? endMs : null}
             width={W - pad * 2}
             onVerify={openBlock}
+            leastStaked={leastStaked}
           />
         </View>
 
@@ -867,7 +890,7 @@ export default function TrxWinScreen() {
                   <Text style={[styles.td, { flex: 1.15, fontSize: 11, fontWeight: '700', color: G2 }]}>{h.blockNumber}</Text>
                   <Text style={[styles.td, { flex: 0.95, fontSize: 11 }]}>{fmtTime(h.blockTime)}</Text>
                   <View style={{ flex: 1, alignItems: 'center' }}>
-                    <HashTail hash={h.blockHash} size={11} house={h.house} />
+                    <HashTail hash={h.blockHash} size={11} house={h.house} markResult={!leastStaked} />
                   </View>
                   <View style={{ flex: 0.95, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
                     {h.house ? (
@@ -1076,7 +1099,7 @@ export default function TrxWinScreen() {
                 Period: Trx {DURATION_LABEL[duration]} · {win.period}
               </Text>
               <Text style={styles.winPeriod}>
-                TRON block #{win.result.blockNumber} · <HashTail hash={win.result.blockHash} size={11} />
+                TRON block #{win.result.blockNumber} · <HashTail hash={win.result.blockHash} size={11} markResult={!leastStaked} />
               </Text>
             </View>
           </Animated.View>
@@ -1103,7 +1126,7 @@ export default function TrxWinScreen() {
               </View>
               <View style={[styles.block, { padding: 12, marginTop: 0 }]}>
                 <LinearGradient colors={[LEDGER_1, LEDGER_2]} style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} />
-                <HashGrid hash={detail.blockHash} scrambling={false} width={Math.min(W * 0.88, 380) - 28 - 24} house={detail.house} />
+                <HashGrid hash={detail.blockHash} scrambling={false} width={Math.min(W * 0.88, 380) - 28 - 24} house={detail.house} markResult={!leastStaked} />
               </View>
               <View style={[styles.detailRow, { alignItems: 'center' }]}>
                 <Text style={styles.detailLabel}>Result</Text>
@@ -1121,7 +1144,14 @@ export default function TrxWinScreen() {
                   </View>
                 )}
               </View>
-              {detail.house && <Text style={styles.detailNote}>The digit before the result digit ({detail.number}) is 0, so this period is a ⭐ House result.</Text>}
+              {detail.house && (
+                <Text style={styles.detailNote}>
+                  {leastStaked
+                    ? 'The second-last decimal digit in the block hash is 0 or 1, so this period is a ⭐ House result.'
+                    : `The digit before the result digit (${detail.number}) is 0, so this period is a ⭐ House result.`}
+                </Text>
+              )}
+              {leastStaked && <Text style={styles.detailNote}>The number is the one with the least money bet on it (least-money rule), not the hash digit.</Text>}
               <Pressable onPress={() => openBlock(detail)} style={[styles.verifyBtn, { alignSelf: 'stretch', justifyContent: 'center', marginTop: 4 }]}>
                 <MaterialCommunityIcons name="shield-check" size={15} color={LEDGER_2} />
                 <Text style={styles.verifyText}>Verify on TronScan</Text>
@@ -1140,20 +1170,36 @@ export default function TrxWinScreen() {
               <Text style={styles.rulesTitle}>How to play</Text>
             </LinearGradient>
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
-              {[
-                `Each period (${DURATION_LABEL[duration]}) ends at a set time. Betting closes ${lockSeconds} seconds before it.`,
-                'The number is the last digit (0–9) in the hash of the first TRON block produced at or after that time. Letters a–f are skipped, reading from the end.',
-                'The block does not exist while betting is open, so nobody — not you, not us — can know or choose it. It is used once 3 more blocks are built on it (about 10 seconds), then anyone can check it on TronScan.',
-                `⭐ House: one period in five (${housePercent}%) is a House result — when the decimal digit just before the result digit in the hash is 0 or 1. Every bet on a House period loses, whatever the number. All other periods pay the odds below.`,
-                `Green: 1, 3, 7, 9 pay ${P.color}X; 5 pays ${P.colorMixed}X.`,
-                `Red: 2, 4, 6, 8 pay ${P.color}X; 0 pays ${P.colorMixed}X.`,
-                `Violet: 0 or 5 pays ${P.violet}X.`,
-                `Number: the exact number pays ${P.number}X.`,
-                `Big (5–9) / Small (0–4): ${P.size}X.`,
-                `Win chances, House included: a number wins ${pctText(0.1 * (1 - housePercent / 100))} of periods, Big or Small ${pctText(0.5 * (1 - housePercent / 100))}, Green or Red ${pctText(0.5 * (1 - housePercent / 100))}, Violet ${pctText(0.2 * (1 - housePercent / 100))}. Every bet returns ${rtpPercent}% of stakes on average.`,
-                `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
-                `If the TRON network can't be read for ${config?.voidAfterMinutes ?? 60} minutes after a draw, that period is cancelled and every bet on it refunded.`,
-              ].map((t, i) => (
+              {(leastStaked
+                ? [
+                    `Each period (${DURATION_LABEL[duration]}) ends at a set time. Betting closes ${lockSeconds} seconds before it.`,
+                    'Result rule — least money wins (same as Win Go): when betting closes, whichever of Big or Small has less money bet on it by all players wins, and the number is the one on that side with the least money bet on it. Colour bets do not change the result.',
+                    'This means the result goes against where most players’ money is: the more money is on a choice, the less likely it is to win. The number is not the digit in the block hash.',
+                    'The TRON block (the first one at or after the period’s end) still decides ties — which side or number wins when two have the same money on them — and House. You can check the block on TronScan.',
+                    `⭐ House: one period in five (${housePercent}%) is a House result — when the second-last decimal digit in the block hash is 0 or 1. Every bet on a House period loses, whatever the number.`,
+                    `Green: 1, 3, 7, 9 pay ${P.color}X; 5 pays ${P.colorMixed}X.`,
+                    `Red: 2, 4, 6, 8 pay ${P.color}X; 0 pays ${P.colorMixed}X.`,
+                    `Violet: 0 or 5 pays ${P.violet}X.`,
+                    `Number: the exact number pays ${P.number}X.`,
+                    `Big (5–9) / Small (0–4): ${P.size}X.`,
+                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
+                    `If the TRON network can't be read for ${config?.voidAfterMinutes ?? 60} minutes after a draw, that period is cancelled and every bet on it refunded.`,
+                  ]
+                : [
+                    `Each period (${DURATION_LABEL[duration]}) ends at a set time. Betting closes ${lockSeconds} seconds before it.`,
+                    'The number is the last digit (0–9) in the hash of the first TRON block produced at or after that time. Letters a–f are skipped, reading from the end.',
+                    'The block does not exist while betting is open, so nobody — not you, not us — can know or choose it. It is used once 3 more blocks are built on it (about 10 seconds), then anyone can check it on TronScan.',
+                    `⭐ House: one period in five (${housePercent}%) is a House result — when the decimal digit just before the result digit in the hash is 0 or 1. Every bet on a House period loses, whatever the number. All other periods pay the odds below.`,
+                    `Green: 1, 3, 7, 9 pay ${P.color}X; 5 pays ${P.colorMixed}X.`,
+                    `Red: 2, 4, 6, 8 pay ${P.color}X; 0 pays ${P.colorMixed}X.`,
+                    `Violet: 0 or 5 pays ${P.violet}X.`,
+                    `Number: the exact number pays ${P.number}X.`,
+                    `Big (5–9) / Small (0–4): ${P.size}X.`,
+                    `Win chances, House included: a number wins ${pctText(0.1 * (1 - housePercent / 100))} of periods, Big or Small ${pctText(0.5 * (1 - housePercent / 100))}, Green or Red ${pctText(0.5 * (1 - housePercent / 100))}, Violet ${pctText(0.2 * (1 - housePercent / 100))}. Every bet returns ${rtpPercent}% of stakes on average.`,
+                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
+                    `If the TRON network can't be read for ${config?.voidAfterMinutes ?? 60} minutes after a draw, that period is cancelled and every bet on it refunded.`,
+                  ]
+              ).map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
                 </Text>

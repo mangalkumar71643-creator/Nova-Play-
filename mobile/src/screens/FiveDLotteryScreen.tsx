@@ -288,6 +288,7 @@ export default function FiveDLotteryScreen() {
   const lockSeconds = config?.lockSeconds ?? 5;
   const houseChance = config?.houseChancePercent ?? 20;
   const rtpPercent = config?.rtpPercent ?? 80;
+  const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
   // Fair odds until the config loads: a digit 10X, the rest 2X.
   const multOf = useCallback((key: string) => config?.multipliers?.[key] ?? (/^\w+:\d$/.test(key) ? 10 : 2), [config]);
   /** Chance (in %) that a bet winning with probability p on the draw wins a period, House included. */
@@ -965,15 +966,28 @@ export default function FiveDLotteryScreen() {
               <Text style={styles.rulesTitle}>How to play</Text>
             </LinearGradient>
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
-              {[
-                `Five digits A, B, C, D, E (each 0–9) are drawn every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
-                `⭐ House: one period in five is a House result, on which every bet loses, whatever digits are drawn. Every other period pays fair odds, so each bet returns ${rtpPercent}% of what is staked over time.`,
-                `Position bets (A–E): the exact digit pays ${multOf('A:0')}X and wins ${chance(0.1)}% of periods. Big (5–9), Small (0–4), Odd or Even pay ${multOf('A:BIG')}X and win ${chance(0.5)}%.`,
-                `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X and win ${chance(0.5)}% of periods.`,
-                'Pick as many as you like in a tab — every pick is its own bet.',
-                `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
-                'Provably fair: each period’s digits, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
-              ].map((t, i) => (
+              {(leastPayout
+                ? [
+                    `Five digits A, B, C, D, E (each 0–9) are decided every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
+                    'Result rule — least payout wins: when betting closes, the result is the five digits that pay the least in total on all players’ bets. Ties are decided at random. The digits are not a random draw.',
+                    'This means the result goes against where players’ money is: the more money is on a bet, the less likely it is to win.',
+                    '⭐ House: one period in five is a House result, on which every bet loses, whatever the digits are.',
+                    `Position bets (A–E): the exact digit pays ${multOf('A:0')}X. Big (5–9), Small (0–4), Odd or Even pay ${multOf('A:BIG')}X.`,
+                    `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X.`,
+                    'Pick as many as you like in a tab — every pick is its own bet.',
+                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
+                    'Whether a period is ⭐ House, and how ties are decided, come from a server seed whose hash is published before the period and the seed itself after it.',
+                  ]
+                : [
+                    `Five digits A, B, C, D, E (each 0–9) are drawn every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
+                    `⭐ House: one period in five is a House result, on which every bet loses, whatever digits are drawn. Every other period pays fair odds, so each bet returns ${rtpPercent}% of what is staked over time.`,
+                    `Position bets (A–E): the exact digit pays ${multOf('A:0')}X and wins ${chance(0.1)}% of periods. Big (5–9), Small (0–4), Odd or Even pay ${multOf('A:BIG')}X and win ${chance(0.5)}%.`,
+                    `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X and win ${chance(0.5)}% of periods.`,
+                    'Pick as many as you like in a tab — every pick is its own bet.',
+                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
+                    'Provably fair: each period’s digits, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
+                  ]
+              ).map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
                 </Text>

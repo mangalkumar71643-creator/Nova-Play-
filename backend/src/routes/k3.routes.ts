@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
-import { getCurrentRoundView, getK3Config, getK3History, getMyK3Bets, placeK3Bets } from "../services/k3Service";
+import { assertAppShowsRules, getCurrentRoundView, getK3Config, getK3History, getMyK3Bets, placeK3Bets } from "../services/k3Service";
 
 const router = Router();
 
@@ -47,6 +47,7 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { bets } = betSchema.parse(req.body);
+    assertAppShowsRules(req.header("X-App-Version"));
     res.status(201).json(await placeK3Bets(req.user!.userId, Number(req.params.duration), bets));
   })
 );

@@ -478,6 +478,7 @@ export default function JhandiMundaScreen() {
   const maxStake = config?.maxStake ?? 500;
   const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP;
   const winChance = config?.winChancePercent ?? FALLBACK_WIN_CHANCE;
+  const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -925,14 +926,30 @@ export default function JhandiMundaScreen() {
             Put chips on one or more symbols. Six dice are shaken and thrown. A symbol wins when it shows on 2 or more dice — the more dice, the bigger the win. 0 or 1 die
             loses.
           </Text>
-          <Text style={styles.rulesText}>
-            ⭐ House: one round in five is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses. A symbol wins about {winChance}% of rounds; bets
-            return {rtpPercent}% over time.
-          </Text>
-          <Text style={styles.rulesText}>
-            Bet ₹{minStake}–₹{maxStake} per symbol · max win ₹{config?.maxPayout ?? 10000} per bet · Provably fair: every throw, and whether the round is House, comes from a
-            server seed published after the round.
-          </Text>
+          {leastPayout ? (
+            <>
+              <Text style={styles.rulesText}>
+                Result rule — least payout wins: when betting closes, the dice show the throw that pays the least in total on all players&apos; chips. Ties are decided at
+                random. The throw is not random: the more money is on a symbol, the less likely it is to win.
+              </Text>
+              <Text style={styles.rulesText}>⭐ House: one round in five is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses.</Text>
+              <Text style={styles.rulesText}>
+                Bet ₹{minStake}–₹{maxStake} per symbol · max win ₹{config?.maxPayout ?? 10000} per bet · Whether a round is House, and how ties are decided, come from a server
+                seed published after the round.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.rulesText}>
+                ⭐ House: one round in five is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses. A symbol wins about {winChance}% of rounds;
+                bets return {rtpPercent}% over time.
+              </Text>
+              <Text style={styles.rulesText}>
+                Bet ₹{minStake}–₹{maxStake} per symbol · max win ₹{config?.maxPayout ?? 10000} per bet · Provably fair: every throw, and whether the round is House, comes
+                from a server seed published after the round.
+              </Text>
+            </>
+          )}
         </View>
       </ScrollView>
 

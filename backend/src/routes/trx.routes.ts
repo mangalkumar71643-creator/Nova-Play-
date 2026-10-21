@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
-import { getCurrentRoundView, getMyTrxBets, getTrxConfig, getTrxHistory, placeTrxBets } from "../services/trxService";
+import { assertAppShowsRules, getCurrentRoundView, getMyTrxBets, getTrxConfig, getTrxHistory, placeTrxBets } from "../services/trxService";
 
 const router = Router();
 
@@ -47,6 +47,7 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { bets } = betSchema.parse(req.body);
+    assertAppShowsRules(req.header("X-App-Version"));
     res.status(201).json(await placeTrxBets(req.user!.userId, Number(req.params.duration), bets));
   })
 );

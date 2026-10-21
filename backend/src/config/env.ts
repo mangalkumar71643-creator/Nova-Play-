@@ -35,6 +35,10 @@ export const env = {
     // which the app's How to play shows from 1.0.24 — only turn it on once
     // that app version is out.
     winGoLeastStaked: process.env.WINGO_LEAST_STAKED === "true",
+    // Same for K3, 5D and Jhandi Munda (least total payout wins) and Trx
+    // Win Go (Win Go's least-staked rule): leastPayout.ts. Shown in the
+    // app from 1.0.25; older apps are asked to update before they can bet.
+    lotteryLeastPayout: process.env.LOTTERY_LEAST_PAYOUT === "true",
     // Most a single bet can pay out in any game, whatever the stake and
     // multiplier — bounds the house's worst single-bet loss. The admin can
     // change it from the panel; this is the default until they do.

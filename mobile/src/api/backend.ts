@@ -1773,6 +1773,8 @@ export interface JhandiMundaConfig {
   symbols: JhandiSymbol[];
   /** Total return per unit staked, by how many dice show the symbol. */
   paytable: Record<string, number>;
+  /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
 export interface JhandiMundaRoundView {
@@ -1936,6 +1938,8 @@ export interface K3Config {
   houseChancePercent?: number;
   /** Total return per unit staked, by bet key (e.g. "SUM:10", "BIG", "PAIR:3"). */
   multipliers: Record<string, number>;
+  /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
 export interface K3RoundView {
@@ -2093,6 +2097,8 @@ export interface FiveDConfig {
   houseChancePercent?: number;
   /** Total return per unit staked, by bet key (e.g. "A:7", "B:BIG", "SUM:ODD"). */
   multipliers: Record<string, number>;
+  /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
 export interface FiveDRoundView {
@@ -2172,6 +2178,8 @@ export interface TrxConfig {
   payouts: { number: number; size: number; violet: number; color: number; colorMixed: number };
   /** A round whose block can't be read for this long is refunded. */
   voidAfterMinutes: number;
+  /** LEAST_STAKED: Win Go's least-money rule; the block only decides ties and House. */
+  resultRule?: 'BLOCK' | 'LEAST_STAKED';
 }
 
 export interface TrxRoundView {

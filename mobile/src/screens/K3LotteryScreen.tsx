@@ -298,6 +298,7 @@ export default function K3LotteryScreen() {
   const lockSeconds = config?.lockSeconds ?? 5;
   const houseChance = config?.houseChancePercent ?? 20;
   const rtpPercent = config?.rtpPercent ?? 80;
+  const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
   const multOf = useCallback(
     (key: string) => {
       const m = config?.multipliers?.[key];
@@ -1028,16 +1029,30 @@ export default function K3LotteryScreen() {
               <Text style={styles.rulesTitle}>How to play</Text>
             </LinearGradient>
             <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
-              {[
-                `Three dice are thrown at the end of every period. ${DURATION_LABEL[duration]} per period; betting closes in the last ${lockSeconds} seconds.`,
-                `⭐ House: one period in five is a House result, on which every bet loses, whatever the dice show. Every other period pays fair odds on the dice, so each bet returns ${rtpPercent}% of what is staked over time.`,
-                `Total: bet on the sum (3–18). Big = 11–18, Small = 3–10, Odd / Even on the sum — ${multOf('BIG') || 2}X, each wins ${chance(WAYS.size)}% of periods. A single sum pays from ${multOf('SUM:10')}X (10 or 11, wins ${chance(SUM_WAYS[10])}%) to ${multOf('SUM:3')}X (3 or 18, wins ${chance(SUM_WAYS[3])}%).`,
-                `2 same: a pair such as 22 wins when at least two dice show 2 (${multOf('PAIR:2')}X, wins ${chance(WAYS.pair)}% of periods). A pair plus a number, e.g. 22+5, needs exactly 2, 2, 5 (${multOf('PAIRSINGLE:2-5')}X, ${chance(WAYS.pairSingle)}%).`,
-                `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X, wins ${chance(WAYS.triple)}% of periods), or any triple (${multOf('ANYTRIPLE')}X, ${chance(WAYS.anyTriple)}%).`,
-                `Different: pick 3+ numbers for "3 different" — every group of three you picked is one bet (${multOf('DIFF3:1-2-3')}X, wins ${chance(WAYS.diff3)}% of periods). "2 different" wins when both numbers show (${multOf('DIFF2:1-2')}X, ${chance(WAYS.diff2)}%). 3 continuous: 123, 234, 345 or 456 in any order (${multOf('STRAIGHT')}X, ${chance(WAYS.straight)}%).`,
-                `Bet ₹${minStake}–₹${maxStake} per selection, max win ₹${maxPayout} per bet. Amount = balance × quantity × multiplier.`,
-                'Provably fair: each period’s dice, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
-              ].map((t, i) => (
+              {(leastPayout
+                ? [
+                    `Three dice are decided at the end of every period. ${DURATION_LABEL[duration]} per period; betting closes in the last ${lockSeconds} seconds.`,
+                    'Result rule — least payout wins: when betting closes, the result is the dice combination that pays the least in total on all players’ bets. Ties are decided at random. The dice are not a random throw.',
+                    'This means the result goes against where players’ money is: the more money is on a bet, the less likely it is to win.',
+                    '⭐ House: one period in five is a House result, on which every bet loses, whatever the dice show.',
+                    `Total: bet on the sum (3–18). Big = 11–18, Small = 3–10, Odd / Even on the sum — ${multOf('BIG') || 2}X. A single sum pays from ${multOf('SUM:10')}X (10 or 11) to ${multOf('SUM:3')}X (3 or 18).`,
+                    `2 same: a pair such as 22 wins when at least two dice show 2 (${multOf('PAIR:2')}X). A pair plus a number, e.g. 22+5, needs exactly 2, 2, 5 (${multOf('PAIRSINGLE:2-5')}X).`,
+                    `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X), or any triple (${multOf('ANYTRIPLE')}X).`,
+                    `Different: pick 3+ numbers for "3 different" — every group of three you picked is one bet (${multOf('DIFF3:1-2-3')}X). "2 different" wins when both numbers show (${multOf('DIFF2:1-2')}X). 3 continuous: 123, 234, 345 or 456 in any order (${multOf('STRAIGHT')}X).`,
+                    `Bet ₹${minStake}–₹${maxStake} per selection, max win ₹${maxPayout} per bet. Amount = balance × quantity × multiplier.`,
+                    'Whether a period is ⭐ House, and how ties are decided, come from a server seed whose hash is published before the period and the seed itself after it.',
+                  ]
+                : [
+                    `Three dice are thrown at the end of every period. ${DURATION_LABEL[duration]} per period; betting closes in the last ${lockSeconds} seconds.`,
+                    `⭐ House: one period in five is a House result, on which every bet loses, whatever the dice show. Every other period pays fair odds on the dice, so each bet returns ${rtpPercent}% of what is staked over time.`,
+                    `Total: bet on the sum (3–18). Big = 11–18, Small = 3–10, Odd / Even on the sum — ${multOf('BIG') || 2}X, each wins ${chance(WAYS.size)}% of periods. A single sum pays from ${multOf('SUM:10')}X (10 or 11, wins ${chance(SUM_WAYS[10])}%) to ${multOf('SUM:3')}X (3 or 18, wins ${chance(SUM_WAYS[3])}%).`,
+                    `2 same: a pair such as 22 wins when at least two dice show 2 (${multOf('PAIR:2')}X, wins ${chance(WAYS.pair)}% of periods). A pair plus a number, e.g. 22+5, needs exactly 2, 2, 5 (${multOf('PAIRSINGLE:2-5')}X, ${chance(WAYS.pairSingle)}%).`,
+                    `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X, wins ${chance(WAYS.triple)}% of periods), or any triple (${multOf('ANYTRIPLE')}X, ${chance(WAYS.anyTriple)}%).`,
+                    `Different: pick 3+ numbers for "3 different" — every group of three you picked is one bet (${multOf('DIFF3:1-2-3')}X, wins ${chance(WAYS.diff3)}% of periods). "2 different" wins when both numbers show (${multOf('DIFF2:1-2')}X, ${chance(WAYS.diff2)}%). 3 continuous: 123, 234, 345 or 456 in any order (${multOf('STRAIGHT')}X, ${chance(WAYS.straight)}%).`,
+                    `Bet ₹${minStake}–₹${maxStake} per selection, max win ₹${maxPayout} per bet. Amount = balance × quantity × multiplier.`,
+                    'Provably fair: each period’s dice, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
+                  ]
+              ).map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
                 </Text>

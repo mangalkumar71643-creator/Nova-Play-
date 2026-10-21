@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
+import { assertAppAtLeast, stakedByKey } from "./leastPayout";
 
 /**
  * Win Go: one number 0-9 per round on fixed wall-clock tracks (one chain of
@@ -88,11 +89,11 @@ export function numberFor(serverSeed: string, periodNumber: string): number {
  * Big or Small, whichever has less staked on it by all players, then the
  * number on that side with the least staked on it. Colour bets don't count.
  * Ties go to a draw from the round's seed, so every settler of the round
- * gets the same number from the same bets.
+ * gets the same number from the same bets. Trx Win Go passes its block
+ * hash as the seed.
  */
-function leastStakedNumber(bets: { area: string; amount: Prisma.Decimal }[], serverSeed: string, periodNumber: string): number {
-  const staked = new Map<string, number>();
-  for (const b of bets) staked.set(b.area, (staked.get(b.area) ?? 0) + Number(b.amount));
+export function leastStakedNumber(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): number {
+  const staked = stakedByKey(bets);
   const on = (key: string) => staked.get(key) ?? 0;
   const pick = <T>(tied: T[], nonce: number) => tied[Math.floor(fairGameFloat(serverSeed, periodNumber, "wingo-least", nonce) * tied.length)];
 
@@ -110,14 +111,7 @@ const LEAST_STAKED_MIN_APP = [1, 0, 24];
 /** Under the least-staked rule, older apps (which still describe a seeded
  * draw, and send no X-App-Version) can't bet until they update. */
 export function assertAppShowsRules(appVersion: string | undefined) {
-  if (!env.games.winGoLeastStaked) return;
-  const v = (appVersion ?? "0").split(".").map((n) => parseInt(n, 10) || 0);
-  for (let i = 0; i < LEAST_STAKED_MIN_APP.length; i++) {
-    if ((v[i] ?? 0) > LEAST_STAKED_MIN_APP[i]) return;
-    if ((v[i] ?? 0) < LEAST_STAKED_MIN_APP[i]) {
-      throw new ApiError(426, "Win Go rules have changed. Please update NovaPlay to the latest version to play Win Go.");
-    }
-  }
+  if (env.games.winGoLeastStaked) assertAppAtLeast(appVersion, LEAST_STAKED_MIN_APP);
 }
 
 /** A round's result. On a House round the number is still drawn (and

@@ -2,9 +2,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
-import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
+import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
+import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
  * "K3 Lottery": three dice every round, on the same fixed wall-clock tracks
@@ -120,6 +121,25 @@ export function diceFor(serverSeed: string, periodNumber: string): number[] {
   return [0, 1, 2].map((i) => 1 + Math.floor(fairRandomFloat(serverSeed, periodNumber, i) * 6));
 }
 
+const ALL_THROWS: number[][] = [];
+for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) for (let c = 1; c <= 6; c++) ALL_THROWS.push([a, b, c]);
+
+/** Under the least-payout rule (leastPayout.ts): the throw, of all 216,
+ * that pays the least on every bet on the round. */
+export function leastPayoutDice(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): number[] {
+  const staked = [...stakedByKey(bets)].map(([key, amount]) => ({ key, pays: amount * multiplierFor(key) }));
+  return leastPayoutOutcome(
+    ALL_THROWS,
+    (dice) => staked.reduce((s, b) => (winsWith(b.key, dice) ? s + b.pays : s), 0),
+    fairGameFloat(serverSeed, periodNumber, "k3-least", 0)
+  );
+}
+
+/** Older apps describe a seeded draw: no bets from them under the rule. */
+export function assertAppShowsRules(appVersion: string | undefined) {
+  if (env.games.lotteryLeastPayout) assertAppAtLeast(appVersion, LEAST_PAYOUT_MIN_APP);
+}
+
 /** A bet wins only when the round is not House and the dice match it. */
 export function betWins(key: string, dice: number[], house: boolean): boolean {
   return !house && winsWith(key, dice);
@@ -189,8 +209,16 @@ async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "K3Round" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.k3Bet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  let dice = round.dice;
+  if (env.games.lotteryLeastPayout) {
+    // From every bet on the round (betting has closed), so a second
+    // settler arrives at the same throw.
+    const all = await prisma.k3Bet.findMany({ where: { roundId: round.id }, select: { area: true, amount: true } });
+    dice = leastPayoutDice(all, round.serverSeed, round.periodNumber);
+    await prisma.k3Round.updateMany({ where: { id: round.id, settled: false }, data: { dice } });
+  }
   for (const bet of pending) {
-    const won = betWins(bet.area, round.dice, round.house);
+    const won = betWins(bet.area, dice, round.house);
     const payout = won ? Math.min(floor2(Number(bet.amount) * Number(bet.multiplier)), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.k3Bet.updateMany({ where: { id: bet.id, status: "PENDING" }, data: { status: won ? "WON" : "LOST", payout } });
@@ -253,6 +281,7 @@ export function getK3Config() {
     lockSeconds: LOCK_SECONDS,
     rtpPercent: round2(LOTTERY_RTP * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
+    resultRule: env.games.lotteryLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
     multipliers: Object.fromEntries([...WIN_COUNTS.keys()].map((k) => [k, multiplierFor(k)])),
   };
 }

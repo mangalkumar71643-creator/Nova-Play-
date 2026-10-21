@@ -2,9 +2,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
-import { fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
+import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { HOUSE_CHANCE, isHouseRound } from "./lotteryHouse";
+import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
  * "Jhandi Munda": six dice, each with the same six symbols, are shaken and
@@ -98,6 +99,25 @@ export function diceFor(serverSeed: string, periodNumber: string): number[] {
   return Array.from({ length: DICE }, (_, i) => Math.floor(fairRandomFloat(serverSeed, periodNumber, i) * 6));
 }
 
+const ALL_THROWS: number[][] = [];
+for (let n = 0; n < 6 ** DICE; n++) ALL_THROWS.push(Array.from({ length: DICE }, (_, i) => Math.floor(n / 6 ** i) % 6));
+
+/** Under the least-payout rule (leastPayout.ts): the throw, of all 46,656,
+ * that pays the least on every chip still on the round. */
+export function leastPayoutDice(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): number[] {
+  const staked = [...stakedByKey(bets)].map(([area, amount]) => ({ face: AREAS.indexOf(area as Area), amount }));
+  return leastPayoutOutcome(
+    ALL_THROWS,
+    (dice) => staked.reduce((s, b) => s + b.amount * multiplierFor(dice.filter((d) => d === b.face).length), 0),
+    fairGameFloat(serverSeed, periodNumber, "jhandi-least", 0)
+  );
+}
+
+/** Older apps describe a seeded draw: no bets from them under the rule. */
+export function assertAppShowsRules(appVersion: string | undefined) {
+  if (env.games.lotteryLeastPayout) assertAppAtLeast(appVersion, LEAST_PAYOUT_MIN_APP);
+}
+
 /** How many dice show each symbol. */
 export function countsOf(dice: number[]): Record<Area, number> {
   return Object.fromEntries(AREAS.map((a, i) => [a, dice.filter((d) => d === i).length])) as Record<Area, number>;
@@ -164,9 +184,17 @@ async function settleRound(round: RoundRow) {
   // Wait for any bet still committing on this round (they hold FOR SHARE).
   await prisma.$queryRaw`SELECT id FROM "JhandiMundaRound" WHERE id = ${round.id} FOR UPDATE`;
   const pending = await prisma.jhandiMundaBet.findMany({ where: { roundId: round.id, status: "PENDING" } });
+  let dice = round.dice;
+  if (env.games.lotteryLeastPayout) {
+    // From every chip still on the round (betting has closed; removed
+    // chips are VOID), so a second settler arrives at the same throw.
+    const all = await prisma.jhandiMundaBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } });
+    dice = leastPayoutDice(all, round.serverSeed, round.periodNumber);
+    await prisma.jhandiMundaRound.updateMany({ where: { id: round.id, settled: false }, data: { dice } });
+  }
 
   for (const bet of pending) {
-    const matches = matchesFor(bet.area as Area, round.dice);
+    const matches = matchesFor(bet.area as Area, dice);
     const m = payMultiplier(matches, round.house);
     const won = m > 0;
     const payout = won ? Math.min(floor2(Number(bet.amount) * m), env.games.maxPayout) : 0;
@@ -239,8 +267,16 @@ function toView(round: RoundRow, now: Date) {
 
 export async function getCurrentRoundView() {
   const now = new Date();
-  const round = await getOrCreateRound(now);
+  let round = await getOrCreateRound(now);
   await settleDueRounds(now);
+  // Settling may have just set the dice (least-payout rule): show those.
+  if (phaseFor(round, now) === "RESULT") {
+    round = await prisma.jhandiMundaRound.findUniqueOrThrow({ where: { id: round.id } });
+    if (!round.settled) {
+      await settleRound(round);
+      round = await prisma.jhandiMundaRound.findUniqueOrThrow({ where: { id: round.id } });
+    }
+  }
   return toView(round, now);
 }
 
@@ -254,6 +290,7 @@ export function getJhandiMundaConfig() {
     resultAtSeconds: RESULT_AT_SECONDS,
     rtpPercent: round2(rtp() * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
+    resultRule: env.games.lotteryLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
     // Chance a bet on one symbol wins, House rounds included.
     winChancePercent: round2(winChance() * 100),
     symbols: AREAS,
