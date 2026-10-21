@@ -300,16 +300,17 @@ export async function getMyWinGoBets(userId: string, limit = 50) {
     periodNumber: round.periodNumber,
     durationSeconds: round.durationSeconds,
     result: round.settled ? describe(round.result, round.house) : null,
-  }));
-} function calculateLowestWingoResult(activeBets: any[]) {
+
+function calculateLowestWingoResult(activeBets: any[]) {
   const colorPool = { GREEN: 0, RED: 0, VIOLET: 0 };
   const sizePool = { BIG: 0, SMALL: 0 };
   const numberPool: { [key: string]: number } = {};
   for (let i = 0; i <= 9; i++) numberPool[`NUM:${i}`] = 0;
 
+  // 1. सभी बेट्स का टोटल अमाउंट कैलकुलेट करना
   activeBets.forEach((bet) => {
     const amount = Number(bet.amount || 0);
-    const key = bet.area;
+    const key = bet.area; 
 
     if (key in colorPool) {
       colorPool[key as keyof typeof colorPool] += amount;
@@ -320,18 +321,35 @@ export async function getMyWinGoBets(userId: string, limit = 50) {
     }
   });
 
-  let winningNumKey = "NUM:0";
-  let minNumAmount = Infinity;
+  // 2. सबसे कम बेट वाला SIZE (BIG या SMALL) तय करना
+  let winningSize = "BIG";
+  if (sizePool["SMALL"] < sizePool["BIG"]) {
+    winningSize = "SMALL";
+  } else if (sizePool["BIG"] < sizePool["SMALL"]) {
+    winningSize = "BIG";
+  } else {
+    // अगर दोनों पर बराबर बेट है, तो रैंडमली चुन लें
+    winningSize = Math.random() > 0.5 ? "BIG" : "SMALL";
+  }
+
+  // 3. जो SIZE जीता है, उसी के अंदर आने वाले नंबर्स में से सबसे कम बेट वाला नंबर चुनना
+  // BIG के लिए नंबर: 5,6,7,8,9 | SMALL के लिए नंबर: 0,1,2,3,4
+  const allowedNumbers = winningSize === "BIG" ? [5, 6, 7, 8, 9] :;
   
-  Object.keys(numberPool).forEach((numKey) => {
+  let winningNumber = allowedNumbers[0];
+  let minNumAmount = Infinity;
+
+  allowedNumbers.forEach((num) => {
+    const numKey = `NUM:${num}`;
     if (numberPool[numKey] < minNumAmount) {
       minNumAmount = numberPool[numKey];
-      winningNumKey = numKey;
+      winningNumber = num;
     } else if (numberPool[numKey] === minNumAmount) {
-      if (Math.random() > 0.5) winningNumKey = numKey;
+      if (Math.random() > 0.5) winningNumber = num;
     }
   });
 
-  return parseInt(winningNumKey.split(":")[1] || "0");
+  return winningNumber;
 }
+
 
