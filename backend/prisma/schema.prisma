@@ -50,6 +50,8 @@ enum TransactionType {
   WITHDRAWAL_REVERSAL
   // Money taken back for a deposit the admin reversed (Transaction.reversedAt).
   DEPOSIT_REVERSAL
+  // A balance cleared to zero by the owner's one-time wallet reset (prisma/seed.ts).
+  BALANCE_RESET
 }
 
 enum TransactionStatus {

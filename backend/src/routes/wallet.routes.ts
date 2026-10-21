@@ -4,10 +4,7 @@ import { Prisma } from "@prisma/client";
 import { asyncHandler, ApiError } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { prisma } from "../db/prismaClient";
-import { paymentProvider } from "../services/paymentService";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
-import { completeDeposit } from "../services/depositService";
-import { confirmUpiDeposits as confirmStockpayDeposits, sweepStaleUpiDeposits, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
 import { env } from "../config/env";
 import { istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
@@ -75,50 +72,22 @@ router.get(
 
 const amountSchema = z.object({ amount: z.number().positive() });
 
-router.post(
-  "/deposit",
-  requireAuth,
-  asyncHandler(async (req, res) => {
-    if (!env.wallet.depositsEnabled) throw new ApiError(403, "Deposits are not open yet.");
-    const { amount } = amountSchema.parse(req.body);
-    const userId = req.user!.userId;
+// The old direct deposit (a stand-in "payment provider" that approved every
+// deposit without any money) is gone for good: money comes in only through
+// RupayEx below, or the admin's manual deposit. Older app builds still call
+// this, so it answers with a clear refusal.
+router.post("/deposit", requireAuth, (_req, _res) => {
+  throw new ApiError(403, "Deposits are only taken by UPI (RupayEx). Please update the app.");
+});
 
-    await assertCanTransact(userId);
-    await assertWithinDepositLimits(userId, amount);
-
-    const wallet = await prisma.wallet.findUniqueOrThrow({ where: { userId } });
-    const result = await paymentProvider.deposit({ userId, amount, currency: wallet.currency });
-
-    if (result.status !== "COMPLETED") {
-      await prisma.transaction.create({
-        data: {
-          userId,
-          type: "DEPOSIT",
-          amount,
-          status: result.status,
-          provider: result.provider,
-          providerReferenceId: result.providerReferenceId,
-        },
-      });
-      throw new ApiError(402, "Deposit could not be completed by the payment provider.");
-    }
-
-    const { bonus } = await completeDeposit(userId, amount, result.provider, result.providerReferenceId ?? null);
-    res.json({ ...(await buildWalletView(userId)), bonusGranted: bonus });
-  })
-);
-
-// --- UPI deposits through RupayEx (see rupayexService.ts). New deposits go to
-// RupayEx only; StockPay deposits opened before the switch still settle. ---
+// --- UPI deposits through RupayEx (see rupayexService.ts), the only payment
+// company: StockPay is switched off for good (stockpayService.ts). ---
 
 router.get(
   "/upi/status",
   requireAuth,
   asyncHandler(async (req, res) => {
-    // StockPay deposits opened before the switch to RupayEx: a missed webhook
-    // must not leave them hanging (throttled). RupayEx deposits are re-checked
-    // by the player's own confirm and by the sweep (rupayexService.ts).
-    await sweepStaleUpiDeposits();
+    // RupayEx deposits are re-checked by the player's own confirm and by the sweep (rupayexService.ts).
     res.json(await rupayex.upiDepositStatus(req.user!.userId));
   })
 );
@@ -146,15 +115,8 @@ router.post(
   asyncHandler(async (req, res) => {
     const { sessionId } = confirmSchema.parse(req.body ?? {});
     const userId = req.user!.userId;
-    let results;
-    if (sessionId) {
-      // One payment page = one deposit row; settle it with the company that opened it.
-      const row = await prisma.transaction.findFirst({ where: { userId, type: "DEPOSIT", providerReferenceId: sessionId }, select: { provider: true } });
-      results = (STOCKPAY_PROVIDERS.includes(row?.provider ?? "") ? await confirmStockpayDeposits(userId, sessionId) : await rupayex.confirmUpiDeposits(userId, sessionId)).results;
-    } else {
-      const [rx, sp] = await Promise.all([rupayex.confirmUpiDeposits(userId), confirmStockpayDeposits(userId)]);
-      results = [...rx.results, ...sp.results];
-    }
+    // RupayEx only: a StockPay order is never settled (or credited) again.
+    const { results } = await rupayex.confirmUpiDeposits(userId, sessionId);
     res.json({ results, wallet: await buildWalletView(userId) });
   })
 );

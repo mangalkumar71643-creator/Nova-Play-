@@ -26,6 +26,8 @@ function recordLabel(r: BalanceRecord): string {
       return 'Withdrawal refunded';
     case 'DEPOSIT_REVERSAL':
       return 'Deposit reversed';
+    case 'BALANCE_RESET':
+      return 'Balance reset';
     case 'DEPOSIT_BONUS':
       return 'Deposit bonus';
     case 'BONUS':

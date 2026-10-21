@@ -67,6 +67,39 @@ async function main() {
   await ensureUnplayedDepositTrigger();
   await ensureManualReferenceIndex();
   await ensureStockpayOrderIndex();
+  await zeroAllWalletsOnce();
+}
+
+/**
+ * The owner's one-time reset (2026-10-21, before any real player): every
+ * wallet goes to zero — balance, locked bonus, wagering and unplayed money —
+ * with a BALANCE_RESET row for what was removed, and withdrawals still
+ * waiting for the admin (not sent to a payment company) are cancelled
+ * without a refund, so none of that money can be paid out. Marked done in
+ * Setting, so later deploys never run it again.
+ */
+const WALLET_RESET_KEY = "walletReset:2026-10-21";
+async function zeroAllWalletsOnce() {
+  await prisma.$transaction(
+    async (tx) => {
+      // Two builds at once: the second waits here, then finds it done.
+      await tx.$executeRawUnsafe(`LOCK TABLE "Wallet" IN EXCLUSIVE MODE`);
+      if (await tx.setting.findUnique({ where: { key: WALLET_RESET_KEY } })) return;
+      const wallets = await tx.wallet.findMany({ select: { userId: true, balance: true } });
+      let cleared = 0;
+      for (const w of wallets) {
+        if (Number(w.balance) > 0) {
+          await tx.transaction.create({ data: { userId: w.userId, type: "BALANCE_RESET", amount: w.balance, status: "COMPLETED", provider: "owner-reset" } });
+          cleared += 1;
+        }
+      }
+      await tx.wallet.updateMany({ data: { balance: 0, lockedBonus: 0, wageringRequired: 0, wageringProgress: 0, unplayedDeposit: 0 } });
+      const cancelled = await tx.transaction.updateMany({ where: { type: "WITHDRAWAL", status: "PENDING", provider: null }, data: { status: "FAILED", provider: "owner-reset" } });
+      await tx.setting.create({ data: { key: WALLET_RESET_KEY, value: new Date().toISOString() } });
+      console.log(`Wallet reset: ${cleared} balance(s) cleared to zero, ${cancelled.count} pending withdrawal(s) cancelled.`);
+    },
+    { timeout: 120000 }
+  );
 }
 
 /**

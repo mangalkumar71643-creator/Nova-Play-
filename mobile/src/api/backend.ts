@@ -91,10 +91,6 @@ export function withdrawalFeeFor(amount: number, fee: WithdrawalFee) {
   return Math.round((fee.flat + (amount * fee.percent) / 100) * 100) / 100;
 }
 
-export interface DepositResult extends BackendWallet {
-  bonusGranted: number;
-}
-
 export function fetchBackendWallet() {
   return apiFetch<BackendWallet>('/wallet');
 }
@@ -112,7 +108,8 @@ export interface BackendTransaction {
     | 'BONUS'
     | 'DEPOSIT_BONUS'
     | 'WITHDRAWAL_REVERSAL'
-    | 'DEPOSIT_REVERSAL';
+    | 'DEPOSIT_REVERSAL'
+    | 'BALANCE_RESET';
   amount: string;
   status: 'PENDING' | 'COMPLETED' | 'FAILED';
   provider: string | null;
@@ -123,9 +120,6 @@ export function fetchBackendTransactions() {
   return apiFetch<BackendTransaction[]>('/wallet/transactions');
 }
 
-export function depositToWallet(amount: number) {
-  return apiFetch<DepositResult>('/wallet/deposit', { method: 'POST', body: JSON.stringify({ amount }) });
-}
 
 export function withdrawFromWallet(amount: number) {
   return apiFetch<BackendWallet & { fee?: number; payout?: number }>('/wallet/withdraw', { method: 'POST', body: JSON.stringify({ amount }) });

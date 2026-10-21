@@ -75,7 +75,6 @@ export const env = {
   wallet: {
     // Self-service deposits stay off until a real payment provider is wired
     // in; until then the admin credits test balances from the panel.
-    depositsEnabled: process.env.DEPOSITS_ENABLED === "true",
     // Deposit bonus on a player's first and second deposits only:
     // min(amount * percent, cap). Credited straight into balance (so it's
     // immediately playable) but locked from withdrawal until

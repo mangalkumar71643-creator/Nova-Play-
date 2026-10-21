@@ -1,11 +1,5 @@
 import { env } from "../config/env";
 
-export interface DepositRequest {
-  userId: string;
-  amount: number;
-  currency: string;
-}
-
 export interface WithdrawalRequest {
   userId: string;
   amount: number;
@@ -20,7 +14,8 @@ export interface PaymentResult {
 
 export interface PaymentProvider {
   readonly name: string;
-  deposit(request: DepositRequest): Promise<PaymentResult>;
+  // No deposit method: money comes in only through RupayEx (rupayexService.ts)
+  // or the admin's manual deposit, never through a stand-in provider.
   withdraw(request: WithdrawalRequest): Promise<PaymentResult>;
 }
 
@@ -32,14 +27,6 @@ export interface PaymentProvider {
  */
 class MockPaymentProvider implements PaymentProvider {
   readonly name = "mock";
-
-  async deposit(request: DepositRequest): Promise<PaymentResult> {
-    return {
-      provider: this.name,
-      providerReferenceId: `mock_dep_${request.userId}_${Date.now()}`,
-      status: "COMPLETED",
-    };
-  }
 
   async withdraw(request: WithdrawalRequest): Promise<PaymentResult> {
     return {
@@ -53,12 +40,6 @@ class MockPaymentProvider implements PaymentProvider {
 /** Placeholder — implement against a real, gambling-licensed processor. */
 class LivePaymentProvider implements PaymentProvider {
   readonly name = "live";
-
-  async deposit(_request: DepositRequest): Promise<PaymentResult> {
-    throw new Error(
-      "LivePaymentProvider is not implemented. Integrate a gambling-licensed payment processor before setting PAYMENT_PROVIDER_MODE=live."
-    );
-  }
 
   async withdraw(_request: WithdrawalRequest): Promise<PaymentResult> {
     throw new Error(

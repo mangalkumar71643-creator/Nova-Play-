@@ -3,7 +3,6 @@ import { IconName } from '../data/models';
 import {
   BackendTransaction,
   BackendWallet,
-  depositToWallet,
   fetchBackendTransactions,
   fetchBackendWallet,
   setPayoutBankAccount as setPayoutBankAccountRequest,
@@ -23,6 +22,7 @@ const TX_ICONS: Record<BackendTransaction['type'], IconName> = {
   DEPOSIT_BONUS: 'gift-outline',
   WITHDRAWAL_REVERSAL: 'bank-transfer',
   DEPOSIT_REVERSAL: 'cash-minus',
+  BALANCE_RESET: 'restart',
 };
 
 const TX_TITLES: Record<BackendTransaction['type'], string> = {
@@ -37,6 +37,7 @@ const TX_TITLES: Record<BackendTransaction['type'], string> = {
   DEPOSIT_BONUS: 'Deposit bonus',
   WITHDRAWAL_REVERSAL: 'Withdrawal reversed',
   DEPOSIT_REVERSAL: 'Deposit reversed',
+  BALANCE_RESET: 'Balance reset',
 };
 
 const CREDIT_TYPES = new Set<BackendTransaction['type']>([
@@ -116,13 +117,6 @@ function toSummary(wallet: BackendWallet, transactions: WalletTransaction[]): Wa
 export async function fetchWallet(): Promise<WalletSummary> {
   const [wallet, transactions] = await Promise.all([fetchBackendWallet(), fetchBackendTransactions()]);
   return toSummary(wallet, transactions.map(mapTransaction));
-}
-
-/** Returns the new balance plus how much first-deposit bonus (if any) was
- * granted by this deposit, so the UI can show what actually landed. */
-export async function deposit(amount: number): Promise<{ newBalance: number; bonusGranted: number }> {
-  const result = await depositToWallet(amount);
-  return { newBalance: Number(result.balance), bonusGranted: result.bonusGranted };
 }
 
 /** Withdrawals now go to PENDING until an admin approves them (see

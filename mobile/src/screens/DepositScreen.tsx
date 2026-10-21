@@ -10,7 +10,6 @@ import { UpiDepositStatus, confirmUpiDeposits, fetchUpiDepositStatus, startUpiCh
 import { RootStackParamList } from '../navigation/types';
 import { KYC_REQUIRED, useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
-import * as walletService from '../services/walletService';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 
 const CARD_TEXT_COLOR = '#5C3A0E';
@@ -125,19 +124,9 @@ export default function DepositScreen() {
       }
       return;
     }
-    try {
-      const result = await walletService.deposit(amount);
-      await refreshWallet();
-      showSuccess(amount, result.bonusGranted);
-    } catch (err) {
-      if (err instanceof ApiClientError && err.status === 403) {
-        Alert.alert('Deposits not open yet', 'Adding money is not available right now. Please check back later.');
-      } else {
-        Alert.alert('Deposit failed', err instanceof ApiClientError ? err.message : 'Please try again.');
-      }
-    } finally {
-      setBusy(false);
-    }
+    // Money comes in only by UPI (RupayEx); there is no other deposit.
+    setBusy(false);
+    Alert.alert('UPI payment not available', 'UPI deposits are not available right now. Please try again later.');
   }
 
   return (

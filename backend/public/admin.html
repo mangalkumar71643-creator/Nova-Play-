@@ -414,8 +414,8 @@
         </div>
 
         <div class="card">
-          <div class="card-head"><h2>StockPay UPI deposits</h2><button class="btn secondary small" id="upiDepositsRefresh">Refresh</button></div>
-          <div class="item-meta" style="margin:-6px 0 12px;">Deposits players made through StockPay's hosted UPI payment page (test mode — no real money moves). Status is confirmed by StockPay's signed webhook or a server-side re-check; PENDING means the player hasn't finished paying yet, FAILED means the payment page expired or was cancelled. A deposit still PENDING after 30 minutes is flagged red as STUCK — the player likely abandoned the payment or the webhook never arrived.</div>
+          <div class="card-head"><h2>UPI deposits</h2><button class="btn secondary small" id="upiDepositsRefresh">Refresh</button></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">UPI deposits through RupayEx (real money), plus past StockPay ones. StockPay is switched off for good: none of its orders can ever be credited again. PENDING means the player hasn't finished paying yet, FAILED means the payment page expired or was cancelled. A deposit still PENDING after 30 minutes is flagged red as STUCK.</div>
           <div class="form-row">
             <select id="upiDepositStatus">
               <option value="">All</option>
@@ -1056,7 +1056,7 @@
       el.style.display = 'block';
       el.innerHTML = '<div class="card" style="border-color:#ff6b6b;">' +
         '<div class="item-title" style="color:#ff8a8a;">⚠ ' + stuck.length + ' stuck UPI deposit' + (stuck.length > 1 ? 's' : '') + '</div>' +
-        '<div class="item-meta">Payments pending for over 30 minutes. Open Transactions → StockPay UPI deposits to message the players.</div>' +
+        '<div class="item-meta">Payments pending for over 30 minutes. Open Transactions → UPI deposits to message the players.</div>' +
         '</div>';
     }).catch(function () { /* older server without this route — no alert */ });
 
@@ -1380,11 +1380,11 @@
           '<div>' +
             '<div class="item-title">' + fmtMoney(d.amount) + ' — ' + escapeHtml(name) + '</div>' +
             '<div class="item-meta">UID ' + (u.uid || '—') + (contact ? ' · ' + escapeHtml(contact) : '') + ' · ' + new Date(d.createdAt).toLocaleString() + '</div>' +
-            '<div class="item-meta">StockPay order: ' + escapeHtml(d.providerReferenceId || '—') + '</div>' +
+            '<div class="item-meta">' + (d.provider === 'rupayex' ? 'RupayEx' : 'StockPay') + ' order: ' + escapeHtml(d.providerReferenceId || '—') + '</div>' +
           '</div>' +
           '<div style="text-align:right;flex:0 0 auto;">' +
             '<span class="pill ' + statusClass + '">' + d.status + '</span>' +
-            (d.provider === 'stockpay_live'
+            (d.provider === 'stockpay_live' || d.provider === 'rupayex'
               ? '<br/><span class="pill approved" style="display:inline-block;margin-top:6px;">LIVE ₹</span>'
               : '<br/><span class="pill" style="display:inline-block;margin-top:6px;">TEST</span>') +
             (stuck && !d.reversedAt ? '<br/><span class="pill failed" style="display:inline-block;margin-top:6px;">STUCK &gt;30m</span>' : '') +
