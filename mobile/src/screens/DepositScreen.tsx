@@ -236,21 +236,6 @@ export default function DepositScreen() {
             })}
           </View>
 
-          {bonusInfo && bonusInfo.tiers.length > 0 ? (
-            <View style={styles.offerList} testID="deposit-bonus-offers">
-              <Text style={styles.offerTitle}>
-                <MaterialCommunityIcons name="gift-outline" size={14} color={colors.gold} />{' '}
-                {bonusInfo.firstDeposit ? 'First deposit bonus' : 'Deposit bonus'}
-              </Text>
-              {bonusInfo.tiers
-                .filter((t) => t.bonus > 0)
-                .map((t) => (
-                  <Text key={t.min} style={styles.offerText}>
-                    Deposit ₹{t.min.toLocaleString('en-IN')} or more → +₹{t.bonus.toLocaleString('en-IN')} bonus
-                  </Text>
-                ))}
-            </View>
-          ) : null}
         </View>
 
         {hasOffer ? (
@@ -274,10 +259,6 @@ export default function DepositScreen() {
                 {bonusPreview > 0 ? <MaterialCommunityIcons name="check-circle" size={24} color={colors.positive} /> : null}
               </View>
             </View>
-            <Text style={styles.promoNote}>
-              {bonusInfo!.firstDeposit ? 'First deposit bonus. ' : ''}The bonus is added with your deposit. Before you can withdraw, your deposit must be
-              bet in full and the bonus {bonusInfo!.wageringMultiplier} times.
-            </Text>
           </View>
         ) : null}
 
@@ -458,9 +439,6 @@ const styles = {
   },
   chipBonusBadgeSelected: { backgroundColor: colors.gold },
   chipBonusBadgeTextSelected: { color: colors.crimson },
-  offerList: { marginTop: spacing.md, gap: 2 },
-  offerTitle: { color: colors.gold, fontSize: typography.sm, fontWeight: '800' as const, marginBottom: 2 },
-  offerText: { color: colors.textSecondary, fontSize: typography.xs },
   chipBonusBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' as const },
   promoTitle: { color: colors.textPrimary, fontSize: typography.lg, fontWeight: '700' as const, marginBottom: spacing.sm },
   promoCard: {
@@ -485,7 +463,6 @@ const styles = {
     gap: spacing.sm,
   },
   promoBonusText: { color: colors.goldLight, fontSize: typography.lg, fontWeight: '800' as const, flexShrink: 1 },
-  promoNote: { color: colors.gold, fontSize: typography.sm, lineHeight: 19, marginTop: spacing.sm },
   tipsBlock: { marginBottom: spacing.xl },
   tipsTitle: { color: colors.textPrimary, fontSize: typography.md, fontWeight: '700' as const, marginBottom: spacing.sm },
   tipsText: { color: colors.textSecondary, fontSize: typography.sm, lineHeight: 20, marginBottom: 4 },
