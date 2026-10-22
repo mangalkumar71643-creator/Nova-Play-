@@ -4,7 +4,7 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
-import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
+import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound, withWinFee } from "./lotteryHouse";
 import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
@@ -80,7 +80,8 @@ export function isValidKey(key: string): boolean {
  * is not House, 1 / P(win), rounded down to the cent so the return, 80% of
  * multiplier * P(win), is never more than LOTTERY_RTP. */
 export function multiplierFor(key: string): number {
-  return floor2(1 / winChance(key));
+  // Less the 2% lottery win fee (lotteryHouse.ts).
+  return withWinFee(1 / winChance(key));
 }
 
 /** The five digits, fixed when the round is created from its server seed

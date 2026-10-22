@@ -5,7 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
-import { FORTUNE_SIX_HOUSE_CHANCE as HOUSE_CHANCE, isHouseTicket } from "./lotteryHouse";
+import { FORTUNE_SIX_HOUSE_CHANCE as HOUSE_CHANCE, isHouseTicket, withWinFee } from "./lotteryHouse";
 
 /**
  * Fortune 6: the player picks 6 of 48 numbers, then 35 balls are drawn in
@@ -29,11 +29,13 @@ export const DRAWN = 35;
 export const PICKS = 6;
 
 /** What a ticket that is not House pays (stake included) when its 6th number is drawn at this position. */
+// Less the 2% lottery win fee (lotteryHouse.ts), applied below.
 export const PAYS: Record<number, number> = {
   6: 10000, 7: 7500, 8: 5000, 9: 2500, 10: 1000, 11: 550, 12: 325, 13: 220, 14: 160, 15: 110,
   16: 88, 17: 76, 18: 65, 19: 54, 20: 44, 21: 37, 22: 30, 23: 24, 24: 17.5, 25: 13,
   26: 11, 27: 9.8, 28: 8.2, 29: 7, 30: 6, 31: 4.8, 32: 3.75, 33: 2.7, 34: 2.25, 35: 1.2,
 };
+for (const k of Object.keys(PAYS)) PAYS[Number(k)] = withWinFee(PAYS[Number(k)]);
 
 function comb(n: number, k: number): number {
   let r = 1;

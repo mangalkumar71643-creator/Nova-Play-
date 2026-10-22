@@ -4,7 +4,7 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
-import { HOUSE_CHANCE, isHouseRound } from "./lotteryHouse";
+import { HOUSE_CHANCE, isHouseRound, withWinFee } from "./lotteryHouse";
 import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
@@ -37,7 +37,10 @@ export const DICE = 6;
  * returns 79.90%, just under the 80% lottery rtp. The top pays 20x, so a
  * full box (maxStake) can never win more than maxPayout.
  */
-export const PAYTABLE: Record<number, number> = { 2: 3.25, 3: 5.25, 4: 7, 5: 12, 6: 20 };
+// Less the 2% lottery win fee (lotteryHouse.ts): 3.18, 5.14, 6.86, 11.76, 19.6.
+export const PAYTABLE: Record<number, number> = Object.fromEntries(
+  Object.entries({ 2: 3.25, 3: 5.25, 4: 7, 5: 12, 6: 20 }).map(([k, m]) => [k, withWinFee(m)])
+);
 const TOP_MULTIPLIER = 20;
 
 function round2(n: number): number {

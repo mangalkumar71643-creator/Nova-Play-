@@ -24,10 +24,20 @@ import { fairGameFloat } from "../utils/rng";
 // their history. Fortune Six keeps its own 1 in 5 (FORTUNE_SIX_HOUSE_CHANCE):
 // its paytable is fair, so House is all it keeps.
 export const HOUSE_CHANCE = Number(process.env.LOTTERY_HOUSE_CHANCE ?? 0);
+
+/**
+ * The 2% win fee of every lottery game (owner's request, 2026-10-22): each
+ * multiplier is the fair one less 2%, rounded down to the paisa — a ₹100 bet
+ * that wins at 2x pays ₹196, at 10x ₹980. LOTTERY_WIN_FEE changes it.
+ */
+export const LOTTERY_WIN_FEE = Number(process.env.LOTTERY_WIN_FEE ?? 0.02);
+export function withWinFee(multiplier: number): number {
+  return Math.floor(multiplier * (1 - LOTTERY_WIN_FEE) * 100 + 1e-9) / 100;
+}
 /** Trx Win Go's share of it: House when the hash's second-last decimal digit is below this (0 = never). */
 export const HOUSE_DIGITS = Math.round(HOUSE_CHANCE * 10);
-/** Return of every lottery bet: fair odds on the results that are not House. */
-export const LOTTERY_RTP = 1 - HOUSE_CHANCE;
+/** Return of every lottery bet: fair odds less the win fee on the results that are not House. */
+export const LOTTERY_RTP = (1 - HOUSE_CHANCE) * (1 - LOTTERY_WIN_FEE);
 /** Fortune Six: one ticket in five is a House ticket. */
 export const FORTUNE_SIX_HOUSE_CHANCE = 0.2;
 

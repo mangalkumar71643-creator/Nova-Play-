@@ -4,7 +4,7 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
-import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
+import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound, withWinFee } from "./lotteryHouse";
 import { assertAppAtLeast, stakedByKey } from "./leastPayout";
 
 /**
@@ -40,7 +40,8 @@ function floor2(n: number): number {
 export const PAYOUTS = (() => {
   const fair = (winsInTen: number) => floor2(10 / winsInTen);
   const color = floor2((10 + 0.5) / 5);
-  return { number: fair(1), size: fair(5), violet: fair(2), color, colorMixed: floor2(color - 0.5) };
+  // Less the 2% lottery win fee (lotteryHouse.ts): 9.8x, 1.96x, 4.9x, 2.05x, 1.56x.
+  return { number: withWinFee(fair(1)), size: withWinFee(fair(5)), violet: withWinFee(fair(2)), color: withWinFee(color), colorMixed: withWinFee(floor2(color - 0.5)) };
 })();
 
 export function colorsOf(n: number): ("GREEN" | "RED" | "VIOLET")[] {
