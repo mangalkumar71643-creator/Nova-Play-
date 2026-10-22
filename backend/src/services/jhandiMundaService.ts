@@ -430,11 +430,15 @@ export async function getJhandiMundaHistory(limit = 100) {
     take: limit,
     select: { periodNumber: true, dice: true, house: true, serverSeed: true, serverSeedHash: true },
   });
+// Game history shows every round's drawn result: House was switched off on
+  // 2026-10-22, and an earlier House round keeps houseRound (the player's own
+  // bet still shows House, which is why it lost).
   return rounds.map((r) => ({
     periodNumber: r.periodNumber,
     dice: r.dice.map((d) => AREAS[d]),
     counts: countsOf(r.dice),
-    house: r.house,
+    house: false,
+    houseRound: r.house,
     serverSeed: r.serverSeed,
     serverSeedHash: r.serverSeedHash,
   }));

@@ -347,7 +347,10 @@ export async function getK3History(durationSeconds: number, limit = 50) {
     take: limit,
     select: { periodNumber: true, dice: true, house: true, serverSeed: true, serverSeedHash: true },
   });
-  return rounds.map((r) => ({ periodNumber: r.periodNumber, ...describe(r.dice, r.house), serverSeed: r.serverSeed, serverSeedHash: r.serverSeedHash }));
+// Game history shows every round's drawn result: House was switched off on
+  // 2026-10-22, and an earlier House round keeps houseRound (the player's own
+  // bet still shows House, which is why it lost).
+  return rounds.map((r) => ({ periodNumber: r.periodNumber, ...describe(r.dice, false), houseRound: r.house, serverSeed: r.serverSeed, serverSeedHash: r.serverSeedHash }));
 }
 
 export async function getMyK3Bets(userId: string, limit = 50) {

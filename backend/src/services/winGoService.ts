@@ -309,7 +309,10 @@ export async function getWinGoHistory(durationSeconds: number, limit = 100) {
     take: limit,
     select: { periodNumber: true, result: true, house: true, serverSeed: true, serverSeedHash: true },
   });
-  return rounds.map((r) => ({ periodNumber: r.periodNumber, ...describe(r.result, r.house), serverSeed: r.serverSeed, serverSeedHash: r.serverSeedHash }));
+// Game history shows every round's drawn result: House was switched off on
+  // 2026-10-22, and an earlier House round keeps houseRound (the player's own
+  // bet still shows House, which is why it lost).
+  return rounds.map((r) => ({ periodNumber: r.periodNumber, ...describe(r.result, false), houseRound: r.house, serverSeed: r.serverSeed, serverSeedHash: r.serverSeedHash }));
 }
 
 export async function getMyWinGoBets(userId: string, limit = 50) {

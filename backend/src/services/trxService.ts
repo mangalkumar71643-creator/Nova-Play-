@@ -277,7 +277,10 @@ export async function getTrxHistory(durationSeconds: number, limit = 100) {
     take: limit,
     select: { periodNumber: true, endTime: true, result: true, house: true, blockNumber: true, blockHash: true, blockTime: true },
   });
-  return rounds.map((r) => ({ periodNumber: r.periodNumber, drawAt: r.endTime, ...describe(r.result!, r.house), ...blockOf(r)! }));
+// Game history shows every round's drawn result: House was switched off on
+  // 2026-10-22, and an earlier House round keeps houseRound (the player's own
+  // bet still shows House, which is why it lost).
+  return rounds.map((r) => ({ periodNumber: r.periodNumber, drawAt: r.endTime, ...describe(r.result!, false), houseRound: r.house, ...blockOf(r)! }));
 }
 
 export async function getMyTrxBets(userId: string, limit = 50) {
