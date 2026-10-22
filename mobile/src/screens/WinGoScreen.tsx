@@ -51,7 +51,7 @@ const TOAST_MS = 1800;
 const WIN_MS = 3500;
 // Fair odds on the 4 periods in 5 that are not House (80% return).
 const FALLBACK = { number: 10, size: 2, violet: 5, color: 2.1, colorMixed: 1.6 };
-const FALLBACK_HOUSE_PERCENT = 20;
+const FALLBACK_HOUSE_PERCENT = 0;
 const FALLBACK_RTP_PERCENT = 80;
 
 type HistoryTab = 'game' | 'chart' | 'my';
@@ -874,7 +874,7 @@ export default function WinGoScreen() {
                     ? ['Whether a period is ⭐ House, and how ties are decided, come from a server seed whose hash is published before the period and the seed itself after it.']
                     : ['Provably fair: each period’s number, and whether it is House, come from a server seed whose hash is published before the period, and the seed itself after it.'],
                 )
-                .map((t, i) => (
+                .filter((t) => housePercent > 0 || !t.startsWith('⭐ House')).map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
                 </Text>

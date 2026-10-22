@@ -64,7 +64,7 @@ const TOAST_MS = 1800;
 const WIN_MS = 3500;
 // Fair odds on the 4 periods in 5 that are not House (80% return).
 const FALLBACK = { number: 10, size: 2, violet: 5, color: 2.1, colorMixed: 1.6 };
-const FALLBACK_HOUSE_PERCENT = 20;
+const FALLBACK_HOUSE_PERCENT = 0;
 const FALLBACK_RTP_PERCENT = 80;
 
 type HistoryTab = 'game' | 'chart' | 'my';
@@ -1199,7 +1199,7 @@ export default function TrxWinScreen() {
                     `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
                     `If the TRON network can't be read for ${config?.voidAfterMinutes ?? 60} minutes after a draw, that period is cancelled and every bet on it refunded.`,
                   ]
-              ).map((t, i) => (
+              ).filter((t) => housePercent > 0 || !t.startsWith('⭐ House')).map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
                 </Text>

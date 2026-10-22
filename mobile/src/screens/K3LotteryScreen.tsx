@@ -296,7 +296,7 @@ export default function K3LotteryScreen() {
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const lockSeconds = config?.lockSeconds ?? 5;
-  const houseChance = config?.houseChancePercent ?? 20;
+  const houseChance = config?.houseChancePercent ?? 0;
   const rtpPercent = config?.rtpPercent ?? 80;
   const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
   const multOf = useCallback(
@@ -1052,7 +1052,7 @@ export default function K3LotteryScreen() {
                     `Bet ₹${minStake}–₹${maxStake} per selection, max win ₹${maxPayout} per bet. Amount = balance × quantity × multiplier.`,
                     'Provably fair: each period’s dice, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
                   ]
-              ).map((t, i) => (
+              ).filter((t) => houseChance > 0 || !t.startsWith('⭐ House')).map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
                 </Text>

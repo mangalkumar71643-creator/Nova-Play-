@@ -478,6 +478,7 @@ export default function JhandiMundaScreen() {
   const maxStake = config?.maxStake ?? 500;
   const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP;
   const winChance = config?.winChancePercent ?? FALLBACK_WIN_CHANCE;
+  const houseOn = (config?.houseChancePercent ?? 0) > 0;
   const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
 
   const showToast = useCallback((msg: string) => {
@@ -932,7 +933,9 @@ export default function JhandiMundaScreen() {
                 Result rule — least payout wins: when betting closes, the dice show the throw that pays the least in total on all players&apos; chips. Ties are decided at
                 random. The throw is not random: the more money is on a symbol, the less likely it is to win.
               </Text>
-              <Text style={styles.rulesText}>⭐ House: one round in five is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses.</Text>
+              {houseOn ? (
+                <Text style={styles.rulesText}>⭐ House: one round in five is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses.</Text>
+              ) : null}
               <Text style={styles.rulesText}>
                 Bet ₹{minStake}–₹{maxStake} per symbol · max win ₹{config?.maxPayout ?? 10000} per bet · Whether a round is House, and how ties are decided, come from a server
                 seed published after the round.
@@ -941,8 +944,8 @@ export default function JhandiMundaScreen() {
           ) : (
             <>
               <Text style={styles.rulesText}>
-                ⭐ House: one round in five is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses. A symbol wins about {winChance}% of rounds;
-                bets return {rtpPercent}% over time.
+                {houseOn ? '⭐ House: one round in five is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses. ' : ''}A symbol wins about {winChance}%
+                of rounds; bets return {rtpPercent}% over time.
               </Text>
               <Text style={styles.rulesText}>
                 Bet ₹{minStake}–₹{maxStake} per symbol · max win ₹{config?.maxPayout ?? 10000} per bet · Provably fair: every throw, and whether the round is House, comes

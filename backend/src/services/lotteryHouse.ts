@@ -17,20 +17,28 @@ import { fairGameFloat } from "../utils/rng";
  * before the rule existed are never House. (A Trx round is marked houseRule
  * when created, and only such a round can turn House once its block is read.)
  */
-export const HOUSE_CHANCE = 0.2;
-/** Trx Win Go's share of it: House when the hash's second-last decimal digit is below this (0 or 1). */
-export const HOUSE_DIGITS = 2;
-/** Return of every lottery bet: fair odds on the 80% of results that are not House. */
+//
+// Switched off for the round games (Win Go, Trx Win Go, K3, 5D, Jhandi Munda)
+// on 2026-10-22 at the owner's request: LOTTERY_HOUSE_CHANCE defaults to 0,
+// so no new round is House (it was 0.2). Rounds already House stay so in
+// their history. Fortune Six keeps its own 1 in 5 (FORTUNE_SIX_HOUSE_CHANCE):
+// its paytable is fair, so House is all it keeps.
+export const HOUSE_CHANCE = Number(process.env.LOTTERY_HOUSE_CHANCE ?? 0);
+/** Trx Win Go's share of it: House when the hash's second-last decimal digit is below this (0 = never). */
+export const HOUSE_DIGITS = Math.round(HOUSE_CHANCE * 10);
+/** Return of every lottery bet: fair odds on the results that are not House. */
 export const LOTTERY_RTP = 1 - HOUSE_CHANCE;
+/** Fortune Six: one ticket in five is a House ticket. */
+export const FORTUNE_SIX_HOUSE_CHANCE = 0.2;
 
 /** Round-based games (Win Go, K3, 5D, Jhandi Munda): drawn from the round's seed and period number. */
 export function isHouseRound(serverSeed: string, periodNumber: string): boolean {
-  return fairGameFloat(serverSeed, periodNumber, "house", 0) < HOUSE_CHANCE;
+  return HOUSE_CHANCE > 0 && fairGameFloat(serverSeed, periodNumber, "house", 0) < HOUSE_CHANCE;
 }
 
 /** Per-ticket games (Fortune Six): drawn from the ticket's seeds and nonce. */
 export function isHouseTicket(serverSeed: string, clientSeed: string, game: string, nonce: number): boolean {
-  return fairGameFloat(serverSeed, clientSeed, `${game}:house`, nonce) < HOUSE_CHANCE;
+  return fairGameFloat(serverSeed, clientSeed, `${game}:house`, nonce) < FORTUNE_SIX_HOUSE_CHANCE;
 }
 
 /**

@@ -286,7 +286,7 @@ export default function FiveDLotteryScreen() {
   const maxStake = config?.maxStake ?? 500;
   const maxPayout = config?.maxPayout ?? 10000;
   const lockSeconds = config?.lockSeconds ?? 5;
-  const houseChance = config?.houseChancePercent ?? 20;
+  const houseChance = config?.houseChancePercent ?? 0;
   const rtpPercent = config?.rtpPercent ?? 80;
   const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
   // Fair odds until the config loads: a digit 10X, the rest 2X.
@@ -987,7 +987,7 @@ export default function FiveDLotteryScreen() {
                     `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
                     'Provably fair: each period’s digits, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
                   ]
-              ).map((t, i) => (
+              ).filter((t) => houseChance > 0 || !t.startsWith('⭐ House')).map((t, i) => (
                 <Text key={i} style={styles.rulesText}>
                   • {t}
                 </Text>

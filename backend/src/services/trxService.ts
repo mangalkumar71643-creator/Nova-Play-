@@ -71,7 +71,7 @@ async function getOrCreateRound(durationSeconds: number, now: Date): Promise<Rou
   const existing = await prisma.trxRound.findUnique({ where: key });
   if (existing) return existing;
   try {
-    return await prisma.trxRound.create({ data: { durationSeconds, periodNumber, startTime, endTime: new Date(startTime.getTime() + ms), houseRule: true, houseDigits: HOUSE_DIGITS } });
+    return await prisma.trxRound.create({ data: { durationSeconds, periodNumber, startTime, endTime: new Date(startTime.getTime() + ms), houseRule: HOUSE_DIGITS > 0, houseDigits: HOUSE_DIGITS } });
   } catch {
     // Deterministic period per slot: a concurrent request created it first.
     return prisma.trxRound.findUniqueOrThrow({ where: key });

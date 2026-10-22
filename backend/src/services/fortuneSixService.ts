@@ -5,7 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
-import { HOUSE_CHANCE, isHouseTicket } from "./lotteryHouse";
+import { FORTUNE_SIX_HOUSE_CHANCE as HOUSE_CHANCE, isHouseTicket } from "./lotteryHouse";
 
 /**
  * Fortune 6: the player picks 6 of 48 numbers, then 35 balls are drawn in
