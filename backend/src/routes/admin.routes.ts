@@ -8,6 +8,7 @@ import { env } from "../config/env";
 import { paymentProvider } from "../services/paymentService";
 import { completeDeposit, depositNumberOf, depositUtrOf, reverseDeposit, withdrawableOf } from "../services/depositService";
 import { getDepositBonusView, MAX_BONUS_TIERS, MAX_TIER_AMOUNT, setDepositBonusConfig } from "../services/depositBonusService";
+import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
 import { LOTTERY_RTP } from "../services/lotteryHouse";
@@ -794,6 +795,25 @@ router.patch(
   asyncHandler(async (req, res) => {
     const { maxPayout } = settingsSchema.parse(req.body);
     res.json(await setMaxPayout(maxPayout));
+  })
+);
+
+// --- Invites / agents (agentService.ts): who invited whom and what it earned ---
+
+router.get(
+  "/agents",
+  asyncHandler(async (req, res) => {
+    const search = typeof req.query.search === "string" ? req.query.search.trim().slice(0, 60) : "";
+    res.json(await adminAgentOverview(search));
+  })
+);
+
+router.get(
+  "/agents/:uid",
+  asyncHandler(async (req, res) => {
+    const uid = Number(req.params.uid);
+    if (!Number.isInteger(uid) || uid <= 0) throw new ApiError(400, "Enter a valid UID.");
+    res.json(await adminAgentDetail(uid));
   })
 );
 

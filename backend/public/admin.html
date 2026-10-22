@@ -454,6 +454,25 @@
         </div>
       </div>
 
+      <div class="panel" id="panel-invites">
+        <h1 class="page-title">Invites &amp; agents</h1>
+        <div class="page-sub">Who invited how many players, how many of them qualified (₹200 deposited and ₹600 played), and what each agent earned, claimed and still has waiting. Tap an agent to see their team.</div>
+        <div class="stat-grid" id="invitesStats"></div>
+        <div class="card">
+          <div class="card-head"><h2>Agents</h2><button class="btn secondary small" id="invitesRefresh">Refresh</button></div>
+          <div class="form-row">
+            <input id="invitesSearch" placeholder="UID, phone or name" style="max-width:260px;" />
+            <button class="btn" id="invitesSearchBtn" style="flex:0 0 auto;">Search</button>
+          </div>
+          <div class="item-meta" id="invitesKinds" style="margin:0 0 10px;"></div>
+          <div class="table-scroll" id="invitesList"></div>
+        </div>
+        <div class="card" id="inviteDetailCard" style="display:none;">
+          <div class="card-head"><h2 id="inviteDetailTitle">Agent</h2></div>
+          <div id="inviteDetail"></div>
+        </div>
+      </div>
+
       <div class="panel" id="panel-bonus">
         <h1 class="page-title">Bonus</h1>
         <div class="page-sub">The deposit bonus players see on the Deposit screen. One-off codes are under Gift Codes.</div>
@@ -988,6 +1007,7 @@
     { id: 'deposits', label: 'Deposits', icon: 'wallet' },
     { id: 'transactions', label: 'Withdrawals', icon: 'transactions' },
     { id: 'bonus', label: 'Bonus', icon: 'gift' },
+    { id: 'invites', label: 'Invites', icon: 'users' },
     { id: 'games', label: 'Games', icon: 'games', children: [
         { id: 'game-all', label: 'All games' },
         { id: 'game-colorpredict', label: 'Win Go' },
@@ -1067,6 +1087,7 @@
     transactions: loadWithdrawals,
     deposits: loadUpiDeposits,
     bonus: loadDepositBonus,
+    invites: function () { loadInvites(); },
     'game-colorpredict': function () { loadColorPredictPanel(); activeGamePollInterval = setInterval(loadColorPredictPanel, 4000); },
     'game-aviator': function () { loadAviatorPanel(); activeGamePollInterval = setInterval(loadAviatorPanel, 2000); },
     support: loadTickets,
@@ -2281,7 +2302,73 @@
   });
 
   // ---------- Settings ----------
-  // ---------- Deposit bonus (Settings page) ----------
+  // ---------- Invites & agents (agentService.adminAgentOverview / adminAgentDetail) ----------
+  var KIND_LABEL = { INVITE: 'Joining reward', TASK: 'Invite task', BET: 'Bet rebate', DEPOSIT: 'Deposit rebate', JACKPOT: 'Jackpot' };
+  function fmtDay(d) { return d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'; }
+  function loadInvites() {
+    var q = document.getElementById('invitesSearch').value.trim();
+    api('/admin/agents' + (q ? '?search=' + encodeURIComponent(q) : '')).then(function (r) {
+      var t = r.totals;
+      document.getElementById('invitesStats').innerHTML =
+        statCardHtml('users', 'Invited players', t.invited.toLocaleString('en-IN'), t.qualified + ' qualified') +
+        statCardHtml('users', 'Agents (invited someone)', t.agents.toLocaleString('en-IN'), null) +
+        statCardHtml('gift', 'Agent rewards earned', fmtMoney(t.earned), fmtMoney(t.claimed) + ' claimed') +
+        statCardHtml('wallet', 'Welcome rewards (₹20 each)', fmtMoney(t.welcome), 'jackpot pool this week ' + fmtMoney(t.jackpotPoolThisWeek));
+      document.getElementById('invitesKinds').innerHTML = 'Earned by kind: ' + (Object.keys(t.byKind).length
+        ? Object.keys(t.byKind).map(function (k) { return (KIND_LABEL[k] || k) + ' ' + fmtMoney(t.byKind[k]); }).join(' · ')
+        : 'nothing yet');
+      document.getElementById('invitesList').innerHTML = r.agents.length
+        ? '<table><thead><tr><th>Agent</th><th>Invited</th><th>Qualified</th><th>Team (all levels)</th><th>Invitees deposited</th><th>Earned</th><th>Claimed</th><th>Waiting</th><th>Last invite</th></tr></thead><tbody>' +
+          r.agents.map(function (a) {
+            return '<tr data-agent-uid="' + a.uid + '" style="cursor:pointer;"><td><b>UID ' + a.uid + '</b><br/><span class="item-meta">' + escapeHtml(a.name || '') + (a.phone ? ' · ' + escapeHtml(a.phone) : '') + '</span></td>' +
+              '<td><b>' + a.direct + '</b></td><td>' + a.qualified + '</td><td>' + a.team + '</td><td>' + fmtMoney(a.directDeposits) + '</td>' +
+              '<td>' + fmtMoney(a.earned) + '</td><td>' + fmtMoney(a.claimed) + '</td><td>' + fmtMoney(a.waiting) + '</td><td>' + fmtDay(a.lastInviteAt) + '</td></tr>';
+          }).join('') + '</tbody></table>'
+        : '<div class="empty">' + (q ? 'No agent matches that search.' : 'Nobody has invited a player yet.') + '</div>';
+    }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  }
+  function loadInviteDetail(uid) {
+    var card = document.getElementById('inviteDetailCard');
+    card.style.display = '';
+    document.getElementById('inviteDetail').innerHTML = '<div class="empty">Loading…</div>';
+    api('/admin/agents/' + encodeURIComponent(uid)).then(function (d) {
+      document.getElementById('inviteDetailTitle').textContent = 'UID ' + d.agent.uid + ' — ' + (d.agent.name || '');
+      var head = '<div class="item-meta" style="margin-bottom:10px;">' + (d.agent.phone ? escapeHtml(d.agent.phone) + ' · ' : '') + 'joined ' + fmtDay(d.agent.joinedAt) +
+        ' · invited by ' + (d.invitedBy ? 'UID ' + d.invitedBy.uid + ' (' + escapeHtml(d.invitedBy.name) + ')' : 'nobody') + '</div>' +
+        '<div class="item-meta" style="margin-bottom:10px;">Team: ' + (d.levels.length ? d.levels.map(function (l) { return 'level ' + l.depth + ': <b>' + l.players + '</b>'; }).join(' · ') : 'none') + '</div>' +
+        '<div class="item-meta" style="margin-bottom:14px;">Rewards: ' + (d.rewards.length ? d.rewards.map(function (r) { return (KIND_LABEL[r.kind] || r.kind) + ' <b>' + fmtMoney(r.amount) + '</b> (' + r.count + ')'; }).join(' · ') : 'none yet') +
+        ' · waiting to claim <b>' + fmtMoney(d.waiting) + '</b></div>';
+      var invitees = d.invitees.length
+        ? '<table><thead><tr><th>Invitee</th><th>Joined</th><th>Deposited</th><th>Played</th><th>Qualified</th><th>Their invites</th></tr></thead><tbody>' +
+          d.invitees.map(function (i) {
+            return '<tr><td><b>UID ' + i.uid + '</b><br/><span class="item-meta">' + escapeHtml(i.name || '') + (i.phone ? ' · ' + escapeHtml(i.phone) : '') + '</span></td><td>' + fmtDay(i.joinedAt) + '</td>' +
+              '<td>' + fmtMoney(i.deposited) + '</td><td>' + fmtMoney(i.staked) + '</td>' +
+              '<td>' + (i.qualifiedAt ? '<span class="pill approved">Yes · ' + fmtDay(i.qualifiedAt) + '</span>' : '<span class="pill pending">Not yet</span>') + '</td><td>' + i.theirInvites + '</td></tr>';
+          }).join('') + '</tbody></table>'
+        : '<div class="empty">No invitees.</div>';
+      var rewards = d.recentRewards.length
+        ? '<table><thead><tr><th>Reward</th><th>For</th><th>Amount</th><th>Earned</th><th>Claimed</th></tr></thead><tbody>' +
+          d.recentRewards.map(function (r) {
+            return '<tr><td>' + (KIND_LABEL[r.kind] || r.kind) + '</td><td>' + escapeHtml(r.note) + (r.invitees ? ' · ' + r.invitees + (r.invitees === 1 ? ' player' : ' players') : '') + '</td><td>' + fmtMoney(r.amount) + '</td><td>' + fmtDay(r.earnedAt) + '</td><td>' + (r.claimed ? 'Yes' : 'Waiting') + '</td></tr>';
+          }).join('') + '</tbody></table>'
+        : '<div class="empty">No rewards yet.</div>';
+      var claims = d.claims.length ? d.claims.map(function (c) { return fmtMoney(c.amount) + ' on ' + fmtDay(c.at); }).join(' · ') : 'none';
+      document.getElementById('inviteDetail').innerHTML = head +
+        '<div style="font-weight:700;font-size:15px;margin:6px 0 10px;">Invited players (' + d.invitees.length + ')</div><div class="table-scroll">' + invitees + '</div>' +
+        '<hr class="divider" /><div style="font-weight:700;font-size:15px;margin-bottom:10px;">Latest rewards</div><div class="table-scroll">' + rewards + '</div>' +
+        '<div class="item-meta" style="margin-top:10px;">Claims: ' + claims + '</div>';
+      card.scrollIntoView({ behavior: 'smooth' });
+    }).catch(function (err) { if (err.authError) doLogout(); else document.getElementById('inviteDetail').innerHTML = '<div class="empty">' + escapeHtml(err.message) + '</div>'; });
+  }
+  document.getElementById('invitesList').addEventListener('click', function (e) {
+    var row = e.target.closest('[data-agent-uid]');
+    if (row) loadInviteDetail(row.getAttribute('data-agent-uid'));
+  });
+  document.getElementById('invitesRefresh').addEventListener('click', loadInvites);
+  document.getElementById('invitesSearchBtn').addEventListener('click', loadInvites);
+  document.getElementById('invitesSearch').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadInvites(); });
+
+  // ---------- Deposit bonus (Bonus page) ----------
   function depBonusTierRow(t) {
     return '<div class="form-row" data-dep-tier style="flex-wrap:nowrap;">' +
       '<input type="number" min="1" step="1" placeholder="Deposit ₹" data-dep-min value="' + (t ? t.min : '') + '" style="min-width:0;flex:1 1 0;" />' +

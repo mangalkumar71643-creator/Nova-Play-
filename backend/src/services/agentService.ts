@@ -489,3 +489,89 @@ export async function getJackpotHistory() {
       .map(({ rank, name, commission, prize, percent }) => ({ rank, name, commission, prize, percent })),
   }));
 }
+
+// --- Admin: who invited whom, and what it earned ---
+
+/**
+ * Every agent (a player who invited at least one other), most invites
+ * first, with their team and the rewards it earned, plus totals. Runs the
+ * sweep first so the numbers include rewards just due.
+ */
+export async function adminAgentOverview(search: string, limit = 200) {
+  await runAgentSweep();
+  const uid = /^\d+$/.test(search) ? Number(search) : -1;
+  const like = `%${search}%`;
+  const agents = await prisma.$queryRaw<
+    { uid: number | null; name: string; phone: string | null; direct: number; qualified: number; team: number; directDeposits: number; earned: number; claimed: number; waiting: number; lastInviteAt: Date | null }[]
+  >`
+    SELECT u.uid, TRIM(CONCAT(u."firstName", ' ', u."lastName")) AS name, u.phone,
+      (SELECT COUNT(*)::int FROM "User" c WHERE c."referrerId" = u.id) AS direct,
+      (SELECT COUNT(*)::int FROM "User" c WHERE c."referrerId" = u.id AND c."referralQualifiedAt" IS NOT NULL) AS qualified,
+      (SELECT COUNT(*)::int FROM "AgentLink" l WHERE l."ancestorId" = u.id) AS team,
+      (SELECT COALESCE(SUM(t.amount), 0)::float8 FROM "Transaction" t JOIN "User" c ON c.id = t."userId"
+        WHERE c."referrerId" = u.id AND t.type = 'DEPOSIT' AND t.status = 'COMPLETED') AS "directDeposits",
+      (SELECT COALESCE(SUM(r.amount), 0)::float8 FROM "AgentReward" r WHERE r."userId" = u.id AND r."periodKey" <> 'welcome') AS earned,
+      (SELECT COALESCE(SUM(r.amount), 0)::float8 FROM "AgentReward" r WHERE r."userId" = u.id AND r."periodKey" <> 'welcome' AND r."claimId" IS NOT NULL) AS claimed,
+      (SELECT COALESCE(SUM(r.amount), 0)::float8 FROM "AgentReward" r WHERE r."userId" = u.id AND r."periodKey" <> 'welcome' AND r."claimId" IS NULL) AS waiting,
+      (SELECT MAX(c."createdAt") FROM "User" c WHERE c."referrerId" = u.id) AS "lastInviteAt"
+    FROM "User" u
+    WHERE EXISTS (SELECT 1 FROM "User" c WHERE c."referrerId" = u.id)
+      AND (${search} = '' OR u.uid = ${uid} OR u.phone ILIKE ${like} OR CONCAT(u."firstName", ' ', u."lastName") ILIKE ${like})
+    ORDER BY direct DESC, earned DESC
+    LIMIT ${limit}`;
+  const [totals] = await prisma.$queryRaw<{ invited: number; qualified: number; agents: number; earned: number; claimed: number; welcome: number }[]>`
+    SELECT
+      (SELECT COUNT(*)::int FROM "User" WHERE "referrerId" IS NOT NULL) AS invited,
+      (SELECT COUNT(*)::int FROM "User" WHERE "referralQualifiedAt" IS NOT NULL) AS qualified,
+      (SELECT COUNT(DISTINCT "referrerId")::int FROM "User" WHERE "referrerId" IS NOT NULL) AS agents,
+      (SELECT COALESCE(SUM(amount), 0)::float8 FROM "AgentReward" WHERE "periodKey" <> 'welcome') AS earned,
+      (SELECT COALESCE(SUM(amount), 0)::float8 FROM "AgentReward" WHERE "periodKey" <> 'welcome' AND "claimId" IS NOT NULL) AS claimed,
+      (SELECT COALESCE(SUM(amount), 0)::float8 FROM "AgentReward" WHERE "periodKey" = 'welcome') AS welcome`;
+  const byKind = await prisma.agentReward.groupBy({ by: ["kind"], where: { NOT: { periodKey: "welcome" } }, _sum: { amount: true } });
+  const weekKey = weekKeyOf(dayKeyOf(new Date()));
+  const pool = await jackpotPool(prisma, weekKey, new Date());
+  return {
+    totals: { ...totals, byKind: Object.fromEntries(byKind.map((k) => [k.kind, Number(k._sum.amount ?? 0)])), jackpotPoolThisWeek: pool.pool },
+    agents: agents.map((a) => ({ ...a, earned: paise(a.earned), claimed: paise(a.claimed), waiting: paise(a.waiting), directDeposits: paise(a.directDeposits) })),
+  };
+}
+
+/** One agent: who invited them, their invitees (level 1) with deposits and bets, team size per level, rewards and claims. */
+export async function adminAgentDetail(uid: number) {
+  await runAgentSweep();
+  const user = await prisma.user.findUnique({ where: { uid }, select: { id: true, uid: true, firstName: true, lastName: true, phone: true, referrerId: true, createdAt: true } });
+  if (!user) throw new ApiError(404, "No player with that UID.");
+  const invitedBy = user.referrerId ? await prisma.user.findUnique({ where: { id: user.referrerId }, select: { uid: true, firstName: true, lastName: true } }) : null;
+  const invitees = await prisma.$queryRaw<{ uid: number | null; name: string; phone: string | null; joinedAt: Date; qualifiedAt: Date | null; deposited: number; staked: number; theirInvites: number }[]>`
+    SELECT c.uid, TRIM(CONCAT(c."firstName", ' ', c."lastName")) AS name, c.phone, c."createdAt" AS "joinedAt", c."referralQualifiedAt" AS "qualifiedAt",
+      (SELECT COALESCE(SUM(amount), 0)::float8 FROM "Transaction" WHERE "userId" = c.id AND type = 'DEPOSIT' AND status = 'COMPLETED') AS deposited,
+      (SELECT COALESCE(SUM(amount), 0)::float8 FROM "Transaction" WHERE "userId" = c.id AND type IN ${STAKE_TYPES} AND status = 'COMPLETED') AS staked,
+      (SELECT COUNT(*)::int FROM "User" g WHERE g."referrerId" = c.id) AS "theirInvites"
+    FROM "User" c WHERE c."referrerId" = ${user.id}
+    ORDER BY c."createdAt" DESC LIMIT 500`;
+  const levels = await prisma.agentLink.groupBy({ by: ["depth"], where: { ancestorId: user.id }, _count: true, orderBy: { depth: "asc" } });
+  const rewards = await prisma.agentReward.groupBy({ by: ["kind"], where: { userId: user.id }, _sum: { amount: true }, _count: true });
+  const waiting = await prisma.agentReward.aggregate({ where: { userId: user.id, claimId: null }, _sum: { amount: true } });
+  const recent = await prisma.agentReward.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 50, select: { kind: true, periodKey: true, amount: true, invitees: true, earnedAt: true, claimId: true } });
+  const claims = await prisma.agentClaim.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 50, select: { amount: true, createdAt: true } });
+  const inviteeByKey = new Map<string, number | null>();
+  const inviteKeys = recent.filter((r) => r.periodKey.startsWith("invitee:")).map((r) => r.periodKey.slice(8));
+  if (inviteKeys.length) (await prisma.user.findMany({ where: { id: { in: inviteKeys } }, select: { id: true, uid: true } })).forEach((u) => inviteeByKey.set(u.id, u.uid));
+  return {
+    agent: { uid: user.uid, name: `${user.firstName} ${user.lastName}`.trim(), phone: user.phone, joinedAt: user.createdAt },
+    invitedBy: invitedBy ? { uid: invitedBy.uid, name: `${invitedBy.firstName} ${invitedBy.lastName}`.trim() } : null,
+    levels: levels.map((l) => ({ depth: l.depth, players: l._count })),
+    rewards: rewards.map((r) => ({ kind: r.kind, amount: paise(Number(r._sum.amount ?? 0)), count: r._count })),
+    waiting: paise(Number(waiting._sum.amount ?? 0)),
+    recentRewards: recent.map((r) => ({
+      kind: r.kind,
+      note: r.periodKey.startsWith("invitee:") ? `invitee UID ${inviteeByKey.get(r.periodKey.slice(8)) ?? "?"}` : r.periodKey,
+      amount: Number(r.amount),
+      invitees: r.invitees,
+      earnedAt: r.earnedAt,
+      claimed: r.claimId !== null,
+    })),
+    claims: claims.map((c) => ({ amount: Number(c.amount), at: c.createdAt })),
+    invitees: invitees.map((i) => ({ ...i, deposited: paise(i.deposited), staked: paise(i.staked) })),
+  };
+}
