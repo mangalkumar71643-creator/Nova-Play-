@@ -701,6 +701,26 @@
         <h1 class="page-title">Settings</h1>
         <div class="page-sub">Your account on this control panel.</div>
         <div class="card" id="settingsCard" style="max-width:420px;"></div>
+        <div class="card" style="max-width:520px;">
+          <div class="card-head"><h2>Deposit bonus</h2></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Slabs like "deposit ₹200 or more → +₹50 bonus". The highest slab the amount reaches is paid. Players see these on the Deposit screen.</div>
+          <label class="item-meta" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" id="depBonusOn" style="width:auto;" /> Bonus on
+          </label>
+          <div class="form-row">
+            <select id="depBonusFirstOnly">
+              <option value="false">Every deposit</option>
+              <option value="true">First deposit only</option>
+            </select>
+          </div>
+          <div id="depBonusTiers"></div>
+          <div class="form-row">
+            <button class="btn secondary" id="depBonusAdd" style="flex:0 0 auto;">+ Add slab</button>
+            <button class="btn" id="depBonusSave" style="flex:0 0 auto;">Save</button>
+            <button class="btn secondary" id="depBonusReset" style="flex:0 0 auto;">Use default %</button>
+          </div>
+          <div class="item-meta" id="depBonusStatus"></div>
+        </div>
         <div class="card" style="max-width:420px;">
           <div class="card-head"><h2>SMS / OTP</h2></div>
           <div class="item-meta" id="smsStatus" style="margin:-6px 0 12px;">Loading…</div>
@@ -1022,7 +1042,7 @@
       reportsTicking = true;
       activeGamePollInterval = setInterval(reportsTick, 1000);
     },
-    settings: function () { loadSettings(); loadSmsStatus(); loadIntegrations(); },
+    settings: function () { loadSettings(); loadDepositBonus(); loadSmsStatus(); loadIntegrations(); },
     'game-all': function () {
       loadAllGamesOverview();
       loadAllGamesCatalog().then(loadAllGamesBets);
@@ -2212,6 +2232,64 @@
   });
 
   // ---------- Settings ----------
+  // ---------- Deposit bonus (Settings page) ----------
+  function depBonusTierRow(t) {
+    return '<div class="form-row" data-dep-tier>' +
+      '<input type="number" min="1" step="1" placeholder="Deposit ₹ (or more)" data-dep-min value="' + (t ? t.min : '') + '" />' +
+      '<input type="number" min="0" step="1" placeholder="Bonus ₹" data-dep-bonus value="' + (t ? t.bonus : '') + '" />' +
+      '<button class="btn secondary" data-dep-remove style="flex:0 0 auto;">✕</button></div>';
+  }
+  function renderDepBonus(v) {
+    var c = v.config;
+    document.getElementById('depBonusOn').checked = c.enabled;
+    document.getElementById('depBonusFirstOnly').value = String(c.firstOnly);
+    document.getElementById('depBonusTiers').innerHTML = (c.tiers.length ? c.tiers : [null]).map(depBonusTierRow).join('');
+    var d = v.defaultPercent;
+    document.getElementById('depBonusStatus').textContent = (v.saved
+      ? (c.enabled ? 'On: ' + c.tiers.map(function (t) { return fmtMoney(t.min) + ' → +' + fmtMoney(t.bonus); }).join(', ') + (c.firstOnly ? ' (first deposit only).' : ' (every deposit).') : 'Off: no deposit bonus.')
+      : 'Not set yet, so the default applies: ' + Math.round(d.first * 100) + '% on the first deposit, ' + Math.round(d.second * 100) + '% on the second, up to ' + fmtMoney(d.cap) + '.') +
+      ' A bonus can be played straight away but is withdrawable only after ' + v.wageringMultiplier + 'x it is staked.';
+  }
+  function loadDepositBonus() {
+    api('/admin/deposit-bonus').then(renderDepBonus)
+      .catch(function (err) { if (err.authError) doLogout(); else document.getElementById('depBonusStatus').textContent = err.message; });
+  }
+  function saveDepositBonus(body, btn) {
+    var status = document.getElementById('depBonusStatus');
+    btn.disabled = true;
+    api('/admin/deposit-bonus', { method: 'PUT', body: JSON.stringify(body) })
+      .then(function (v) { renderDepBonus(v); status.textContent = 'Saved. ' + status.textContent; })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
+      .finally(function () { btn.disabled = false; });
+  }
+  document.getElementById('depBonusAdd').addEventListener('click', function () {
+    document.getElementById('depBonusTiers').insertAdjacentHTML('beforeend', depBonusTierRow(null));
+  });
+  document.getElementById('depBonusTiers').addEventListener('click', function (e) {
+    var rm = e.target.closest('[data-dep-remove]');
+    if (rm) rm.closest('[data-dep-tier]').remove();
+  });
+  document.getElementById('depBonusSave').addEventListener('click', function () {
+    var status = document.getElementById('depBonusStatus');
+    var tiers = [];
+    var bad = false;
+    document.querySelectorAll('#depBonusTiers [data-dep-tier]').forEach(function (row) {
+      var min = row.querySelector('[data-dep-min]').value.trim();
+      var bonus = row.querySelector('[data-dep-bonus]').value.trim();
+      if (!min && !bonus) return;
+      if (!(Number(min) >= 1) || !(Number(bonus) >= 0) || bonus === '') { bad = true; return; }
+      tiers.push({ min: Math.round(Number(min)), bonus: Number(bonus) });
+    });
+    if (bad) { status.textContent = 'Fill both amounts in every slab (deposit ₹1 or more, bonus ₹0 or more).'; return; }
+    var enabled = document.getElementById('depBonusOn').checked;
+    if (enabled && !tiers.length) { status.textContent = 'Add at least one slab, or untick "Bonus on".'; return; }
+    saveDepositBonus({ enabled: enabled, firstOnly: document.getElementById('depBonusFirstOnly').value === 'true', tiers: tiers }, this);
+  });
+  document.getElementById('depBonusReset').addEventListener('click', function () {
+    if (!confirm('Forget the slabs and go back to the default % bonus?')) return;
+    saveDepositBonus({ reset: true, enabled: false, firstOnly: false, tiers: [] }, this);
+  });
+
   // ---------- Popups ----------
   var popupsCache = [];
 

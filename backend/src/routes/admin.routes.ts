@@ -7,6 +7,7 @@ import { prisma } from "../db/prismaClient";
 import { env } from "../config/env";
 import { paymentProvider } from "../services/paymentService";
 import { completeDeposit, depositNumberOf, depositUtrOf, reverseDeposit } from "../services/depositService";
+import { getDepositBonusView, MAX_BONUS_TIERS, MAX_TIER_AMOUNT, setDepositBonusConfig } from "../services/depositBonusService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
 import { LOTTERY_RTP } from "../services/lotteryHouse";
@@ -797,6 +798,38 @@ router.patch(
   asyncHandler(async (req, res) => {
     const { maxPayout } = settingsSchema.parse(req.body);
     res.json(await setMaxPayout(maxPayout));
+  })
+);
+
+// --- Deposit bonus slabs (depositBonusService.ts) ---
+
+router.get(
+  "/deposit-bonus",
+  asyncHandler(async (_req, res) => {
+    res.json(await getDepositBonusView());
+  })
+);
+
+const bonusTierSchema = z.object({
+  min: z.number().int().min(1).max(MAX_TIER_AMOUNT),
+  bonus: z.number().min(0).max(MAX_TIER_AMOUNT).transform((b) => Math.round(b * 100) / 100),
+});
+const depositBonusSchema = z.object({
+  // reset: forget the slabs and go back to the default percent bonus.
+  reset: z.boolean().optional(),
+  enabled: z.boolean(),
+  firstOnly: z.boolean(),
+  tiers: z
+    .array(bonusTierSchema)
+    .max(MAX_BONUS_TIERS)
+    .refine((t) => new Set(t.map((x) => x.min)).size === t.length, "Two slabs have the same deposit amount."),
+});
+router.put(
+  "/deposit-bonus",
+  asyncHandler(async (req, res) => {
+    const body = depositBonusSchema.parse(req.body);
+    if (body.enabled && body.tiers.length === 0) throw new ApiError(400, "Add at least one slab, or switch the bonus off.");
+    res.json(await setDepositBonusConfig(body.reset ? null : { enabled: body.enabled, firstOnly: body.firstOnly, tiers: body.tiers }));
   })
 );
 

@@ -921,6 +921,22 @@ export function confirmUpiDeposits(sessionId?: string) {
   return apiFetch<{ results: UpiDepositResult[] }>('/wallet/upi/confirm', { method: 'POST', body: JSON.stringify(sessionId ? { sessionId } : {}) });
 }
 
+/**
+ * What this player's next deposit earns: the admin's slabs ("₹min or more ->
+ * +₹bonus"), or with none set the default percent (capped). Only a preview;
+ * the server works the bonus out itself when the money arrives.
+ */
+export interface DepositBonusInfo {
+  tiers: { min: number; bonus: number }[];
+  percent: number;
+  cap: number;
+  firstOnly: boolean;
+  wageringMultiplier: number;
+}
+export function fetchDepositBonus() {
+  return apiFetch<DepositBonusInfo>('/wallet/deposit-bonus');
+}
+
 export interface MinesConfig {
   minStake: number;
   maxStake: number;

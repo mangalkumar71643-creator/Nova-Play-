@@ -8,6 +8,7 @@ import { assertCanTransact, assertWithinDepositLimits } from "../services/respon
 import * as rupayex from "../services/rupayexService";
 import { env } from "../config/env";
 import { depositNumberOf, depositUtrOf } from "../services/depositService";
+import { playerDepositBonus } from "../services/depositBonusService";
 import { istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
 
 const router = Router();
@@ -90,6 +91,15 @@ router.get(
   asyncHandler(async (req, res) => {
     // RupayEx deposits are re-checked by the player's own confirm and by the sweep (rupayexService.ts).
     res.json(await rupayex.upiDepositStatus(req.user!.userId));
+  })
+);
+
+/** The bonus this player's next deposit earns (the admin's slabs), for the Deposit screen. */
+router.get(
+  "/deposit-bonus",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await playerDepositBonus(req.user!.userId));
   })
 );
 

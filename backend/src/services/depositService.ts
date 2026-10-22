@@ -1,6 +1,7 @@
 import { prisma } from "../db/prismaClient";
 import { env } from "../config/env";
 import { ApiError } from "../middleware/errorHandler";
+import { bonusFor, getDepositBonusConfig } from "./depositBonusService";
 
 /**
  * Records a completed real-money deposit and credits it, with the first- or
@@ -51,14 +52,13 @@ export async function completeDeposit(
     // first (or second) and both take that bonus.
     await tx.$queryRaw`SELECT id FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
     const previousDeposits = await tx.transaction.count({ where: { userId, type: "DEPOSIT", status: "COMPLETED" } });
-    // First deposit firstDepositBonusPercent, second secondDepositBonusPercent,
-    // none after: min(amount * percent, cap), credited into balance
-    // (immediately playable) and locked from withdrawal until
-    // wageringMultiplier x the bonus has been staked in games — each game
-    // service (e.g. vortexService.ts, andarBaharService.ts) advances
-    // wageringProgress and releases the lock.
-    const percent = previousDeposits === 0 ? env.wallet.firstDepositBonusPercent : previousDeposits === 1 ? env.wallet.secondDepositBonusPercent : 0;
-    const granted = Math.round(Math.min(amount * percent, env.wallet.firstDepositBonusCap) * 100) / 100;
+    // The admin's bonus slabs (depositBonusService.ts), else the env percent
+    // on the first and second deposits: credited into balance (immediately
+    // playable) and locked from withdrawal until wageringMultiplier x the
+    // bonus has been staked in games — each game service (e.g.
+    // vortexService.ts, andarBaharService.ts) advances wageringProgress and
+    // releases the lock.
+    const granted = bonusFor(await getDepositBonusConfig(tx), amount, previousDeposits);
 
     let depositId: string;
     if (pendingTransactionId) {

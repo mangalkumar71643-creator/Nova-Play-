@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, AppState, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import ScreenContainer from '../components/ScreenContainer';
 import { ApiClientError } from '../api/client';
-import { UpiDepositStatus, confirmUpiDeposits, fetchUpiDepositStatus, startUpiCheckout } from '../api/backend';
+import { DepositBonusInfo, UpiDepositStatus, confirmUpiDeposits, fetchDepositBonus, fetchUpiDepositStatus, startUpiCheckout } from '../api/backend';
 import { RootStackParamList } from '../navigation/types';
 import { KYC_REQUIRED, useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
@@ -18,20 +18,21 @@ const MIN_DEPOSIT = 100;
 const MAX_DEPOSIT = 5000;
 const QUICK_AMOUNTS = [100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
-// Mirrors backend/src/config/env.ts's `wallet.firstDepositBonusPercent` /
-// `firstDepositBonusCap` defaults — used only to preview what the bonus
-// will be before depositing. The backend recomputes and grants the real
-// amount independently; this is never trusted to credit anything itself.
-const FIRST_DEPOSIT_BONUS_PERCENT = 0.15;
-const FIRST_DEPOSIT_BONUS_CAP = 500;
-
-function previewBonus(amount: number): number {
-  return Math.round(Math.min(amount * FIRST_DEPOSIT_BONUS_PERCENT, FIRST_DEPOSIT_BONUS_CAP) * 100) / 100;
+// Same rule as backend/src/services/depositBonusService.ts's bonusFor, used
+// only to preview the bonus before depositing. The backend works out and
+// grants the real amount itself; this is never trusted to credit anything.
+function previewBonus(info: DepositBonusInfo | null, amount: number): number {
+  if (!info) return 0;
+  if (info.tiers.length === 0) return Math.round(Math.min(amount * info.percent, info.cap) * 100) / 100;
+  let bonus = 0;
+  for (const t of info.tiers) if (amount >= t.min) bonus = t.bonus;
+  return bonus;
 }
 
 export default function DepositScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { coins, withdrawable, firstDepositBonusClaimed, refreshWallet } = useGameState();
+  const { coins, withdrawable, refreshWallet } = useGameState();
+  const [bonusInfo, setBonusInfo] = useState<DepositBonusInfo | null>(null);
   const { backendUser } = useAuth();
   const [amountText, setAmountText] = useState(String(QUICK_AMOUNTS[1]));
   const [busy, setBusy] = useState(false);
@@ -63,7 +64,11 @@ export default function DepositScreen() {
         // The webhook may have credited it already (alreadyCredited): when
         // this is the payment the player just made, still say it arrived.
         const done = results.filter((r) => r.status === 'COMPLETED' && (sessionId ? true : !r.alreadyCredited));
-        if (results.length > 0) await refreshWallet();
+        if (results.length > 0) {
+          await refreshWallet();
+          // A deposit can use up a first-deposit-only bonus.
+          fetchDepositBonus().then(setBonusInfo).catch(() => {});
+        }
         if (done.length > 0) {
           const total = done.reduce((s, r) => s + r.amount, 0);
           const bonus = done.reduce((s, r) => s + r.bonus, 0);
@@ -82,6 +87,7 @@ export default function DepositScreen() {
 
   useEffect(() => {
     fetchUpiDepositStatus().then(setUpi).catch(() => setUpi(null));
+    fetchDepositBonus().then(setBonusInfo).catch(() => setBonusInfo(null));
     // Settle any UPI payment left open last time (e.g. the app was closed while paying).
     reportUpiResults(undefined, true);
     const sub = AppState.addEventListener('change', (state) => {
@@ -96,7 +102,7 @@ export default function DepositScreen() {
   const kycApproved = !KYC_REQUIRED || backendUser?.kycStatus === 'APPROVED';
   const amount = Number(amountText);
   const isValidAmount = amountText.trim().length > 0 && amount >= MIN_DEPOSIT && amount <= MAX_DEPOSIT;
-  const bonusPreview = !firstDepositBonusClaimed && isValidAmount ? previewBonus(amount) : 0;
+  const bonusPreview = isValidAmount ? previewBonus(bonusInfo, amount) : 0;
 
   async function handlePayNow() {
     if (!kycApproved) {
@@ -201,7 +207,7 @@ export default function DepositScreen() {
           <View style={styles.quickGrid}>
             {QUICK_AMOUNTS.map((value) => {
               const selected = amount === value;
-              const chipBonus = !firstDepositBonusClaimed ? previewBonus(value) : 0;
+              const chipBonus = previewBonus(bonusInfo, value);
               return (
                 <Pressable
                   key={value}
@@ -221,6 +227,22 @@ export default function DepositScreen() {
               );
             })}
           </View>
+
+          {bonusInfo && bonusInfo.tiers.length > 0 ? (
+            <View style={styles.offerList} testID="deposit-bonus-offers">
+              <Text style={styles.offerTitle}>
+                <MaterialCommunityIcons name="gift-outline" size={14} color={colors.gold} /> Bonus offers
+                {bonusInfo.firstOnly ? ' (first deposit only)' : ''}
+              </Text>
+              {bonusInfo.tiers
+                .filter((t) => t.bonus > 0)
+                .map((t) => (
+                  <Text key={t.min} style={styles.offerText}>
+                    Deposit ₹{t.min.toLocaleString('en-IN')} or more → +₹{t.bonus.toLocaleString('en-IN')} bonus
+                  </Text>
+                ))}
+            </View>
+          ) : null}
         </View>
 
         {bonusPreview > 0 ? (
@@ -229,7 +251,7 @@ export default function DepositScreen() {
               <Text style={styles.promoTotalLabel}>Total credited</Text>
               <Text style={styles.promoTotalValue}>₹{(amount + bonusPreview).toLocaleString('en-IN')}</Text>
             </View>
-            <Text style={styles.promoBonusText}>First deposit bonus{'\n'}+₹{bonusPreview.toLocaleString('en-IN')}</Text>
+            <Text style={styles.promoBonusText}>Deposit bonus{'\n'}+₹{bonusPreview.toLocaleString('en-IN')}</Text>
           </View>
         ) : null}
 
@@ -245,8 +267,8 @@ export default function DepositScreen() {
           </Text>
           {bonusPreview > 0 ? (
             <Text style={styles.tipsText}>
-              5. The bonus is playable immediately but only becomes withdrawable after you've staked 3x its
-              value in games — track progress in Wallet.
+              5. The bonus is playable immediately but only becomes withdrawable after you've staked{' '}
+              {bonusInfo?.wageringMultiplier ?? 3}x its value in games — track progress in Wallet.
             </Text>
           ) : null}
         </View>
@@ -411,6 +433,9 @@ const styles = {
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
+  offerList: { marginTop: spacing.md, gap: 2 },
+  offerTitle: { color: colors.gold, fontSize: typography.sm, fontWeight: '800' as const, marginBottom: 2 },
+  offerText: { color: colors.textSecondary, fontSize: typography.xs },
   chipBonusBadgeText: { color: colors.background, fontSize: 10, fontWeight: '800' as const },
   promoCard: {
     flexDirection: 'row' as const,
