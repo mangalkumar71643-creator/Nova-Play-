@@ -28,14 +28,9 @@ const IMAGE_HEIGHT = 1536;
 const pctX = (px: number) => px / IMAGE_WIDTH;
 const pctY = (px: number) => px / IMAGE_HEIGHT;
 
-// Testing shortcut: when no number is typed, Login still needs *some*
-// phone to identify the (mock) OTP session with — use a fixed one so a
-// bare tap on Login always works. Remove once real login is required.
-const DEFAULT_TEST_PHONE = '9999999999';
-
 export default function LoginScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
-  const { quickLogin, verifyOtp, otpSent, devOtpCode, loginWithPassword } = useAuth();
+  const { quickLogin, verifyOtp, otpSent, loginWithPassword } = useAuth();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -70,15 +65,15 @@ export default function LoginScreen() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
-  function effectivePhone() {
-    return phone.trim().length === 10 ? phone.trim() : DEFAULT_TEST_PHONE;
-  }
-
   async function sendOtpInline() {
     if (resendCooldown > 0 || sendingOtp) return;
     setLoginMode('otp');
+    if (!isValid) {
+      Alert.alert('Enter your number', 'Please enter your own 10-digit mobile number. The login code is sent to it by SMS.');
+      return;
+    }
     setSendingOtp(true);
-    const error = await quickLogin(effectivePhone());
+    const error = await quickLogin(digits);
     setSendingOtp(false);
     if (error) {
       Alert.alert('Could not send code', error);
@@ -89,6 +84,7 @@ export default function LoginScreen() {
   }
 
   async function handleSubmit() {
+    if (verifying) return;
     if (loginMode === 'password') {
       if (!isValid) {
         Alert.alert('Enter your number', 'Please enter a valid 10-digit mobile number first.');
@@ -104,8 +100,6 @@ export default function LoginScreen() {
       }
       return;
     }
-    // Testing shortcut: a bare tap on Login signs you straight in, no
-    // number or code needed — see quickLogin/DEFAULT_TEST_PHONE above.
     if (otpSent && otpCode.length === 6) {
       setVerifying(true);
       const error = await verifyOtp(otpCode);
@@ -116,8 +110,12 @@ export default function LoginScreen() {
       return;
     }
     if (!otpSent) {
+      if (!isValid) {
+        Alert.alert('Enter your number', 'Please enter your own 10-digit mobile number. The login code is sent to it by SMS.');
+        return;
+      }
       setVerifying(true);
-      const error = await quickLogin(effectivePhone());
+      const error = await quickLogin(digits);
       setVerifying(false);
       if (error) {
         Alert.alert('Login failed', error);
@@ -203,18 +201,6 @@ export default function LoginScreen() {
               )}
             </View>
 
-            {loginMode === 'otp' && otpSent ? (
-              <View style={[styles.overlay, styles.demoBanner, box(200, 900, 630, 30)]}>
-                <Text style={styles.demoBannerText}>
-                  {verifying
-                    ? 'Verifying code...'
-                    : devOtpCode
-                    ? `Testing mode — your code is ${devOtpCode}`
-                    : `Code sent to +91 ${phone}`}
-                </Text>
-              </View>
-            ) : null}
-
             {/* Forgot password link */}
             <Pressable
               style={[styles.overlay, box(560, 950, 370, 30)]}
@@ -299,13 +285,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendText: { color: '#F0B93D', fontSize: 15, fontWeight: '800' },
-  demoBanner: {
-    backgroundColor: '#1c0d10',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(240,185,61,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  demoBannerText: { color: '#F0B93D', fontSize: 12, fontWeight: '700' },
 });

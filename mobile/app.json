@@ -2,7 +2,7 @@
   "expo": {
     "name": "NovaPlay",
     "slug": "novaplay-hub",
-    "version": "1.0.31",
+    "version": "1.0.32",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -19,7 +19,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.novaplayhub",
-      "versionCode": 32,
+      "versionCode": 33,
       "permissions": [
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
