@@ -107,100 +107,98 @@ const LOGO_ASPECT = 49 / 148;
 const LOGO_WIDTH = SCREEN_WIDTH * 0.32;
 const LOGO_HEIGHT = LOGO_WIDTH * LOGO_ASPECT;
 
-// Code-drawn diagonal bands instead of the old static background image,
-// tilted to match the real reference (rays leaning toward the bottom-left
-// takeoff corner) and scrolling slowly. An SVG <Pattern> whose y attribute
-// changed every frame turned out not to reliably repaint on device, so
-// this uses a plain View translated (and rotated) with a real transform
-// instead — the same style-driven mechanism FlightTrail already uses for
-// the plane every frame, which is proven to actually repaint. Fully
-// self-contained (its own rAF loop, no shared state) so it can never
-// interfere with that animation above.
-const BG_STRIPE_TILE = PANEL_HEIGHT * 0.16;
-const BG_BAND_HEIGHT = BG_STRIPE_TILE / 2;
-const BG_SCROLL_PX_PER_SEC = BG_STRIPE_TILE / 0.625;
-const BG_STRIPE_DARK = '#0a0a0d';
-const BG_STRIPE_LIGHT = '#1c1c22';
-const BG_ANGLE_DEG = 20;
-// The rotated band-stack has to be sized off the panel's diagonal (not
-// just its width/height) so that once tilted, it still fully covers every
-// corner of the panel with no gap — plus one extra tile of height so
-// sliding it down by up to one tile never uncovers an edge either.
-const BG_DIAGONAL = Math.sqrt(PANEL_WIDTH ** 2 + PANEL_HEIGHT ** 2);
-const BG_CONTENT_WIDTH = BG_DIAGONAL + 20;
-const BG_BAND_COUNT = Math.ceil((BG_DIAGONAL + BG_STRIPE_TILE) / BG_BAND_HEIGHT) + 4;
-const BG_CONTENT_HEIGHT = BG_BAND_COUNT * BG_BAND_HEIGHT;
+// The Aviator look: a black sky with light rays fanning out of the
+// bottom-left take-off corner, turning slowly while the plane flies, and a
+// row of dots along the bottom and left edges sliding past like the axes
+// of the graph. Everything moves by native transforms only (no per-frame
+// JS work) and stops where it is between flights.
+const RAY_COUNT = 24;
+const RAY_RADIUS = Math.sqrt(PANEL_WIDTH ** 2 + PANEL_HEIGHT ** 2) * 1.15;
+const RAY_STEP_DEG = 360 / RAY_COUNT;
+// One full ray pair per turn of the loop, so the loop joins up seamlessly.
+const RAY_TURN_MS = 3000;
+const RAYS_D = Array.from({ length: RAY_COUNT / 2 }, (_, i) => {
+  const a0 = ((2 * i * RAY_STEP_DEG) * Math.PI) / 180;
+  const a1 = (((2 * i + 1) * RAY_STEP_DEG) * Math.PI) / 180;
+  const c = RAY_RADIUS;
+  return `M ${c} ${c} L ${(c + c * Math.cos(a0)).toFixed(1)} ${(c - c * Math.sin(a0)).toFixed(1)} L ${(c + c * Math.cos(a1)).toFixed(1)} ${(c - c * Math.sin(a1)).toFixed(1)} Z`;
+}).join(' ');
 
-// Only scrolls while the plane is actually flying — parked (holding its
-// last position) during betting and after the crash, same as the plane
-// itself effectively is at those times.
-function PanelBackground({ isFlying }: { isFlying: boolean }) {
-  // Scrolled on the native UI thread — no per-frame JS re-render.
-  const offset = useRef(new Animated.Value(0)).current;
-  const offsetNowRef = useRef(0);
+const AXIS_DOT_GAP = PANEL_WIDTH / 9;
+const AXIS_DOT_SIZE = 4;
+const AXIS_INSET = 7;
+const AXIS_SLIDE_MS = 1100;
+const BOTTOM_DOTS = Math.ceil(PANEL_WIDTH / AXIS_DOT_GAP) + 2;
+const LEFT_DOTS = Math.ceil(PANEL_HEIGHT / AXIS_DOT_GAP) + 2;
 
+function useFlightLoop(isFlying: boolean, durationMs: number) {
+  // A 0 -> 1 loop that runs while flying and pauses (resuming from where it was) otherwise.
+  const v = useRef(new Animated.Value(0)).current;
+  const nowRef = useRef(0);
   useEffect(() => {
-    const id = offset.addListener(({ value }) => {
-      offsetNowRef.current = value;
+    const id = v.addListener(({ value }) => {
+      nowRef.current = value;
     });
-    return () => offset.removeListener(id);
-  }, [offset]);
-
+    return () => v.removeListener(id);
+  }, [v]);
   useEffect(() => {
     if (!isFlying) {
-      offset.stopAnimation();
+      v.stopAnimation();
       return;
     }
     let cancelled = false;
-    // Resume from wherever the stripes were parked, then loop whole tiles.
     const run = (from: number) => {
-      offset.setValue(from);
-      Animated.timing(offset, {
-        toValue: BG_STRIPE_TILE,
-        duration: ((BG_STRIPE_TILE - from) / BG_SCROLL_PX_PER_SEC) * 1000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
+      v.setValue(from);
+      Animated.timing(v, { toValue: 1, duration: (1 - from) * durationMs, easing: Easing.linear, useNativeDriver: true }).start(({ finished }) => {
         if (finished && !cancelled) run(0);
       });
     };
-    run(offsetNowRef.current % BG_STRIPE_TILE);
+    run(nowRef.current % 1);
     return () => {
       cancelled = true;
-      offset.stopAnimation();
+      v.stopAnimation();
     };
-  }, [isFlying, offset]);
+  }, [isFlying, v, durationMs]);
+  return v;
+}
 
-  const bands = [];
-  for (let i = 0; i < BG_BAND_COUNT; i++) {
-    bands.push(
-      <View
-        key={i}
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: i * BG_BAND_HEIGHT,
-          height: BG_BAND_HEIGHT,
-          backgroundColor: i % 2 === 0 ? BG_STRIPE_LIGHT : BG_STRIPE_DARK,
-        }}
-      />
-    );
-  }
+function PanelBackground({ isFlying }: { isFlying: boolean }) {
+  const turn = useFlightLoop(isFlying, RAY_TURN_MS);
+  const slide = useFlightLoop(isFlying, AXIS_SLIDE_MS);
+  const rotate = turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', `-${2 * RAY_STEP_DEG}deg`] });
+  const slideLeft = slide.interpolate({ inputRange: [0, 1], outputRange: [0, -AXIS_DOT_GAP] });
+  const slideDown = slide.interpolate({ inputRange: [0, 1], outputRange: [0, AXIS_DOT_GAP] });
 
   return (
     <View style={styles.panelBgClip}>
+      {/* Rays, turning about the bottom-left corner (the square's centre sits on it). */}
       <Animated.View
         style={{
           position: 'absolute',
-          width: BG_CONTENT_WIDTH,
-          height: BG_CONTENT_HEIGHT,
-          left: (PANEL_WIDTH - BG_CONTENT_WIDTH) / 2,
-          top: (PANEL_HEIGHT - BG_CONTENT_HEIGHT) / 2,
-          transform: [{ rotate: `${BG_ANGLE_DEG}deg` }, { translateY: offset }],
+          width: RAY_RADIUS * 2,
+          height: RAY_RADIUS * 2,
+          left: -RAY_RADIUS,
+          top: PANEL_HEIGHT - RAY_RADIUS,
+          transform: [{ rotate }],
         }}
       >
-        {bands}
+        <Svg width={RAY_RADIUS * 2} height={RAY_RADIUS * 2}>
+          <Path d={RAYS_D} fill="#16161d" />
+        </Svg>
+      </Animated.View>
+      {/* Bottom axis: dots sliding left. */}
+      <Animated.View style={{ position: 'absolute', left: AXIS_INSET * 3, bottom: AXIS_INSET, flexDirection: 'row', transform: [{ translateX: slideLeft }] }}>
+        {Array.from({ length: BOTTOM_DOTS }, (_, i) => (
+          <View key={i} style={[styles.axisDot, { marginRight: AXIS_DOT_GAP - AXIS_DOT_SIZE, backgroundColor: 'rgba(255,255,255,0.55)' }]} />
+        ))}
+      </Animated.View>
+      {/* Left axis: dots sliding down. */}
+      <Animated.View
+        style={{ position: 'absolute', left: AXIS_INSET, bottom: AXIS_INSET * 3, flexDirection: 'column-reverse', transform: [{ translateY: slideDown }] }}
+      >
+        {Array.from({ length: LEFT_DOTS }, (_, i) => (
+          <View key={i} style={[styles.axisDot, { marginTop: AXIS_DOT_GAP - AXIS_DOT_SIZE, backgroundColor: 'rgba(52,180,255,0.75)' }]} />
+        ))}
       </Animated.View>
     </View>
   );
@@ -1641,11 +1639,12 @@ const styles = StyleSheet.create({
   // Clips only the scrolling background layer — the plane/trail render as
   // separate siblings above this, so they're unaffected and can still fly
   // past the panel's border during the crash burst as before.
+  axisDot: { width: AXIS_DOT_SIZE, height: AXIS_DOT_SIZE, borderRadius: AXIS_DOT_SIZE / 2 },
   panelBgClip: {
     width: PANEL_WIDTH,
     height: PANEL_HEIGHT,
     overflow: 'hidden',
-    backgroundColor: '#0a0a0d',
+    backgroundColor: '#000000',
   },
   plane: {
     position: 'absolute',
