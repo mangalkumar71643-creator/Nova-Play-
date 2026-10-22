@@ -397,17 +397,8 @@
       </div>
 
       <div class="panel" id="panel-transactions">
-        <h1 class="page-title">Transactions</h1>
-        <div class="page-sub">Check a deposit by its number, and review and settle pending withdrawal requests.</div>
-        <div class="card">
-          <div class="card-head"><h2>Deposit tracker</h2></div>
-          <div class="item-meta" style="margin:-6px 0 12px;">Find any deposit by its deposit number (shown to the player with each deposit, e.g. NP… ), its UTR, or the player's UID. "Check with RupayEx" asks RupayEx about that payment right now: if RupayEx says the money was paid but the player's balance didn't get it, it is credited there and then. If RupayEx says it wasn't paid, the money never reached us.</div>
-          <div class="form-row">
-            <input id="depositSearchQ" placeholder="Deposit no. / UTR / UID" style="max-width:260px;" />
-            <button class="btn" id="depositSearchBtn">Search</button>
-          </div>
-          <div id="depositSearchList"></div>
-        </div>
+        <h1 class="page-title">Withdrawals</h1>
+        <div class="page-sub">Review and settle withdrawal requests. Deposits have their own page (Deposits in the menu).</div>
 
         <div class="card">
           <div class="form-row">
@@ -423,6 +414,21 @@
           <div id="withdrawalsList"></div>
         </div>
 
+
+      </div>
+
+      <div class="panel" id="panel-deposits">
+        <h1 class="page-title">Deposits</h1>
+        <div class="page-sub">Find any deposit by its unique number, UTR or UID, see every UPI deposit, and take back test money.</div>
+        <div class="card">
+          <div class="card-head"><h2>Deposit tracker</h2></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Find any deposit by its deposit number (shown to the player with each deposit, e.g. NP… ), its UTR, or the player's UID. "Check with RupayEx" asks RupayEx about that payment right now: if RupayEx says the money was paid but the player's balance didn't get it, it is credited there and then. If RupayEx says it wasn't paid, the money never reached us.</div>
+          <div class="form-row">
+            <input id="depositSearchQ" placeholder="Deposit no. / UTR / UID" style="max-width:260px;" />
+            <button class="btn" id="depositSearchBtn">Search</button>
+          </div>
+          <div id="depositSearchList"></div>
+        </div>
         <div class="card">
           <div class="card-head"><h2>UPI deposits</h2><button class="btn secondary small" id="upiDepositsRefresh">Refresh</button></div>
           <div class="item-meta" style="margin:-6px 0 12px;">UPI deposits through RupayEx (real money), plus past StockPay ones. StockPay is switched off for good: none of its orders can ever be credited again. PENDING means the player hasn't finished paying yet, FAILED means the payment page expired or was cancelled. A deposit still PENDING after 30 minutes is flagged red as STUCK.</div>
@@ -436,7 +442,6 @@
           </div>
           <div id="upiDepositsList"></div>
         </div>
-
         <div class="card">
           <div class="card-head"><h2>Deposit safety</h2></div>
           <div class="item-meta" style="margin:-6px 0 12px;">Take back a player's StockPay TEST deposits (play money): each is marked reversed and can never be credited again, whatever StockPay later reports. Use "Reverse" on a single deposit in the list above for anything else. The balance check lists players whose balance differs from what their transactions add up to — a sign the balance was changed by hand.</div>
@@ -446,6 +451,31 @@
             <button class="btn secondary" id="balanceAuditBtn">Check balances</button>
           </div>
           <div id="balanceAuditList"></div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-bonus">
+        <h1 class="page-title">Bonus</h1>
+        <div class="page-sub">The deposit bonus players see on the Deposit screen. One-off codes are under Gift Codes.</div>
+        <div class="card" style="max-width:520px;">
+          <div class="card-head"><h2>Deposit bonus</h2></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Slabs like "deposit ₹200 or more → +₹50 bonus". The highest slab the amount reaches is paid. Players see these on the Deposit screen.</div>
+          <label class="item-meta" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" id="depBonusOn" style="width:auto;" /> Bonus on
+          </label>
+          <div class="form-row">
+            <select id="depBonusFirstOnly">
+              <option value="false">Every deposit</option>
+              <option value="true">First deposit only</option>
+            </select>
+          </div>
+          <div id="depBonusTiers"></div>
+          <div class="form-row">
+            <button class="btn secondary" id="depBonusAdd" style="flex:0 0 auto;">+ Add slab</button>
+            <button class="btn" id="depBonusSave" style="flex:0 0 auto;">Save</button>
+            <button class="btn secondary" id="depBonusReset" style="flex:0 0 auto;">Use default %</button>
+          </div>
+          <div class="item-meta" id="depBonusStatus"></div>
         </div>
       </div>
 
@@ -701,26 +731,6 @@
         <h1 class="page-title">Settings</h1>
         <div class="page-sub">Your account on this control panel.</div>
         <div class="card" id="settingsCard" style="max-width:420px;"></div>
-        <div class="card" style="max-width:520px;">
-          <div class="card-head"><h2>Deposit bonus</h2></div>
-          <div class="item-meta" style="margin:-6px 0 12px;">Slabs like "deposit ₹200 or more → +₹50 bonus". The highest slab the amount reaches is paid. Players see these on the Deposit screen.</div>
-          <label class="item-meta" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;cursor:pointer;">
-            <input type="checkbox" id="depBonusOn" style="width:auto;" /> Bonus on
-          </label>
-          <div class="form-row">
-            <select id="depBonusFirstOnly">
-              <option value="false">Every deposit</option>
-              <option value="true">First deposit only</option>
-            </select>
-          </div>
-          <div id="depBonusTiers"></div>
-          <div class="form-row">
-            <button class="btn secondary" id="depBonusAdd" style="flex:0 0 auto;">+ Add slab</button>
-            <button class="btn" id="depBonusSave" style="flex:0 0 auto;">Save</button>
-            <button class="btn secondary" id="depBonusReset" style="flex:0 0 auto;">Use default %</button>
-          </div>
-          <div class="item-meta" id="depBonusStatus"></div>
-        </div>
         <div class="card" style="max-width:420px;">
           <div class="card-head"><h2>SMS / OTP</h2></div>
           <div class="item-meta" id="smsStatus" style="margin:-6px 0 12px;">Loading…</div>
@@ -975,7 +985,9 @@
   var TABS = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'users', label: 'Users', icon: 'users' },
-    { id: 'transactions', label: 'Transactions', icon: 'transactions' },
+    { id: 'deposits', label: 'Deposits', icon: 'wallet' },
+    { id: 'transactions', label: 'Withdrawals', icon: 'transactions' },
+    { id: 'bonus', label: 'Bonus', icon: 'gift' },
     { id: 'games', label: 'Games', icon: 'games', children: [
         { id: 'game-all', label: 'All games' },
         { id: 'game-colorpredict', label: 'Win Go' },
@@ -989,6 +1001,27 @@
     { id: 'reports', label: 'Reports', icon: 'reports' },
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
+  // Every game is listed under Games too (from /admin/games/catalog, loaded
+  // the first time the group is opened); each opens its bets on All games.
+  var gamesSubgroup = null, gamesMenuLoaded = false, pendingGameKey = null;
+  function loadGamesMenu() {
+    if (gamesMenuLoaded || !gamesSubgroup) return;
+    gamesMenuLoaded = true;
+    api('/admin/games/catalog').then(function (games) {
+      var head = document.createElement('div');
+      head.className = 'item-meta';
+      head.style.cssText = 'padding:8px 0 4px 34px;';
+      head.textContent = 'Every game (' + games.length + ')';
+      gamesSubgroup.appendChild(head);
+      games.forEach(function (g) {
+        var b = document.createElement('button');
+        b.className = 'nav-subitem';
+        b.innerHTML = '<span class="dot"></span><span>' + escapeHtml(g.name) + '</span>';
+        b.addEventListener('click', function () { pendingGameKey = g.key; switchTab('game-all'); closeSidebarDrawer(); });
+        gamesSubgroup.appendChild(b);
+      });
+    }).catch(function (err) { gamesMenuLoaded = false; if (err.authError) doLogout(); });
+  }
   var navGroup = document.getElementById('navGroup');
   TABS.forEach(function (t) {
     if (!t.children) {
@@ -1018,10 +1051,12 @@
       subgroup.appendChild(subBtn);
     });
     navGroup.appendChild(subgroup);
+    if (t.id === 'games') gamesSubgroup = subgroup;
 
     parentBtn.addEventListener('click', function () {
       parentBtn.classList.toggle('open');
       subgroup.classList.toggle('open');
+      if (t.id === 'games') loadGamesMenu();
     });
   });
   document.getElementById('logoutBtn').innerHTML = icon('logout', 18) + '<span>Logout</span>';
@@ -1029,7 +1064,9 @@
   var loaders = {
     dashboard: loadDashboard,
     users: function () { loadUsers(1); loadMoneyRecent(); },
-    transactions: function () { loadWithdrawals(); loadUpiDeposits(); },
+    transactions: loadWithdrawals,
+    deposits: loadUpiDeposits,
+    bonus: loadDepositBonus,
     'game-colorpredict': function () { loadColorPredictPanel(); activeGamePollInterval = setInterval(loadColorPredictPanel, 4000); },
     'game-aviator': function () { loadAviatorPanel(); activeGamePollInterval = setInterval(loadAviatorPanel, 2000); },
     support: loadTickets,
@@ -1042,10 +1079,22 @@
       reportsTicking = true;
       activeGamePollInterval = setInterval(reportsTick, 1000);
     },
-    settings: function () { loadSettings(); loadDepositBonus(); loadSmsStatus(); loadIntegrations(); },
+    settings: function () { loadSettings(); loadSmsStatus(); loadIntegrations(); },
     'game-all': function () {
+      // A game picked from the menu shows its bets first, above the overview.
+      var betsCard = document.getElementById('allGamesBetsCard');
+      var overviewCard = document.getElementById('allGamesOverview').closest('.card');
+      if (pendingGameKey) betsCard.parentNode.insertBefore(betsCard, overviewCard);
+      else betsCard.parentNode.insertBefore(overviewCard, betsCard);
       loadAllGamesOverview();
-      loadAllGamesCatalog().then(loadAllGamesBets);
+      loadAllGamesCatalog().then(function () {
+        if (pendingGameKey) {
+          document.getElementById('allGamesPick').value = pendingGameKey;
+          pendingGameKey = null;
+          window.scrollTo(0, 0);
+        }
+        loadAllGamesBets();
+      });
       activeGamePollInterval = setInterval(function () { loadAllGamesOverview(); loadAllGamesBets(); }, 10000);
     },
   };
@@ -2234,10 +2283,10 @@
   // ---------- Settings ----------
   // ---------- Deposit bonus (Settings page) ----------
   function depBonusTierRow(t) {
-    return '<div class="form-row" data-dep-tier>' +
-      '<input type="number" min="1" step="1" placeholder="Deposit ₹ (or more)" data-dep-min value="' + (t ? t.min : '') + '" />' +
-      '<input type="number" min="0" step="1" placeholder="Bonus ₹" data-dep-bonus value="' + (t ? t.bonus : '') + '" />' +
-      '<button class="btn secondary" data-dep-remove style="flex:0 0 auto;">✕</button></div>';
+    return '<div class="form-row" data-dep-tier style="flex-wrap:nowrap;">' +
+      '<input type="number" min="1" step="1" placeholder="Deposit ₹" data-dep-min value="' + (t ? t.min : '') + '" style="min-width:0;flex:1 1 0;" />' +
+      '<input type="number" min="0" step="1" placeholder="Bonus ₹" data-dep-bonus value="' + (t ? t.bonus : '') + '" style="min-width:0;flex:1 1 0;" />' +
+      '<button class="btn secondary" data-dep-remove style="flex:0 0 48px;min-width:0;padding:0;align-self:stretch;">✕</button></div>';
   }
   function renderDepBonus(v) {
     var c = v.config;
