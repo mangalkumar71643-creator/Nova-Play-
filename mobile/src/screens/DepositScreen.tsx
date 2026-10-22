@@ -21,6 +21,11 @@ const QUICK_AMOUNTS = [100, 200, 300, 500, 1000, 2000, 3000, 5000];
 // Same rule as backend/src/services/depositBonusService.ts's bonusFor, used
 // only to preview the bonus before depositing. The backend works out and
 // grants the real amount itself; this is never trusted to credit anything.
+/** 7, 7.5 or 1,000 — no ".00" on whole rupees. */
+function fmtBonus(n: number): string {
+  return (Math.round(n * 100) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
 function previewBonus(info: DepositBonusInfo | null, amount: number): number {
   if (!info) return 0;
   if (info.tiers.length === 0) return Math.round(Math.min(amount * info.percent, info.cap) * 100) / 100;
@@ -103,6 +108,8 @@ export default function DepositScreen() {
   const amount = Number(amountText);
   const isValidAmount = amountText.trim().length > 0 && amount >= MIN_DEPOSIT && amount <= MAX_DEPOSIT;
   const bonusPreview = isValidAmount ? previewBonus(bonusInfo, amount) : 0;
+  // This player's next deposit gets a bonus of some size (a percent, or a slab it can reach).
+  const hasOffer = !!bonusInfo && (bonusInfo.percent > 0 || bonusInfo.tiers.some((t) => t.bonus > 0));
 
   async function handlePayNow() {
     if (!kycApproved) {
@@ -216,8 +223,8 @@ export default function DepositScreen() {
                   testID={`deposit-quick-amount-${value}`}
                 >
                   {chipBonus > 0 ? (
-                    <View style={styles.chipBonusBadge}>
-                      <Text style={styles.chipBonusBadgeText}>+₹{chipBonus.toLocaleString('en-IN')}</Text>
+                    <View style={[styles.chipBonusBadge, selected && styles.chipBonusBadgeSelected]}>
+                      <Text style={[styles.chipBonusBadgeText, selected && styles.chipBonusBadgeTextSelected]}>+{fmtBonus(chipBonus)}</Text>
                     </View>
                   ) : null}
                   <Text style={[styles.quickChipText, selected && styles.quickChipTextSelected]}>
@@ -231,8 +238,8 @@ export default function DepositScreen() {
           {bonusInfo && bonusInfo.tiers.length > 0 ? (
             <View style={styles.offerList} testID="deposit-bonus-offers">
               <Text style={styles.offerTitle}>
-                <MaterialCommunityIcons name="gift-outline" size={14} color={colors.gold} /> Bonus offers
-                {bonusInfo.firstOnly ? ' (first deposit only)' : ''}
+                <MaterialCommunityIcons name="gift-outline" size={14} color={colors.gold} />{' '}
+                {bonusInfo.firstDeposit ? 'First deposit bonus' : 'Deposit bonus'}
               </Text>
               {bonusInfo.tiers
                 .filter((t) => t.bonus > 0)
@@ -245,13 +252,31 @@ export default function DepositScreen() {
           ) : null}
         </View>
 
-        {bonusPreview > 0 ? (
-          <View style={styles.promoCard} testID="deposit-bonus-preview">
-            <View>
-              <Text style={styles.promoTotalLabel}>Total credited</Text>
-              <Text style={styles.promoTotalValue}>₹{(amount + bonusPreview).toLocaleString('en-IN')}</Text>
+        {hasOffer ? (
+          <View style={{ marginBottom: spacing.xl }} testID="deposit-bonus-preview">
+            <Text style={styles.promoTitle}>
+              Promotion amount <Text style={{ color: colors.gold }}>*</Text>
+            </Text>
+            <View style={styles.promoCard}>
+              <LinearGradient colors={gradients.peachCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.promoTotalBox}>
+                <Text style={styles.promoTotalLabel}>Total</Text>
+                <Text style={styles.promoTotalValue}>₹{fmtBonus(isValidAmount ? amount + bonusPreview : 0)}</Text>
+              </LinearGradient>
+              <View style={styles.promoBonusBox}>
+                <Text style={styles.promoBonusText}>
+                  {bonusPreview > 0
+                    ? bonusInfo!.tiers.length > 0
+                      ? `+₹${fmtBonus(bonusPreview)} Bonus`
+                      : `+${fmtBonus(bonusInfo!.percent * 100)}% Bonus`
+                    : `Deposit ₹${(bonusInfo!.tiers[0]?.min ?? MIN_DEPOSIT).toLocaleString('en-IN')} or more for a bonus`}
+                </Text>
+                {bonusPreview > 0 ? <MaterialCommunityIcons name="check-circle" size={24} color={colors.positive} /> : null}
+              </View>
             </View>
-            <Text style={styles.promoBonusText}>Deposit bonus{'\n'}+₹{bonusPreview.toLocaleString('en-IN')}</Text>
+            <Text style={styles.promoNote}>
+              {bonusInfo!.firstDeposit ? 'First deposit bonus. ' : ''}The bonus is added with your deposit. Before you can withdraw, your deposit must be
+              bet in full and the bonus {bonusInfo!.wageringMultiplier} times.
+            </Text>
           </View>
         ) : null}
 
@@ -265,12 +290,6 @@ export default function DepositScreen() {
           <Text style={styles.tipsText}>
             4. If your deposit doesn't arrive within 30 minutes, please contact customer support.
           </Text>
-          {bonusPreview > 0 ? (
-            <Text style={styles.tipsText}>
-              5. The bonus is playable immediately but only becomes withdrawable after you've staked{' '}
-              {bonusInfo?.wageringMultiplier ?? 3}x its value in games — track progress in Wallet.
-            </Text>
-          ) : null}
         </View>
 
         <View style={styles.tipsBlock}>
@@ -418,40 +437,54 @@ const styles = {
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.lg + 2,
+    paddingBottom: spacing.md - 2,
     alignItems: 'center' as const,
+    overflow: 'hidden' as const,
   },
   quickChipSelected: { backgroundColor: colors.crimson, borderColor: colors.crimsonLight },
   quickChipText: { color: colors.textSecondary, fontWeight: '700' as const, fontSize: typography.sm },
   quickChipTextSelected: { color: colors.textPrimary },
   chipBonusBadge: {
     position: 'absolute' as const,
-    top: -8,
-    right: -4,
-    backgroundColor: colors.gold,
-    borderRadius: radius.pill,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    top: 0,
+    right: 0,
+    backgroundColor: colors.crimson,
+    borderTopRightRadius: radius.md,
+    borderBottomLeftRadius: radius.md,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
   },
+  chipBonusBadgeSelected: { backgroundColor: colors.gold },
+  chipBonusBadgeTextSelected: { color: colors.crimson },
   offerList: { marginTop: spacing.md, gap: 2 },
   offerTitle: { color: colors.gold, fontSize: typography.sm, fontWeight: '800' as const, marginBottom: 2 },
   offerText: { color: colors.textSecondary, fontSize: typography.xs },
-  chipBonusBadgeText: { color: colors.background, fontSize: 10, fontWeight: '800' as const },
+  chipBonusBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' as const },
+  promoTitle: { color: colors.textPrimary, fontSize: typography.lg, fontWeight: '700' as const, marginBottom: spacing.sm },
   promoCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'stretch' as const,
+    backgroundColor: colors.crimson,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.goldLight,
+    overflow: 'hidden' as const,
+    minHeight: 84,
+  },
+  promoTotalBox: { width: '32%' as const, justifyContent: 'center' as const, paddingHorizontal: spacing.lg },
+  promoTotalLabel: { color: CARD_TEXT_COLOR, fontSize: typography.md, fontWeight: '700' as const },
+  promoTotalValue: { color: CARD_TEXT_COLOR, fontSize: typography.lg, fontWeight: '800' as const },
+  promoBonusBox: {
+    flex: 1,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.gold,
-    paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
+    gap: spacing.sm,
   },
-  promoTotalLabel: { color: colors.textMuted, fontSize: typography.xs },
-  promoTotalValue: { color: colors.textPrimary, fontSize: typography.lg, fontWeight: '800' as const },
-  promoBonusText: { color: colors.gold, fontSize: typography.xs, fontWeight: '700' as const, textAlign: 'right' as const },
+  promoBonusText: { color: colors.goldLight, fontSize: typography.lg, fontWeight: '800' as const, flexShrink: 1 },
+  promoNote: { color: colors.gold, fontSize: typography.sm, lineHeight: 19, marginTop: spacing.sm },
   tipsBlock: { marginBottom: spacing.xl },
   tipsTitle: { color: colors.textPrimary, fontSize: typography.md, fontWeight: '700' as const, marginBottom: spacing.sm },
   tipsText: { color: colors.textSecondary, fontSize: typography.sm, lineHeight: 20, marginBottom: 4 },

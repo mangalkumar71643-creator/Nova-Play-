@@ -476,21 +476,53 @@
       <div class="panel" id="panel-bonus">
         <h1 class="page-title">Bonus</h1>
         <div class="page-sub">The deposit bonus players see on the Deposit screen. One-off codes are under Gift Codes.</div>
-        <div class="card" style="max-width:520px;">
+        <div class="card" style="max-width:560px;">
           <div class="card-head"><h2>Deposit bonus</h2></div>
-          <div class="item-meta" style="margin:-6px 0 12px;">Slabs like "deposit ₹200 or more → +₹50 bonus". The highest slab the amount reaches is paid. Players see these on the Deposit screen.</div>
-          <label class="item-meta" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;cursor:pointer;">
+          <div class="item-meta" style="margin:-6px 0 12px;">One bonus for a player's first deposit (make it bigger) and one for every deposit after it. Players see it on the Deposit screen: "+₹7" on each amount and the total with the bonus.</div>
+          <label class="item-meta" style="display:flex;gap:8px;align-items:center;margin-bottom:12px;cursor:pointer;">
             <input type="checkbox" id="depBonusOn" style="width:auto;" /> Bonus on
           </label>
-          <div class="form-row">
-            <select id="depBonusFirstOnly">
-              <option value="false">Every deposit</option>
-              <option value="true">First deposit only</option>
-            </select>
+          <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;">
+            <div style="font-weight:700;margin-bottom:4px;">First deposit</div>
+            <div class="item-meta" style="margin-bottom:8px;">A player's very first deposit.</div>
+            <div class="form-row">
+              <select id="depBonus_first_type">
+                <option value="percent">Percent of the deposit (e.g. 7%)</option>
+                <option value="slabs">Slabs (e.g. ₹200 or more → +₹50)</option>
+              </select>
+            </div>
+            <div id="depBonus_first_percentBox">
+              <div class="form-row" style="flex-wrap:nowrap;">
+                <label class="item-meta" style="min-width:0;flex:1 1 0;">Bonus %<input id="depBonus_first_percent" type="number" min="0" max="100" step="0.1" placeholder="e.g. 7" /></label>
+                <label class="item-meta" style="min-width:0;flex:1 1 0;">Max bonus ₹<input id="depBonus_first_cap" type="number" min="0" step="1" placeholder="no limit" /></label>
+              </div>
+            </div>
+            <div id="depBonus_first_slabsBox">
+              <div id="depBonus_first_tiers"></div>
+              <div class="form-row"><button class="btn secondary" data-dep-add="first" style="flex:0 0 auto;">+ Add slab</button></div>
+            </div>
           </div>
-          <div id="depBonusTiers"></div>
+          <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;">
+            <div style="font-weight:700;margin-bottom:4px;">Every deposit after the first</div>
+            <div class="item-meta" style="margin-bottom:8px;">Second deposit, third, and so on. Set 0% for none.</div>
+            <div class="form-row">
+              <select id="depBonus_every_type">
+                <option value="percent">Percent of the deposit (e.g. 7%)</option>
+                <option value="slabs">Slabs (e.g. ₹200 or more → +₹50)</option>
+              </select>
+            </div>
+            <div id="depBonus_every_percentBox">
+              <div class="form-row" style="flex-wrap:nowrap;">
+                <label class="item-meta" style="min-width:0;flex:1 1 0;">Bonus %<input id="depBonus_every_percent" type="number" min="0" max="100" step="0.1" placeholder="e.g. 7" /></label>
+                <label class="item-meta" style="min-width:0;flex:1 1 0;">Max bonus ₹<input id="depBonus_every_cap" type="number" min="0" step="1" placeholder="no limit" /></label>
+              </div>
+            </div>
+            <div id="depBonus_every_slabsBox">
+              <div id="depBonus_every_tiers"></div>
+              <div class="form-row"><button class="btn secondary" data-dep-add="every" style="flex:0 0 auto;">+ Add slab</button></div>
+            </div>
+          </div>
           <div class="form-row">
-            <button class="btn secondary" id="depBonusAdd" style="flex:0 0 auto;">+ Add slab</button>
             <button class="btn" id="depBonusSave" style="flex:0 0 auto;">Save</button>
             <button class="btn secondary" id="depBonusReset" style="flex:0 0 auto;">Use default %</button>
           </div>
@@ -2369,20 +2401,38 @@
   document.getElementById('invitesSearch').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadInvites(); });
 
   // ---------- Deposit bonus (Bonus page) ----------
+  // Two rules: the first deposit and every deposit after it, each a percent
+  // (with an optional most it pays) or slabs (depositBonusService.ts).
   function depBonusTierRow(t) {
     return '<div class="form-row" data-dep-tier style="flex-wrap:nowrap;">' +
       '<input type="number" min="1" step="1" placeholder="Deposit ₹" data-dep-min value="' + (t ? t.min : '') + '" style="min-width:0;flex:1 1 0;" />' +
       '<input type="number" min="0" step="1" placeholder="Bonus ₹" data-dep-bonus value="' + (t ? t.bonus : '') + '" style="min-width:0;flex:1 1 0;" />' +
       '<button class="btn secondary" data-dep-remove style="flex:0 0 48px;min-width:0;padding:0;align-self:stretch;">✕</button></div>';
   }
+  function depBonusShowType(key) {
+    var type = document.getElementById('depBonus_' + key + '_type').value;
+    document.getElementById('depBonus_' + key + '_percentBox').style.display = type === 'percent' ? '' : 'none';
+    document.getElementById('depBonus_' + key + '_slabsBox').style.display = type === 'slabs' ? '' : 'none';
+  }
+  function depBonusRuleText(r) {
+    if (r.type === 'percent') return r.percent > 0 ? r.percent + '%' + (r.cap > 0 ? ' (most ' + fmtMoney(r.cap) + ')' : '') : 'none';
+    return r.tiers.length ? r.tiers.map(function (t) { return fmtMoney(t.min) + ' → +' + fmtMoney(t.bonus); }).join(', ') : 'none';
+  }
   function renderDepBonus(v) {
     var c = v.config;
     document.getElementById('depBonusOn').checked = c.enabled;
-    document.getElementById('depBonusFirstOnly').value = String(c.firstOnly);
-    document.getElementById('depBonusTiers').innerHTML = (c.tiers.length ? c.tiers : [null]).map(depBonusTierRow).join('');
+    ['first', 'every'].forEach(function (key) {
+      var r = c[key];
+      document.getElementById('depBonus_' + key + '_type').value = r.type;
+      document.getElementById('depBonus_' + key + '_percent').value = r.type === 'percent' && r.percent ? r.percent : '';
+      document.getElementById('depBonus_' + key + '_cap').value = r.type === 'percent' && r.cap ? r.cap : '';
+      var tiers = r.type === 'slabs' ? r.tiers : [];
+      document.getElementById('depBonus_' + key + '_tiers').innerHTML = (tiers.length ? tiers : [null]).map(depBonusTierRow).join('');
+      depBonusShowType(key);
+    });
     var d = v.defaultPercent;
     document.getElementById('depBonusStatus').textContent = (v.saved
-      ? (c.enabled ? 'On: ' + c.tiers.map(function (t) { return fmtMoney(t.min) + ' → +' + fmtMoney(t.bonus); }).join(', ') + (c.firstOnly ? ' (first deposit only).' : ' (every deposit).') : 'Off: no deposit bonus.')
+      ? (c.enabled ? 'On. First deposit: ' + depBonusRuleText(c.first) + '. Every deposit after: ' + depBonusRuleText(c.every) + '.' : 'Off: no deposit bonus.')
       : 'Not set yet, so the default applies: ' + Math.round(d.first * 100) + '% on the first deposit, ' + Math.round(d.second * 100) + '% on the second, up to ' + fmtMoney(d.cap) + '.') +
       ' A bonus can be played straight away but is withdrawable only after ' + v.wageringMultiplier + 'x it is staked.';
   }
@@ -2398,32 +2448,51 @@
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
   }
-  document.getElementById('depBonusAdd').addEventListener('click', function () {
-    document.getElementById('depBonusTiers').insertAdjacentHTML('beforeend', depBonusTierRow(null));
-  });
-  document.getElementById('depBonusTiers').addEventListener('click', function (e) {
-    var rm = e.target.closest('[data-dep-remove]');
-    if (rm) rm.closest('[data-dep-tier]').remove();
-  });
-  document.getElementById('depBonusSave').addEventListener('click', function () {
-    var status = document.getElementById('depBonusStatus');
-    var tiers = [];
-    var bad = false;
-    document.querySelectorAll('#depBonusTiers [data-dep-tier]').forEach(function (row) {
+  // The rule typed in one section, or an error message.
+  function depBonusReadRule(key, label) {
+    if (document.getElementById('depBonus_' + key + '_type').value === 'percent') {
+      var p = document.getElementById('depBonus_' + key + '_percent').value.trim();
+      var cap = document.getElementById('depBonus_' + key + '_cap').value.trim();
+      var percent = p === '' ? 0 : Number(p);
+      if (!(percent >= 0 && percent <= 100)) return label + ': the bonus % must be from 0 to 100.';
+      if (cap !== '' && !(Number(cap) >= 0)) return label + ': the most ₹ must be 0 or more.';
+      return { type: 'percent', percent: percent, cap: cap === '' ? 0 : Number(cap) };
+    }
+    var tiers = [], bad = false;
+    document.querySelectorAll('#depBonus_' + key + '_tiers [data-dep-tier]').forEach(function (row) {
       var min = row.querySelector('[data-dep-min]').value.trim();
       var bonus = row.querySelector('[data-dep-bonus]').value.trim();
       if (!min && !bonus) return;
-      if (!(Number(min) >= 1) || !(Number(bonus) >= 0) || bonus === '') { bad = true; return; }
+      if (!(Number(min) >= 1) || bonus === '' || !(Number(bonus) >= 0)) { bad = true; return; }
       tiers.push({ min: Math.round(Number(min)), bonus: Number(bonus) });
     });
-    if (bad) { status.textContent = 'Fill both amounts in every slab (deposit ₹1 or more, bonus ₹0 or more).'; return; }
-    var enabled = document.getElementById('depBonusOn').checked;
-    if (enabled && !tiers.length) { status.textContent = 'Add at least one slab, or untick "Bonus on".'; return; }
-    saveDepositBonus({ enabled: enabled, firstOnly: document.getElementById('depBonusFirstOnly').value === 'true', tiers: tiers }, this);
+    if (bad) return label + ': fill both amounts in every slab (deposit ₹1 or more, bonus ₹0 or more).';
+    return { type: 'slabs', tiers: tiers };
+  }
+  ['first', 'every'].forEach(function (key) {
+    document.getElementById('depBonus_' + key + '_type').addEventListener('change', function () { depBonusShowType(key); });
+    document.getElementById('depBonus_' + key + '_tiers').addEventListener('click', function (e) {
+      var rm = e.target.closest('[data-dep-remove]');
+      if (rm) rm.closest('[data-dep-tier]').remove();
+    });
+  });
+  document.querySelectorAll('[data-dep-add]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.getElementById('depBonus_' + b.getAttribute('data-dep-add') + '_tiers').insertAdjacentHTML('beforeend', depBonusTierRow(null));
+    });
+  });
+  document.getElementById('depBonusSave').addEventListener('click', function () {
+    var status = document.getElementById('depBonusStatus');
+    var first = depBonusReadRule('first', 'First deposit');
+    var every = depBonusReadRule('every', 'Every deposit after');
+    if (typeof first === 'string') { status.textContent = first; return; }
+    if (typeof every === 'string') { status.textContent = every; return; }
+    saveDepositBonus({ enabled: document.getElementById('depBonusOn').checked, first: first, every: every }, this);
   });
   document.getElementById('depBonusReset').addEventListener('click', function () {
-    if (!confirm('Forget the slabs and go back to the default % bonus?')) return;
-    saveDepositBonus({ reset: true, enabled: false, firstOnly: false, tiers: [] }, this);
+    if (!confirm('Forget these bonus settings and go back to the default % bonus?')) return;
+    var none = { type: 'percent', percent: 0, cap: 0 };
+    saveDepositBonus({ reset: true, enabled: false, first: none, every: none }, this);
   });
 
   // ---------- Popups ----------

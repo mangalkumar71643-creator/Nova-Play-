@@ -933,6 +933,8 @@ export interface DepositBonusInfo {
   percent: number;
   cap: number;
   firstOnly: boolean;
+  /** This player's next deposit is their first (its own, usually bigger, bonus). */
+  firstDeposit?: boolean;
   wageringMultiplier: number;
 }
 export function fetchDepositBonus() {

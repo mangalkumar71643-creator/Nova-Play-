@@ -7,7 +7,7 @@ import { prisma } from "../db/prismaClient";
 import { env } from "../config/env";
 import { paymentProvider } from "../services/paymentService";
 import { completeDeposit, depositNumberOf, depositUtrOf, reverseDeposit, withdrawableOf } from "../services/depositService";
-import { getDepositBonusView, MAX_BONUS_TIERS, MAX_TIER_AMOUNT, setDepositBonusConfig } from "../services/depositBonusService";
+import { getDepositBonusView, MAX_BONUS_PERCENT, MAX_BONUS_TIERS, MAX_TIER_AMOUNT, setDepositBonusConfig } from "../services/depositBonusService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
@@ -830,22 +830,36 @@ const bonusTierSchema = z.object({
   min: z.number().int().min(1).max(MAX_TIER_AMOUNT),
   bonus: z.number().min(0).max(MAX_TIER_AMOUNT).transform((b) => Math.round(b * 100) / 100),
 });
+const bonusRuleSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("percent"),
+    percent: z.number().min(0).max(MAX_BONUS_PERCENT),
+    // 0 = no limit
+    cap: z.number().min(0).max(MAX_TIER_AMOUNT),
+  }),
+  z.object({
+    type: z.literal("slabs"),
+    tiers: z
+      .array(bonusTierSchema)
+      .max(MAX_BONUS_TIERS)
+      .refine((t) => new Set(t.map((x) => x.min)).size === t.length, "Two slabs have the same deposit amount."),
+  }),
+]);
 const depositBonusSchema = z.object({
-  // reset: forget the slabs and go back to the default percent bonus.
+  // reset: forget the rules and go back to the default percent bonus.
   reset: z.boolean().optional(),
   enabled: z.boolean(),
-  firstOnly: z.boolean(),
-  tiers: z
-    .array(bonusTierSchema)
-    .max(MAX_BONUS_TIERS)
-    .refine((t) => new Set(t.map((x) => x.min)).size === t.length, "Two slabs have the same deposit amount."),
+  first: bonusRuleSchema,
+  every: bonusRuleSchema,
 });
 router.put(
   "/deposit-bonus",
   asyncHandler(async (req, res) => {
     const body = depositBonusSchema.parse(req.body);
-    if (body.enabled && body.tiers.length === 0) throw new ApiError(400, "Add at least one slab, or switch the bonus off.");
-    res.json(await setDepositBonusConfig(body.reset ? null : { enabled: body.enabled, firstOnly: body.firstOnly, tiers: body.tiers }));
+    if (body.reset) return res.json(await setDepositBonusConfig(null));
+    const empty = (r: z.infer<typeof bonusRuleSchema>) => (r.type === "percent" ? r.percent === 0 : r.tiers.length === 0);
+    if (body.enabled && empty(body.first) && empty(body.every)) throw new ApiError(400, "Set a bonus for the first deposit or for every deposit, or switch the bonus off.");
+    res.json(await setDepositBonusConfig({ enabled: body.enabled, first: body.first, every: body.every }));
   })
 );
 
