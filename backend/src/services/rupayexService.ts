@@ -47,8 +47,8 @@ import { refreshSettingsIfStale } from "./settingsService";
 const BASE = process.env.RUPAYEX_BASE_URL || "https://rupayex.net/api";
 export const PROVIDER = "rupayex";
 export const MIN_UPI_DEPOSIT = 100;
-// RupayEx allows up to ₹1,00,000 an order; the pilot keeps StockPay's cap.
-export const MAX_UPI_DEPOSIT = 5000;
+// RupayEx allows up to ₹1,00,000 an order; the owner set ₹50,000 (2026-10-22).
+export const MAX_UPI_DEPOSIT = 50_000;
 // An order still unpaid after this long is failed; a FAILED one is re-checked
 // for a while after that in case the payment lands late, and never after.
 const ORDER_LIFETIME_MS = 24 * 3600 * 1000;

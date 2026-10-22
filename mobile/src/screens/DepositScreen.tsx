@@ -14,9 +14,9 @@ import { colors, gradients, radius, spacing, typography } from '../theme';
 
 const CARD_TEXT_COLOR = '#5C3A0E';
 const MIN_DEPOSIT = 100;
-// Matches the backend's MAX_UPI_DEPOSIT (test mode).
-const MAX_DEPOSIT = 5000;
-const QUICK_AMOUNTS = [100, 200, 300, 500, 1000, 2000, 3000, 5000];
+// Matches the backend's MAX_UPI_DEPOSIT; the server's own value (upi.max) wins once loaded.
+const MAX_DEPOSIT = 50000;
+const QUICK_AMOUNTS = [100, 200, 300, 500, 1000, 2000, 5000, 10000, 20000, 50000];
 
 // Same rule as backend/src/services/depositBonusService.ts's bonusFor, used
 // only to preview the bonus before depositing. The backend works out and
@@ -106,7 +106,8 @@ export default function DepositScreen() {
 
   const kycApproved = !KYC_REQUIRED || backendUser?.kycStatus === 'APPROVED';
   const amount = Number(amountText);
-  const isValidAmount = amountText.trim().length > 0 && amount >= MIN_DEPOSIT && amount <= MAX_DEPOSIT;
+  const maxDeposit = upi?.max ?? MAX_DEPOSIT;
+  const isValidAmount = amountText.trim().length > 0 && amount >= MIN_DEPOSIT && amount <= maxDeposit;
   const bonusPreview = isValidAmount ? previewBonus(bonusInfo, amount) : 0;
   // This player's next deposit gets a bonus of some size (a percent, or a slab it can reach).
   const hasOffer = !!bonusInfo && (bonusInfo.percent > 0 || bonusInfo.tiers.some((t) => t.bonus > 0));
@@ -194,7 +195,7 @@ export default function DepositScreen() {
           <View style={styles.amountLabelRow}>
             <Text style={styles.amountLabel}>Deposit amount:</Text>
             <Text style={styles.amountLimit}>
-              Min: ₹{MIN_DEPOSIT}   Max: ₹{MAX_DEPOSIT.toLocaleString('en-IN')}
+              Min: ₹{MIN_DEPOSIT}   Max: ₹{maxDeposit.toLocaleString('en-IN')}
             </Text>
           </View>
 
