@@ -16,6 +16,7 @@ const CARD_TEXT_COLOR = '#5C3A0E';
 const MIN_DEPOSIT = 100;
 // Matches the backend's MAX_UPI_DEPOSIT; the server's own value (upi.max) wins once loaded.
 const MAX_DEPOSIT = 50000;
+// The buttons until the server's own (set in the admin panel) arrive.
 const QUICK_AMOUNTS = [100, 200, 300, 500, 1000, 2000, 5000, 10000, 20000, 50000];
 
 // Same rule as backend/src/services/depositBonusService.ts's bonusFor, used
@@ -107,6 +108,7 @@ export default function DepositScreen() {
   const kycApproved = !KYC_REQUIRED || backendUser?.kycStatus === 'APPROVED';
   const amount = Number(amountText);
   const maxDeposit = upi?.max ?? MAX_DEPOSIT;
+  const quickAmounts = bonusInfo?.amounts?.length ? bonusInfo.amounts.filter((a) => a >= MIN_DEPOSIT && a <= maxDeposit) : QUICK_AMOUNTS;
   const isValidAmount = amountText.trim().length > 0 && amount >= MIN_DEPOSIT && amount <= maxDeposit;
   const bonusPreview = isValidAmount ? previewBonus(bonusInfo, amount) : 0;
   // This player's next deposit gets a bonus of some size (a percent, or a slab it can reach).
@@ -213,7 +215,7 @@ export default function DepositScreen() {
           </View>
 
           <View style={styles.quickGrid}>
-            {QUICK_AMOUNTS.map((value) => {
+            {quickAmounts.map((value) => {
               const selected = amount === value;
               const chipBonus = previewBonus(bonusInfo, value);
               return (

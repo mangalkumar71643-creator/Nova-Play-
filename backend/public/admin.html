@@ -486,6 +486,27 @@
         </div>
       </div>
 
+      <div class="panel" id="panel-deposit-amounts">
+        <h1 class="page-title">Deposit Amounts</h1>
+        <div class="page-sub">The amount buttons on the app's Deposit screen. Add one (e.g. ₹400) or remove one, then Save — the app shows them straight away, and the Bonus page gets a box for each so you can give it a bonus.</div>
+        <div class="card" style="max-width:640px;">
+          <div class="card-head"><h2>Buttons</h2></div>
+          <div class="item-meta" id="depAmtNote" style="margin:-6px 0 10px;"></div>
+          <div class="dep-col">
+            <div class="dep-grid" id="depAmtGrid"></div>
+          </div>
+          <div class="form-row" style="margin-top:12px;">
+            <input id="depAmtNew" type="number" min="100" step="1" placeholder="New amount, e.g. 400" style="max-width:220px;" />
+            <button class="btn secondary" id="depAmtAdd" style="flex:0 0 auto;">+ Add button</button>
+          </div>
+          <div class="form-row">
+            <button class="btn" id="depAmtSave" style="flex:0 0 auto;">Save</button>
+            <button class="btn secondary" id="depAmtReset" style="flex:0 0 auto;">Default buttons</button>
+          </div>
+          <div class="item-meta" id="depAmtStatus"></div>
+        </div>
+      </div>
+
       <div class="panel" id="panel-bonus">
         <h1 class="page-title">Bonus</h1>
         <div class="page-sub">The deposit bonus players see on the Deposit screen. One-off codes are under Gift Codes.</div>
@@ -1033,6 +1054,7 @@
     { id: 'users', label: 'Users', icon: 'users' },
     { id: 'deposits', label: 'Deposits', icon: 'wallet' },
     { id: 'transactions', label: 'Withdrawals', icon: 'transactions' },
+    { id: 'deposit-amounts', label: 'Deposit Amounts', icon: 'wallet' },
     { id: 'bonus', label: 'Bonus', icon: 'gift' },
     { id: 'invites', label: 'Invites', icon: 'users' },
     { id: 'games', label: 'Games', icon: 'games', children: [
@@ -1114,6 +1136,7 @@
     transactions: loadWithdrawals,
     deposits: loadUpiDeposits,
     bonus: loadDepositBonus,
+    'deposit-amounts': loadDepositAmounts,
     invites: function () { loadInvites(); },
     'game-colorpredict': function () { loadColorPredictPanel(); activeGamePollInterval = setInterval(loadColorPredictPanel, 4000); },
     'game-aviator': function () { loadAviatorPanel(); activeGamePollInterval = setInterval(loadAviatorPanel, 2000); },
@@ -2395,6 +2418,64 @@
   document.getElementById('invitesSearchBtn').addEventListener('click', loadInvites);
   document.getElementById('invitesSearch').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadInvites(); });
 
+  // ---------- Deposit Amounts page (depositBonusService.getDepositAmounts) ----------
+  var depAmt = { list: [], min: 100, max: 50000, maxButtons: 20 };
+  function depAmtRender() {
+    document.getElementById('depAmtGrid').innerHTML = depAmt.list.map(function (a) {
+      return '<div class="dep-chip has" style="cursor:default;">₹' + Number(a).toLocaleString('en-IN') +
+        '<button type="button" class="dep-badge" data-amt-remove="' + a + '" title="Remove" style="border:0;cursor:pointer;">✕</button></div>';
+    }).join('') || '<div class="empty">No buttons — add one.</div>';
+    document.getElementById('depAmtNote').textContent = 'Each button: ₹' + depAmt.min.toLocaleString('en-IN') + ' to ₹' + depAmt.max.toLocaleString('en-IN') + ', up to ' + depAmt.maxButtons + ' buttons. They show smallest first.';
+  }
+  function loadDepositAmounts() {
+    api('/admin/deposit-amounts').then(function (r) {
+      depAmt = { list: r.amounts.slice(), min: r.min, max: r.max, maxButtons: r.maxButtons };
+      depAmtRender();
+      document.getElementById('depAmtStatus').textContent = '';
+    }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  }
+  function saveDepositAmounts(body, btn) {
+    btn.disabled = true;
+    api('/admin/deposit-amounts', { method: 'PUT', body: JSON.stringify(body) })
+      .then(function (r) {
+        depAmt.list = r.amounts.slice();
+        depAmtRender();
+        document.getElementById('depAmtStatus').textContent = 'Saved. The app shows these buttons now; give the new ones a bonus on the Bonus page.';
+      })
+      .catch(function (err) { if (err.authError) doLogout(); else document.getElementById('depAmtStatus').textContent = err.message; })
+      .finally(function () { btn.disabled = false; });
+  }
+  document.getElementById('depAmtGrid').addEventListener('click', function (e) {
+    var rm = e.target.closest('[data-amt-remove]');
+    if (!rm) return;
+    var a = Number(rm.getAttribute('data-amt-remove'));
+    depAmt.list = depAmt.list.filter(function (x) { return x !== a; });
+    depAmtRender();
+    document.getElementById('depAmtStatus').textContent = 'Not saved yet.';
+  });
+  document.getElementById('depAmtAdd').addEventListener('click', function () {
+    var input = document.getElementById('depAmtNew');
+    var a = Math.round(Number(input.value));
+    var status = document.getElementById('depAmtStatus');
+    if (!(a >= depAmt.min && a <= depAmt.max)) { status.textContent = 'Use an amount from ₹' + depAmt.min.toLocaleString('en-IN') + ' to ₹' + depAmt.max.toLocaleString('en-IN') + '.'; return; }
+    if (depAmt.list.indexOf(a) >= 0) { status.textContent = '₹' + a.toLocaleString('en-IN') + ' is already there.'; return; }
+    if (depAmt.list.length >= depAmt.maxButtons) { status.textContent = 'At most ' + depAmt.maxButtons + ' buttons.'; return; }
+    depAmt.list.push(a);
+    depAmt.list.sort(function (x, y) { return x - y; });
+    input.value = '';
+    depAmtRender();
+    status.textContent = 'Not saved yet.';
+  });
+  document.getElementById('depAmtNew').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('depAmtAdd').click(); });
+  document.getElementById('depAmtSave').addEventListener('click', function () {
+    if (!depAmt.list.length) { document.getElementById('depAmtStatus').textContent = 'Keep at least one amount.'; return; }
+    saveDepositAmounts({ amounts: depAmt.list }, this);
+  });
+  document.getElementById('depAmtReset').addEventListener('click', function () {
+    if (!confirm('Go back to the default buttons (₹100 to ₹50,000)?')) return;
+    saveDepositAmounts({ reset: true, amounts: [] }, this);
+  });
+
   // ---------- Deposit bonus (Bonus page) ----------
   // Two grids of the app's Deposit screen amounts (DepositScreen.tsx
   // QUICK_AMOUNTS), first deposit and every deposit after; each amount's
@@ -2433,6 +2514,7 @@
   }
   function renderDepBonus(v, prefix) {
     depView = v;
+    if (v.amounts && v.amounts.length) DEP_AMOUNTS = v.amounts.slice();
     var c = v.config;
     if (v.saved) {
       depBonus.first = depFromRule(c.first);

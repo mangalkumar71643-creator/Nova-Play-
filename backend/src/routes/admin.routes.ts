@@ -7,7 +7,17 @@ import { prisma } from "../db/prismaClient";
 import { env } from "../config/env";
 import { paymentProvider } from "../services/paymentService";
 import { completeDeposit, depositNumberOf, depositUtrOf, reverseDeposit, withdrawableOf } from "../services/depositService";
-import { getDepositBonusView, MAX_BONUS_PERCENT, MAX_BONUS_TIERS, MAX_TIER_AMOUNT, setDepositBonusConfig } from "../services/depositBonusService";
+import {
+  DEFAULT_DEPOSIT_AMOUNTS,
+  getDepositAmounts,
+  getDepositBonusView,
+  MAX_BONUS_PERCENT,
+  MAX_BONUS_TIERS,
+  MAX_DEPOSIT_AMOUNTS,
+  MAX_TIER_AMOUNT,
+  setDepositAmounts,
+  setDepositBonusConfig,
+} from "../services/depositBonusService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
@@ -860,6 +870,32 @@ router.put(
     const empty = (r: z.infer<typeof bonusRuleSchema>) => (r.type === "percent" ? r.percent === 0 : r.tiers.length === 0);
     if (body.enabled && empty(body.first) && empty(body.every)) throw new ApiError(400, "Set a bonus for the first deposit or for every deposit, or switch the bonus off.");
     res.json(await setDepositBonusConfig({ enabled: body.enabled, first: body.first, every: body.every }));
+  })
+);
+
+// --- The Deposit screen's amount buttons (depositBonusService.ts) ---
+
+router.get(
+  "/deposit-amounts",
+  asyncHandler(async (_req, res) => {
+    res.json({ amounts: await getDepositAmounts(), min: rupayex.MIN_UPI_DEPOSIT, max: rupayex.MAX_UPI_DEPOSIT, maxButtons: MAX_DEPOSIT_AMOUNTS, defaults: DEFAULT_DEPOSIT_AMOUNTS });
+  })
+);
+
+const depositAmountsSchema = z.object({
+  // reset: back to the default buttons.
+  reset: z.boolean().optional(),
+  amounts: z
+    .array(z.number().int().min(rupayex.MIN_UPI_DEPOSIT).max(rupayex.MAX_UPI_DEPOSIT))
+    .max(MAX_DEPOSIT_AMOUNTS)
+    .refine((a) => new Set(a).size === a.length, "The same amount is there twice."),
+});
+router.put(
+  "/deposit-amounts",
+  asyncHandler(async (req, res) => {
+    const body = depositAmountsSchema.parse(req.body);
+    if (!body.reset && body.amounts.length === 0) throw new ApiError(400, "Keep at least one amount.");
+    res.json(await setDepositAmounts(body.reset ? null : body.amounts));
   })
 );
 

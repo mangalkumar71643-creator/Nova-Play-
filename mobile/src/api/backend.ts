@@ -933,6 +933,8 @@ export interface DepositBonusInfo {
   percent: number;
   cap: number;
   firstOnly: boolean;
+  /** The Deposit screen's amount buttons, set in the admin panel (older servers leave it out). */
+  amounts?: number[];
   /** This player's next deposit is their first (its own, usually bigger, bonus). */
   firstDeposit?: boolean;
   wageringMultiplier: number;

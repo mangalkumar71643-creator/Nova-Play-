@@ -104,8 +104,9 @@ export function bonusFor(config: DepositBonusConfig | null, amount: number, prev
 
 /** What the admin panel shows and edits. */
 export async function getDepositBonusView() {
-  const config = await getDepositBonusConfig();
+  const [config, amounts] = await Promise.all([getDepositBonusConfig(), getDepositAmounts()]);
   return {
+    amounts,
     saved: config !== null,
     config: config ?? { enabled: false, first: NO_BONUS, every: NO_BONUS },
     defaultPercent: { first: env.wallet.firstDepositBonusPercent, second: env.wallet.secondDepositBonusPercent, cap: env.wallet.firstDepositBonusCap },
@@ -127,13 +128,44 @@ const NO_CAP = 1_000_000_000;
  * the bonus out again when the money arrives.
  */
 export async function playerDepositBonus(userId: string) {
-  const [config, previousDeposits] = await Promise.all([
+  const [config, previousDeposits, amounts] = await Promise.all([
     getDepositBonusConfig(),
     prisma.transaction.count({ where: { userId, type: "DEPOSIT", status: "COMPLETED" } }),
+    getDepositAmounts(),
   ]);
   const rule = ruleFor(config, previousDeposits);
-  const base = { firstDeposit: previousDeposits === 0, firstOnly: false, wageringMultiplier: env.wallet.wageringMultiplier };
+  // amounts: the Deposit screen's buttons (app 1.0.39+).
+  const base = { amounts, firstDeposit: previousDeposits === 0, firstOnly: false, wageringMultiplier: env.wallet.wageringMultiplier };
   if (!rule) return { ...base, tiers: [] as DepositBonusTier[], percent: 0, cap: 0 };
   if (rule.type === "slabs") return { ...base, tiers: rule.tiers, percent: 0, cap: 0 };
   return { ...base, tiers: [] as DepositBonusTier[], percent: rule.percent / 100, cap: rule.cap > 0 ? rule.cap : NO_CAP };
+}
+
+// --- The amount buttons on the app's Deposit screen (Setting "depositAmounts") ---
+
+const DEPOSIT_AMOUNTS_KEY = "depositAmounts";
+/** The buttons until the admin saves their own (DepositScreen.tsx QUICK_AMOUNTS). */
+export const DEFAULT_DEPOSIT_AMOUNTS = [100, 200, 300, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+export const MAX_DEPOSIT_AMOUNTS = 20;
+
+/** The admin's buttons, smallest first, or the default ones. */
+export async function getDepositAmounts(db: Db = prisma): Promise<number[]> {
+  const row = await db.setting.findUnique({ where: { key: DEPOSIT_AMOUNTS_KEY } });
+  if (!row) return DEFAULT_DEPOSIT_AMOUNTS;
+  try {
+    const list = (JSON.parse(row.value) as unknown[]).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+    return list.length ? [...new Set(list)].sort((a, b) => a - b) : DEFAULT_DEPOSIT_AMOUNTS;
+  } catch {
+    return DEFAULT_DEPOSIT_AMOUNTS;
+  }
+}
+
+/** null goes back to the default buttons. */
+export async function setDepositAmounts(amounts: number[] | null) {
+  if (!amounts) await prisma.setting.deleteMany({ where: { key: DEPOSIT_AMOUNTS_KEY } });
+  else {
+    const value = JSON.stringify([...new Set(amounts)].sort((a, b) => a - b));
+    await prisma.setting.upsert({ where: { key: DEPOSIT_AMOUNTS_KEY }, update: { value }, create: { key: DEPOSIT_AMOUNTS_KEY, value } });
+  }
+  return { amounts: await getDepositAmounts(), saved: amounts !== null };
 }
