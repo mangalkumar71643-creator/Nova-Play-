@@ -44,7 +44,9 @@ export default function LoginScreen() {
   const [loginMode, setLoginMode] = useState<'otp' | 'password'>('otp');
   const [layoutWidth, setLayoutWidth] = useState(0);
 
-  const isValid = phone.trim().length === 10;
+  // Same rule as the server (backend/src/utils/phone.ts): a 10-digit Indian mobile starting 6-9, not 9999999999 and the like.
+  const digits = phone.trim();
+  const isValid = /^[6-9]\d{9}$/.test(digits) && new Set(digits).size > 2;
 
   useEffect(() => {
     if (resendCooldown <= 0) return;

@@ -5,6 +5,8 @@ import { ApiError } from "../middleware/errorHandler";
 import { comparePassword, hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { isAtLeast18 } from "../utils/age";
+import { toIndianE164 } from "../utils/phone";
+import { env } from "../config/env";
 import { findInviter, linkInvitee } from "./agentService";
 import { consumeOtp, isRecentlyVerified, requestOtp as requestOtpCode, verifyOtp as verifyOtpCode } from "./otpService";
 
@@ -43,38 +45,11 @@ export interface RegisterInput {
   country: string;
 }
 
-export async function registerUser(input: RegisterInput) {
-  const dob = new Date(input.dateOfBirth);
-  if (Number.isNaN(dob.getTime())) {
-    throw new ApiError(400, "Invalid date of birth");
-  }
-  if (!isAtLeast18(dob)) {
-    throw new ApiError(403, "You must be at least 18 years old to register.");
-  }
-
-  const existing = await prisma.user.findUnique({ where: { email: input.email } });
-  if (existing) {
-    throw new ApiError(409, "An account with this email already exists.");
-  }
-
-  const passwordHash = await hashPassword(input.password);
-  const user = await createUserWithUniqueUid((uid) =>
-    prisma.user.create({
-      data: {
-        uid,
-        email: input.email,
-        passwordHash,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        dateOfBirth: dob,
-        country: input.country,
-        wallet: { create: { balance: 0 } },
-      },
-    })
-  );
-
-  const token = signToken({ userId: user.id, role: user.role });
-  return { user: sanitizeUser(user), token };
+/** Email sign-up is closed: players sign up only with an SMS code to their
+ * own number (sendPhoneOtp / completePhoneRegistration). Kept so older
+ * builds get a clear answer. */
+export async function registerUser(_input: RegisterInput): Promise<never> {
+  throw new ApiError(403, "Sign up with your mobile number in the app.");
 }
 
 function assertNotBanned(user: { isBanned: boolean; banReason: string | null }) {
@@ -89,6 +64,8 @@ export async function loginUser(email: string, password: string) {
   if (!user || !user.passwordHash || !(await comparePassword(password, user.passwordHash))) {
     throw new ApiError(401, "Invalid email or password");
   }
+  // Email and password are for the admin panel only; players log in with an SMS code.
+  if (user.role !== "ADMIN") throw new ApiError(403, "Log in with your mobile number in the app.");
   assertNotBanned(user);
   const token = signToken({ userId: user.id, role: user.role });
   return { user: sanitizeUser(user), token };
@@ -163,16 +140,19 @@ export function sanitizeUser<T extends { passwordHash: string | null }>(user: T)
   return rest;
 }
 
-/** India-only for now — mirrors the mobile app's 10-digit local input. */
-function toE164(phone: string): string {
-  return phone.startsWith("+") ? phone : `+91${phone}`;
-}
+/** India-only: a real-looking Indian mobile number, as +91XXXXXXXXXX (utils/phone.ts). */
+const toE164 = toIndianE164;
 
 /** Step 1: generates and sends (or, in mock mode, returns) an OTP for a
  * phone number. Same endpoint for both login and registration — which
  * one it turns into is decided in `verifyOtpAndAuth` once the code is
  * confirmed. */
 export async function sendPhoneOtp(phone: string, ip: string | null = null) {
+  // On the live server the code must go by SMS: in mock mode the app would
+  // show it, and anyone could sign in to any number. Never on production.
+  if (env.smsProviderMode !== "live" && process.env.VERCEL_ENV === "production") {
+    throw new ApiError(503, "Login by SMS code is unavailable right now. Please try again later.");
+  }
   return requestOtpCode(toE164(phone), ip);
 }
 

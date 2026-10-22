@@ -1,6 +1,15 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyChatToken, verifyToken } from "../utils/jwt";
 import { prisma } from "../db/prismaClient";
+import { isRealIndianMobile } from "../utils/phone";
+
+/**
+ * Player sessions from before this moment are signed out once. Until then
+ * the login code could be shown in the app (SMS_PROVIDER_MODE=mock), so
+ * anyone could have signed in to any number; every login since was by a
+ * code sent by SMS. Admin sessions are not affected.
+ */
+const PLAYER_SESSIONS_VALID_AFTER_MS = Date.parse("2026-10-21T21:25:00Z");
 
 declare global {
   namespace Express {
@@ -22,8 +31,18 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     // effect immediately for an already-logged-in, still-valid token.
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { isBanned: true, banReason: true },
+      select: { isBanned: true, banReason: true, role: true, phone: true },
     });
+    if (!user) return res.status(401).json({ error: "Please log in again." });
+    if (user.role !== "ADMIN") {
+      if ((payload.iat ?? 0) * 1000 < PLAYER_SESSIONS_VALID_AFTER_MS) {
+        return res.status(401).json({ error: "Please log in again with your mobile number." });
+      }
+      // An account made with a number nobody owns (9999999999 and the like) can't be used.
+      if (!isRealIndianMobile(user.phone)) {
+        return res.status(403).json({ error: "This account isn't linked to a real mobile number. Please log in with your own number." });
+      }
+    }
     if (user?.isBanned) {
       return res.status(403).json({
         error: user.banReason
