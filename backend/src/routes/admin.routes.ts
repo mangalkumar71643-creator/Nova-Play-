@@ -13,7 +13,7 @@ import { LOTTERY_RTP } from "../services/lotteryHouse";
 import { FAST2SMS_ROUTES, fast2SmsFromEnv } from "../services/smsService";
 import { INTEGRATION_FIELDS, integration, integrationView, saveIntegrationSettings } from "../services/integrationSettings";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
-import { gameCatalog, getGameBets, getGameReport } from "../services/gameReportService";
+import { gameCatalog, getGameBets, getGameReport, getGamesOverview } from "../services/gameReportService";
 import * as winGoService from "../services/winGoService";
 import * as aviatorService from "../services/aviatorService";
 import { getChickenRoadConfig } from "../services/chickenRoadService";
@@ -305,6 +305,14 @@ router.get(
       targetHouseEdgePercent: Math.round((1 - env.games.rtp) * 1000) / 10,
       lotteryTargetHouseEdgePercent: Math.round((1 - LOTTERY_RTP) * 1000) / 10,
     });
+  })
+);
+
+/** Every game at a glance: who is playing now, profit today and all time (gameReportService.getGamesOverview). */
+router.get(
+  "/games/overview",
+  asyncHandler(async (_req, res) => {
+    res.json(await getGamesOverview());
   })
 );
 

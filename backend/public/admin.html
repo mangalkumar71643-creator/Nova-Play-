@@ -479,8 +479,14 @@
 
       <div class="panel" id="panel-game-all">
         <h1 class="page-title">All games</h1>
-        <div class="page-sub">Pick any game to see its latest bets — who played, what they staked, the result and what they got — and how much it made today and in all. Refreshes every 10 seconds.</div>
+        <div class="page-sub">Every game at a glance — who is playing right now and how much each game made or lost — then pick a game to see its latest bets. Refreshes every 10 seconds.</div>
         <div class="card">
+          <div class="card-head"><h2>Live: all games</h2></div>
+          <div id="allGamesOverviewTotals" style="margin:-4px 0 10px;"></div>
+          <div class="table-scroll" id="allGamesOverview"></div>
+        </div>
+        <div class="card" id="allGamesBetsCard">
+          <div class="card-head"><h2>Bets in one game</h2></div>
           <div class="form-row">
             <select id="allGamesPick" style="max-width:280px;"></select>
             <input id="allGamesUid" type="number" placeholder="Player UID (optional)" style="max-width:200px;" />
@@ -1018,8 +1024,9 @@
     },
     settings: function () { loadSettings(); loadSmsStatus(); loadIntegrations(); },
     'game-all': function () {
+      loadAllGamesOverview();
       loadAllGamesCatalog().then(loadAllGamesBets);
-      activeGamePollInterval = setInterval(loadAllGamesBets, 10000);
+      activeGamePollInterval = setInterval(function () { loadAllGamesOverview(); loadAllGamesBets(); }, 10000);
     },
   };
 
@@ -1588,6 +1595,36 @@
         : '<div class="empty">No bets yet' + (uid ? ' for UID ' + escapeHtml(uid) : '') + '.</div>';
     }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
   }
+  function moneyColored(n) {
+    return '<b style="color:' + (n > 0 ? 'var(--green)' : n < 0 ? 'var(--red)' : 'inherit') + '">' + (n > 0 ? '+' : '') + fmtMoney(n) + '</b>';
+  }
+  function loadAllGamesOverview() {
+    api('/admin/games/overview').then(function (r) {
+      document.getElementById('allGamesOverviewTotals').innerHTML =
+        '<div class="item-meta"><b style="font-size:15px;">' + r.activeNowAllGames + '</b> players playing now (a bet in the last ' + r.windowMinutes + ' minutes) · ' +
+        'profit today ' + moneyColored(r.profitToday) + ' · all time ' + moneyColored(r.profitAll) + ' · green = house profit, red = house loss</div>';
+      var games = r.games.slice().sort(function (a, b) { return (b.activeNow - a.activeNow) || (b.playersToday - a.playersToday) || (b.stakedAll - a.stakedAll); });
+      var rows = games.map(function (g) {
+        return '<tr data-game="' + escapeHtml(g.key) + '" style="cursor:pointer;">' +
+          '<td><b>' + escapeHtml(g.name) + '</b><br/><span class="item-meta">' + escapeHtml(g.category) + '</span></td>' +
+          '<td>' + (g.activeNow > 0 ? '<b style="color:var(--green)">● ' + g.activeNow + '</b>' : '0') + '</td>' +
+          '<td>' + g.betsNow + '</td>' +
+          '<td>' + g.playersToday + '</td>' +
+          '<td>' + moneyColored(g.profitToday) + '<br/><span class="item-meta">staked ' + fmtMoney(g.stakedToday) + '</span></td>' +
+          '<td>' + moneyColored(g.profitAll) + '<br/><span class="item-meta">staked ' + fmtMoney(g.stakedAll) + '</span></td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('allGamesOverview').innerHTML =
+        '<table><thead><tr><th>Game</th><th>Playing now</th><th>Bets (last ' + r.windowMinutes + ' min)</th><th>Players today</th><th>Profit / loss today</th><th>Profit / loss all time</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  }
+  document.getElementById('allGamesOverview').addEventListener('click', function (e) {
+    var tr = e.target.closest('tr[data-game]');
+    if (!tr) return;
+    document.getElementById('allGamesPick').value = tr.getAttribute('data-game');
+    loadAllGamesBets();
+    document.getElementById('allGamesBetsCard').scrollIntoView({ behavior: 'smooth' });
+  });
   document.getElementById('allGamesPick').addEventListener('change', loadAllGamesBets);
   document.getElementById('allGamesRefresh').addEventListener('click', loadAllGamesBets);
   document.getElementById('allGamesUid').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadAllGamesBets(); });

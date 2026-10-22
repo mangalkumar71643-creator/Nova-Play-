@@ -306,3 +306,59 @@ export async function getGameBets(key: string, uid: number | null, limit: number
     }),
   };
 }
+
+/** "Playing now": players with a bet in this many latest minutes. */
+export const ACTIVE_WINDOW_MINUTES = 5;
+
+/**
+ * Every game at a glance, for the panel's live overview: players with a bet
+ * in the last ACTIVE_WINDOW_MINUTES (who is playing right now), bets in that
+ * window, and the house profit (staked - paid) today (India time) and all
+ * time. One query over the fixed SOURCES list; nothing comes from a request.
+ */
+export async function getGamesOverview() {
+  const today = `(date_trunc('day', now() AT TIME ZONE 'Asia/Kolkata')) AT TIME ZONE 'Asia/Kolkata' AT TIME ZONE 'UTC'`;
+  const recent = `now() - interval '${ACTIVE_WINDOW_MINUTES} minutes'`;
+  const parts = SOURCES.filter((s) => s.category !== "Retired").map(
+    (s) => `SELECT '${s.key}' AS key,
+      COUNT(DISTINCT t."userId") FILTER (WHERE t."createdAt" >= ${recent}) AS active_now,
+      COUNT(*) FILTER (WHERE t."createdAt" >= ${recent}) AS bets_now,
+      COUNT(DISTINCT t."userId") FILTER (WHERE t."createdAt" >= ${today}) AS players_today,
+      COALESCE(SUM(${s.stake}) FILTER (WHERE t."createdAt" >= ${today}), 0) AS staked_today,
+      COALESCE(SUM(${s.paid}) FILTER (WHERE t."createdAt" >= ${today}), 0) AS paid_today,
+      COALESCE(SUM(${s.stake}), 0) AS staked_all,
+      COALESCE(SUM(${s.paid}), 0) AS paid_all
+    FROM "${s.table}" t ${s.where ? `WHERE ${s.where}` : ""}`
+  );
+  const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(parts.join("\nUNION ALL\n"));
+  const byKey = new Map(rows.map((r) => [String(r.key), r]));
+  const games = SOURCES.filter((s) => s.category !== "Retired").map((s) => {
+    const r = byKey.get(s.key)!;
+    const n = (k: string) => Number(r[k] ?? 0);
+    return {
+      key: s.key,
+      name: s.name,
+      category: s.category,
+      activeNow: n("active_now"),
+      betsNow: n("bets_now"),
+      playersToday: n("players_today"),
+      profitToday: r2(n("staked_today") - n("paid_today")),
+      stakedToday: r2(n("staked_today")),
+      profitAll: r2(n("staked_all") - n("paid_all")),
+      stakedAll: r2(n("staked_all")),
+    };
+  });
+  const [all] = await prisma.$queryRawUnsafe<{ n: bigint }[]>(
+    `SELECT COUNT(DISTINCT u) AS n FROM (${SOURCES.filter((s) => s.category !== "Retired")
+      .map((s) => `SELECT t."userId" AS u FROM "${s.table}" t WHERE t."createdAt" >= ${recent}`)
+      .join(" UNION ALL ")}) x`
+  );
+  return {
+    windowMinutes: ACTIVE_WINDOW_MINUTES,
+    // Someone playing two games counts once here.
+    activeNowAllGames: Number(all.n),
+    profitToday: r2(games.reduce((t, g) => t + g.profitToday, 0)),
+    profitAll: r2(games.reduce((t, g) => t + g.profitAll, 0)),
+    games,
+  };
+}
