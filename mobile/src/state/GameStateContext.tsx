@@ -31,6 +31,7 @@ type GameState = {
   lockedBonus: number;
   wageringRequired: number;
   wageringProgress: number;
+  unplayedDeposit: number;
   payoutAccountHolderName: string | null;
   payoutAccountNumber: string | null;
   payoutIfsc: string | null;
@@ -74,6 +75,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
   const [lockedBonus, setLockedBonus] = useState(0);
   const [wageringRequired, setWageringRequired] = useState(0);
   const [wageringProgress, setWageringProgress] = useState(0);
+  const [unplayedDeposit, setUnplayedDeposit] = useState(0);
   const [payoutAccountHolderName, setPayoutAccountHolderName] = useState<string | null>(null);
   const [payoutAccountNumber, setPayoutAccountNumber] = useState<string | null>(null);
   const [payoutIfsc, setPayoutIfsc] = useState<string | null>(null);
@@ -102,6 +104,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     setLockedBonus(wallet.lockedBonus);
     setWageringRequired(wallet.wageringRequired);
     setWageringProgress(wallet.wageringProgress);
+    setUnplayedDeposit(wallet.unplayedDeposit);
     setPayoutAccountHolderName(wallet.payoutAccountHolderName);
     setPayoutAccountNumber(wallet.payoutAccountNumber);
     setPayoutIfsc(wallet.payoutIfsc);
@@ -261,6 +264,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     lockedBonus,
     wageringRequired,
     wageringProgress,
+    unplayedDeposit,
     payoutAccountHolderName,
     payoutAccountNumber,
     payoutIfsc,

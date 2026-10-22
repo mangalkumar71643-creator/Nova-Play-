@@ -74,6 +74,7 @@ export interface WalletSummary {
   lockedBonus: number;
   wageringRequired: number;
   wageringProgress: number;
+  unplayedDeposit: number;
   payoutAccountHolderName: string | null;
   payoutAccountNumber: string | null;
   payoutIfsc: string | null;
@@ -95,6 +96,7 @@ function toSummary(wallet: BackendWallet, transactions: WalletTransaction[]): Wa
     lockedBonus: Number(wallet.lockedBonus),
     wageringRequired: Number(wallet.wageringRequired),
     wageringProgress: Number(wallet.wageringProgress),
+    unplayedDeposit: Number(wallet.unplayedDeposit ?? 0),
     payoutAccountHolderName: wallet.payoutAccountHolderName,
     payoutAccountNumber: wallet.payoutAccountNumber,
     payoutIfsc: wallet.payoutIfsc,

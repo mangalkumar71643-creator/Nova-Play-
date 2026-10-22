@@ -25,6 +25,7 @@ export default function WithdrawScreen() {
     lockedBonus,
     wageringRequired,
     wageringProgress,
+    unplayedDeposit,
     payoutAccountHolderName,
     payoutAccountNumber,
     hasPayoutAccount,
@@ -55,6 +56,9 @@ export default function WithdrawScreen() {
   const receive = Math.max(0, Math.round((amount - fee) * 100) / 100);
   const isValidAmount = amountText.trim().length > 0 && amount >= MIN_WITHDRAW && amount <= maxWithdraw && amount > fee;
   const wageringRemaining = Math.max(0, wageringRequired - wageringProgress);
+  // Every stake counts for both at once, so this much more betting unlocks
+  // all of it: the deposit still to be played and a bonus's wagering.
+  const betNeeded = Math.ceil(Math.max(unplayedDeposit, lockedBonus > 0 ? wageringRemaining : 0));
 
   function openBankModal() {
     setNameInput(payoutAccountHolderName ?? '');
@@ -159,8 +163,31 @@ export default function WithdrawScreen() {
         </View>
 
         <Text style={styles.withdrawRule}>
-          Only your winnings can be withdrawn. Money you deposit has to be played in a game first; whatever comes back from your bets becomes withdrawable.
+          Every deposit has to be bet in full before you can withdraw — deposit ₹2,000, bet ₹2,000 in any games, then your whole balance can be withdrawn.
         </Text>
+
+        {betNeeded > 0 ? (
+          <View style={styles.betCard} testID="withdraw-bet-needed">
+            <View style={styles.betCardHead}>
+              <MaterialCommunityIcons name="lock-clock" size={22} color={colors.gold} />
+              <Text style={styles.betCardTitle}>Bet ₹{betNeeded.toLocaleString('en-IN')} more to withdraw</Text>
+            </View>
+            {unplayedDeposit > 0 ? (
+              <Text style={styles.betCardText}>Deposit not played yet: ₹{(Math.ceil(unplayedDeposit * 100) / 100).toLocaleString('en-IN')}</Text>
+            ) : null}
+            {lockedBonus > 0 && wageringRemaining > 0 ? (
+              <Text style={styles.betCardText}>Bonus wagering left: ₹{(Math.ceil(wageringRemaining * 100) / 100).toLocaleString('en-IN')}</Text>
+            ) : null}
+            <Text style={styles.betCardText}>Play any game — every bet counts. Once this reaches ₹0, your whole balance can be withdrawn.</Text>
+          </View>
+        ) : coins > 0 ? (
+          <View style={[styles.betCard, styles.betCardDone]}>
+            <View style={styles.betCardHead}>
+              <MaterialCommunityIcons name="check-circle" size={22} color={colors.positive} />
+              <Text style={[styles.betCardTitle, { color: colors.positive }]}>Deposit fully played — you can withdraw</Text>
+            </View>
+          </View>
+        ) : null}
 
         {!kycApproved ? (
           <View style={styles.kycBanner}>
@@ -410,6 +437,20 @@ const styles = {
     marginBottom: spacing.lg,
   },
   kycBannerText: { color: colors.textSecondary, fontSize: typography.xs, flex: 1, lineHeight: 16 },
+  betCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+    gap: 4,
+  },
+  betCardDone: { borderColor: colors.positive },
+  betCardHead: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: spacing.sm, marginBottom: 2 },
+  betCardTitle: { color: colors.gold, fontSize: typography.md, fontWeight: '800' as const, flexShrink: 1 },
+  betCardText: { color: colors.textSecondary, fontSize: typography.xs, lineHeight: 16 },
   sectionLabel: { color: colors.textPrimary, fontWeight: '700' as const, fontSize: typography.sm, marginBottom: spacing.sm },
   bankRow: {
     flexDirection: 'row' as const,

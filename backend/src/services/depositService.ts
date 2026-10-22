@@ -35,6 +35,17 @@ export function depositUtrOf(t: { provider: string | null; providerReferenceId: 
   return t.paymentUtr ?? (t.provider === "admin-manual" ? t.providerReferenceId : null);
 }
 
+/**
+ * What a player can withdraw. Nothing at all until every deposit (and
+ * credited bonus) has been staked in full — the owner's rule, 2026-10-22: a
+ * ₹2000 deposit needs ₹2000 of bets first. After that, the balance less any
+ * bonus still waiting for its wagering.
+ */
+export function withdrawableOf(w: { balance: unknown; lockedBonus: unknown; unplayedDeposit: unknown }): number {
+  if (Number(w.unplayedDeposit) >= 0.01) return 0;
+  return Math.max(0, Math.round((Number(w.balance) - Number(w.lockedBonus)) * 100) / 100);
+}
+
 export const CLAIM_WINDOW_MS = 3 * 24 * 3600 * 1000;
 
 export async function completeDeposit(

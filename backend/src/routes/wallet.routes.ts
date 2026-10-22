@@ -7,7 +7,7 @@ import { prisma } from "../db/prismaClient";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
 import * as rupayex from "../services/rupayexService";
 import { env } from "../config/env";
-import { depositNumberOf, depositUtrOf } from "../services/depositService";
+import { depositNumberOf, depositUtrOf, withdrawableOf } from "../services/depositService";
 import { playerDepositBonus } from "../services/depositBonusService";
 import { istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
 
@@ -44,8 +44,8 @@ async function buildWalletView(userId: string, db: Prisma.TransactionClient = pr
 
   const withdrawnToday = Number(todaysWithdrawals._sum.amount ?? 0);
   const remainingWithdrawalLimit = Math.max(0, vip.dailyWithdrawalLimit - withdrawnToday);
-  // Only winnings can leave: deposits must be played first, and a locked bonus waits for its wagering.
-  const withdrawable = Math.max(0, Number(wallet.balance) - Number(wallet.lockedBonus) - Number(wallet.unplayedDeposit));
+  // Nothing leaves until every deposit is played in full; then a locked bonus still waits for its wagering.
+  const withdrawable = withdrawableOf(wallet);
 
   return {
     ...wallet,
@@ -219,7 +219,7 @@ router.post(
         const lockedBonus = Number(view.lockedBonus);
         const unplayed = Number(view.unplayedDeposit);
         const reasons = [
-          unplayed > 0 ? `₹${unplayed.toFixed(2)} deposited has not been played yet` : null,
+          unplayed > 0 ? `bet ₹${unplayed.toFixed(2)} more first: a deposit must be played in full before anything can be withdrawn` : null,
           lockedBonus > 0 ? `₹${lockedBonus.toFixed(2)} bonus is still locked until its wagering requirement is met` : null,
         ].filter(Boolean);
         throw new ApiError(

@@ -69,6 +69,8 @@ export interface BackendWallet {
   lockedBonus: string;
   wageringRequired: string;
   wageringProgress: string;
+  /** Money deposited (or credited) not staked in games yet: it can't be withdrawn until it is. */
+  unplayedDeposit?: string;
   payoutAccountHolderName: string | null;
   payoutAccountNumber: string | null;
   payoutIfsc: string | null;

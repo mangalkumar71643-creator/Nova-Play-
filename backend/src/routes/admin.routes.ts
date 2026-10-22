@@ -6,7 +6,7 @@ import { requireAdmin, requireAuth } from "../middleware/auth";
 import { prisma } from "../db/prismaClient";
 import { env } from "../config/env";
 import { paymentProvider } from "../services/paymentService";
-import { completeDeposit, depositNumberOf, depositUtrOf, reverseDeposit } from "../services/depositService";
+import { completeDeposit, depositNumberOf, depositUtrOf, reverseDeposit, withdrawableOf } from "../services/depositService";
 import { getDepositBonusView, MAX_BONUS_TIERS, MAX_TIER_AMOUNT, setDepositBonusConfig } from "../services/depositBonusService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
@@ -393,10 +393,6 @@ router.post(
 
 const MANUAL = "admin-manual";
 
-/** Only winnings can leave: deposits must be played first, and a locked bonus waits for its wagering. */
-function withdrawableOf(w: { balance: unknown; lockedBonus: unknown; unplayedDeposit: unknown }) {
-  return Math.max(0, Math.round((Number(w.balance) - Number(w.lockedBonus) - Number(w.unplayedDeposit)) * 100) / 100);
-}
 
 const manualSchema = z.object({
   amount: z.number().positive().max(1000000),
@@ -467,7 +463,7 @@ router.post(
       const free = withdrawableOf(w);
       if (rounded > free) {
         const parts = [
-          Number(w.unplayedDeposit) > 0 ? `₹${Number(w.unplayedDeposit).toFixed(2)} deposited is not played yet` : null,
+          Number(w.unplayedDeposit) > 0 ? `₹${Number(w.unplayedDeposit).toFixed(2)} of deposits is not played yet (nothing can be withdrawn until it is)` : null,
           Number(w.lockedBonus) > 0 ? `₹${Number(w.lockedBonus).toFixed(2)} bonus is still locked` : null,
         ].filter(Boolean);
         throw new ApiError(400, `Only ₹${free.toFixed(2)} can be withdrawn${parts.length ? ` — ${parts.join(", ")}` : ""}.`);
