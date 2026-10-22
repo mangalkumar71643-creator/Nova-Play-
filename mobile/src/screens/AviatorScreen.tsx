@@ -257,7 +257,7 @@ function BettingCountdownBar({ round }: { round: AviatorRoundView }) {
     const bettingStart = new Date(round.bettingStartTime).getTime();
     const flyStart = new Date(round.flyStartTime).getTime();
     const totalMs = Math.max(1, flyStart - bettingStart);
-    const elapsed = Math.min(totalMs, Math.max(0, Date.now() - bettingStart));
+    const elapsed = Math.min(totalMs, Math.max(0, serverNow() - bettingStart));
     drain.setValue(elapsed / totalMs);
     const anim = Animated.timing(drain, {
       toValue: 1,
@@ -302,7 +302,6 @@ const ASCEND_MS = 700;
 // deliberately very short — one sudden crash, not a second slow glide.
 const LINE_FADE_MS = 50;
 const BURST_MS = 25;
-const TRAIL_SAMPLES = 32;
 
 // Plain-JS interpolation (mirrors Animated.interpolate's multi-stop
 // breakpoints) so the same curve can drive both the plane's transform and
@@ -405,158 +404,229 @@ function tailPoint(t: number) {
   return { x: tailCurveX(t), y: tailCurveY(t) };
 }
 
-function FlightTrail({ round }: { round: AviatorRoundView | null }) {
-  const [t, setT] = useState(0);
-  const [trailFade, setTrailFade] = useState(1);
-  const [bobY, setBobY] = useState(0);
-  const rafRef = useRef<number | null>(null);
-  const ascendStartRef = useRef(0);
-  const fadeStartRef = useRef(0);
-  const burstStartRef = useRef(0);
-  // 'idle' covers both "no round yet" and the BETTING phase — the plane
-  // sits parked at the runway (t=0) until the round actually starts
-  // flying. 'held' is the post-burst rest state: the plane has fully
-  // flown away and stays gone until the NEXT round's real data arrives.
-  const phaseRef = useRef<'idle' | 'flying' | 'lineFade' | 'burst' | 'held'>('idle');
-  const lastPeriodRef = useRef<string | null>(null);
+// --- Live multiplier, worked out on the phone every frame ---
+// The server fixes each round's timing (flyStartTime) and its growth curve
+// m(t) = e^(growthRate * t); only the crash point is secret. So the number
+// on screen is computed locally from the server's clock every frame instead
+// of jumping from poll to poll, and the server stays the only judge of
+// cash-outs and the crash (aviatorService.ts).
+const clock = { offsetMs: 0, bestRttMs: Infinity, growthRate: Math.log(2) / 5 };
+// The screen runs this far behind the server: news of the crash takes a
+// poll and a round trip to arrive, and the number should never climb past
+// the crash point and then drop back to it. A cash-out is paid at the
+// server's (slightly higher) multiplier, so the player never loses by it.
+const DISPLAY_LAG_MS = 450;
+
+function serverNow() {
+  return Date.now() + clock.offsetMs;
+}
+
+/** Learns the server clock from a reply: its time plus half the round trip, trusting the quickest replies most. */
+function noteServerTime(serverTime: string | undefined, sentAt: number, receivedAt: number) {
+  if (!serverTime) return;
+  const rtt = receivedAt - sentAt;
+  // Slowly forget the best round trip so a changed network is followed.
+  clock.bestRttMs += 2;
+  if (rtt > clock.bestRttMs * 1.5 + 30) return;
+  clock.bestRttMs = Math.min(clock.bestRttMs, rtt);
+  clock.offsetMs = Date.parse(serverTime) + rtt / 2 - receivedAt;
+}
+
+/** What the round's multiplier reads right now: 1.00x before takeoff, the crash point once crashed. */
+function displayMultiplier(r: AviatorRoundView | null): number {
+  if (!r) return 1;
+  if (r.phase === 'CRASHED') return r.crashMultiplier ?? r.multiplier;
+  // Only once the server says it took off: a round can crash at 1.00x, right at take-off.
+  if (r.phase !== 'FLYING') return 1;
+  const flyMs = serverNow() - DISPLAY_LAG_MS - Date.parse(r.flyStartTime);
+  if (flyMs <= 0) return 1;
+  // Floored like the server's own values, so the screen never reads above them.
+  return Math.floor(Math.exp((clock.growthRate * flyMs) / 1000) * 100) / 100;
+}
+
+/** The live multiplier, re-rendering the caller only when its two-decimal value changes. */
+function useLiveMultiplier(round: AviatorRoundView | null): number {
   const roundRef = useRef(round);
   roundRef.current = round;
-
+  const [value, setValue] = useState(() => displayMultiplier(round));
   useEffect(() => {
-    let mounted = true;
-    const tick = (now: number) => {
-      if (!mounted) return;
-      const r = roundRef.current;
-
-      // A new round (real, server-assigned period) always resets the
-      // visual to the runway, regardless of whatever this component's
-      // own phase happened to be.
-      if (r && r.periodNumber !== lastPeriodRef.current) {
-        lastPeriodRef.current = r.periodNumber;
-        phaseRef.current = 'idle';
-        setT(0);
-        setTrailFade(1);
-        setBobY(0);
-      }
-
-      if (phaseRef.current === 'idle') {
-        if (r && r.phase === 'FLYING') {
-          phaseRef.current = 'flying';
-          ascendStartRef.current = now;
-        } else {
-          setT(0);
-        }
-      }
-
-      if (phaseRef.current === 'flying') {
-        if (r && r.phase === 'CRASHED') {
-          // The round has actually crashed (server-reported) — hold the
-          // plane at its current ascend position and start the real
-          // crash sequence instead of an internal timer.
-          setT(0.8);
-          setBobY(0);
-          phaseRef.current = 'lineFade';
-          fadeStartRef.current = now;
-        } else {
-          // Fixed-speed climb, always the same regardless of the
-          // multiplier — reaches the hold point (just short of the top
-          // border) in ASCEND_MS, then simply stays there until the round
-          // actually crashes for real.
-          const ascendElapsed = now - ascendStartRef.current;
-          if (ascendElapsed >= ASCEND_MS) {
-            // Holding — a long flight (waiting well past 1.5x, 2x...)
-            // otherwise just freezes in the same spot, so bob gently
-            // instead of sitting dead-still.
-            setT(0.8);
-            const holdElapsed = ascendElapsed - ASCEND_MS;
-            const phase = (holdElapsed / 1000) * BOB_FREQUENCY_HZ * Math.PI * 2;
-            // (1 - cos)/2 stays in [0, 1] the whole cycle — always a DIP
-            // downward from the hold line and back, never rising above it.
-            setBobY(BOB_AMPLITUDE * ((1 - Math.cos(phase)) / 2));
-          } else {
-            setT(0.8 * (ascendElapsed / ASCEND_MS));
-            setBobY(0);
-          }
-        }
-      } else if (phaseRef.current === 'lineFade') {
-        // Plane holds still while the red line fades out first.
-        const fadeElapsed = now - fadeStartRef.current;
-        setTrailFade(Math.max(0, 1 - fadeElapsed / LINE_FADE_MS));
-        if (fadeElapsed >= LINE_FADE_MS) {
-          setTrailFade(0);
-          phaseRef.current = 'burst';
-          burstStartRef.current = now;
-        }
-      } else if (phaseRef.current === 'burst') {
-        // Only once the line is fully gone does the plane dash away — and
-        // it does so almost instantly, too fast to react to.
-        const burstElapsed = now - burstStartRef.current;
-        const bs = Math.min(1, burstElapsed / BURST_MS);
-        setT(0.8 + 0.2 * bs);
-        if (burstElapsed >= BURST_MS) {
-          phaseRef.current = 'held';
-        }
-      }
-      // 'held' does nothing further — it just waits for the period-change
-      // check above to fire once the next round's real data comes in.
-
-      rafRef.current = requestAnimationFrame(tick);
+    let id = 0;
+    const tick = () => {
+      const v = displayMultiplier(roundRef.current);
+      setValue((prev) => (prev === v ? prev : v));
+      id = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      mounted = false;
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return value;
+}
+
+function MultiplierDisplay({ round }: { round: AviatorRoundView | null }) {
+  const m = useLiveMultiplier(round);
+  const isCrashed = round?.phase === 'CRASHED';
+  const glowColor = isCrashed ? null : historyColor(m);
+  return (
+    <View style={styles.multiplierWrap} pointerEvents="none">
+      {glowColor && (
+        <View style={styles.multiplierGlowBox}>
+          <MultiplierGlow color={glowColor} />
+        </View>
+      )}
+      <Text style={[styles.multiplierText, { color: isCrashed ? '#FF3B4E' : '#FFFFFF' }]}>{m.toFixed(2)}x</Text>
+      {isCrashed && <Text style={styles.multiplierSubLabel}>FLEW AWAY!</Text>}
+      {round?.phase === 'BETTING' && (
+        <>
+          <Text style={styles.multiplierSubLabel}>Next round starting…</Text>
+          <BettingCountdownBar round={round} />
+        </>
+      )}
+    </View>
+  );
+}
+
+/** "₹123.45" for a live bet: its stake times the live multiplier, updated every frame. */
+function LiveCashoutAmount({ round, amount }: { round: AviatorRoundView | null; amount: number }) {
+  const m = useLiveMultiplier(round);
+  return <>₹{(amount * m).toFixed(2)}</>;
+}
+
+// --- The flight: plane and red trail, animated on the native UI thread ---
+// The curve above (tailCurveX/Y, planeX/Y, planeRotate...) is sampled once
+// into lookup tables that Animated.interpolate runs natively, so the JS
+// thread does no per-frame work at all: one value `t` (0 -> 0.8 climb,
+// 0.8 -> 1 fly-away) moves the plane, and the whole climb's trail is
+// drawn once and revealed up to the plane's tail by a sliding clip.
+const FLIGHT_SAMPLES = 40;
+const FLIGHT_T = Array.from({ length: FLIGHT_SAMPLES + 1 }, (_, i) => i / FLIGHT_SAMPLES);
+const PLANE_X_OUT = FLIGHT_T.map(planeX);
+const PLANE_Y_OUT = FLIGHT_T.map(planeY);
+const PLANE_ROTATE_OUT = FLIGHT_T.map((t) => `${planeRotate(t)}deg`);
+const PLANE_SCALE_OUT = FLIGHT_T.map(planeScale);
+const PLANE_OPACITY_OUT = FLIGHT_T.map(planeOpacity);
+const HOLD_T = 0.8;
+// How far right the trail shows: up to the tail, never past the panel.
+const REVEAL_OUT = FLIGHT_T.map((t) => Math.min(PANEL_WIDTH, tailCurveX(Math.min(t, HOLD_T))));
+
+// The full climb (t 0 -> 0.8), clamped inside the panel like a real graph.
+const TRAIL_POINTS = Array.from({ length: 65 }, (_, i) => {
+  const p = tailPoint((HOLD_T * i) / 64);
+  return { x: Math.min(Math.max(p.x, 0), PANEL_WIDTH), y: Math.min(Math.max(p.y, 0), PANEL_HEIGHT) };
+});
+const TRAIL_LINE_D = TRAIL_POINTS.map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ');
+const TRAIL_FILL_D = `M ${TRAIL_LINE_D} L ${TRAIL_POINTS[TRAIL_POINTS.length - 1].x.toFixed(1)} ${PANEL_HEIGHT} L ${TRAIL_POINTS[0].x.toFixed(1)} ${PANEL_HEIGHT} Z`;
+
+// While holding, the plane dips by BOB_AMPLITUDE and back; the trail
+// stretches down with it (scaled from the bottom edge) so its tip stays on
+// the plane's tail: a point at height h above the bottom moves by h * k.
+const HOLD_TAIL_Y = tailCurveY(HOLD_T);
+const BOB_SCALE = BOB_AMPLITUDE / (PANEL_HEIGHT - HOLD_TAIL_Y);
+const BOB_HALF_MS = 1000 / BOB_FREQUENCY_HZ / 2;
+
+function FlightTrail({ round }: { round: AviatorRoundView | null }) {
+  const t = useRef(new Animated.Value(0)).current;
+  const bob = useRef(new Animated.Value(0)).current;
+  const trailOpacity = useRef(new Animated.Value(1)).current;
+  const runningRef = useRef<Animated.CompositeAnimation | null>(null);
+  // What this round has shown so far: 'idle' (on the runway), 'flying', 'gone' (flown away).
+  const stageRef = useRef<{ period: string | null; stage: 'idle' | 'flying' | 'gone' }>({ period: null, stage: 'idle' });
+
+  const run = useCallback((anim: Animated.CompositeAnimation | null) => {
+    runningRef.current?.stop();
+    runningRef.current = anim;
+    anim?.start();
   }, []);
 
-  // Trail traces the plane's tail tip (not its geometric center) so the
-  // red line always meets the plane exactly at its tail, at every step so
-  // far. The stroke itself is one fully-opaque solid path — only the glow
-  // fill beneath it fades for the glow effect; trailFade is what makes the
-  // whole line vanish quickly once the plane has flown away.
-  // Clamped to the panel's own box: during the fly-away burst the plane
-  // itself is allowed to dash out above/past the border (that's the
-  // intended premium crash effect), but the line stays bounded inside the
-  // panel like a real graph, instead of leaking off past the screen edge.
-  const points: { x: number; y: number }[] = [];
-  for (let i = 0; i <= TRAIL_SAMPLES; i++) {
-    const raw = tailPoint((t * i) / TRAIL_SAMPLES);
-    // Only the very tip curls to follow the plane's bob, tapered sharply
-    // (8th power) so it fades to ~0 well before the earlier points — those
-    // sit close to the bottom border already, so shifting them by the
-    // same amount as the tip made them clamp flat against the edge while
-    // the tip kept moving, which visibly sagged/deformed the whole curve
-    // every bob cycle instead of just gently curling near the plane.
-    const bobWeight = Math.pow(i / TRAIL_SAMPLES, 8);
-    points.push({
-      x: Math.min(Math.max(raw.x, 0), PANEL_WIDTH),
-      y: Math.min(Math.max(raw.y + bobY * bobWeight, 0), PANEL_HEIGHT),
-    });
-  }
-  const lineD = points.map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ');
-  const fillD = `M ${lineD} L ${points[points.length - 1].x.toFixed(1)} ${PANEL_HEIGHT} L ${points[0].x.toFixed(1)} ${PANEL_HEIGHT} Z`;
+  useEffect(() => () => runningRef.current?.stop(), []);
+
+  const period = round?.periodNumber ?? null;
+  const phase = round?.phase ?? null;
+  const flyStartTime = round?.flyStartTime ?? null;
+
+  useEffect(() => {
+    const st = stageRef.current;
+    if (period !== st.period) {
+      // A new round: back on the runway with a fresh trail.
+      st.period = period;
+      st.stage = 'idle';
+      run(null);
+      t.setValue(0);
+      bob.setValue(0);
+      trailOpacity.setValue(1);
+    }
+    if (phase === 'FLYING' && st.stage === 'idle' && flyStartTime) {
+      st.stage = 'flying';
+      // Joined mid-flight: pick the climb up where it would be by now.
+      const elapsed = Math.max(0, serverNow() - Date.parse(flyStartTime));
+      const holdBob = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bob, { toValue: 1, duration: BOB_HALF_MS, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(bob, { toValue: 0, duration: BOB_HALF_MS, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ])
+      );
+      if (elapsed >= ASCEND_MS) {
+        t.setValue(HOLD_T);
+        run(holdBob);
+      } else {
+        t.setValue((HOLD_T * elapsed) / ASCEND_MS);
+        run(
+          Animated.sequence([
+            Animated.timing(t, { toValue: HOLD_T, duration: ASCEND_MS - elapsed, easing: Easing.linear, useNativeDriver: true }),
+            holdBob,
+          ])
+        );
+      }
+    } else if (phase === 'CRASHED' && st.stage === 'flying') {
+      st.stage = 'gone';
+      // The line vanishes first, then the plane dashes off — too fast to react to.
+      run(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(trailOpacity, { toValue: 0, duration: LINE_FADE_MS, useNativeDriver: true }),
+            Animated.timing(bob, { toValue: 0, duration: LINE_FADE_MS, useNativeDriver: true }),
+          ]),
+          Animated.timing(t, { toValue: 1, duration: BURST_MS, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        ])
+      );
+    }
+  }, [period, phase, flyStartTime, run, t, bob, trailOpacity]);
+
+  const reveal = { inputRange: FLIGHT_T, extrapolate: 'clamp' as const };
+  const clipX = t.interpolate({ ...reveal, outputRange: REVEAL_OUT.map((x) => x - PANEL_WIDTH) });
+  const unclipX = t.interpolate({ ...reveal, outputRange: REVEAL_OUT.map((x) => PANEL_WIDTH - x) });
+  // The dip squashes the trail toward the bottom edge: scaled about that edge (not the
+  // centre) by shifting down half of what the scale takes off.
+  const trailScaleY = bob.interpolate({ inputRange: [0, 1], outputRange: [1, 1 - BOB_SCALE] });
+  const trailShiftY = bob.interpolate({ inputRange: [0, 1], outputRange: [0, (PANEL_HEIGHT / 2) * BOB_SCALE] });
+
+  const planeTranslateX = t.interpolate({ ...reveal, outputRange: PLANE_X_OUT });
+  const planeTranslateY = Animated.add(t.interpolate({ ...reveal, outputRange: PLANE_Y_OUT }), Animated.multiply(bob, BOB_AMPLITUDE));
 
   return (
     <>
-      <Svg width={PANEL_WIDTH} height={PANEL_HEIGHT} style={[styles.trailSvg, { opacity: trailFade }]} pointerEvents="none">
-        <Defs>
-          <LinearGradient id="trailFill" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#C4172C" stopOpacity={0.5} />
-            <Stop offset="1" stopColor="#C4172C" stopOpacity={0.05} />
-          </LinearGradient>
-        </Defs>
-        <Path d={fillD} fill="url(#trailFill)" />
-        <Path
-          d={`M ${lineD}`}
-          stroke="#E8102F"
-          strokeWidth={4}
-          strokeOpacity={1}
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-      <Image
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.trailSvg,
+          { width: PANEL_WIDTH, height: PANEL_HEIGHT, opacity: trailOpacity, transform: [{ translateY: trailShiftY }, { scaleY: trailScaleY }] },
+        ]}
+      >
+        <Animated.View style={{ width: PANEL_WIDTH, height: PANEL_HEIGHT, overflow: 'hidden', transform: [{ translateX: clipX }] }}>
+          <Animated.View style={{ width: PANEL_WIDTH, height: PANEL_HEIGHT, transform: [{ translateX: unclipX }] }}>
+            <Svg width={PANEL_WIDTH} height={PANEL_HEIGHT}>
+              <Defs>
+                <LinearGradient id="trailFill" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor="#C4172C" stopOpacity={0.5} />
+                  <Stop offset="1" stopColor="#C4172C" stopOpacity={0.05} />
+                </LinearGradient>
+              </Defs>
+              <Path d={TRAIL_FILL_D} fill="url(#trailFill)" />
+              <Path d={`M ${TRAIL_LINE_D}`} stroke="#E8102F" strokeWidth={4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </Animated.View>
+        </Animated.View>
+      </Animated.View>
+      <Animated.Image
         source={require('../../assets/aviator-plane.webp')}
         resizeMode="contain"
         style={[
@@ -564,12 +634,12 @@ function FlightTrail({ round }: { round: AviatorRoundView | null }) {
           {
             width: PLANE_WIDTH,
             height: PLANE_HEIGHT,
-            opacity: planeOpacity(t),
+            opacity: t.interpolate({ ...reveal, outputRange: PLANE_OPACITY_OUT }),
             transform: [
-              { translateX: planeX(t) },
-              { translateY: planeY(t) + bobY },
-              { rotate: `${planeRotate(t)}deg` },
-              { scale: planeScale(t) },
+              { translateX: planeTranslateX },
+              { translateY: planeTranslateY },
+              { rotate: t.interpolate({ ...reveal, outputRange: PLANE_ROTATE_OUT }) },
+              { scale: t.interpolate({ ...reveal, outputRange: PLANE_SCALE_OUT }) },
             ],
           },
         ]}
@@ -735,7 +805,7 @@ function BetButton({
   panelHeight,
   state,
   phase,
-  liveMultiplier,
+  round,
   onBet,
   onCashout,
   onCancelQueued,
@@ -744,7 +814,7 @@ function BetButton({
   panelHeight: number;
   state: PanelBetState;
   phase: AviatorRoundView['phase'] | null;
-  liveMultiplier: number;
+  round: AviatorRoundView | null;
   onBet: () => void;
   onCashout: () => void;
   onCancelQueued: () => void;
@@ -761,7 +831,7 @@ function BetButton({
     return <Pressable onPress={onBet} style={hotspot} />;
   }
 
-  let label = '';
+  let label: React.ReactNode = '';
   let bg = 'rgba(0,0,0,0.6)';
   let onPress: (() => void) | undefined;
 
@@ -773,7 +843,12 @@ function BetButton({
     label = 'Placing…';
   } else if (state.status === 'pending') {
     if (phase === 'FLYING') {
-      label = `CASH OUT\n₹${(state.amount * liveMultiplier).toFixed(2)}`;
+      label = (
+        <>
+          CASH OUT{'\n'}
+          <LiveCashoutAmount round={round} amount={state.amount} />
+        </>
+      );
       bg = 'rgba(46,160,67,0.92)';
       onPress = onCashout;
     } else {
@@ -1047,7 +1122,10 @@ export default function AviatorScreen() {
   const [maxWin, setMaxWin] = useState<number | null>(null);
   useEffect(() => {
     fetchAviatorConfig()
-      .then((c) => setMaxWin(c.maxPayout ?? null))
+      .then((c) => {
+        setMaxWin(c.maxPayout ?? null);
+        if (c.growthRate) clock.growthRate = c.growthRate;
+      })
       .catch(() => {});
   }, []);
   const [history, setHistory] = useState<number[]>(HISTORY_SAMPLE);
@@ -1118,13 +1196,19 @@ export default function AviatorScreen() {
 
   useEffect(() => {
     let mounted = true;
-    const lastPeriod = { current: null as string | null };
+    const lastPeriod = { current: null as string | null, phase: null as AviatorRoundView['phase'] | null };
 
     const poll = async () => {
       try {
+        const sentAt = Date.now();
         const view = await fetchAviatorCurrentRound();
         if (!mounted) return;
-        setRound(view);
+        noteServerTime(view.serverTime, sentAt, Date.now());
+        // Re-render the screen only when the round actually changes (new
+        // round, take-off, crash); the multiplier ticks on its own.
+        setRound((prev) =>
+          prev && prev.periodNumber === view.periodNumber && prev.phase === view.phase && prev.crashMultiplier === view.crashMultiplier ? prev : view
+        );
 
         const newRound = lastPeriod.current !== null && lastPeriod.current !== view.periodNumber;
         if (newRound) {
@@ -1144,6 +1228,7 @@ export default function AviatorScreen() {
             .catch(() => {});
         }
         lastPeriod.current = view.periodNumber;
+        lastPeriod.phase = view.phase;
 
         // Betting window open: place each panel's queued bet, plus — once
         // per new round — an auto bet for a panel in Auto mode with "Auto
@@ -1176,7 +1261,8 @@ export default function AviatorScreen() {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const loop = async () => {
       await poll();
-      if (mounted) timer = setTimeout(loop, 300);
+      // Quicker while flying, so the crash shows the moment it happens.
+      if (mounted) timer = setTimeout(loop, lastPeriod.phase === 'FLYING' ? 200 : 300);
     };
     loop();
     return () => {
@@ -1264,10 +1350,6 @@ export default function AviatorScreen() {
     [refreshWallet, setPanelBet]
   );
 
-  const multiplierLabel = round ? `${round.multiplier.toFixed(2)}x` : '1.00x';
-  const isCrashed = round?.phase === 'CRASHED';
-  const multiplierColor = isCrashed ? '#FF3B4E' : '#FFFFFF';
-  const multiplierGlowColor = isCrashed ? null : historyColor(round?.multiplier ?? 1);
 
   return (
     <View style={styles.screenRoot}>
@@ -1347,21 +1429,7 @@ export default function AviatorScreen() {
       <View style={[styles.panelWrap, { width: PANEL_WIDTH, height: PANEL_HEIGHT }]}>
         <PanelBackground isFlying={round?.phase === 'FLYING'} />
         <FlightTrail round={round} />
-        <View style={styles.multiplierWrap} pointerEvents="none">
-          {multiplierGlowColor && (
-            <View style={styles.multiplierGlowBox}>
-              <MultiplierGlow color={multiplierGlowColor} />
-            </View>
-          )}
-          <Text style={[styles.multiplierText, { color: multiplierColor }]}>{multiplierLabel}</Text>
-          {round?.phase === 'CRASHED' && <Text style={styles.multiplierSubLabel}>FLEW AWAY!</Text>}
-          {round?.phase === 'BETTING' && (
-            <>
-              <Text style={styles.multiplierSubLabel}>Next round starting…</Text>
-              <BettingCountdownBar round={round} />
-            </>
-          )}
-        </View>
+        <MultiplierDisplay round={round} />
       </View>
 
       <View style={[styles.betPanelWrap, { width: BET_PANEL_WIDTH }]}>
@@ -1394,7 +1462,7 @@ export default function AviatorScreen() {
             panelHeight={BET_PANEL_1_HEIGHT}
             state={bet1}
             phase={round?.phase ?? null}
-            liveMultiplier={round?.multiplier ?? 1}
+            round={round}
             onBet={() => placeBet(1)}
             onCashout={() => cashout(1)}
             onCancelQueued={() => cancelQueued(1)}
@@ -1441,7 +1509,7 @@ export default function AviatorScreen() {
             panelHeight={BET_PANEL_2_HEIGHT}
             state={bet2}
             phase={round?.phase ?? null}
-            liveMultiplier={round?.multiplier ?? 1}
+            round={round}
             onBet={() => placeBet(2)}
             onCashout={() => cashout(2)}
             onCancelQueued={() => cancelQueued(2)}

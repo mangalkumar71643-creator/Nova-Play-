@@ -254,7 +254,7 @@ export interface AviatorRoundView {
   phase: AviatorPhase;
   multiplier: number;
   crashMultiplier: number | null;
-  /** Server clock at the time of the response (Cricket X only). */
+  /** Server clock at the time of the response. */
   serverTime?: string;
 }
 

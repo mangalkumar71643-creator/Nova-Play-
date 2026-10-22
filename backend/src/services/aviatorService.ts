@@ -221,6 +221,8 @@ export async function getCurrentRoundView() {
     multiplier: liveMultiplier(round, now),
     // Only reveal the crash point once the round has actually reached it.
     crashMultiplier: phase === "CRASHED" ? Number(round.crashMultiplier) : null,
+    // The app runs its multiplier off this clock (AviatorScreen.tsx serverNow).
+    serverTime: now.toISOString(),
   };
 }
 
