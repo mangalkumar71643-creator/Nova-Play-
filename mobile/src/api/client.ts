@@ -21,6 +21,12 @@ export class ApiClientError extends Error {
   }
 }
 
+// A request that gets no reply in this long is given up on, so a weak
+// network never leaves a button stuck on "busy" for good.
+const REQUEST_TIMEOUT_MS = 20_000;
+const NO_REPLY =
+  'No reply from the server — check your internet. If you placed a bet or a payment, check your balance before trying again.';
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getBackendToken();
   const headers: Record<string, string> = {
@@ -31,8 +37,20 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
-  const body = res.status !== 204 ? await res.json().catch(() => null) : null;
+  // A caller with its own signal (the crash games' quick polls) sets its own limit.
+  const controller = options.signal ? null : new AbortController();
+  const timer = controller ? setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null;
+  let res: Response;
+  let body: any;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, signal: options.signal ?? controller!.signal });
+    body = res.status !== 204 ? await res.json().catch(() => null) : null;
+  } catch (err) {
+    if (controller?.signal.aborted) throw new ApiClientError(0, NO_REPLY);
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 
   if (!res.ok) {
     throw new ApiClientError(res.status, body?.error ?? 'Request failed');
