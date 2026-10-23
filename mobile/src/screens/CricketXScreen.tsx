@@ -23,6 +23,9 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 
+// How far the live number may run past the server's latest reply.
+const MAX_AHEAD_OF_SERVER_MS = 1200;
+
 const GOLD = '#FFD66B';
 const DEFAULT_GROWTH = Math.log(2) / 5;
 const STAKE_STEPS = [10, 20, 50, 100, 200, 500];
@@ -399,6 +402,9 @@ export default function CricketXScreen() {
   const [, setFrame] = useState(0);
 
   const offsetRef = useRef(0);
+  // The server's latest reply for this round, in server time: the live
+  // number never runs more than MAX_AHEAD_OF_SERVER_MS past it (see below).
+  const lastReplyRef = useRef({ periodNumber: '', serverMs: 0 });
   const mountedRef = useRef(true);
   const panelsRef = useRef(panels);
   panelsRef.current = panels;
@@ -462,6 +468,7 @@ export default function CricketXScreen() {
           const measured = new Date(v.serverTime).getTime() - (sentAt + receivedAt) / 2;
           offsetRef.current = offsetRef.current === 0 ? measured : offsetRef.current * 0.7 + measured * 0.3;
         }
+        lastReplyRef.current = { periodNumber: v.periodNumber, serverMs: v.serverTime ? new Date(v.serverTime).getTime() : receivedAt + offsetRef.current };
         setView(v);
         if (v.phase === 'FLYING') delay = 350;
       } catch {
@@ -479,7 +486,11 @@ export default function CricketXScreen() {
   const srvNow = Date.now() + offsetRef.current;
   const flyStart = view ? new Date(view.flyStartTime).getTime() : 0;
   const localPhase = !view ? 'BETTING' : view.phase === 'CRASHED' ? 'CRASHED' : srvNow < flyStart ? 'BETTING' : 'FLYING';
-  const elapsed = Math.max(0, (srvNow - flyStart) / 1000);
+  // If replies stop (weak network, app paused) the number holds instead of
+  // climbing on to a figure the round never reached.
+  const shownNow =
+    view && lastReplyRef.current.periodNumber === view.periodNumber ? Math.min(srvNow, lastReplyRef.current.serverMs + MAX_AHEAD_OF_SERVER_MS) : srvNow;
+  const elapsed = Math.max(0, (shownNow - flyStart) / 1000);
   const liveMult = localPhase === 'CRASHED' ? view?.crashMultiplier ?? 1 : localPhase === 'FLYING' ? round2(Math.exp(growth * elapsed)) : 1;
 
   // Smooth frames while the ball flies or the countdown runs.

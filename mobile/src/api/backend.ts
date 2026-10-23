@@ -258,15 +258,23 @@ export interface AviatorRoundView {
   serverTime?: string;
 }
 
-/** Polled several times a second: a reply that hangs is given up on, so the next poll goes out. */
-export async function fetchAviatorCurrentRound() {
+/**
+ * For a crash game's current round, polled several times a second: a reply
+ * that hangs is given up on after 3 s, so the next poll goes out instead of
+ * the game waiting on it.
+ */
+async function fetchRound<T>(path: string) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 3000);
   try {
-    return await apiFetch<AviatorRoundView>('/aviator/current', { signal: controller.signal });
+    return await apiFetch<T>(path, { signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
+}
+
+export function fetchAviatorCurrentRound() {
+  return fetchRound<AviatorRoundView>('/aviator/current');
 }
 
 export interface AviatorHistoryEntry {
@@ -1456,7 +1464,7 @@ export function fetchCricketXConfig() {
 }
 
 export function fetchCricketXCurrentRound() {
-  return apiFetch<AviatorRoundView>('/cricket-x/current');
+  return fetchRound<AviatorRoundView>('/cricket-x/current');
 }
 
 export function fetchCricketXHistory(limit = 30) {
@@ -1488,7 +1496,7 @@ export function fetchRocketConfig() {
 }
 
 export function fetchRocketCurrentRound() {
-  return apiFetch<AviatorRoundView>('/rocket/current');
+  return fetchRound<AviatorRoundView>('/rocket/current');
 }
 
 export function fetchRocketHistory(limit = 30) {
@@ -1520,7 +1528,7 @@ export function fetchGoalRushConfig() {
 }
 
 export function fetchGoalRushCurrentRound() {
-  return apiFetch<AviatorRoundView>('/goal-rush/current');
+  return fetchRound<AviatorRoundView>('/goal-rush/current');
 }
 
 export function fetchGoalRushHistory(limit = 30) {
@@ -1565,7 +1573,7 @@ export function fetchBigCatchConfig() {
 }
 
 export function fetchBigCatchCurrentRound() {
-  return apiFetch<AviatorRoundView>('/big-catch/current');
+  return fetchRound<AviatorRoundView>('/big-catch/current');
 }
 
 export function fetchBigCatchHistory(limit = 30) {
@@ -1610,7 +1618,7 @@ export function fetchCosmonautConfig() {
 }
 
 export function fetchCosmonautCurrentRound() {
-  return apiFetch<AviatorRoundView>('/cosmonaut/current');
+  return fetchRound<AviatorRoundView>('/cosmonaut/current');
 }
 
 export function fetchCosmonautHistory(limit = 30) {
@@ -1668,7 +1676,7 @@ export function fetchSkyJetConfig() {
 }
 
 export function fetchSkyJetCurrentRound() {
-  return apiFetch<SkyJetRoundView>('/sky-jet/current');
+  return fetchRound<SkyJetRoundView>('/sky-jet/current');
 }
 
 export function fetchSkyJetHistory(limit = 30) {
@@ -1717,7 +1725,7 @@ export function fetchNightRacerConfig() {
 }
 
 export function fetchNightRacerCurrentRound() {
-  return apiFetch<AviatorRoundView>('/night-racer/current');
+  return fetchRound<AviatorRoundView>('/night-racer/current');
 }
 
 export function fetchNightRacerHistory(limit = 30) {
@@ -1761,7 +1769,7 @@ export function fetchAirshipConfig() {
 }
 
 export function fetchAirshipCurrentRound() {
-  return apiFetch<AviatorRoundView>('/airship/current');
+  return fetchRound<AviatorRoundView>('/airship/current');
 }
 
 export function fetchAirshipHistory(limit = 30) {

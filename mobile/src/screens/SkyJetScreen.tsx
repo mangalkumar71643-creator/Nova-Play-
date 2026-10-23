@@ -26,6 +26,9 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 
+// How far the live number may run past the server's latest reply.
+const MAX_AHEAD_OF_SERVER_MS = 1200;
+
 const GOLD = '#FFD66B';
 const AMBER = '#FFB23F';
 const SKY = '#4FC3FF';
@@ -291,6 +294,9 @@ export default function SkyJetScreen() {
   const [, setFrame] = useState(0);
 
   const offsetRef = useRef(0);
+  // The server's latest reply for this round, in server time: the live
+  // number never runs more than MAX_AHEAD_OF_SERVER_MS past it (see below).
+  const lastReplyRef = useRef({ periodNumber: '', serverMs: 0 });
   const mountedRef = useRef(true);
   const panelsRef = useRef(panels);
   panelsRef.current = panels;
@@ -392,6 +398,7 @@ export default function SkyJetScreen() {
           const measured = new Date(v.serverTime).getTime() - (sentAt + receivedAt) / 2;
           offsetRef.current = offsetRef.current === 0 ? measured : offsetRef.current * 0.7 + measured * 0.3;
         }
+        lastReplyRef.current = { periodNumber: v.periodNumber, serverMs: v.serverTime ? new Date(v.serverTime).getTime() : receivedAt + offsetRef.current };
         setView(v);
         if (v.phase === 'FLYING') delay = 350;
       } catch {
@@ -409,7 +416,11 @@ export default function SkyJetScreen() {
   const srvNow = Date.now() + offsetRef.current;
   const flyStart = view ? new Date(view.flyStartTime).getTime() : 0;
   const localPhase = !view ? 'BETTING' : view.phase === 'CRASHED' ? 'CRASHED' : srvNow < flyStart ? 'BETTING' : 'FLYING';
-  const elapsed = Math.max(0, (srvNow - flyStart) / 1000);
+  // If replies stop (weak network, app paused) the number holds instead of
+  // climbing on to a figure the round never reached.
+  const shownNow =
+    view && lastReplyRef.current.periodNumber === view.periodNumber ? Math.min(srvNow, lastReplyRef.current.serverMs + MAX_AHEAD_OF_SERVER_MS) : srvNow;
+  const elapsed = Math.max(0, (shownNow - flyStart) / 1000);
   const liveMult = localPhase === 'CRASHED' ? view?.crashMultiplier ?? 1 : localPhase === 'FLYING' ? round2(Math.exp(growth * elapsed)) : 1;
 
   useEffect(() => {
