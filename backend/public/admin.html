@@ -1256,20 +1256,7 @@
           fmtMoney(s.playerBalanceTotal) + ' in wallets + ' + fmtMoney(s.pendingWithdrawalTotal) + ' pending withdrawal');
     }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
 
-    // Stuck UPI deposits need attention fast — a red alert card on top of
-    // the dashboard while any PENDING deposit is older than 30 minutes.
-    api('/admin/upi-deposits?status=PENDING').then(function (rows) {
-      var stuck = rows.filter(function (d) { return Date.now() - new Date(d.createdAt).getTime() > 30 * 60 * 1000; });
-      var el = document.getElementById('dashboardStuckAlert');
-      if (!el) return;
-      if (stuck.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
-      el.style.display = 'block';
-      el.innerHTML = '<div class="card" style="border-color:#ff6b6b;">' +
-        '<div class="item-title" style="color:#ff8a8a;">⚠ ' + stuck.length + ' stuck UPI deposit' + (stuck.length > 1 ? 's' : '') + '</div>' +
-        '<div class="item-meta">Payment page opened but not paid for over 30 minutes. Open Problems to check them with RupayEx and close them in one tap.</div>' +
-        '<button class="btn small" data-goto="problems" style="margin-top:10px;">Open Problems</button>' +
-        '</div>';
-    }).catch(function () { /* older server without this route — no alert */ });
+    loadStuckAlert();
     // How many problems are waiting, on the Problems menu item.
     api('/admin/problems').then(function (r) {
       setProblemsBadge(r.stuckDeposits.length + r.pendingWithdrawals.length + r.openTickets.length + r.balanceMismatches.length);
@@ -1279,6 +1266,24 @@
       allUsersCache = users;
       renderUsersTable('dashboardUsersTable', 'dashboardUsersPagination', users, 1, 5, true);
     }).catch(function (err) { if (err.authError) doLogout(); });
+  }
+
+  // Stuck UPI deposits need attention fast — a red card on top of the
+  // dashboard with each one, its player's details and the fixes.
+  function loadStuckAlert() {
+    var el = document.getElementById('dashboardStuckAlert');
+    if (!el) return;
+    api('/admin/problems').then(function (r) {
+      var stuck = r.stuckDeposits;
+      if (stuck.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+      el.style.display = 'block';
+      el.innerHTML = '<div class="card" style="border-color:#ff6b6b;">' +
+        '<div class="card-head"><h2 style="color:#ff8a8a;">⚠ ' + stuck.length + ' stuck UPI deposit' + (stuck.length > 1 ? 's' : '') + '</h2>' +
+        '<button class="btn small" data-prob-all>Check &amp; fix all</button></div>' +
+        '<div class="item-meta" style="margin:-6px 0 10px;">Payment page opened but not paid for over 30 minutes. "Check &amp; fix" asks RupayEx: paid → added to the balance, not paid → closed.</div>' +
+        stuck.map(probDepositRowHtml).join('') +
+        '</div>';
+    }).catch(function () { /* older server — no alert */ });
   }
 
   // ---------- Users (shared table renderer for Dashboard + Users tab) ----------
@@ -2462,8 +2467,40 @@
     var m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
     return m < 60 ? m + ' min' : m < 2880 ? Math.floor(m / 60) + ' h' : Math.floor(m / 1440) + ' days';
   }
-  function probWho(p) {
-    return 'UID ' + (p.uid || '—') + (p.name ? ' — ' + escapeHtml(p.name) : '') + (p.phone ? ' · ' + escapeHtml(p.phone) : '');
+  function probWhen(d) {
+    return d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' (' + probAge(d) + ' ago)' : '—';
+  }
+  // Everything needed to sort the player out: how to reach them and what they've done.
+  function probPlayerHtml(p) {
+    var x = p.player || {};
+    var digits = String(p.phone || '').replace(/\D/g, '').slice(-10);
+    var contact = digits
+      ? '<a href="tel:+91' + digits + '" style="color:var(--green);font-weight:700;">📞 +91 ' + digits + '</a> · <a href="https://wa.me/91' + digits + '" target="_blank" rel="noopener" style="color:var(--green);">WhatsApp</a>'
+      : 'No phone';
+    var rows = [
+      ['Player', 'UID <b>' + (p.uid || '—') + '</b>' + (p.name ? ' — ' + escapeHtml(p.name) : '') + (x.isBanned ? ' <span class="pill failed">BANNED</span>' : '')],
+      ['Phone', contact],
+      ['Joined', probWhen(x.joinedAt)],
+      ['Last login', probWhen(x.lastLoginAt)],
+      ['Last in app', probWhen(x.lastSeenAt)],
+      ['Last transaction', probWhen(x.lastActivityAt)],
+      ['Balance', fmtMoney(x.balance)],
+      ['Deposited', fmtMoney(x.deposited) + ' (' + (x.deposits || 0) + ' deposit' + (x.deposits === 1 ? '' : 's') + ')'],
+      ['Withdrawn', fmtMoney(x.withdrawn)],
+      ['KYC', escapeHtml(String(x.kycStatus || '—'))],
+    ];
+    return '<div class="detail-box" style="margin-top:8px;font-size:13px;line-height:1.7;">' +
+      rows.map(function (r) { return '<div><span class="item-meta" style="display:inline-block;min-width:118px;">' + r[0] + '</span>' + r[1] + '</div>'; }).join('') + '</div>';
+  }
+  function probDepositRowHtml(d) {
+    return '<div class="item" data-prob-dep="' + escapeHtml(d.id) + '">' +
+      '<div class="item-title">' + fmtMoney(d.amount) + ' deposit — deposit no. ' + escapeHtml(d.depositNo) + '</div>' +
+      '<div class="item-meta">Payment page opened ' + probAge(d.createdAt) + ' ago, not paid yet' + (d.provider === 'rupayex' ? '' : ' · StockPay (switched off)') + '</div>' +
+      probPlayerHtml(d) +
+      '<div class="item-meta" data-prob-result style="margin-top:6px;"></div>' +
+      '<div class="item-actions"><button class="icon-btn view" data-prob-act="fix">Check &amp; fix</button> ' +
+      '<button class="icon-btn view" data-prob-act="msg" data-user="' + escapeHtml(d.userId) + '" data-amount="' + d.amount + '" data-no="' + escapeHtml(d.depositNo) + '">Message player</button> ' +
+      '<button class="icon-btn ban" data-prob-act="void" data-amount="' + d.amount + '">Void</button></div></div>';
   }
   function probUidQs() {
     var uid = document.getElementById('problemsUid').value.trim();
@@ -2478,28 +2515,20 @@
       setProblemsBadge(total);
       document.getElementById('probDepTitle').textContent = 'Stuck UPI deposits (' + n.d + ')';
       document.getElementById('probDepAll').style.display = n.d ? '' : 'none';
-      document.getElementById('probDeposits').innerHTML = n.d ? r.stuckDeposits.map(function (d) {
-        return '<div class="item" data-prob-dep="' + escapeHtml(d.id) + '"><div class="item-top"><div>' +
-          '<div class="item-title">' + fmtMoney(d.amount) + ' — ' + probWho(d) + '</div>' +
-          '<div class="item-meta">Deposit no. ' + escapeHtml(d.depositNo) + ' · opened ' + probAge(d.createdAt) + ' ago' + (d.provider === 'rupayex' ? '' : ' · StockPay (switched off)') + '</div>' +
-          '<div class="item-meta" data-prob-result></div></div></div>' +
-          '<div class="item-actions"><button class="icon-btn view" data-prob-act="fix">Check &amp; fix</button> ' +
-          '<button class="icon-btn view" data-prob-act="msg" data-user="' + escapeHtml(d.userId) + '" data-amount="' + d.amount + '" data-no="' + escapeHtml(d.depositNo) + '">Message player</button> ' +
-          '<button class="icon-btn ban" data-prob-act="void" data-amount="' + d.amount + '">Void</button></div></div>';
-      }).join('') : probEmpty('No stuck deposits.');
+      document.getElementById('probDeposits').innerHTML = n.d ? r.stuckDeposits.map(probDepositRowHtml).join('') : probEmpty('No stuck deposits.');
       document.getElementById('probWdTitle').textContent = 'Withdrawals waiting (' + n.w + ')';
       document.getElementById('probWithdrawals').innerHTML = n.w ? r.pendingWithdrawals.map(function (w) {
-        return '<div class="item"><div class="item-title">' + fmtMoney(w.amount) + ' — ' + probWho(w) + '</div><div class="item-meta">' +
-          (w.sent ? 'Sent to the payment company, waiting for its answer' : 'Waiting for you to approve or reject') + ' · ' + probAge(w.createdAt) + ' ago</div></div>';
+        return '<div class="item"><div class="item-title">' + fmtMoney(w.amount) + ' withdrawal</div><div class="item-meta">' +
+          (w.sent ? 'Sent to the payment company, waiting for its answer' : 'Waiting for you to approve or reject') + ' · ' + probAge(w.createdAt) + ' ago</div>' + probPlayerHtml(w) + '</div>';
       }).join('') : probEmpty('No withdrawals waiting.');
       document.getElementById('probTkTitle').textContent = 'Open support tickets (' + n.t + ')';
       document.getElementById('probTickets').innerHTML = n.t ? r.openTickets.map(function (t) {
-        return '<div class="item"><div class="item-title">' + escapeHtml(t.topic) + ' — ' + probWho(t) + '</div><div class="item-meta">Open for ' + probAge(t.createdAt) + '</div></div>';
+        return '<div class="item"><div class="item-title">' + escapeHtml(t.topic) + '</div><div class="item-meta">Open for ' + probAge(t.createdAt) + '</div>' + probPlayerHtml(t) + '</div>';
       }).join('') : probEmpty('No open tickets.');
       document.getElementById('probBalTitle').textContent = "Balance doesn't match transactions (" + n.b + ')';
       document.getElementById('probBalances').innerHTML = n.b ? r.balanceMismatches.map(function (b) {
-        return '<div class="item"><div class="item-top"><div><div class="item-title">' + probWho(b) + '</div>' +
-          '<div class="item-meta">Balance ' + fmtMoney(b.balance) + ' · transactions add up to ' + fmtMoney(b.ledger) + ' · difference ' + (b.difference > 0 ? '+' : '') + fmtMoney(b.difference) + '</div></div></div>' +
+        return '<div class="item"><div class="item-title">Balance ' + fmtMoney(b.balance) + ' · transactions add up to ' + fmtMoney(b.ledger) + ' · difference ' + (b.difference > 0 ? '+' : '') + fmtMoney(b.difference) + '</div>' +
+          probPlayerHtml(b) +
           '<div class="item-actions"><button class="icon-btn ban" data-prob-fixbal="' + escapeHtml(b.userId) + '" data-ledger="' + b.ledger + '" data-balance="' + b.balance + '">Set to ' + fmtMoney(b.ledger) + '</button></div></div>';
       }).join('') : probEmpty('Every balance matches its transactions.');
     }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
@@ -2508,7 +2537,11 @@
     var btn = document.querySelector('.nav-item[data-tab="problems"] span');
     if (btn) btn.textContent = total ? 'Problems (' + total + ')' : 'Problems';
   }
-  document.getElementById('probDeposits').addEventListener('click', function (e) {
+  function reloadProblemViews() {
+    if (document.getElementById('panel-problems').classList.contains('active')) loadProblems();
+    if (document.getElementById('panel-dashboard').classList.contains('active')) loadStuckAlert();
+  }
+  document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-prob-act]');
     if (!b) return;
     var row = b.closest('[data-prob-dep]');
@@ -2531,21 +2564,22 @@
     var req = act === 'fix'
       ? api('/admin/problems/deposits/' + encodeURIComponent(id) + '/resolve', { method: 'POST' }).then(function (r) { return r.result; })
       : api('/admin/deposits/' + encodeURIComponent(id) + '/reverse', { method: 'POST' }).then(function () { return 'Voided.'; });
-    req.then(function (text) { out.textContent = text; setTimeout(loadProblems, 2500); })
+    req.then(function (text) { out.textContent = text; setTimeout(reloadProblemViews, 2500); })
       .catch(function (err) { if (err.authError) doLogout(); else out.textContent = err.message; })
       .finally(function () { b.disabled = false; });
   });
-  document.getElementById('probDepAll').addEventListener('click', function () {
-    var b = this;
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('#probDepAll, [data-prob-all]');
+    if (!b) return;
     if (!confirm('Check every stuck deposit with RupayEx now? Paid ones are credited, unpaid ones closed.')) return;
     b.disabled = true;
     document.getElementById('problemsSummary').textContent = 'Checking with RupayEx…';
-    api('/admin/problems/deposits/resolve-all' + probUidQs(), { method: 'POST' }).then(function (r) {
+    api('/admin/problems/deposits/resolve-all' + (b.id === 'probDepAll' ? probUidQs() : ''), { method: 'POST' }).then(function (r) {
       var credited = r.results.filter(function (x) { return x.status === 'COMPLETED'; }).length;
       var closed = r.results.filter(function (x) { return x.status === 'FAILED'; }).length;
       var left = r.results.length - credited - closed;
       showAlert('Checked ' + r.results.length + ': ' + credited + ' paid and credited, ' + closed + ' not paid and closed' + (left ? ', ' + left + ' still open (RupayEx did not answer — try again).' : '.'));
-      loadProblems();
+      reloadProblemViews();
     }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); })
       .finally(function () { b.disabled = false; });
   });

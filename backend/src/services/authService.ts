@@ -58,6 +58,12 @@ function assertNotBanned(user: { isBanned: boolean; banReason: string | null }) 
   }
 }
 
+/** Notes a sign-in (and so a visit) — shown to the admin with the player's problems. */
+async function markSignedIn(userId: string) {
+  const now = new Date();
+  await prisma.user.update({ where: { id: userId }, data: { lastLoginAt: now, lastSeenAt: now } });
+}
+
 export async function loginUser(email: string, password: string) {
   // Case-insensitive, so a phone keyboard's capital first letter still logs in.
   const user = await prisma.user.findFirst({ where: { email: { equals: email.trim(), mode: "insensitive" } } });
@@ -67,6 +73,7 @@ export async function loginUser(email: string, password: string) {
   // Email and password are for the admin panel only; players log in with an SMS code.
   if (user.role !== "ADMIN") throw new ApiError(403, "Log in with your mobile number in the app.");
   assertNotBanned(user);
+  await markSignedIn(user.id);
   const token = signToken({ userId: user.id, role: user.role });
   return { user: sanitizeUser(user), token };
 }
@@ -171,6 +178,7 @@ export async function verifyOtpAndAuth(phoneInput: string, code: string) {
   assertNotBanned(existing);
 
   await consumeOtp(phone);
+  await markSignedIn(existing.id);
   const token = signToken({ userId: existing.id, role: existing.role });
   return { user: sanitizeUser(existing), token, isNewUser: false };
 }
@@ -198,6 +206,7 @@ export async function completePhoneRegistration(input: CompleteProfileInput) {
   if (existing) {
     assertNotBanned(existing);
     await consumeOtp(phone);
+    await markSignedIn(existing.id);
     const token = signToken({ userId: existing.id, role: existing.role });
     return { user: sanitizeUser(existing), token, isNewUser: false };
   }
@@ -229,6 +238,7 @@ export async function completePhoneRegistration(input: CompleteProfileInput) {
   if (inviterId) await linkInvitee(inviterId, user.id);
 
   await consumeOtp(phone);
+  await markSignedIn(user.id);
   const token = signToken({ userId: user.id, role: user.role });
   return { user: sanitizeUser(user), token, isNewUser: true };
 }

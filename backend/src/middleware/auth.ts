@@ -11,6 +11,8 @@ import { isRealIndianMobile } from "../utils/phone";
  */
 const PLAYER_SESSIONS_VALID_AFTER_MS = Date.parse("2026-10-21T21:25:00Z");
 
+const SEEN_EVERY_MS = 5 * 60 * 1000;
+
 declare global {
   namespace Express {
     interface Request {
@@ -31,7 +33,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     // effect immediately for an already-logged-in, still-valid token.
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { isBanned: true, banReason: true, role: true, phone: true },
+      select: { isBanned: true, banReason: true, role: true, phone: true, lastSeenAt: true },
     });
     if (!user) return res.status(401).json({ error: "Please log in again." });
     if (user.role !== "ADMIN") {
@@ -51,6 +53,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       });
     }
     req.user = { userId: payload.userId, role: payload.role };
+    // When the player was last in the app, for the admin's Problems page —
+    // written at most every SEEN_EVERY_MS, and never holding up the request.
+    if (user.role !== "ADMIN" && (!user.lastSeenAt || Date.now() - user.lastSeenAt.getTime() > SEEN_EVERY_MS)) {
+      prisma.user.update({ where: { id: payload.userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
+    }
     next();
   } catch {
     return res.status(401).json({ error: "Invalid or expired token" });

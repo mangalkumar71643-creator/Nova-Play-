@@ -48,6 +48,43 @@ export async function balanceMismatches(userId?: string) {
   }));
 }
 
+/**
+ * Everything the admin needs to sort out a player's problem, per player:
+ * when they joined, last signed in and were last in the app (lastActivityAt:
+ * their latest transaction, for accounts from before sign-ins were noted),
+ * balance, what they deposited and withdrew, and KYC.
+ */
+async function playerDetails(userIds: string[]) {
+  const ids = [...new Set(userIds)];
+  if (!ids.length) return new Map<string, Record<string, unknown>>();
+  const [users, deposited, withdrawn, last] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, createdAt: true, lastLoginAt: true, lastSeenAt: true, kycStatus: true, isBanned: true, wallet: { select: { balance: true } } },
+    }),
+    prisma.transaction.groupBy({ by: ["userId"], where: { userId: { in: ids }, type: "DEPOSIT", status: "COMPLETED", reversedAt: null }, _sum: { amount: true }, _count: true }),
+    prisma.transaction.groupBy({ by: ["userId"], where: { userId: { in: ids }, type: "WITHDRAWAL", status: "COMPLETED" }, _sum: { amount: true } }),
+    prisma.transaction.groupBy({ by: ["userId"], where: { userId: { in: ids } }, _max: { createdAt: true } }),
+  ]);
+  const map = new Map<string, Record<string, unknown>>();
+  for (const u of users) {
+    const d = deposited.find((x) => x.userId === u.id);
+    map.set(u.id, {
+      joinedAt: u.createdAt,
+      lastLoginAt: u.lastLoginAt,
+      lastSeenAt: u.lastSeenAt,
+      lastActivityAt: last.find((x) => x.userId === u.id)?._max.createdAt ?? null,
+      balance: Number(u.wallet?.balance ?? 0),
+      deposited: Number(d?._sum.amount ?? 0),
+      deposits: d?._count ?? 0,
+      withdrawn: Number(withdrawn.find((x) => x.userId === u.id)?._sum.amount ?? 0),
+      kycStatus: u.kycStatus,
+      isBanned: u.isBanned,
+    });
+  }
+  return map;
+}
+
 export async function getProblems(uid?: number) {
   let userId: string | undefined;
   if (uid !== undefined) {
@@ -77,7 +114,14 @@ export async function getProblems(uid?: number) {
     }),
     balanceMismatches(userId),
   ]);
-  const who = (u: { id: string; uid: number | null; firstName: string | null; lastName: string | null; phone: string | null }) => ({ userId: u.id, uid: u.uid, name: nameOf(u), phone: u.phone });
+  const details = await playerDetails([...deposits, ...withdrawals, ...tickets].map((x) => x.user.id).concat(mismatches.map((m) => m.userId)));
+  const who = (u: { id: string; uid: number | null; firstName: string | null; lastName: string | null; phone: string | null }) => ({
+    userId: u.id,
+    uid: u.uid,
+    name: nameOf(u),
+    phone: u.phone,
+    player: details.get(u.id) ?? null,
+  });
   return {
     stuckAfterMinutes: STUCK_DEPOSIT_MINUTES,
     stuckDeposits: deposits.map((d) => ({
@@ -97,7 +141,7 @@ export async function getProblems(uid?: number) {
       ...who(w.user),
     })),
     openTickets: tickets.map((t) => ({ id: t.id, topic: t.topic, createdAt: t.createdAt, ...who(t.user) })),
-    balanceMismatches: mismatches,
+    balanceMismatches: mismatches.map((m) => ({ ...m, player: details.get(m.userId) ?? null })),
   };
 }
 

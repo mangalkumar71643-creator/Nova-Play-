@@ -179,6 +179,10 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // Last sign-in (OTP or password) and last request from the app (at most
+  // every 5 minutes, see middleware/auth.ts) — shown to the admin on Problems.
+  lastLoginAt DateTime?
+  lastSeenAt  DateTime?
 
   wallet             Wallet?
   revealedSeeds      RevealedServerSeed[]
