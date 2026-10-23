@@ -37,7 +37,7 @@ export const DICE = 6;
  * returns 79.90%, just under the 80% lottery rtp. The top pays 20x, so a
  * full box (maxStake) can never win more than maxPayout.
  */
-// Less the 2% lottery win fee (lotteryHouse.ts): 3.18, 5.14, 6.86, 11.76, 19.6.
+// Less the lottery win fee (lotteryHouse.ts): 2.76, 4.46, 5.95, 10.2, 17 at 15%.
 export const PAYTABLE: Record<number, number> = Object.fromEntries(
   Object.entries({ 2: 3.25, 3: 5.25, 4: 7, 5: 12, 6: 20 }).map(([k, m]) => [k, withWinFee(m)])
 );

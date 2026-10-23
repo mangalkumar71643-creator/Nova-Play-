@@ -112,7 +112,7 @@ export function isValidKey(key: string): boolean {
  * is not House, 1 / P(win), rounded down to the cent so the return, 80% of
  * multiplier * P(win), is never more than LOTTERY_RTP. */
 export function multiplierFor(key: string): number {
-  // Less the 2% lottery win fee (lotteryHouse.ts).
+  // Less the lottery win fee (lotteryHouse.ts).
   return withWinFee(216 / WIN_COUNTS.get(key)!);
 }
 

@@ -29,7 +29,7 @@ export const DRAWN = 35;
 export const PICKS = 6;
 
 /** What a ticket that is not House pays (stake included) when its 6th number is drawn at this position. */
-// Less the 2% lottery win fee (lotteryHouse.ts), applied below.
+// Less the lottery win fee (lotteryHouse.ts), applied below.
 export const PAYS: Record<number, number> = {
   6: 10000, 7: 7500, 8: 5000, 9: 2500, 10: 1000, 11: 550, 12: 325, 13: 220, 14: 160, 15: 110,
   16: 88, 17: 76, 18: 65, 19: 54, 20: 44, 21: 37, 22: 30, 23: 24, 24: 17.5, 25: 13,

@@ -612,7 +612,10 @@ function Rules({ bet, config }: { bet: number; config: FortuneSixConfig | null }
         are drawn, your ticket wins — and the sooner your 6th number comes out, the more it pays. If any of your numbers is not drawn, the ticket loses.
       </Text>
       <Text style={styles.note}>
-        ⭐ House: one ticket in five is a House ticket. It shows a ⭐ instead of the draw and loses, whatever the balls. A ticket wins about {(win * 100).toFixed(1)}% of the time.
+        {(config.houseChancePercent ?? 0) > 0
+          ? `⭐ House: one ticket in ${Math.round(100 / config.houseChancePercent!)} is a House ticket. It shows a ⭐ instead of the draw and loses, whatever the balls. `
+          : ''}
+        A ticket wins about {(win * 100).toFixed(1)}% of the time.
       </Text>
       <Text style={styles.section}>PAYS (POSITION OF YOUR 6TH NUMBER)</Text>
       {config.pays.map((p) => (
@@ -624,8 +627,8 @@ function Rules({ bet, config }: { bet: number; config: FortuneSixConfig | null }
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Tickets return {config.rtpPercent}% over time, House tickets included (before the {money(config.maxPayout)} per-ticket limit). No autoplay or turbo; each ticket takes at least 2.5
-        seconds. The draw order, and whether a ticket is House, come from your provably-fair seeds (server seed hash, client seed and nonce on each ticket).
+        Tickets return {config.rtpPercent}% over time (before the {money(config.maxPayout)} per-ticket limit). No autoplay or turbo; each ticket takes at least 2.5
+        seconds. The draw order comes from your provably-fair seeds (server seed hash, client seed and nonce on each ticket).
       </Text>
     </View>
   );
