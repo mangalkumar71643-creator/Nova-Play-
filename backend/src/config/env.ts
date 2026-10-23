@@ -41,8 +41,9 @@ export const env = {
     winMultiplier: Number(process.env.GAME_WIN_MULTIPLIER ?? 2),
     // House edge of every crash game (Aviator, Rocket, Cricket X, Goal Rush,
     // Airship, Big Catch, Cosmonaut, Night Racer, Sky Jet incl. its jackpot)
-    // and Vortex: 0.25 = players get 75% back over time. Each game shows it.
-    crashHouseEdge: Number(process.env.CRASH_HOUSE_EDGE ?? 0.25),
+    // and Vortex: 0.15 = players get 85% back over time (owner's request,
+    // 2026-10-23; it was 0.25). Each game shows it.
+    crashHouseEdge: Number(process.env.CRASH_HOUSE_EDGE ?? 0.15),
     // Win Go result rule. Off: the number comes from the round's server
     // seed. On ("true"): the least-staked rule (winGoService.leastStakedNumber),
     // which the app's How to play shows from 1.0.24 — only turn it on once

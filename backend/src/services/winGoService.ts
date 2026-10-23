@@ -40,7 +40,7 @@ function floor2(n: number): number {
 export const PAYOUTS = (() => {
   const fair = (winsInTen: number) => floor2(10 / winsInTen);
   const color = floor2((10 + 0.5) / 5);
-  // Less the lottery win fee (lotteryHouse.ts): 8.5x, 1.7x, 4.25x, 1.78x, 1.36x at 15%.
+  // Less the lottery win fee (lotteryHouse.ts): 9.8x, 1.96x, 4.9x, 2.05x, 1.56x at 2%.
   return { number: withWinFee(fair(1)), size: withWinFee(fair(5)), violet: withWinFee(fair(2)), color: withWinFee(color), colorMixed: withWinFee(floor2(color - 0.5)) };
 })();
 

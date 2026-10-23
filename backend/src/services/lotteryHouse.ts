@@ -21,17 +21,16 @@ import { fairGameFloat } from "../utils/rng";
 // Switched off for the round games (Win Go, Trx Win Go, K3, 5D, Jhandi Munda)
 // on 2026-10-22 at the owner's request: LOTTERY_HOUSE_CHANCE defaults to 0,
 // so no new round is House (it was 0.2). Rounds already House stay so in
-// their history. Fortune Six's own House went too on 2026-10-23, when every
-// lottery game was set to an 85% return (the win fee below).
+// their history. Fortune Six keeps its own 1 in 5 (FORTUNE_SIX_HOUSE_CHANCE):
+// its paytable is fair, so House is all it keeps.
 export const HOUSE_CHANCE = Number(process.env.LOTTERY_HOUSE_CHANCE ?? 0);
 
 /**
- * The win fee of every lottery game, which sets its return (RTP): each
- * multiplier is the fair one less the fee, rounded down to the paisa. 15%
- * since 2026-10-23 (owner's request: an 85% RTP; it was 2%) — a ₹100 bet
- * that wins at 2x pays ₹170, at 10x ₹850. LOTTERY_WIN_FEE changes it.
+ * The 2% win fee of every lottery game (owner's request, 2026-10-22): each
+ * multiplier is the fair one less 2%, rounded down to the paisa — a ₹100 bet
+ * that wins at 2x pays ₹196, at 10x ₹980. LOTTERY_WIN_FEE changes it.
  */
-export const LOTTERY_WIN_FEE = Number(process.env.LOTTERY_WIN_FEE ?? 0.15);
+export const LOTTERY_WIN_FEE = Number(process.env.LOTTERY_WIN_FEE ?? 0.02);
 export function withWinFee(multiplier: number): number {
   return Math.floor(multiplier * (1 - LOTTERY_WIN_FEE) * 100 + 1e-9) / 100;
 }
@@ -39,8 +38,8 @@ export function withWinFee(multiplier: number): number {
 export const HOUSE_DIGITS = Math.round(HOUSE_CHANCE * 10);
 /** Return of every lottery bet: fair odds less the win fee on the results that are not House. */
 export const LOTTERY_RTP = (1 - HOUSE_CHANCE) * (1 - LOTTERY_WIN_FEE);
-/** Fortune Six: no House tickets any more (it was one in five); the win fee alone sets its return. */
-export const FORTUNE_SIX_HOUSE_CHANCE = 0;
+/** Fortune Six: one ticket in five is a House ticket. */
+export const FORTUNE_SIX_HOUSE_CHANCE = 0.2;
 
 /** Round-based games (Win Go, K3, 5D, Jhandi Munda): drawn from the round's seed and period number. */
 export function isHouseRound(serverSeed: string, periodNumber: string): boolean {
