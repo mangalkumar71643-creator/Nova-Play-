@@ -4,7 +4,6 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Dimensions,
   LayoutRectangle,
   Modal,
@@ -15,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
 import { ApiClientError } from '../api/client';
@@ -226,7 +226,7 @@ export default function MinesScreen() {
       setResult(null);
       refreshWallet();
     } catch (err) {
-      Alert.alert('Could not start', errorMessage(err));
+      showAlert('Could not start', errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -257,7 +257,7 @@ export default function MinesScreen() {
         setRound(res.round);
       }
     } catch (err) {
-      Alert.alert('Could not open tile', errorMessage(err));
+      showAlert('Could not open tile', errorMessage(err));
     } finally {
       setPendingTile(null);
       setBusy(false);
@@ -297,7 +297,7 @@ export default function MinesScreen() {
       const settled = await cashOutMinesRound(round.id);
       settle(settled, wonResult(settled));
     } catch (err) {
-      Alert.alert('Cash out failed', errorMessage(err));
+      showAlert('Cash out failed', errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -317,7 +317,7 @@ export default function MinesScreen() {
     if (locked) return;
     const tiles = [...autoTiles];
     if (tiles.length === 0) {
-      Alert.alert('Pick your tiles', 'Tap the tiles you want opened every round, then start Auto Game.');
+      showAlert('Pick your tiles', 'Tap the tiles you want opened every round, then start Auto Game.');
       return;
     }
     autoStopRef.current = false;
@@ -357,7 +357,7 @@ export default function MinesScreen() {
         await sleep(AUTO_ROUND_PAUSE_MS);
       }
     } catch (err) {
-      if (mountedRef.current) Alert.alert('Auto Game stopped', errorMessage(err));
+      if (mountedRef.current) showAlert('Auto Game stopped', errorMessage(err));
     } finally {
       if (mountedRef.current) {
         setAutoRunning(false);

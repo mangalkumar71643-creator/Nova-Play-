@@ -3,7 +3,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import ScreenContainer from '../components/ScreenContainer';
 import { withdrawalFeeFor } from '../api/backend';
 import { ApiClientError } from '../api/client';
@@ -69,15 +70,15 @@ export default function WithdrawScreen() {
 
   async function handleSaveBankAccount() {
     if (nameInput.trim().length < 2) {
-      Alert.alert('Enter account holder name', "Enter the account holder's legal name.");
+      showAlert('Enter account holder name', "Enter the account holder's legal name.");
       return;
     }
     if (!/^\d{9,18}$/.test(accountInput.trim())) {
-      Alert.alert('Invalid account number', 'Enter a valid bank account number.');
+      showAlert('Invalid account number', 'Enter a valid bank account number.');
       return;
     }
     if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(ifscInput.trim())) {
-      Alert.alert('Invalid IFSC', 'IFSC requires 11 characters, e.g. HDFC0001234.');
+      showAlert('Invalid IFSC', 'IFSC requires 11 characters, e.g. HDFC0001234.');
       return;
     }
     setSavingBank(true);
@@ -86,7 +87,7 @@ export default function WithdrawScreen() {
       await refreshWallet();
       setBankModalOpen(false);
     } catch (err) {
-      Alert.alert('Could not save bank account', err instanceof ApiClientError ? err.message : 'Please try again.');
+      showAlert('Could not save bank account', err instanceof ApiClientError ? err.message : 'Please try again.');
     } finally {
       setSavingBank(false);
     }
@@ -94,7 +95,7 @@ export default function WithdrawScreen() {
 
   async function handleWithdraw() {
     if (!kycApproved) {
-      Alert.alert('Verify your identity', 'Complete KYC verification in Settings before withdrawing.');
+      showAlert('Verify your identity', 'Complete KYC verification in Settings before withdrawing.');
       return;
     }
     if (!hasPayoutAccount) {
@@ -109,18 +110,18 @@ export default function WithdrawScreen() {
     try {
       const result = await walletService.withdraw(amount);
       refreshWallet().catch(() => {});
-      Alert.alert(
-        'Withdrawal done',
-        `₹${amount.toLocaleString('en-IN')} has been deducted from your game balance. ` +
-          (result.fee > 0
-            ? `₹${result.payout.toLocaleString('en-IN')} is being sent to your bank account ending ${payoutAccountNumber?.slice(-4)} (fee ₹${result.fee.toLocaleString('en-IN')}).`
-            : `The full amount is being sent to your bank account ending ${payoutAccountNumber?.slice(-4)} — no fee.`),
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      showAlert(
+        'Withdrawal successful',
+        result.fee > 0
+          ? `₹${result.payout.toLocaleString('en-IN')} is on its way to your bank account ending ${payoutAccountNumber?.slice(-4)} (fee ₹${result.fee.toLocaleString('en-IN')}).`
+          : `The full amount is on its way to your bank account ending ${payoutAccountNumber?.slice(-4)} — no fee.`,
+        [{ text: 'Done', onPress: () => navigation.goBack() }],
+        { kind: 'success', highlight: `₹${amount.toLocaleString('en-IN')}` }
       );
     } catch (err) {
       // Nothing was taken: put the real balance back.
       refreshWallet().catch(() => {});
-      Alert.alert('Withdrawal failed', err instanceof ApiClientError ? err.message : 'Please try again.');
+      showAlert('Withdrawal failed', err instanceof ApiClientError ? err.message : 'Please try again.');
     } finally {
       setBusy(false);
     }

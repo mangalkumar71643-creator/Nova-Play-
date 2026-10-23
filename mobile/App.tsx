@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppAlertHost } from './src/components/AppAlert';
 import AppUpdateCheck from './src/components/AppUpdateCheck';
 import RootNavigator from './src/navigation/RootNavigator';
 import { AuthProvider } from './src/state/AuthContext';
@@ -14,6 +15,7 @@ export default function App() {
           <StatusBar hidden />
           <RootNavigator />
           <AppUpdateCheck />
+          <AppAlertHost />
         </GameStateProvider>
       </AuthProvider>
     </SafeAreaProvider>

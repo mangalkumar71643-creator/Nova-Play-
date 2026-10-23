@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState } from 'react';
-import { Alert, LayoutAnimation, Linking, Platform, Pressable, StyleSheet, Text, UIManager, View } from 'react-native';
+import { LayoutAnimation, Linking, Platform, Pressable, StyleSheet, Text, UIManager, View } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import AppHeader from '../components/AppHeader';
 import ScreenContainer from '../components/ScreenContainer';
 import { API_BASE_URL, ApiClientError } from '../api/client';
@@ -77,7 +78,7 @@ export default function HelpScreen() {
       const { chatToken } = await startChatSession();
       await Linking.openURL(`${API_BASE_URL}/chat.html?token=${encodeURIComponent(chatToken)}`);
     } catch (err) {
-      Alert.alert('Could not connect', err instanceof ApiClientError ? err.message : 'Please try again.');
+      showAlert('Could not connect', err instanceof ApiClientError ? err.message : 'Please try again.');
     } finally {
       setConnecting(false);
     }

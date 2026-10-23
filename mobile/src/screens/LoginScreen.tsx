@@ -3,7 +3,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   LayoutChangeEvent,
@@ -15,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import GameShineOverlay from '../components/GameShineOverlay';
 import { AuthStackParamList } from '../navigation/types';
 import { colors } from '../theme';
@@ -69,14 +69,14 @@ export default function LoginScreen() {
     if (resendCooldown > 0 || sendingOtp) return;
     setLoginMode('otp');
     if (!isValid) {
-      Alert.alert('Enter your number', 'Please enter your own 10-digit mobile number. The login code is sent to it by SMS.');
+      showAlert('Enter your number', 'Please enter your own 10-digit mobile number. The login code is sent to it by SMS.');
       return;
     }
     setSendingOtp(true);
     const error = await quickLogin(digits);
     setSendingOtp(false);
     if (error) {
-      Alert.alert('Could not send code', error);
+      showAlert('Could not send code', error);
       return;
     }
     setOtpCode('');
@@ -87,16 +87,16 @@ export default function LoginScreen() {
     if (verifying) return;
     if (loginMode === 'password') {
       if (!isValid) {
-        Alert.alert('Enter your number', 'Please enter a valid 10-digit mobile number first.');
+        showAlert('Enter your number', 'Please enter a valid 10-digit mobile number first.');
         return;
       }
       if (!password.trim()) {
-        Alert.alert('Enter your password', 'Please enter your password, or switch to Verification Login.');
+        showAlert('Enter your password', 'Please enter your password, or switch to Verification Login.');
         return;
       }
       const ok = await loginWithPassword(phone.trim(), password.trim());
       if (!ok) {
-        Alert.alert('Login failed', 'Incorrect password, or no password set for this number yet. Switch to Verification Login to sign in with OTP instead.');
+        showAlert('Login failed', 'Incorrect password, or no password set for this number yet. Switch to Verification Login to sign in with OTP instead.');
       }
       return;
     }
@@ -105,28 +105,28 @@ export default function LoginScreen() {
       const error = await verifyOtp(otpCode);
       setVerifying(false);
       if (error) {
-        Alert.alert('Incorrect code', error);
+        showAlert('Incorrect code', error);
       }
       return;
     }
     if (!otpSent) {
       if (!isValid) {
-        Alert.alert('Enter your number', 'Please enter your own 10-digit mobile number. The login code is sent to it by SMS.');
+        showAlert('Enter your number', 'Please enter your own 10-digit mobile number. The login code is sent to it by SMS.');
         return;
       }
       setVerifying(true);
       const error = await quickLogin(digits);
       setVerifying(false);
       if (error) {
-        Alert.alert('Login failed', error);
+        showAlert('Login failed', error);
       }
       return;
     }
-    Alert.alert('Enter the code', 'Please enter the 6-digit code sent to your number.');
+    showAlert('Enter the code', 'Please enter the 6-digit code sent to your number.');
   }
 
   function comingSoon(label: string) {
-    Alert.alert(label, 'Coming soon — use your mobile number + OTP to sign in for now.');
+    showAlert(label, 'Coming soon — use your mobile number + OTP to sign in for now.');
   }
 
   return (

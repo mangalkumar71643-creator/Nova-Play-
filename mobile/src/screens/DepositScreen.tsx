@@ -3,7 +3,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, AppState, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Animated, AppState, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import ScreenContainer from '../components/ScreenContainer';
 import { ApiClientError } from '../api/client';
 import { DepositBonusInfo, UpiDepositStatus, confirmUpiDeposits, fetchDepositBonus, fetchUpiDepositStatus, startUpiCheckout } from '../api/backend';
@@ -80,9 +81,9 @@ export default function DepositScreen() {
           const bonus = done.reduce((s, r) => s + r.bonus, 0);
           showSuccess(total, bonus);
         } else if (!quiet && results.some((r) => r.status === 'PENDING')) {
-          Alert.alert('Payment not finished', 'We have not received this payment yet. If you paid, your balance will update shortly.');
+          showAlert('Payment not finished', 'We have not received this payment yet. If you paid, your balance will update shortly.');
         } else if (!quiet && results.some((r) => r.status === 'FAILED')) {
-          Alert.alert('Payment cancelled', 'No money was taken.');
+          showAlert('Payment cancelled', 'No money was taken.');
         }
       } catch {
         // Checked again next time the app comes back to this screen.
@@ -116,14 +117,14 @@ export default function DepositScreen() {
 
   async function handlePayNow() {
     if (!kycApproved) {
-      Alert.alert('Verify your identity', 'Complete KYC verification in Settings before depositing.');
+      showAlert('Verify your identity', 'Complete KYC verification in Settings before depositing.');
       return;
     }
     if (!isValidAmount) return;
     // A payment company is set up but not open to this account: say why,
     // rather than falling through to the old (closed) deposit.
     if (upi && !upi.enabled && upi.gateway) {
-      Alert.alert('UPI payment not available', upi.reason ?? 'Please try again later.');
+      showAlert('UPI payment not available', upi.reason ?? 'Please try again later.');
       return;
     }
     setBusy(true);
@@ -134,7 +135,7 @@ export default function DepositScreen() {
         await Linking.openURL(url);
       } catch (err) {
         pendingSession.current = null;
-        Alert.alert('Payment failed', err instanceof ApiClientError ? err.message : 'Please try again.');
+        showAlert('Payment failed', err instanceof ApiClientError ? err.message : 'Please try again.');
       } finally {
         setBusy(false);
       }
@@ -142,7 +143,7 @@ export default function DepositScreen() {
     }
     // Money comes in only by UPI (RupayEx); there is no other deposit.
     setBusy(false);
-    Alert.alert('UPI payment not available', 'UPI deposits are not available right now. Please try again later.');
+    showAlert('UPI payment not available', 'UPI deposits are not available right now. Please try again later.');
   }
 
   return (

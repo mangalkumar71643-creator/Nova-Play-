@@ -2,7 +2,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Dimensions, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -1325,7 +1326,7 @@ export default function AviatorScreen() {
           return;
         }
         setBet({ status: 'idle' });
-        Alert.alert('Bet failed', message);
+        showAlert('Bet failed', message);
       }
     },
     [mode1, mode2, stake1, stake2, autoStake1, autoStake2, autoCashout1, autoCashout2, autoCashOutOn1, autoCashOutOn2, refreshWallet, setPanelBet]
@@ -1362,7 +1363,7 @@ export default function AviatorScreen() {
         setBet({ status: 'won', payout: result.payout, cashoutMultiplier: result.multiplier });
         refreshWallet().catch(() => {});
       } catch (err) {
-        Alert.alert('Cash out failed', err instanceof ApiClientError ? err.message : 'Please try again.');
+        showAlert('Cash out failed', err instanceof ApiClientError ? err.message : 'Please try again.');
         setBet({ status: 'pending', betId, amount, periodNumber });
       }
     },

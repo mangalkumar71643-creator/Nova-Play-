@@ -3,7 +3,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Dimensions,
   Easing,
@@ -15,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
 import { ApiClientError } from '../api/client';
@@ -481,7 +481,7 @@ export default function ChickenRoadScreen() {
       setPendingStep(null);
       refreshWallet();
     } catch (err) {
-      Alert.alert('Could not start', err instanceof ApiClientError ? err.message : 'Please try again.');
+      showAlert('Could not start', err instanceof ApiClientError ? err.message : 'Please try again.');
     } finally {
       setBusy(false);
     }
@@ -513,7 +513,7 @@ export default function ChickenRoadScreen() {
       }
     } catch (err) {
       setPendingStep(null);
-      Alert.alert('Could not advance', err instanceof ApiClientError ? err.message : 'Please try again.');
+      showAlert('Could not advance', err instanceof ApiClientError ? err.message : 'Please try again.');
       setBusy(false);
     }
   };
@@ -528,7 +528,7 @@ export default function ChickenRoadScreen() {
       refreshWallet();
       loadHistory();
     } catch (err) {
-      Alert.alert('Cash out failed', err instanceof ApiClientError ? err.message : 'Please try again.');
+      showAlert('Cash out failed', err instanceof ApiClientError ? err.message : 'Please try again.');
     } finally {
       setBusy(false);
     }

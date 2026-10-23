@@ -2,7 +2,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import AmountInputModal from '../components/AmountInputModal';
 import AppHeader from '../components/AppHeader';
 import ScreenContainer from '../components/ScreenContainer';
@@ -53,12 +54,12 @@ export default function SettingsScreen() {
     try {
       const result = await rotateFairnessSeed();
       setSeedHash(result.newServerSeedHash);
-      Alert.alert(
+      showAlert(
         'Seed rotated',
         `Your previous server seed is now revealed:\n\n${result.revealedServerSeed}\n\nYou can hash it yourself (SHA-256) and confirm it matches the hash shown before rotation.`
       );
     } catch (err) {
-      Alert.alert('Failed', err instanceof ApiClientError ? err.message : 'Could not rotate seed.');
+      showAlert('Failed', err instanceof ApiClientError ? err.message : 'Could not rotate seed.');
     } finally {
       setRotating(false);
     }
@@ -68,8 +69,8 @@ export default function SettingsScreen() {
     setKycBusy(true);
     const error = await submitKyc();
     setKycBusy(false);
-    if (error) Alert.alert('KYC failed', error);
-    else Alert.alert('KYC submitted', 'Your identity verification has been submitted.');
+    if (error) showAlert('KYC failed', error);
+    else showAlert('KYC submitted', 'Your identity verification has been submitted.');
   }
 
   async function handleSetLimit(amount: number) {
@@ -77,24 +78,20 @@ export default function SettingsScreen() {
     const error = await setDepositLimits({ depositLimitDaily: amount });
     setLimitBusy(false);
     if (error) {
-      Alert.alert('Failed', error);
+      showAlert('Failed', error);
     } else {
       setLimitModalOpen(false);
-      Alert.alert('Limit set', `Daily deposit limit set to ${amount} Coins.`);
+      showAlert('Limit set', `Daily deposit limit set to ${amount} Coins.`);
     }
   }
 
   function handleSelfExclude() {
     const confirm = async () => {
       const error = await selfExclude(30);
-      if (error) Alert.alert('Failed', error);
-      else Alert.alert('Self-exclusion active', 'Deposits and betting are now blocked for 30 days.');
+      if (error) showAlert('Failed', error);
+      else showAlert('Self-exclusion active', 'Deposits and betting are now blocked for 30 days.');
     };
-    if (Platform.OS === 'web') {
-      if (window.confirm('This blocks betting and deposits for 30 days and cannot be undone early. Continue?')) confirm();
-      return;
-    }
-    Alert.alert(
+    showAlert(
       'Confirm self-exclusion',
       'This blocks betting and deposits for 30 days and cannot be undone early. Continue?',
       [
@@ -105,11 +102,7 @@ export default function SettingsScreen() {
   }
 
   function handleLogout() {
-    if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to log out?')) logout();
-      return;
-    }
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+    showAlert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log Out', style: 'destructive', onPress: logout },
     ]);
@@ -138,11 +131,11 @@ export default function SettingsScreen() {
         {backendUser?.uid ? <InfoRow icon="identifier" label="User ID" value={String(backendUser.uid)} /> : null}
         {phone ? <InfoRow icon="cellphone" label="Mobile Number" value={`+91 ${phone}`} /> : null}
         <NavRow icon="account-circle-outline" label="Account" onPress={() => navigation.navigate('Profile')} />
-        <NavRow icon="shield-lock-outline" label="Privacy" onPress={() => Alert.alert('Privacy', 'Privacy policy coming soon.')} />
+        <NavRow icon="shield-lock-outline" label="Privacy" onPress={() => showAlert('Privacy', 'Privacy policy coming soon.')} />
         <NavRow
           icon="file-document-outline"
           label="Terms of Service"
-          onPress={() => Alert.alert('Terms of Service', 'Terms of service coming soon.')}
+          onPress={() => showAlert('Terms of Service', 'Terms of service coming soon.')}
         />
         <NavRow icon="help-circle-outline" label="Help" onPress={() => navigation.navigate('Help')} last />
       </View>

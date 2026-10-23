@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import PrimaryButton from '../components/PrimaryButton';
 import { useAuth } from '../state/AuthContext';
 import { colors, radius, spacing, typography } from '../theme';
@@ -28,16 +29,16 @@ export default function CompleteProfileScreen() {
 
   async function handleSubmit() {
     if (!firstName.trim() || !lastName.trim() || !country.trim()) {
-      Alert.alert('Missing details', 'Please fill in your name and country.');
+      showAlert('Missing details', 'Please fill in your name and country.');
       return;
     }
     const dob = new Date(Number(year), Number(month) - 1, Number(day));
     if (Number.isNaN(dob.getTime()) || String(year).length !== 4) {
-      Alert.alert('Invalid date of birth', 'Please enter a valid date (DD / MM / YYYY).');
+      showAlert('Invalid date of birth', 'Please enter a valid date (DD / MM / YYYY).');
       return;
     }
     if (calculateAge(dob) < 18) {
-      Alert.alert('Age restriction', 'You must be at least 18 years old to use NovaPlay for real-money play.');
+      showAlert('Age restriction', 'You must be at least 18 years old to use NovaPlay for real-money play.');
       return;
     }
 
@@ -50,7 +51,7 @@ export default function CompleteProfileScreen() {
       inviteCode: inviteCode.trim() || undefined,
     });
     setSubmitting(false);
-    if (error) Alert.alert('Could not create account', error);
+    if (error) showAlert('Could not create account', error);
   }
 
   return (

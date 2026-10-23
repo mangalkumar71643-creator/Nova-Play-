@@ -3,7 +3,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -500,7 +501,7 @@ export default function PlinkoScreen() {
     rotateFairnessSeed()
       .then((r) => {
         setSeedHash(r.newServerSeedHash);
-        Alert.alert(
+        showAlert(
           'Server seed revealed',
           `Previous seed:\n${r.revealedServerSeed}\n\nIts hash (shown before):\n${r.revealedServerSeedHash}\n\nNew hash:\n${r.newServerSeedHash}`
         );
@@ -522,7 +523,7 @@ export default function PlinkoScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.title}>PLINKO</Text>
         <View style={styles.seedRow}>
-          <Pressable style={styles.seedTextWrap} onPress={() => seedHash && Alert.alert('Encrypted result', seedHash)}>
+          <Pressable style={styles.seedTextWrap} onPress={() => seedHash && showAlert('Encrypted result', seedHash)}>
             <Text style={styles.seedLabel} numberOfLines={1}>
               Encrypted Result: <Text style={styles.seedHash}>{seedHash ?? '—'}</Text>
             </Text>

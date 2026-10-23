@@ -3,7 +3,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { showAlert } from '../components/AppAlert';
 import ScreenContainer from '../components/ScreenContainer';
 import { AVATARS } from '../data/avatars';
 import { RootStackParamList } from '../navigation/types';
@@ -13,19 +14,11 @@ import { colors, gradients, radius, shadow, spacing, typography } from '../theme
 const OTP_SEND_COOLDOWN_SECONDS = 30;
 
 function comingSoon(label: string) {
-  if (Platform.OS === 'web') {
-    window.alert(`${label} — coming soon.`);
-    return;
-  }
-  Alert.alert(label, 'Coming soon.');
+  showAlert(label, 'Coming soon.');
 }
 
 function alertMessage(title: string, message: string) {
-  if (Platform.OS === 'web') {
-    window.alert(`${title}\n\n${message}`);
-    return;
-  }
-  Alert.alert(title, message);
+  showAlert(title, message);
 }
 
 function maskPhone(phone: string | null) {
