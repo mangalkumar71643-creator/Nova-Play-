@@ -55,13 +55,38 @@ export async function countSubscriptions() {
 
 type Alert = { title: string; body: string; tag: string; page?: string };
 
+// The last alerts sent, for the panel's "Recent alerts" list (Setting "alertLog").
+const ALERT_LOG_KEY = "alertLog";
+type LoggedAlert = { at: string; title: string; body: string; sent: number; failed: number; phones: number };
+
+async function logAlert(entry: LoggedAlert) {
+  console.log(`[alerts] "${entry.title}" -> sent ${entry.sent}/${entry.phones}${entry.failed ? `, ${entry.failed} failed` : ""}`);
+  try {
+    const row = await prisma.setting.findUnique({ where: { key: ALERT_LOG_KEY } });
+    const list: LoggedAlert[] = row ? JSON.parse(row.value) : [];
+    const value = JSON.stringify([entry, ...list].slice(0, 30));
+    await prisma.setting.upsert({ where: { key: ALERT_LOG_KEY }, update: { value }, create: { key: ALERT_LOG_KEY, value } });
+  } catch (err) {
+    console.error("[alerts] could not log:", (err as Error).message);
+  }
+}
+
+export async function recentAlerts(): Promise<LoggedAlert[]> {
+  const row = await prisma.setting.findUnique({ where: { key: ALERT_LOG_KEY } });
+  return row ? JSON.parse(row.value) : [];
+}
+
 /** Sends an alert to every phone/browser that turned alerts on; ones the push service no longer knows are dropped. */
 export async function notifyAdmins(alert: Alert) {
   const subs = await prisma.adminPushSubscription.findMany();
-  if (!subs.length) return { sent: 0 };
+  if (!subs.length) {
+    await logAlert({ at: new Date().toISOString(), title: alert.title, body: alert.body, sent: 0, failed: 0, phones: 0 });
+    return { sent: 0 };
+  }
   const k = await vapidKeys();
   const payload = JSON.stringify({ title: alert.title, body: alert.body, tag: alert.tag, url: `/admin.html#${alert.page ?? "problems"}` });
   let sent = 0;
+  let failed = 0;
   await Promise.all(
     subs.map(async (s) => {
       try {
@@ -74,11 +99,13 @@ export async function notifyAdmins(alert: Alert) {
         sent++;
       } catch (err) {
         const status = (err as { statusCode?: number }).statusCode;
+        failed++;
         if (status === 404 || status === 410) await prisma.adminPushSubscription.deleteMany({ where: { id: s.id } });
-        else console.error("[alerts] push failed:", status ?? (err as Error).message);
+        console.error("[alerts] push failed:", status ?? (err as Error).message);
       }
     })
   );
+  await logAlert({ at: new Date().toISOString(), title: alert.title, body: alert.body, sent, failed, phones: subs.length });
   return { sent };
 }
 

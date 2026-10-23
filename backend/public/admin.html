@@ -852,6 +852,8 @@
             <button class="btn secondary" id="alertsOff" style="flex:0 0 auto;">Turn off here</button>
           </div>
           <div class="item-meta" id="alertsStatus"></div>
+          <div style="font-weight:700;margin:14px 0 6px;">Recent alerts</div>
+          <div id="alertsRecent" class="item-meta">—</div>
         </div>
         <div class="card" style="max-width:420px;">
           <div class="card-head"><h2>SMS / OTP</h2></div>
@@ -2515,6 +2517,16 @@
     }
     Promise.all([currentPushSub(), api('/admin/alerts').catch(function () { return { devices: 0 }; })]).then(function (r) {
       var on = !!r[0] && Notification.permission === 'granted';
+      var recent = r[1].recent || [];
+      document.getElementById('alertsRecent').innerHTML = recent.length
+        ? recent.map(function (a) {
+            var ok = a.phones > 0 && a.sent === a.phones;
+            return '<div style="padding:6px 0;border-bottom:1px solid var(--border);">' +
+              '<b style="color:var(--text)">' + escapeHtml(a.title) + '</b> <span class="pill ' + (ok ? 'approved' : 'failed') + '">' +
+              (a.phones === 0 ? 'no phone had alerts on' : a.sent + ' of ' + a.phones + ' phone(s)' + (a.failed ? ', ' + a.failed + ' failed' : '')) + '</span>' +
+              '<br/>' + new Date(a.at).toLocaleString('en-IN') + ' · ' + escapeHtml(a.body) + '</div>';
+          }).join('')
+        : 'No alerts sent yet. A withdrawal request, a support message or a stuck deposit will show up here.';
       status.innerHTML = (on ? '<b style="color:var(--green)">✓ Alerts are on for this phone.</b>' : 'Alerts are off for this phone.') +
         ' ' + r[1].devices + ' phone(s)/browser(s) get alerts.' +
         (Notification.permission === 'denied' ? ' Notifications are blocked for this site: allow them in Chrome\'s site settings, then try again.' : '');

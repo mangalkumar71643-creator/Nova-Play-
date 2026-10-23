@@ -21,7 +21,7 @@ import {
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
 import { getPlayerReport } from "../services/playerReportService";
-import { countSubscriptions, getVapidPublicKey, notifyAdmins, removeSubscription, saveSubscription } from "../services/adminAlertService";
+import { countSubscriptions, getVapidPublicKey, notifyAdmins, recentAlerts, removeSubscription, saveSubscription } from "../services/adminAlertService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
 import { LOTTERY_RTP } from "../services/lotteryHouse";
@@ -626,7 +626,7 @@ router.get(
 router.get(
   "/alerts",
   asyncHandler(async (_req, res) => {
-    res.json({ publicKey: await getVapidPublicKey(), devices: await countSubscriptions() });
+    res.json({ publicKey: await getVapidPublicKey(), devices: await countSubscriptions(), recent: await recentAlerts() });
   })
 );
 

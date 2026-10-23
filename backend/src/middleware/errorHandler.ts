@@ -7,8 +7,14 @@ export class ApiError extends Error {
   }
 }
 
-export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+// Money requests turned down are worth a line in the logs (why a withdrawal never reached the admin).
+const LOGGED_REFUSALS = ["/wallet/withdraw"];
+
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof ApiError) {
+    if (LOGGED_REFUSALS.includes(req.path) || LOGGED_REFUSALS.includes(req.originalUrl.split("?")[0].replace(/^\/api/, ""))) {
+      console.log(`[refused] ${req.method} ${req.originalUrl} ${err.status}: ${err.message}`);
+    }
     return res.status(err.status).json({ error: err.message });
   }
   if (err instanceof ZodError) {
