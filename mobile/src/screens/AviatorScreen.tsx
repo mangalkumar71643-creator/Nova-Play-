@@ -418,6 +418,12 @@ const clock = { offsetMs: 0, bestRttMs: Infinity, growthRate: Math.log(2) / 5 };
 // the crash point and then drop back to it. A cash-out is paid at the
 // server's (slightly higher) multiplier, so the player never loses by it.
 const DISPLAY_LAG_MS = 450;
+// The number only runs this far past the server's last word that the plane
+// is still flying. If replies stop coming (weak network, app paused), it
+// holds there instead of climbing on and on to a figure the round never
+// reached, and goes on as soon as the server answers again.
+const MAX_AHEAD_OF_SERVER_MS = 700;
+const lastFlying = { periodNumber: '', serverMs: 0 };
 
 function serverNow() {
   return Date.now() + clock.offsetMs;
@@ -440,7 +446,9 @@ function displayMultiplier(r: AviatorRoundView | null): number {
   if (r.phase === 'CRASHED') return r.crashMultiplier ?? r.multiplier;
   // Only once the server says it took off: a round can crash at 1.00x, right at take-off.
   if (r.phase !== 'FLYING') return 1;
-  const flyMs = serverNow() - DISPLAY_LAG_MS - Date.parse(r.flyStartTime);
+  let shownAt = serverNow() - DISPLAY_LAG_MS;
+  if (lastFlying.periodNumber === r.periodNumber) shownAt = Math.min(shownAt, lastFlying.serverMs + MAX_AHEAD_OF_SERVER_MS);
+  const flyMs = shownAt - Date.parse(r.flyStartTime);
   if (flyMs <= 0) return 1;
   // Floored like the server's own values, so the screen never reads above them.
   return Math.floor(Math.exp((clock.growthRate * flyMs) / 1000) * 100) / 100;
@@ -1224,6 +1232,13 @@ export default function AviatorScreen() {
         const view = await fetchAviatorCurrentRound();
         if (!mounted) return;
         noteServerTime(view.serverTime, sentAt, Date.now());
+        if (view.phase === 'FLYING') {
+          const at = view.serverTime ? Date.parse(view.serverTime) : serverNow();
+          if (lastFlying.periodNumber !== view.periodNumber || at > lastFlying.serverMs) {
+            lastFlying.periodNumber = view.periodNumber;
+            lastFlying.serverMs = at;
+          }
+        }
         // Re-render the screen only when the round actually changes (new
         // round, take-off, crash); the multiplier ticks on its own.
         setRound((prev) =>

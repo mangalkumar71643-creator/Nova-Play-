@@ -258,8 +258,15 @@ export interface AviatorRoundView {
   serverTime?: string;
 }
 
-export function fetchAviatorCurrentRound() {
-  return apiFetch<AviatorRoundView>('/aviator/current');
+/** Polled several times a second: a reply that hangs is given up on, so the next poll goes out. */
+export async function fetchAviatorCurrentRound() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    return await apiFetch<AviatorRoundView>('/aviator/current', { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export interface AviatorHistoryEntry {
