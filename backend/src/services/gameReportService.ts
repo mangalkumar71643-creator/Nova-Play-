@@ -362,3 +362,56 @@ export async function getGamesOverview() {
     games,
   };
 }
+
+/**
+ * One player's play, game by game, from every game's own bet table: bets,
+ * staked, paid back to them and their result (paid - staked: positive = the
+ * player is up), plus their latest bets across all games.
+ */
+export async function getPlayerGames(userId: string) {
+  const today = `(date_trunc('day', now() AT TIME ZONE 'Asia/Kolkata')) AT TIME ZONE 'Asia/Kolkata' AT TIME ZONE 'UTC'`;
+  // Built only from the fixed SOURCES list; the player's id goes in as a parameter ($1).
+  const cond = (s: Source) => `WHERE t."userId" = $1${s.where ? ` AND ${s.where}` : ""}`;
+  const parts = SOURCES.map(
+    (s) => `SELECT '${s.key}' AS key, COUNT(*) AS bets, COALESCE(SUM(${s.stake}), 0) AS staked, COALESCE(SUM(${s.paid}), 0) AS paid,
+      COUNT(*) FILTER (WHERE (${s.paid}) > 0) AS wins, MAX(t."createdAt") AS last_at,
+      COALESCE(SUM(${s.stake}) FILTER (WHERE t."createdAt" >= ${today}), 0) AS staked_today
+    FROM "${s.table}" t ${cond(s)}`
+  );
+  const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(parts.join("\nUNION ALL\n"), userId);
+  const byKey = new Map(rows.map((r) => [String(r.key), r]));
+  const games = SOURCES.map((s) => {
+    const r = byKey.get(s.key)!;
+    const staked = r2(Number(r.staked));
+    const paid = r2(Number(r.paid));
+    return {
+      key: s.key,
+      name: s.name,
+      category: s.category,
+      bets: Number(r.bets),
+      wins: Number(r.wins),
+      staked,
+      paid,
+      playerResult: r2(paid - staked),
+      stakedToday: r2(Number(r.staked_today)),
+      lastBetAt: r.last_at as Date | null,
+    };
+  })
+    .filter((g) => g.bets > 0)
+    .sort((a, b) => b.staked - a.staked);
+  const recent = await prisma.$queryRawUnsafe<{ key: string; at: Date; staked: unknown; paid: unknown }[]>(
+    `SELECT * FROM (${SOURCES.map((s) => `(SELECT '${s.key}' AS key, t."createdAt" AS at, ${s.stake} AS staked, ${s.paid} AS paid FROM "${s.table}" t ${cond(s)} ORDER BY t."createdAt" DESC LIMIT 50)`).join(" UNION ALL ")}) x ORDER BY at DESC LIMIT 50`,
+    userId
+  );
+  const names = new Map(SOURCES.map((s) => [s.key, s.name]));
+  return {
+    games,
+    totals: {
+      bets: games.reduce((t, g) => t + g.bets, 0),
+      staked: r2(games.reduce((t, g) => t + g.staked, 0)),
+      paid: r2(games.reduce((t, g) => t + g.paid, 0)),
+      playerResult: r2(games.reduce((t, g) => t + g.playerResult, 0)),
+    },
+    recentBets: recent.map((b) => ({ game: names.get(b.key) ?? b.key, at: b.at, staked: r2(Number(b.staked)), paid: r2(Number(b.paid)) })),
+  };
+}

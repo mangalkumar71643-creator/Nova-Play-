@@ -20,6 +20,7 @@ import {
 } from "../services/depositBonusService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
+import { getPlayerReport } from "../services/playerReportService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
 import { LOTTERY_RTP } from "../services/lotteryHouse";
@@ -616,6 +617,17 @@ router.get(
   "/audit/balances",
   asyncHandler(async (_req, res) => {
     res.json(await balanceMismatches());
+  })
+);
+
+// --- Player Report: everything about one player, by UID (playerReportService.ts) ---
+
+router.get(
+  "/players/:uid/report",
+  asyncHandler(async (req, res) => {
+    const uid = Number(req.params.uid);
+    if (!Number.isInteger(uid) || uid <= 0) throw new ApiError(400, "Enter a valid UID.");
+    res.json(await getPlayerReport(uid));
   })
 );
 

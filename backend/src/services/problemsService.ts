@@ -164,6 +164,7 @@ export async function resolveStuckDeposit(id: string) {
   const check = await rupayex.adminRecheckDeposit(id);
   if (check.status !== "PENDING") return { id, status: check.status, result: check.note };
   if (!check.live.answered) return { id, status: "PENDING", result: "RupayEx did not answer — try again in a minute." };
+  if (check.live.notFound) return close("RupayEx has no such order: the player never paid. Closed.");
   return close(`RupayEx says ${check.live.state ?? "not paid"}: the player did not pay. Closed (if they pay late it is still credited).`);
 }
 

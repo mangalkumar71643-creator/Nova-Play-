@@ -55,6 +55,12 @@ const ORDER_LIFETIME_MS = 24 * 3600 * 1000;
 const LATE_PAYMENT_WINDOW_MS = 48 * 3600 * 1000;
 const CALL_TIMEOUT_MS = 8000;
 
+// RupayEx answers 404 "Order not found" for an order it has no record of
+// (the payment page never got as far as RupayEx). Past this age that means
+// it was never paid; a younger one may still be on its way.
+const NOT_FOUND_AFTER_MS = 30 * 60 * 1000;
+const notFoundLongEnough = (httpStatus: number, createdAt: Date) => httpStatus === 404 && Date.now() - createdAt.getTime() > NOT_FOUND_AFTER_MS;
+
 const FAILED_ORDER = ["FAILED", "FAILURE", "EXPIRED", "CANCELLED", "CANCELED", "REJECTED", "DECLINED"];
 
 function token(): string {
@@ -193,7 +199,7 @@ type DepositRow = { id: string; userId: string; amount: unknown; status: string;
 async function settle(tx: DepositRow) {
   const amount = Number(tx.amount);
   const orderId = tx.providerReferenceId!;
-  const { ok, json } = await call("GET", "/order-status", { order_id: orderId });
+  const { ok, httpStatus, json } = await call("GET", "/order-status", { order_id: orderId });
   const o = fieldsOf(json);
   // payment_status per the docs; a string `status` is the callback's spelling of the same.
   const state = upper(o.payment_status ?? (typeof o.status === "string" && o.status !== "true" && o.status !== "1" ? o.status : ""));
@@ -208,7 +214,7 @@ async function settle(tx: DepositRow) {
     return { status: "COMPLETED" as const, amount, bonus: done.bonus, alreadyCredited: done.alreadyCompleted };
   }
   const expired = Date.now() - tx.createdAt.getTime() > ORDER_LIFETIME_MS;
-  if ((ok && FAILED_ORDER.includes(state)) || (expired && tx.status === "PENDING")) {
+  if ((ok && FAILED_ORDER.includes(state)) || notFoundLongEnough(httpStatus, tx.createdAt) || (expired && tx.status === "PENDING")) {
     await prisma.transaction.updateMany({ where: { id: tx.id, status: "PENDING" }, data: { status: "FAILED" } });
     return { status: "FAILED" as const, amount, bonus: 0, alreadyCredited: false };
   }
@@ -300,13 +306,16 @@ export async function adminRecheckDeposit(depositId: string) {
   if (!token()) throw new ApiError(503, "RupayEx is not set up yet (no API token).");
   const tx = await prisma.transaction.findUniqueOrThrow({ where: { id: depositId } });
   if (tx.type !== "DEPOSIT" || tx.provider !== PROVIDER || !tx.providerReferenceId) throw new ApiError(400, "Only RupayEx deposits can be checked with RupayEx.");
-  const { ok, json } = await call("GET", "/order-status", { order_id: tx.providerReferenceId });
+  const { ok, httpStatus, json } = await call("GET", "/order-status", { order_id: tx.providerReferenceId });
   const o = fieldsOf(json);
   const state = upper(o.payment_status ?? (typeof o.status === "string" && o.status !== "true" && o.status !== "1" ? o.status : ""));
-  const live = { answered: ok, state: state || null, amount: o.amount != null ? Number(o.amount) : null, utr: utrOf(o), message: ok ? null : message(json) };
+  // notFound: RupayEx has no such order (and it is old enough to be sure) — it was never paid.
+  const notFound = notFoundLongEnough(httpStatus, tx.createdAt);
+  const live = { answered: ok || notFound, notFound, state: notFound ? "NOT FOUND" : state || null, amount: o.amount != null ? Number(o.amount) : null, utr: utrOf(o), message: ok ? null : message(json) };
   let note: string;
   if (tx.reversedAt) note = "This deposit was reversed by the admin, so it is never credited.";
   else if (tx.status === "COMPLETED") note = "Already credited to the player.";
+  else if (notFound) note = "RupayEx has no such order: it was never paid, nothing to credit.";
   else if (!ok) note = "RupayEx did not answer about this order.";
   else if (state !== "SUCCESS") note = `RupayEx says ${state || "no status"}: the money has not reached us, nothing to credit.`;
   else if (String(o.order_id ?? "") !== tx.providerReferenceId || paise(o.amount) !== Math.round(Number(tx.amount) * 100)) {

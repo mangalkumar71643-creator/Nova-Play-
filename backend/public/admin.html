@@ -430,6 +430,19 @@
 
       </div>
 
+      <div class="panel" id="panel-player-report">
+        <h1 class="page-title">Player Report</h1>
+        <div class="page-sub">Type a player's UID to see everything about them: who they are, their wallet, deposits and withdrawals, and how much they bet on which game.</div>
+        <div class="card">
+          <div class="form-row">
+            <input id="prUid" type="number" placeholder="Player UID" style="max-width:220px;" />
+            <button class="btn" id="prShow" style="flex:0 0 auto;">Show</button>
+          </div>
+          <div class="item-meta" id="prStatus"></div>
+        </div>
+        <div id="prBody"></div>
+      </div>
+
       <div class="panel" id="panel-problems">
         <h1 class="page-title">Problems</h1>
         <div class="page-sub">Everything that needs you, in one place, with the fix next to it. Type a player's UID to see only their problems.</div>
@@ -1085,6 +1098,7 @@
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'users', label: 'Users', icon: 'users' },
     { id: 'problems', label: 'Problems', icon: 'alert' },
+    { id: 'player-report', label: 'Player Report', icon: 'users' },
     { id: 'deposits', label: 'Deposits', icon: 'wallet' },
     { id: 'transactions', label: 'Withdrawals', icon: 'transactions' },
     { id: 'deposit-amounts', label: 'Deposit Amounts', icon: 'wallet' },
@@ -1169,6 +1183,7 @@
     transactions: loadWithdrawals,
     deposits: loadUpiDeposits,
     problems: function () { loadProblems(); },
+    'player-report': function () { if (document.getElementById('prUid').value.trim()) loadPlayerReport(); },
     bonus: loadDepositBonus,
     'deposit-amounts': loadDepositAmounts,
     invites: function () { loadInvites(); },
@@ -2462,6 +2477,85 @@
   document.getElementById('invitesSearchBtn').addEventListener('click', loadInvites);
   document.getElementById('invitesSearch').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadInvites(); });
 
+  // ---------- Player Report page (playerReportService.ts) ----------
+  var PR_TYPE = { DEPOSIT: 'Deposit', WITHDRAWAL: 'Withdrawal', BONUS: 'Bonus', DEPOSIT_BONUS: 'Deposit bonus', DEPOSIT_REVERSAL: 'Deposit taken back', WITHDRAWAL_REVERSAL: 'Withdrawal refunded', BALANCE_RESET: 'Balance reset' };
+  function prDate(d) { return d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'; }
+  function prResult(n) { return '<b style="color:' + (n > 0 ? 'var(--red)' : n < 0 ? 'var(--green)' : 'inherit') + '">' + (n > 0 ? '+' : '') + fmtMoney(n) + '</b>'; }
+  function openPlayerReport(uid) {
+    document.getElementById('prUid').value = uid;
+    switchTab('player-report');
+    closeSidebarDrawer();
+  }
+  function loadPlayerReport() {
+    var uid = document.getElementById('prUid').value.trim();
+    var status = document.getElementById('prStatus');
+    if (!uid) { status.textContent = 'Type a UID.'; return; }
+    status.textContent = 'Loading…';
+    document.getElementById('prBody').innerHTML = '';
+    api('/admin/players/' + encodeURIComponent(uid) + '/report').then(function (r) {
+      status.textContent = '';
+      var p = r.profile, w = r.wallet || {}, m = r.money, g = r.games;
+      var digits = String(p.phone || '').replace(/\D/g, '').slice(-10);
+      var row = function (k, v) { return '<div><span class="item-meta" style="display:inline-block;min-width:130px;">' + k + '</span>' + v + '</div>'; };
+      var profile = '<div class="card"><div class="card-head"><h2>UID ' + p.uid + (p.name ? ' — ' + escapeHtml(p.name) : '') + '</h2>' +
+        '<button class="btn secondary small" data-pr-problems="' + p.uid + '">This player\'s problems</button></div>' +
+        '<div class="detail-box" style="font-size:13px;line-height:1.8;">' +
+        row('Phone', digits ? '<a href="tel:+91' + digits + '" style="color:var(--green);font-weight:700;">📞 +91 ' + digits + '</a> · <a href="https://wa.me/91' + digits + '" target="_blank" rel="noopener" style="color:var(--green);">WhatsApp</a>' : '—') +
+        (p.email ? row('Email', escapeHtml(p.email)) : '') +
+        row('Joined', prDate(p.joinedAt)) +
+        row('Last login', prDate(p.lastLoginAt)) +
+        row('Last in app', prDate(p.lastSeenAt)) +
+        row('KYC', escapeHtml(p.kycStatus)) +
+        row('Status', p.isBanned ? '<span class="pill failed">BANNED</span> ' + escapeHtml(p.banReason || '') : p.isSelfExcluded ? '<span class="pill pending">Self-excluded</span>' : '<span class="pill approved">Active</span>') +
+        row('Invited by', p.invitedBy ? 'UID ' + p.invitedBy.uid + ' — ' + escapeHtml(p.invitedBy.name) : 'nobody') +
+        row('Players they invited', String(p.invited)) +
+        row('Bank account', p.bank ? escapeHtml(p.bank.holder || '') + ' · ' + escapeHtml(p.bank.account) + ' · ' + escapeHtml(p.bank.ifsc || '') : 'not added') +
+        '</div></div>';
+      var stats = '<div class="stat-grid">' +
+        statCardHtml('wallet', 'Balance', fmtMoney(w.balance), fmtMoney(w.withdrawable) + ' withdrawable') +
+        statCardHtml('wallet', 'Deposited', fmtMoney(m.deposited), m.deposits + ' deposit(s)' + (m.depositsOpen ? ' · ' + m.depositsOpen + ' open' : '')) +
+        statCardHtml('trendUp', 'Withdrawn', fmtMoney(m.withdrawn), m.withdrawals + ' paid' + (m.withdrawalsWaiting ? ' · ' + fmtMoney(m.withdrawalsWaiting) + ' waiting' : '') + (m.withdrawalsRejected ? ' · ' + m.withdrawalsRejected + ' rejected' : '')) +
+        statCardHtml('games', 'Bet in games', fmtMoney(g.totals.staked), g.totals.bets + ' bets · won back ' + fmtMoney(g.totals.paid)) +
+        '</div>';
+      var walletBox = '<div class="card"><div class="card-head"><h2>Wallet</h2></div><div class="detail-box" style="font-size:13px;line-height:1.8;">' +
+        row('Balance', fmtMoney(w.balance)) +
+        row('Withdrawable now', fmtMoney(w.withdrawable)) +
+        row('Deposit still to bet', fmtMoney(w.unplayedDeposit)) +
+        row('Bonus locked', fmtMoney(w.lockedBonus) + (w.bonusWageringLeft ? ' (bet ' + fmtMoney(w.bonusWageringLeft) + ' more)' : '')) +
+        row('Bonuses received', fmtMoney(m.bonuses)) +
+        row('Taken back by admin', fmtMoney(m.takenBack)) +
+        row('Result in games', prResult(g.totals.playerResult) + ' <span class="item-meta">(+ = player is up, − = house is up)</span>') +
+        '</div></div>';
+      var games = '<div class="card"><div class="card-head"><h2>Games played (' + g.games.length + ')</h2></div>' + (g.games.length
+        ? '<div class="table-scroll"><table><thead><tr><th>Game</th><th>Bets</th><th>Wins</th><th>Bet</th><th>Won back</th><th>Player result</th><th>Bet today</th><th>Last bet</th></tr></thead><tbody>' +
+          g.games.map(function (x) {
+            return '<tr><td><b>' + escapeHtml(x.name) + '</b><br/><span class="item-meta">' + escapeHtml(x.category) + '</span></td><td>' + x.bets + '</td><td>' + x.wins + '</td><td>' + fmtMoney(x.staked) + '</td><td>' + fmtMoney(x.paid) + '</td><td>' + prResult(x.playerResult) + '</td><td>' + fmtMoney(x.stakedToday) + '</td><td>' + prDate(x.lastBetAt) + '</td></tr>';
+          }).join('') + '</tbody></table></div>'
+        : '<div class="empty">No bets yet.</div>') + '</div>';
+      var recent = '<div class="card"><div class="card-head"><h2>Latest bets</h2></div>' + (g.recentBets.length
+        ? '<div class="table-scroll"><table><thead><tr><th>When</th><th>Game</th><th>Bet</th><th>Won</th></tr></thead><tbody>' +
+          g.recentBets.map(function (b) { return '<tr><td>' + prDate(b.at) + '</td><td>' + escapeHtml(b.game) + '</td><td>' + fmtMoney(b.staked) + '</td><td>' + (b.paid > 0 ? '<b style="color:var(--green)">' + fmtMoney(b.paid) + '</b>' : '—') + '</td></tr>'; }).join('') +
+          '</tbody></table></div>'
+        : '<div class="empty">No bets yet.</div>') + '</div>';
+      var hist = '<div class="card"><div class="card-head"><h2>Deposits, withdrawals and bonuses</h2></div>' + (r.history.length
+        ? '<div class="table-scroll"><table><thead><tr><th>When</th><th>What</th><th>Amount</th><th>Status</th><th>No. / UTR</th></tr></thead><tbody>' +
+          r.history.map(function (h) {
+            var cls = h.status === 'COMPLETED' ? 'approved' : h.status === 'PENDING' ? 'pending' : 'failed';
+            return '<tr><td>' + prDate(h.at) + '</td><td>' + (PR_TYPE[h.type] || h.type) + '</td><td>' + fmtMoney(h.amount) + '</td><td><span class="pill ' + cls + '">' + h.status + '</span></td><td class="item-meta">' + escapeHtml(h.ref || '') + (h.utr ? '<br/>UTR ' + escapeHtml(h.utr) : '') + '</td></tr>';
+          }).join('') + '</tbody></table></div>'
+        : '<div class="empty">Nothing yet.</div>') + '</div>';
+      document.getElementById('prBody').innerHTML = profile + stats + walletBox + games + recent + hist;
+    }).catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; });
+  }
+  document.getElementById('prShow').addEventListener('click', loadPlayerReport);
+  document.getElementById('prUid').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadPlayerReport(); });
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('[data-pr-open]');
+    if (a) { e.preventDefault(); openPlayerReport(a.getAttribute('data-pr-open')); return; }
+    var b = e.target.closest('[data-pr-problems]');
+    if (b) { document.getElementById('problemsUid').value = b.getAttribute('data-pr-problems'); switchTab('problems'); }
+  });
+
   // ---------- Problems page (problemsService.ts) ----------
   function probAge(d) {
     var m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
@@ -2478,7 +2572,8 @@
       ? '<a href="tel:+91' + digits + '" style="color:var(--green);font-weight:700;">📞 +91 ' + digits + '</a> · <a href="https://wa.me/91' + digits + '" target="_blank" rel="noopener" style="color:var(--green);">WhatsApp</a>'
       : 'No phone';
     var rows = [
-      ['Player', 'UID <b>' + (p.uid || '—') + '</b>' + (p.name ? ' — ' + escapeHtml(p.name) : '') + (x.isBanned ? ' <span class="pill failed">BANNED</span>' : '')],
+      ['Player', 'UID <b>' + (p.uid || '—') + '</b>' + (p.name ? ' — ' + escapeHtml(p.name) : '') + (x.isBanned ? ' <span class="pill failed">BANNED</span>' : '') +
+        (p.uid ? ' · <a href="#" data-pr-open="' + p.uid + '" style="color:var(--green);">Full report</a>' : '')],
       ['Phone', contact],
       ['Joined', probWhen(x.joinedAt)],
       ['Last login', probWhen(x.lastLoginAt)],
