@@ -112,11 +112,14 @@ const LOGO_HEIGHT = LOGO_WIDTH * LOGO_ASPECT;
 // row of dots along the bottom and left edges sliding past like the axes
 // of the graph. Everything moves by native transforms only (no per-frame
 // JS work) and stops where it is between flights.
-const RAY_COUNT = 24;
+// 144 thin rays (2.5 degrees each, about 18 light ones across the panel),
+// like the real game's fine sunburst.
+const RAY_COUNT = 144;
 const RAY_RADIUS = Math.sqrt(PANEL_WIDTH ** 2 + PANEL_HEIGHT ** 2) * 1.15;
 const RAY_STEP_DEG = 360 / RAY_COUNT;
-// One full ray pair per turn of the loop, so the loop joins up seamlessly.
-const RAY_TURN_MS = 3000;
+// One full ray pair per turn of the loop, so the loop joins up seamlessly
+// (5 degrees a second, whatever the ray count).
+const RAY_TURN_MS = ((2 * 360) / RAY_COUNT / 5) * 1000;
 const RAYS_D = Array.from({ length: RAY_COUNT / 2 }, (_, i) => {
   const a0 = ((2 * i * RAY_STEP_DEG) * Math.PI) / 180;
   const a1 = (((2 * i + 1) * RAY_STEP_DEG) * Math.PI) / 180;
@@ -1663,6 +1666,9 @@ const styles = StyleSheet.create({
     height: PANEL_HEIGHT,
     overflow: 'hidden',
     backgroundColor: '#000000',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#2b2b30',
   },
   plane: {
     position: 'absolute',
