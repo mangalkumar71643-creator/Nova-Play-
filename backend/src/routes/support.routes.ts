@@ -4,6 +4,7 @@ import { asyncHandler, ApiError } from "../middleware/errorHandler";
 import { requireAuth, requireChatAuth } from "../middleware/auth";
 import { prisma } from "../db/prismaClient";
 import { signChatToken } from "../utils/jwt";
+import { alertAdmins, shouldAlertChat } from "../services/adminAlertService";
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.post(
         messages: message ? { create: { sender: "USER", text: message } } : undefined,
       },
     });
+    await alertSupport(req.user!.userId, ticket.id, `${topic}${message ? `: ${message}` : ""}`);
     res.status(201).json(ticket);
   })
 );
@@ -38,6 +40,18 @@ router.post(
     res.json({ chatToken: signChatToken(req.user!.userId) });
   })
 );
+
+/** A player wrote to support: alert the admin's phone (once per conversation every few minutes). */
+async function alertSupport(userId: string, ticketId: string, text: string) {
+  if (!shouldAlertChat(ticketId)) return;
+  const who = await prisma.user.findUnique({ where: { id: userId }, select: { uid: true, firstName: true, phone: true } });
+  await alertAdmins({
+    title: `💬 Support message — UID ${who?.uid ?? "—"}`,
+    body: `${who?.firstName ?? ""} · ${who?.phone ?? ""}: ${text.slice(0, 120)}`,
+    tag: `support-${ticketId}`,
+    page: "support",
+  });
+}
 
 async function findOrCreateOpenTicket(userId: string) {
   const existing = await prisma.supportTicket.findFirst({
@@ -77,6 +91,7 @@ router.post(
     const created = await prisma.chatMessage.create({
       data: { ticketId: ticket.id, sender: "USER", text },
     });
+    await alertSupport(req.chatUserId!, ticket.id, text);
     res.status(201).json(created);
   })
 );

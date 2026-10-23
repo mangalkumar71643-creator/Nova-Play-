@@ -21,6 +21,7 @@ import {
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
 import { getPlayerReport } from "../services/playerReportService";
+import { countSubscriptions, getVapidPublicKey, notifyAdmins, removeSubscription, saveSubscription } from "../services/adminAlertService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
 import { LOTTERY_RTP } from "../services/lotteryHouse";
@@ -617,6 +618,42 @@ router.get(
   "/audit/balances",
   asyncHandler(async (_req, res) => {
     res.json(await balanceMismatches());
+  })
+);
+
+// --- Phone alerts for the admin (Web Push, adminAlertService.ts) ---
+
+router.get(
+  "/alerts",
+  asyncHandler(async (_req, res) => {
+    res.json({ publicKey: await getVapidPublicKey(), devices: await countSubscriptions() });
+  })
+);
+
+const pushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(1000),
+  keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }),
+});
+router.post(
+  "/alerts/subscribe",
+  asyncHandler(async (req, res) => {
+    const sub = pushSubscriptionSchema.parse(req.body?.subscription);
+    res.json(await saveSubscription(req.user!.userId, sub, String(req.get("user-agent") ?? "").slice(0, 300) || null));
+  })
+);
+
+router.post(
+  "/alerts/unsubscribe",
+  asyncHandler(async (req, res) => {
+    const endpoint = z.string().url().max(1000).parse(req.body?.endpoint);
+    res.json(await removeSubscription(endpoint));
+  })
+);
+
+router.post(
+  "/alerts/test",
+  asyncHandler(async (_req, res) => {
+    res.json(await notifyAdmins({ title: "🔔 NovaPlay alerts are on", body: "You'll get withdrawals, support messages and stuck deposits here. Tap to open Problems.", tag: "test" }));
   })
 );
 

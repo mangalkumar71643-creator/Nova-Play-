@@ -9,6 +9,7 @@ import * as rupayex from "../services/rupayexService";
 import { env } from "../config/env";
 import { depositNumberOf, depositUtrOf, withdrawableOf } from "../services/depositService";
 import { playerDepositBonus } from "../services/depositBonusService";
+import { alertAdmins } from "../services/adminAlertService";
 import { istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
 
 const router = Router();
@@ -255,6 +256,13 @@ router.post(
       return fee;
     });
 
+    const who = await prisma.user.findUnique({ where: { id: userId }, select: { uid: true, firstName: true, phone: true } });
+    await alertAdmins({
+      title: `💸 Withdrawal request: ₹${amount}`,
+      body: `UID ${who?.uid ?? "—"} ${who?.firstName ?? ""} · ${who?.phone ?? ""} — waiting for you. Tap to open.`,
+      tag: "withdrawal",
+      page: "transactions",
+    });
     res.json({ ...(await buildWalletView(userId)), fee, payout: Math.round((amount - fee) * 100) / 100 });
   })
 );

@@ -351,6 +351,7 @@
       <div class="panel active" id="panel-dashboard">
         <h1 class="page-title">Dashboard</h1>
         <div class="page-sub">Overview of your platform performance and key metrics.</div>
+        <div id="dashboardAlertsNudge" style="display:none;"></div>
         <div id="dashboardStuckAlert" style="display:none;"></div>
         <div class="stat-grid" id="dashboardStats"></div>
         <div class="card">
@@ -842,6 +843,16 @@
         <h1 class="page-title">Settings</h1>
         <div class="page-sub">Your account on this control panel.</div>
         <div class="card" id="settingsCard" style="max-width:420px;"></div>
+        <div class="card" style="max-width:520px;">
+          <div class="card-head"><h2>🔔 Phone alerts</h2></div>
+          <div class="item-meta" style="margin:-6px 0 10px;">Get a notification on this phone, like a calendar reminder, when a player asks for a withdrawal, writes to support, or a deposit gets stuck (not for ordinary deposits). Tapping it opens the right page. Works in Chrome even when it's closed; turn it on once on each phone you use.</div>
+          <div class="form-row">
+            <button class="btn" id="alertsOn" style="flex:0 0 auto;">Turn on alerts on this phone</button>
+            <button class="btn secondary" id="alertsTest" style="flex:0 0 auto;">Send a test alert</button>
+            <button class="btn secondary" id="alertsOff" style="flex:0 0 auto;">Turn off here</button>
+          </div>
+          <div class="item-meta" id="alertsStatus"></div>
+        </div>
         <div class="card" style="max-width:420px;">
           <div class="card-head"><h2>SMS / OTP</h2></div>
           <div class="item-meta" id="smsStatus" style="margin:-6px 0 12px;">Loading…</div>
@@ -1024,8 +1035,12 @@
     shell.style.display = 'block';
     document.getElementById('profileName').textContent = me ? [me.firstName, me.lastName].filter(Boolean).join(' ') : 'Admin';
     document.getElementById('profileAvatar').textContent = me ? initials(me.firstName, me.lastName) : 'A';
-    switchTab('dashboard');
+    // Opened from an alert (admin.html#problems): straight to that page.
+    var wanted = (location.hash || '').slice(1);
+    switchTab(wanted && document.getElementById('panel-' + wanted) ? wanted : 'dashboard');
+    if (location.hash) history.replaceState(null, '', location.pathname);
     refreshBellBadge();
+    refreshAlertsUi();
   }
   function showLogin() {
     loginView.style.display = 'flex';
@@ -2476,6 +2491,87 @@
   document.getElementById('invitesRefresh').addEventListener('click', loadInvites);
   document.getElementById('invitesSearchBtn').addEventListener('click', loadInvites);
   document.getElementById('invitesSearch').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadInvites(); });
+
+  // ---------- Phone alerts (Web Push, adminAlertService.ts + admin-sw.js) ----------
+  var pushSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  function b64ToBytes(b64) {
+    var pad = '='.repeat((4 - (b64.length % 4)) % 4);
+    var raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function currentPushSub() {
+    if (!pushSupported) return Promise.resolve(null);
+    return navigator.serviceWorker.getRegistration('/').then(function (reg) { return reg ? reg.pushManager.getSubscription() : null; });
+  }
+  function refreshAlertsUi() {
+    var status = document.getElementById('alertsStatus');
+    var nudge = document.getElementById('dashboardAlertsNudge');
+    if (!pushSupported) {
+      status.textContent = 'This browser can\'t show alerts. Open the admin panel in Chrome on your phone (not inside another app) and turn them on there.';
+      nudge.style.display = 'none';
+      return;
+    }
+    Promise.all([currentPushSub(), api('/admin/alerts').catch(function () { return { devices: 0 }; })]).then(function (r) {
+      var on = !!r[0] && Notification.permission === 'granted';
+      status.innerHTML = (on ? '<b style="color:var(--green)">✓ Alerts are on for this phone.</b>' : 'Alerts are off for this phone.') +
+        ' ' + r[1].devices + ' phone(s)/browser(s) get alerts.' +
+        (Notification.permission === 'denied' ? ' Notifications are blocked for this site: allow them in Chrome\'s site settings, then try again.' : '');
+      nudge.style.display = on ? 'none' : 'block';
+      nudge.innerHTML = on ? '' : '<div class="card" style="border-color:var(--green);"><div class="item-title">🔔 Get alerts on this phone</div>' +
+        '<div class="item-meta">Withdrawals, support messages and stuck deposits — straight to your phone, like a reminder.</div>' +
+        '<button class="btn small" data-alerts-on style="margin-top:10px;">Turn on alerts</button></div>';
+    });
+  }
+  function enableAlerts() {
+    var status = document.getElementById('alertsStatus');
+    if (!pushSupported) { refreshAlertsUi(); return; }
+    status.textContent = 'Turning on…';
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== 'granted') throw new Error('Notifications were not allowed. Allow them for this site in Chrome\'s settings, then try again.');
+      return Promise.all([navigator.serviceWorker.register('/admin-sw.js', { scope: '/' }), api('/admin/alerts')]);
+    }).then(function (r) {
+      var reg = r[0], key = r[1].publicKey;
+      return navigator.serviceWorker.ready.then(function () {
+        return reg.pushManager.getSubscription().then(function (old) {
+          return old || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(key) });
+        });
+      });
+    }).then(function (sub) {
+      return api('/admin/alerts/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
+    }).then(function () {
+      return api('/admin/alerts/test', { method: 'POST' });
+    }).then(function () { refreshAlertsUi(); showAlert('Alerts are on. A test alert was sent to this phone.'); })
+      .catch(function (err) {
+        if (err.authError) return doLogout();
+        // The browser couldn't sign up with its push service (an in-app browser, or no Google services).
+        status.textContent = /registration|push service|AbortError/i.test(String(err.message || err.name))
+          ? 'This browser could not turn alerts on. Open the admin panel in the Chrome app on your phone (not inside another app) and try again.'
+          : err.message;
+      });
+  }
+  document.addEventListener('click', function (e) { if (e.target.closest('[data-alerts-on]')) enableAlerts(); });
+  document.getElementById('alertsOn').addEventListener('click', enableAlerts);
+  document.getElementById('alertsTest').addEventListener('click', function () {
+    api('/admin/alerts/test', { method: 'POST' })
+      .then(function (r) { document.getElementById('alertsStatus').textContent = r.sent ? 'Test alert sent to ' + r.sent + ' phone(s)/browser(s).' : 'No phone has alerts on yet — tap "Turn on alerts on this phone" first.'; })
+      .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  });
+  document.getElementById('alertsOff').addEventListener('click', function () {
+    currentPushSub().then(function (sub) {
+      if (!sub) return refreshAlertsUi();
+      return api('/admin/alerts/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) })
+        .then(function () { return sub.unsubscribe(); })
+        .then(refreshAlertsUi);
+    }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  });
+  // An alert tapped while the panel is already open: the service worker asks for that page.
+  if (pushSupported) {
+    navigator.serviceWorker.addEventListener('message', function (e) {
+      if (e.data && e.data.openTab && document.getElementById('panel-' + e.data.openTab)) switchTab(e.data.openTab);
+    });
+  }
 
   // ---------- Player Report page (playerReportService.ts) ----------
   var PR_TYPE = { DEPOSIT: 'Deposit', WITHDRAWAL: 'Withdrawal', BONUS: 'Bonus', DEPOSIT_BONUS: 'Deposit bonus', DEPOSIT_REVERSAL: 'Deposit taken back', WITHDRAWAL_REVERSAL: 'Withdrawal refunded', BALANCE_RESET: 'Balance reset' };

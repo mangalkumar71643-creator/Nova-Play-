@@ -318,6 +318,9 @@ model Transaction {
   // Deposits only: the bank / UPI reference (UTR) the payment company gave
   // for this payment, kept for tracing a deposit with the player and the bank.
   paymentUtr          String?
+  // When the admin's phones were alerted about this row (a deposit stuck
+  // open) — so each one is alerted once (adminAlertService.ts).
+  adminAlertedAt      DateTime?
   betId               String?
   bet                 Bet?              @relation(fields: [betId], references: [id])
   createdAt           DateTime          @default(now())
@@ -2305,4 +2308,16 @@ model AgentJackpotWeek {
   rolledOver Decimal  @db.Decimal(14, 2)
   winners    Json
   createdAt  DateTime @default(now())
+}
+
+// A phone or browser where the admin turned on alerts (Web Push), from the
+// panel's Settings page (adminAlertService.ts).
+model AdminPushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
 }

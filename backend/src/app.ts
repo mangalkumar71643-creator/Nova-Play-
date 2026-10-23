@@ -74,6 +74,7 @@ import moneyComingRoutes from "./routes/moneyComing.routes";
 import { closeOutRetiredGames } from "./services/retiredGamesCloseout";
 import { refreshSettingsIfStale } from "./services/settingsService";
 import { sweepRupayex } from "./services/rupayexService";
+import { checkStuckDeposits } from "./services/adminAlertService";
 
 export const app = express();
 
@@ -113,6 +114,12 @@ app.use((req, res, next) => {
 // Admin-changed settings (e.g. the max win per bet) take effect within seconds on every instance.
 app.use((_req, _res, next) => {
   refreshSettingsIfStale().then(() => next(), next);
+});
+
+// Alerts the admin's phone about deposits left stuck (throttled; never holds a request up).
+app.use((_req, _res, next) => {
+  checkStuckDeposits().catch((err) => console.error("[alerts] stuck check failed", err));
+  next();
 });
 
 app.use("/auth", authRoutes);
