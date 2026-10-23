@@ -19,6 +19,7 @@ import {
   setDepositBonusConfig,
 } from "../services/depositBonusService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
+import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
 import { LOTTERY_RTP } from "../services/lotteryHouse";
@@ -610,41 +611,55 @@ router.post(
   })
 );
 
-/**
- * Players whose wallet balance differs from what their transactions add up
- * to (the same sum the app's balance records use). A difference means the
- * balance was changed without a transaction — by hand in the database, for
- * instance — and is worth looking at.
- */
+/** Players whose balance differs from what their transactions add up to (problemsService.balanceMismatches). */
 router.get(
   "/audit/balances",
   asyncHandler(async (_req, res) => {
-    const rows = await prisma.$queryRaw<{ userId: string; uid: number | null; firstName: string | null; lastName: string | null; phone: string | null; balance: unknown; ledger: unknown }[]>`
-      WITH ledger AS (
-        SELECT "userId", SUM(
-          CASE
-            WHEN type IN ('DEPOSIT', 'BET_PAYOUT', 'GAME_PAYOUT', 'BONUS', 'BET_REFUND', 'DEPOSIT_BONUS', 'WITHDRAWAL_REVERSAL')
-              THEN CASE WHEN status = 'COMPLETED' THEN amount ELSE 0 END
-            ELSE -amount
-          END) AS ledger
-        FROM "Transaction" GROUP BY "userId"
-      )
-      SELECT w."userId", u.uid, u."firstName", u."lastName", u.phone, w.balance, COALESCE(l.ledger, 0) AS ledger
-      FROM "Wallet" w JOIN "User" u ON u.id = w."userId" LEFT JOIN ledger l ON l."userId" = w."userId"
-      WHERE ABS(w.balance - COALESCE(l.ledger, 0)) >= 0.01
-      ORDER BY ABS(w.balance - COALESCE(l.ledger, 0)) DESC
-      LIMIT 200`;
-    res.json(
-      rows.map((r) => ({
-        userId: r.userId,
-        uid: r.uid,
-        name: [r.firstName, r.lastName].filter(Boolean).join(" ") || null,
-        phone: r.phone,
-        balance: Number(r.balance),
-        ledger: Number(r.ledger),
-        difference: Math.round((Number(r.balance) - Number(r.ledger)) * 100) / 100,
-      }))
-    );
+    res.json(await balanceMismatches());
+  })
+);
+
+// --- Problems page: everything that needs the admin, and the one-tap fixes (problemsService.ts) ---
+
+router.get(
+  "/problems",
+  asyncHandler(async (req, res) => {
+    const uid = typeof req.query.uid === "string" && req.query.uid.trim() ? z.coerce.number().int().positive().parse(req.query.uid.trim()) : undefined;
+    res.json(await getProblems(uid));
+  })
+);
+
+/** One stuck UPI deposit: credited if RupayEx says paid, closed if it says not paid. */
+router.post(
+  "/problems/deposits/:id/resolve",
+  asyncHandler(async (req, res) => {
+    res.json(await resolveStuckDeposit(req.params.id));
+  })
+);
+
+/** Every stuck UPI deposit (of one player, with ?uid=), one after the other. */
+router.post(
+  "/problems/deposits/resolve-all",
+  asyncHandler(async (req, res) => {
+    const uid = typeof req.query.uid === "string" && req.query.uid.trim() ? z.coerce.number().int().positive().parse(req.query.uid.trim()) : undefined;
+    const { stuckDeposits } = await getProblems(uid);
+    const results = [];
+    for (const d of stuckDeposits.slice(0, 50)) {
+      try {
+        results.push({ ...(await resolveStuckDeposit(d.id)), uid: d.uid, amount: d.amount });
+      } catch (err) {
+        results.push({ id: d.id, uid: d.uid, amount: d.amount, status: "PENDING", result: err instanceof Error ? err.message : "Failed" });
+      }
+    }
+    res.json({ results });
+  })
+);
+
+/** Sets one player's balance to what their transactions add up to. */
+router.post(
+  "/problems/balances/:userId/fix",
+  asyncHandler(async (req, res) => {
+    res.json(await fixBalanceToLedger(req.params.userId));
   })
 );
 
