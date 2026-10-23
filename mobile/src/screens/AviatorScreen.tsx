@@ -520,14 +520,21 @@ const TRAIL_FILL_D = `M ${TRAIL_LINE_D} L ${TRAIL_POINTS[TRAIL_POINTS.length - 1
 const HOLD_TAIL_Y = tailCurveY(HOLD_T);
 const BOB_SCALE = BOB_AMPLITUDE / (PANEL_HEIGHT - HOLD_TAIL_Y);
 const BOB_HALF_MS = 1000 / BOB_FREQUENCY_HZ / 2;
+// A 1.00x crash: straight off the runway and out of the panel.
+const TAKEOFF_CRASH_MS = 450;
 
 function FlightTrail({ round }: { round: AviatorRoundView | null }) {
   const t = useRef(new Animated.Value(0)).current;
   const bob = useRef(new Animated.Value(0)).current;
   const trailOpacity = useRef(new Animated.Value(1)).current;
   const runningRef = useRef<Animated.CompositeAnimation | null>(null);
-  // What this round has shown so far: 'idle' (on the runway), 'flying', 'gone' (flown away).
-  const stageRef = useRef<{ period: string | null; stage: 'idle' | 'flying' | 'gone' }>({ period: null, stage: 'idle' });
+  // What this round has shown so far: 'idle' (on the runway), 'flying', 'gone' (flown away);
+  // sawBetting: it was watched from its betting window, so a 1.00x crash is seen live.
+  const stageRef = useRef<{ period: string | null; stage: 'idle' | 'flying' | 'gone'; sawBetting: boolean }>({
+    period: null,
+    stage: 'idle',
+    sawBetting: false,
+  });
 
   const run = useCallback((anim: Animated.CompositeAnimation | null) => {
     runningRef.current?.stop();
@@ -547,11 +554,13 @@ function FlightTrail({ round }: { round: AviatorRoundView | null }) {
       // A new round: back on the runway with a fresh trail.
       st.period = period;
       st.stage = 'idle';
+      st.sawBetting = false;
       run(null);
       t.setValue(0);
       bob.setValue(0);
       trailOpacity.setValue(1);
     }
+    if (phase === 'BETTING') st.sawBetting = true;
     if (phase === 'FLYING' && st.stage === 'idle' && flyStartTime) {
       st.stage = 'flying';
       // In step with the multiplier on screen (which runs DISPLAY_LAG_MS
@@ -587,6 +596,14 @@ function FlightTrail({ round }: { round: AviatorRoundView | null }) {
           Animated.timing(t, { toValue: 1, duration: BURST_MS, easing: Easing.in(Easing.quad), useNativeDriver: true }),
         ])
       );
+    } else if (phase === 'CRASHED' && st.stage === 'idle') {
+      // Crashed at take-off (1.00x): the server goes straight from betting to
+      // crashed, so the plane never flew. It shoots off the runway at once;
+      // opened during a crash, it is simply gone.
+      st.stage = 'gone';
+      trailOpacity.setValue(0);
+      if (st.sawBetting) run(Animated.timing(t, { toValue: 1, duration: TAKEOFF_CRASH_MS, easing: Easing.in(Easing.quad), useNativeDriver: true }));
+      else t.setValue(1);
     }
   }, [period, phase, flyStartTime, run, t, bob, trailOpacity]);
 
