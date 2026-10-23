@@ -2522,9 +2522,18 @@
       nudge.innerHTML = on ? '' : '<div class="card" style="border-color:var(--green);"><div class="item-title">🔔 Get alerts on this phone</div>' +
         '<div class="item-meta">Withdrawals, support messages and stuck deposits — straight to your phone, like a reminder.</div>' +
         '<button class="btn small" data-alerts-on style="margin-top:10px;">Turn on alerts</button></div>';
+      // Like an installed app: ask for alerts by itself on this phone (Chrome
+      // shows its one-tap "Allow notifications?"), once per visit; already
+      // allowed but not signed up (e.g. site data cleared): sign up quietly.
+      if (!on && Notification.permission !== 'denied' && !alertsAutoTried) {
+        alertsAutoTried = true;
+        enableAlerts({ quiet: Notification.permission === 'granted' });
+      }
     });
   }
-  function enableAlerts() {
+  var alertsAutoTried = false;
+  function enableAlerts(opts) {
+    var quiet = !!(opts && opts.quiet);
     var status = document.getElementById('alertsStatus');
     if (!pushSupported) { refreshAlertsUi(); return; }
     status.textContent = 'Turning on…';
@@ -2541,8 +2550,8 @@
     }).then(function (sub) {
       return api('/admin/alerts/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
     }).then(function () {
-      return api('/admin/alerts/test', { method: 'POST' });
-    }).then(function () { refreshAlertsUi(); showAlert('Alerts are on. A test alert was sent to this phone.'); })
+      return quiet ? null : api('/admin/alerts/test', { method: 'POST' });
+    }).then(function () { refreshAlertsUi(); if (!quiet) showAlert('Alerts are on for this phone: withdrawals, support messages and stuck deposits will come as notifications. A test alert was just sent.'); })
       .catch(function (err) {
         if (err.authError) return doLogout();
         // The browser couldn't sign up with its push service (an in-app browser, or no Google services).
@@ -2552,7 +2561,7 @@
       });
   }
   document.addEventListener('click', function (e) { if (e.target.closest('[data-alerts-on]')) enableAlerts(); });
-  document.getElementById('alertsOn').addEventListener('click', enableAlerts);
+  document.getElementById('alertsOn').addEventListener('click', function () { enableAlerts(); });
   document.getElementById('alertsTest').addEventListener('click', function () {
     api('/admin/alerts/test', { method: 'POST' })
       .then(function (r) { document.getElementById('alertsStatus').textContent = r.sent ? 'Test alert sent to ' + r.sent + ' phone(s)/browser(s).' : 'No phone has alerts on yet — tap "Turn on alerts on this phone" first.'; })
