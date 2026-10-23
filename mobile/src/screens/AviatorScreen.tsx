@@ -287,12 +287,12 @@ const PLANE_ASPECT = 215 / 441;
 const PLANE_WIDTH = PANEL_WIDTH * 0.24;
 const PLANE_HEIGHT = PLANE_WIDTH * PLANE_ASPECT;
 
-// The plane's ascend (t: 0 -> 0.8) is a plain, fixed-speed animation —
-// deliberately NOT calculated from the multiplier, elapsed round time, or
-// any other backend value. It always takes exactly ASCEND_MS to climb up
-// near the top of the panel and hold there, at the same fast speed every
-// single round, regardless of how the actual multiplier is behaving.
-const ASCEND_MS = 700;
+// The plane's climb (t: 0 -> 0.8) takes ASCEND_MS, starting with the
+// multiplier and easing out as it nears the hold point, so it never shoots
+// off at take-off (it used to climb in 0.7 s while the multiplier was still
+// near 1.00x) and settles gently into the dip-and-return hold.
+const ASCEND_MS = 5000;
+const ASCEND_EASING = Easing.out(Easing.quad);
 // Order is: ascend (fixed-speed, up to just short of the top border) →
 // hold there → the round actually crashes (server-reported) → red line
 // fades out first (plane stays put) → only then does the plane dash away,
@@ -554,8 +554,9 @@ function FlightTrail({ round }: { round: AviatorRoundView | null }) {
     }
     if (phase === 'FLYING' && st.stage === 'idle' && flyStartTime) {
       st.stage = 'flying';
-      // Joined mid-flight: pick the climb up where it would be by now.
-      const elapsed = Math.max(0, serverNow() - Date.parse(flyStartTime));
+      // In step with the multiplier on screen (which runs DISPLAY_LAG_MS
+      // behind the server); joined mid-flight, the climb picks up there.
+      const elapsed = Math.max(0, serverNow() - DISPLAY_LAG_MS - Date.parse(flyStartTime));
       const holdBob = Animated.loop(
         Animated.sequence([
           Animated.timing(bob, { toValue: 1, duration: BOB_HALF_MS, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
@@ -566,10 +567,10 @@ function FlightTrail({ round }: { round: AviatorRoundView | null }) {
         t.setValue(HOLD_T);
         run(holdBob);
       } else {
-        t.setValue((HOLD_T * elapsed) / ASCEND_MS);
+        t.setValue(HOLD_T * ASCEND_EASING(elapsed / ASCEND_MS));
         run(
           Animated.sequence([
-            Animated.timing(t, { toValue: HOLD_T, duration: ASCEND_MS - elapsed, easing: Easing.linear, useNativeDriver: true }),
+            Animated.timing(t, { toValue: HOLD_T, duration: ASCEND_MS - elapsed, easing: elapsed > 0 ? Easing.linear : ASCEND_EASING, useNativeDriver: true }),
             holdBob,
           ])
         );
