@@ -509,10 +509,35 @@ export default function SkyJetScreen() {
     [refreshWallet, setPanel, showToast]
   );
 
+  // Auto cash-out is paid by the server itself the moment the flight passes
+  // the target (exactly the target); once the screen gets there too it
+  // just picks up that result. Cashing out from here instead could land a
+  // hair before the target on the server and pay a little less.
+  const autoTriedAt = useRef<Record<string, number>>({});
+  const checkAuto = useCallback(
+    async (i: 0 | 1) => {
+      const id = panelsRef.current[i].bet?.id;
+      if (!id || Date.now() - (autoTriedAt.current[id] ?? 0) < 700) return;
+      autoTriedAt.current[id] = Date.now();
+      try {
+        const mine = await fetchSkyJetMyBets();
+        const b = mine.find((x) => x.id === id);
+        const now = panelsRef.current[i];
+        if (!mountedRef.current || !b || b.status !== 'WON' || now.bet?.id !== id || now.cashedAt) return;
+        setPanel(i, { cashedAt: Number(b.cashoutMultiplier) });
+        showToast(`+₹${Number(b.payout).toFixed(2)} @ ${Number(b.cashoutMultiplier).toFixed(2)}x`, true);
+        refreshWallet();
+      } catch {
+        // Tried again on a later frame.
+      }
+    },
+    [refreshWallet, setPanel, showToast]
+  );
+
   useEffect(() => {
     if (localPhase !== 'FLYING') return;
     panels.forEach((p, i) => {
-      if (p.bet && !p.cashedAt && !p.busy && p.bet.autoCashoutAt && liveMult >= Number(p.bet.autoCashoutAt)) cashOut(i as 0 | 1);
+      if (p.bet && !p.cashedAt && !p.busy && p.bet.autoCashoutAt && liveMult >= Number(p.bet.autoCashoutAt)) checkAuto(i as 0 | 1);
     });
   });
 

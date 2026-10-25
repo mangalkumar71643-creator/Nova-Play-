@@ -1385,6 +1385,29 @@ export default function AviatorScreen() {
     [refreshWallet, setPanelBet]
   );
 
+  // Auto cash-out is paid by the server itself the moment the flight passes
+  // the target (exactly the target, aviatorService.ts); once the number on
+  // screen gets there too, the panel picks up that result straight away
+  // instead of waiting for the crash. Cashing out from here instead could
+  // land a hair before the target on the server and pay a little less.
+  const roundNowRef = useRef(round);
+  roundNowRef.current = round;
+  const autoTriedAt = useRef<Record<string, number>>({});
+  useEffect(() => {
+    const id = setInterval(() => {
+      const r = roundNowRef.current;
+      if (!r || r.phase !== 'FLYING') return;
+      const m = displayMultiplier(r);
+      for (const panel of [1, 2] as const) {
+        const b = (panel === 1 ? bet1Ref : bet2Ref).current;
+        if (b.status !== 'pending' || !b.autoCashoutAt || b.periodNumber !== r.periodNumber || m < b.autoCashoutAt) continue;
+        if (Date.now() - (autoTriedAt.current[b.betId] ?? 0) < 500) continue;
+        autoTriedAt.current[b.betId] = Date.now();
+        resolveIfPending(panel);
+      }
+    }, 100);
+    return () => clearInterval(id);
+  }, [resolveIfPending]);
 
   return (
     <View style={styles.screenRoot}>

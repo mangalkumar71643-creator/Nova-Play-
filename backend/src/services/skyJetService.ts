@@ -193,6 +193,21 @@ async function drawJackpots(roundId: string) {
   }
 }
 
+/**
+ * Auto cash-outs are paid the moment the flight passes them, not only once
+ * it crashes: every request during the flight pays each bet whose target
+ * has been reached, through the same path as a tap on Cash Out (which pays
+ * the target, not the live multiplier).
+ */
+async function settleReachedAutoCashouts(round: { id: string; flyStartTime: Date; crashTime: Date; crashMultiplier: unknown }, now: Date) {
+  const live = liveMultiplier(round, now);
+  const bets = await prisma.skyJetBet.findMany({
+    where: { roundId: round.id, status: "PENDING", autoCashoutAt: { not: null, lte: live } },
+    select: { id: true, userId: true },
+  });
+  for (const b of bets) await cashOutSkyJetBet(b.userId, b.id).catch(() => {});
+}
+
 async function settleRound(roundId: string) {
   const round = await prisma.skyJetRound.findUniqueOrThrow({ where: { id: roundId } });
   if (round.settled) return;
@@ -247,6 +262,8 @@ export async function ensureCurrentRound() {
   if (now >= round.crashTime && !round.settled) {
     await resolvePendingBets(round.id);
     await drawJackpots(round.id);
+  } else if (phaseFor(round, now) === "FLYING") {
+    await settleReachedAutoCashouts(round, now);
   }
 
   return round;
