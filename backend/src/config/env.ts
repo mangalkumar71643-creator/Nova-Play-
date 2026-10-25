@@ -20,7 +20,7 @@ export const env = {
 
   games: {
     minStake: Number(process.env.GAME_MIN_STAKE ?? 1),
-    maxStake: Number(process.env.GAME_MAX_STAKE ?? 500),
+    maxStake: Number(process.env.GAME_MAX_STAKE ?? 100_000),
     // Return-to-player: long-run share of total stakes paid back as winnings
     // (0.75 = a 25% house edge on Dice, Limbo, Plinko, Keno, Hi-Lo, Mines,
     // Chicken Road, Dragon Tower, Pump and Coin Flip; the crash games use

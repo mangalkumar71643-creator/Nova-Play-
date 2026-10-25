@@ -4,6 +4,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import QuantityInputModal from '../components/QuantityInputModal';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -273,6 +274,7 @@ export default function K3LotteryScreen() {
   const [selDiff2, setSelDiff2] = useState<number[]>([]);
   const [unit, setUnit] = useState(1);
   const [qty, setQty] = useState(1);
+  const [qtyOpen, setQtyOpen] = useState(false);
   const [mult, setMult] = useState(1);
   const [agree, setAgree] = useState(true);
   const [placing, setPlacing] = useState(false);
@@ -931,6 +933,20 @@ export default function K3LotteryScreen() {
         </View>
       </ScrollView>
 
+      <QuantityInputModal
+        visible={qtyOpen}
+        value={qty}
+        unit={unit}
+        mult={mult}
+        maxTotal={maxStake}
+        color={G1}
+        onConfirm={(n) => {
+          setQty(n);
+          setQtyOpen(false);
+        }}
+        onClose={() => setQtyOpen(false)}
+      />
+
       {/* Bet sheet */}
       <Animated.View
         pointerEvents={sheetOpen ? 'auto' : 'none'}
@@ -963,8 +979,10 @@ export default function K3LotteryScreen() {
               <Pressable onPress={() => setQty((q) => Math.max(1, q - 1))} style={styles.qtyBtn}>
                 <MaterialCommunityIcons name="minus" size={18} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.qtyText}>{qty}</Text>
-              <Pressable onPress={() => setQty((q) => Math.min(500, q + 1))} style={styles.qtyBtn}>
+              <Pressable onPress={() => setQtyOpen(true)}>
+                <Text style={styles.qtyText}>{qty}</Text>
+              </Pressable>
+              <Pressable onPress={() => setQty((q) => Math.min(maxStake, q + 1))} style={styles.qtyBtn}>
                 <MaterialCommunityIcons name="plus" size={18} color="#FFFFFF" />
               </Pressable>
             </View>
