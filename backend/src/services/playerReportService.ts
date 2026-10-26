@@ -2,6 +2,7 @@ import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { depositNumberOf, depositUtrOf, withdrawableOf } from "./depositService";
 import { getPlayerGames } from "./gameReportService";
+import { balanceMismatches, STUCK_DEPOSIT_MINUTES } from "./problemsService";
 
 /**
  * Everything about one player for the admin's Player Report page: who they
@@ -39,7 +40,8 @@ export async function getPlayerReport(uid: number) {
   if (!user) throw new ApiError(404, "No player with that UID.");
   if (user.role === "ADMIN") throw new ApiError(400, "That is an admin account, not a player.");
 
-  const [byType, inviter, invited, games, history] = await Promise.all([
+  const stuckBefore = new Date(Date.now() - STUCK_DEPOSIT_MINUTES * 60 * 1000);
+  const [byType, inviter, invited, games, history, mismatch, sameBank, stuckDeposits, waitingWithdrawals, openTickets] = await Promise.all([
     prisma.transaction.groupBy({ by: ["type", "status"], where: { userId: user.id }, _sum: { amount: true }, _count: true }),
     user.referrerId ? prisma.user.findUnique({ where: { id: user.referrerId }, select: { uid: true, firstName: true, lastName: true } }) : null,
     prisma.user.count({ where: { referrerId: user.id } }),
@@ -50,6 +52,18 @@ export async function getPlayerReport(uid: number) {
       take: 100,
       select: { id: true, type: true, status: true, amount: true, provider: true, providerReferenceId: true, paymentUtr: true, reversedAt: true, createdAt: true },
     }),
+    balanceMismatches(user.id),
+    // Other accounts paid out to the same bank account: one person playing as several players.
+    user.payoutAccountNumber
+      ? prisma.user.findMany({
+          where: { id: { not: user.id }, payoutAccountNumber: user.payoutAccountNumber },
+          select: { uid: true, firstName: true, lastName: true, isBanned: true },
+          take: 20,
+        })
+      : [],
+    prisma.transaction.count({ where: { userId: user.id, type: "DEPOSIT", status: "PENDING", reversedAt: null, createdAt: { lt: stuckBefore } } }),
+    prisma.transaction.count({ where: { userId: user.id, type: "WITHDRAWAL", status: "PENDING" } }),
+    prisma.supportTicket.count({ where: { userId: user.id, status: "OPEN" } }),
   ]);
   const sum = (types: string[], status?: string) =>
     r2(byType.filter((r) => types.includes(r.type) && (!status || r.status === status)).reduce((t, r) => t + Number(r._sum.amount ?? 0), 0));
@@ -97,6 +111,15 @@ export async function getPlayerReport(uid: number) {
       takenBack: sum(["DEPOSIT_REVERSAL", "BALANCE_RESET"]),
     },
     games,
+    // What the admin should look at on this account (the panel shows each as OK or a warning).
+    checks: {
+      // Balance minus what the transactions add up to: anything but 0 means it was changed by hand.
+      balanceDifference: mismatch[0]?.difference ?? 0,
+      sameBankAccount: sameBank.map((u) => ({ uid: u.uid, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || null, isBanned: u.isBanned })),
+      stuckDeposits,
+      waitingWithdrawals,
+      openTickets,
+    },
     history: history.map((h) => ({
       id: h.id,
       type: h.type,

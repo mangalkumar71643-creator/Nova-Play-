@@ -1395,6 +1395,8 @@
       btn.addEventListener('click', function () {
         var id = btn.getAttribute('data-view');
         var u = users.find(function (x) { return x.id === id; });
+        // The player's whole account: wallet, bets by game, deposits, withdrawals and checks.
+        if (u && u.uid != null) { openPlayerReport(String(u.uid)); return; }
         toggleDetailRow(container, id, u ? userDetailHtml(u) : '');
       });
     });
@@ -2610,6 +2612,35 @@
   var PR_TYPE = { DEPOSIT: 'Deposit', WITHDRAWAL: 'Withdrawal', BONUS: 'Bonus', DEPOSIT_BONUS: 'Deposit bonus', DEPOSIT_REVERSAL: 'Deposit taken back', WITHDRAWAL_REVERSAL: 'Withdrawal refunded', BALANCE_RESET: 'Balance reset' };
   function prDate(d) { return d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'; }
   function prResult(n) { return '<b style="color:' + (n > 0 ? 'var(--red)' : n < 0 ? 'var(--green)' : 'inherit') + '">' + (n > 0 ? '+' : '') + fmtMoney(n) + '</b>'; }
+  // Account checks: each line OK (green) or a warning (red) the admin should look at.
+  function prChecksHtml(r) {
+    var c = r.checks;
+    if (!c) return '';
+    var m = r.money, g = r.games;
+    var lines = [];
+    var add = function (ok, text) {
+      lines.push('<div style="padding:6px 0;border-bottom:1px solid var(--border);">' + (ok ? '✅ ' : '⚠️ <b style="color:#ff8a8a;">') + text + (ok ? '' : '</b>') + '</div>');
+    };
+    add(Math.abs(c.balanceDifference) < 0.01, Math.abs(c.balanceDifference) < 0.01
+      ? 'Balance matches all their transactions'
+      : 'Balance is ' + fmtMoney(Math.abs(c.balanceDifference)) + (c.balanceDifference > 0 ? ' MORE' : ' LESS') + ' than their transactions add up to — changed without a transaction. Fix it on the Problems page.');
+    add(!c.sameBankAccount.length, c.sameBankAccount.length
+      ? 'Same bank account as ' + c.sameBankAccount.length + ' other player(s): ' + c.sameBankAccount.map(function (o) { return '<a href="#" data-pr-open="' + o.uid + '" style="color:var(--green);">UID ' + o.uid + (o.name ? ' ' + escapeHtml(o.name) : '') + '</a>' + (o.isBanned ? ' (banned)' : ''); }).join(', ') + ' — maybe one person with several accounts'
+      : 'No other player uses their bank account');
+    var outMore = m.withdrawn - m.deposited;
+    add(outMore <= 0, outMore > 0
+      ? 'Withdrew ' + fmtMoney(outMore) + ' more than they deposited'
+      : 'Withdrew no more than they deposited');
+    add(g.totals.playerResult <= 0, g.totals.playerResult > 0
+      ? 'Up ' + fmtMoney(g.totals.playerResult) + ' in games overall — see which game below'
+      : 'House is up ' + fmtMoney(-g.totals.playerResult) + ' on their play');
+    add(!c.stuckDeposits, c.stuckDeposits ? c.stuckDeposits + ' UPI deposit(s) stuck — check them on the Problems page' : 'No stuck deposits');
+    add(!c.waitingWithdrawals, c.waitingWithdrawals ? c.waitingWithdrawals + ' withdrawal(s) waiting' : 'No withdrawal waiting');
+    add(!c.openTickets, c.openTickets ? c.openTickets + ' support ticket(s) open' : 'No open support tickets');
+    var warnings = lines.filter(function (l) { return l.indexOf('⚠️') >= 0; }).length;
+    return '<div class="card"' + (warnings ? ' style="border-color:#ff6b6b;"' : '') + '><div class="card-head"><h2>' + (warnings ? '⚠️ ' + warnings + ' thing(s) to check' : '✅ Account looks fine') + '</h2></div>' +
+      '<div style="font-size:13px;">' + lines.join('') + '</div></div>';
+  }
   function openPlayerReport(uid) {
     document.getElementById('prUid').value = uid;
     switchTab('player-report');
@@ -2673,7 +2704,7 @@
             return '<tr><td>' + prDate(h.at) + '</td><td>' + (PR_TYPE[h.type] || h.type) + '</td><td>' + fmtMoney(h.amount) + '</td><td><span class="pill ' + cls + '">' + h.status + '</span></td><td class="item-meta">' + escapeHtml(h.ref || '') + (h.utr ? '<br/>UTR ' + escapeHtml(h.utr) : '') + '</td></tr>';
           }).join('') + '</tbody></table></div>'
         : '<div class="empty">Nothing yet.</div>') + '</div>';
-      document.getElementById('prBody').innerHTML = profile + stats + walletBox + games + recent + hist;
+      document.getElementById('prBody').innerHTML = profile + prChecksHtml(r) + stats + walletBox + games + recent + hist;
     }).catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; });
   }
   document.getElementById('prShow').addEventListener('click', loadPlayerReport);
