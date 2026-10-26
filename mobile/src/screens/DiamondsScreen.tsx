@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { DiamondsBet, DiamondsConfig, DiamondsResult, fetchDiamondsConfig, fetchDiamondsHistory, playDiamonds } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const LILAC = '#D8B4FE';
@@ -216,8 +217,8 @@ export default function DiamondsScreen() {
   const bannerAnim = useRef(new Animated.Value(0)).current;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const paytable = config?.paytable ?? FALLBACK_PAYTABLE;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
@@ -615,7 +616,7 @@ function Rules({ config }: { config: DiamondsConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Payouts are the total returned for your bet. Return to player {config?.rtpPercent ?? 84.86}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per bet ₹{config?.maxPayout ?? 10000}.
+        Payouts are the total returned for your bet. Return to player {config?.rtpPercent ?? 84.86}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}; max win per bet {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>Every gem comes from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { BlackjackAction, BlackjackConfig, BlackjackHand, BlackjackOutcome, blackjackAction, dealBlackjack, fetchActiveBlackjack, fetchBlackjackConfig, fetchBlackjackHistory } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { winLimit } from '../utils/limits';
 
 const GOLD = '#F4CF6B';
 const GOLD_DEEP = '#B8862B';
@@ -303,7 +304,7 @@ export default function BlackjackScreen() {
   const activeGlow = useRef(new Animated.Value(0)).current;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
 
   // ---------- layout ----------
   const headerH = insets.top + 50;
@@ -958,7 +959,7 @@ function Rules({ config }: { config: BlackjackConfig | null }) {
           ['Win', `${win}x`],
           ['Push (same total)', 'bet back'],
           ['Insurance', `${ins} to 1`],
-          ['Max win per hand', `₹${config?.maxPayout ?? 10000}`],
+          ['Max win per hand', `${winLimit(config?.maxPayout)}`],
         ].map(([k, v]) => (
           <View key={k} style={styles.payRow}>
             <Text style={styles.payKey}>{k}</Text>
@@ -968,7 +969,7 @@ function Rules({ config }: { config: BlackjackConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Unlimited decks. Return to player {config?.rtpPercent ?? 84.86}% of all money bet (doubles and splits included) with perfect play. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. An unfinished hand waits for you when you come back.
+        Unlimited decks. Return to player {config?.rtpPercent ?? 84.86}% of all money bet (doubles and splits included) with perfect play. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. An unfinished hand waits for you when you come back.
       </Text>
       <Text style={styles.ruleLine}>Every card is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

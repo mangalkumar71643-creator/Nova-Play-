@@ -23,6 +23,7 @@ import { useGameState } from '../state/GameStateContext';
 import { useAuth } from '../state/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { NO_LIMIT } from '../utils/limits';
 
 // The three risk levels are played as coloured tile rows, top to bottom.
 const COLORS: { risk: PlinkoRisk; label: string; tile: [string, string]; button: [string, string]; border: string; ball: [string, string, string] }[] = [
@@ -257,8 +258,8 @@ export default function PlinkoScreen() {
   const t = TEXT[lang];
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const busy = inFlight > 0 || autoLeft > 0;
 
   useEffect(() => {
@@ -916,7 +917,7 @@ export default function PlinkoScreen() {
               </View>
               <View style={styles.limitRow}>
                 <Text style={styles.limitLabel}>{t.maxWin}</Text>
-                <Text style={styles.limitValue}>{maxPayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
+                <Text style={styles.limitValue}>{maxPayout >= NO_LIMIT ? 'Unlimited' : maxPayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
               </View>
               <View style={styles.limitRow}>
                 <Text style={styles.limitLabel}>{t.rtp}</Text>

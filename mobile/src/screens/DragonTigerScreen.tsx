@@ -37,6 +37,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
+import { winLimit } from '../utils/limits';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500, 1000];
 const CHIP_COLORS: Record<number, string> = {
@@ -735,7 +736,7 @@ export default function DragonTigerScreen() {
 
   const multipliers = config?.multipliers ?? FALLBACK_MULTIPLIERS;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -1249,7 +1250,7 @@ export default function DragonTigerScreen() {
         <View style={styles.sideDivider} />
         <Text style={[styles.sideRule, { fontSize: 10 * k }]}>A low · K high</Text>
         <Text style={[styles.sideRule, { fontSize: 10 * k }]}>Tie: D/T lose</Text>
-        <Text style={[styles.sideRule, { fontSize: 10 * k }]}>Max win ₹{config?.maxPayout ?? 10000}</Text>
+        <Text style={[styles.sideRule, { fontSize: 10 * k }]}>Max win {winLimit(config?.maxPayout)}</Text>
       </View>
 
       {/* Road in the right end of the table */}

@@ -22,6 +22,7 @@ import {
   placeK3Bets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 // ---------- theme ----------
 
@@ -295,8 +296,8 @@ export default function K3LotteryScreen() {
   const winPop = useRef(new Animated.Value(0)).current;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const lockSeconds = config?.lockSeconds ?? 5;
   const houseChance = config?.houseChancePercent ?? 0;
   const rtpPercent = config?.rtpPercent ?? 80;
@@ -488,7 +489,7 @@ export default function K3LotteryScreen() {
     if (perBet < minStake) return showToast(`Minimum ₹${minStake} per bet`);
     if (perBet > maxStake) return showToast(`Max ₹${maxStake} per bet`);
     const capped = keys.find((k) => perBet * multOf(k) > maxPayout);
-    if (capped) return showToast(`Max ₹${Math.floor(maxPayout / multOf(capped))} on ${labelFor(capped)} (max win ₹${maxPayout})`);
+    if (capped) return showToast(`Max ₹${Math.floor(maxPayout / multOf(capped))} on ${labelFor(capped)} (max win ${winLimit(maxPayout)})`);
     if (totalCost > coins) return showToast('Insufficient balance');
     setPlacing(true);
     try {
@@ -1057,7 +1058,7 @@ export default function K3LotteryScreen() {
                     `2 same: a pair such as 22 wins when at least two dice show 2 (${multOf('PAIR:2')}X). A pair plus a number, e.g. 22+5, needs exactly 2, 2, 5 (${multOf('PAIRSINGLE:2-5')}X).`,
                     `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X), or any triple (${multOf('ANYTRIPLE')}X).`,
                     `Different: pick 3+ numbers for "3 different" — every group of three you picked is one bet (${multOf('DIFF3:1-2-3')}X). "2 different" wins when both numbers show (${multOf('DIFF2:1-2')}X). 3 continuous: 123, 234, 345 or 456 in any order (${multOf('STRAIGHT')}X).`,
-                    `Bet ₹${minStake}–₹${maxStake} per selection, max win ₹${maxPayout} per bet. Amount = balance × quantity × multiplier.`,
+                    `Bet ₹${minStake}–₹${maxStake} per selection, max win ${winLimit(maxPayout)} per bet. Amount = balance × quantity × multiplier.`,
                     'Whether a period is ⭐ House, and how ties are decided, come from a server seed whose hash is published before the period and the seed itself after it.',
                   ]
                 : [
@@ -1067,7 +1068,7 @@ export default function K3LotteryScreen() {
                     `2 same: a pair such as 22 wins when at least two dice show 2 (${multOf('PAIR:2')}X, wins ${chance(WAYS.pair)}% of periods). A pair plus a number, e.g. 22+5, needs exactly 2, 2, 5 (${multOf('PAIRSINGLE:2-5')}X, ${chance(WAYS.pairSingle)}%).`,
                     `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X, wins ${chance(WAYS.triple)}% of periods), or any triple (${multOf('ANYTRIPLE')}X, ${chance(WAYS.anyTriple)}%).`,
                     `Different: pick 3+ numbers for "3 different" — every group of three you picked is one bet (${multOf('DIFF3:1-2-3')}X, wins ${chance(WAYS.diff3)}% of periods). "2 different" wins when both numbers show (${multOf('DIFF2:1-2')}X, ${chance(WAYS.diff2)}%). 3 continuous: 123, 234, 345 or 456 in any order (${multOf('STRAIGHT')}X, ${chance(WAYS.straight)}%).`,
-                    `Bet ₹${minStake}–₹${maxStake} per selection, max win ₹${maxPayout} per bet. Amount = balance × quantity × multiplier.`,
+                    `Bet ₹${minStake}–₹${maxStake} per selection, max win ${winLimit(maxPayout)} per bet. Amount = balance × quantity × multiplier.`,
                     'Provably fair: each period’s dice, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
                   ]
               ).filter((t) => houseChance > 0 || !t.startsWith('⭐ House')).map((t, i) => (

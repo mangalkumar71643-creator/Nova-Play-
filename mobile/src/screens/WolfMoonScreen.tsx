@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { WolfCell, WolfConfig, WolfLineWin, WolfOutcome, WolfPayer, WolfSpinRow, WolfSym, fetchWolfConfig, fetchWolfHistory, spinWolf } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { winLimit } from '../utils/limits';
 
 const SILVER = '#E8EEF8';
 const MOONLIGHT = '#FFF6D8';
@@ -430,7 +431,7 @@ export default function WolfMoonScreen() {
   const reels = [useRef<ReelHandle>(null), useRef<ReelHandle>(null), useRef<ReelHandle>(null), useRef<ReelHandle>(null), useRef<ReelHandle>(null)];
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const lines = config?.lines ?? [];
   const jackpots = config?.jackpots ?? FALLBACK_JACKPOTS;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
@@ -865,7 +866,7 @@ export default function WolfMoonScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config ? `${config.rtpPercent}%` : '84.72%'} · bet {money(minStake)}–{money(maxStake)} · max win {config?.maxWinX ?? 5000}x, ₹{config?.maxPayout ?? 10000} per spin{'\n'}
+          RTP {config ? `${config.rtpPercent}%` : '84.72%'} · bet {money(minStake)}–{money(maxStake)} · max win {config?.maxWinX ?? 5000}x, {winLimit(config?.maxPayout)} per spin{'\n'}
           No autoplay or turbo · each paid spin takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>
@@ -947,7 +948,7 @@ function Paytable({ bet, config }: { bet: number; config: WolfConfig | null }) {
       </Text>
       <Text style={styles.paySection}>GAME INFO</Text>
       <Text style={styles.payNote}>
-        Return to player {config.rtpPercent}% (measured by simulation). Max win {config.maxWinX}x the bet and ₹{config.maxPayout} per spin. No autoplay or turbo; each paid spin takes at least 2.5 seconds. Every spin comes from your provably-fair seeds.
+        Return to player {config.rtpPercent}% (measured by simulation). Max win {config.maxWinX}x the bet and {winLimit(config.maxPayout)} per spin. No autoplay or turbo; each paid spin takes at least 2.5 seconds. Every spin comes from your provably-fair seeds.
       </Text>
     </View>
   );

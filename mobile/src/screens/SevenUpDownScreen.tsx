@@ -32,6 +32,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
+import { winLimit } from '../utils/limits';
 
 const W = Dimensions.get('window').width;
 const BOARD_PAD = 8;
@@ -548,7 +549,7 @@ export default function SevenUpDownScreen() {
 
   const multipliers = config?.multipliers ?? FALLBACK_MULTIPLIERS;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -1089,7 +1090,7 @@ export default function SevenUpDownScreen() {
           {statusText}
         </Text>
         <Text style={styles.infoLimits} numberOfLines={1}>
-          Min <Text style={styles.infoMin}>{minStake}</Text>  Max <Text style={styles.infoMax}>{maxStake}</Text>  Max win <Text style={styles.infoMax}>{config?.maxPayout ?? 10000}</Text>
+          Min <Text style={styles.infoMin}>{minStake}</Text>  Max <Text style={styles.infoMax}>{maxStake}</Text>  Max win <Text style={styles.infoMax}>{winLimit(config?.maxPayout)}</Text>
         </Text>
       </LinearGradient>
 

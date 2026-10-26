@@ -22,6 +22,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
+import { NO_LIMIT } from '../utils/limits';
 
 // ---------- table ----------
 
@@ -732,8 +733,8 @@ export default function RouletteScreen() {
   const badgePop = useRef(new Animated.Value(0)).current;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const multFor = useCallback(
     (key: string) => {
       const n = SPOTS.get(key)?.length ?? 1;

@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { Neon777Config, Neon777Outcome, Neon777Result, Neon777Special, Neon777SpinRow, Neon777Symbol, fetchNeon777Config, fetchNeon777History, spinNeon777 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { winLimit } from '../utils/limits';
 
 const NEON_PINK = '#FF2D95';
 const NEON_CYAN = '#22E5FF';
@@ -459,7 +460,7 @@ export default function Neon777Screen() {
   const special = config?.special ?? FALLBACK_SPECIAL;
   const linePays = config?.linePays ?? FALLBACK_PAYS;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
   // ---------- layout ----------
@@ -1072,7 +1073,7 @@ function Paytable({ pays, special, bet, config }: { pays: Neon777Config['linePay
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 84.77}% (exact, counted over every reel stop). {config?.hitRatePercent ?? 14.27}% of spins win. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
+        Return to player {config?.rtpPercent ?? 84.77}% (exact, counted over every reel stop). {config?.hitRatePercent ?? 14.27}% of spins win. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per spin {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>Tap SPIN during a spin to stop the reels at once. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { CupPick, CupsConfig, CupsRound, cashOutCups, fetchCupsConfig, fetchCupsCurrent, fetchCupsHistory, pickCup, startCupsRound } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -274,8 +275,8 @@ export default function LuckyCupsScreen() {
   const slotX = useCallback((slot: number) => SLOTS[slot] * S - cupW / 2, [S, cupW]);
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const activeBalls = round?.balls ?? balls;
   const ladder = useMemo(() => {
@@ -724,7 +725,7 @@ export default function LuckyCupsScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per game{'\n'}
+          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per game{'\n'}
           No autoplay · the ball's cup is drawn from your provably-fair seeds; the shuffle is just for show
         </GameInfoButton>
       </ScrollView>
@@ -801,7 +802,7 @@ function Rules({ bet, config }: { bet: number; config: CupsConfig | null }) {
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Return to player {config.rtpPercent}% whenever you cash out. A game pays at most {money(config.maxPayout)}; reaching it settles the game. No autoplay. Every pick is decided by your
+        Return to player {config.rtpPercent}% whenever you cash out. {config.maxPayout >= NO_LIMIT ? 'A game has no win limit.' : `A game pays at most ${winLimit(config.maxPayout)}; reaching it settles the game.`} No autoplay. Every pick is decided by your
         provably-fair seeds (server seed hash, client seed and nonce in each game).
       </Text>
     </View>

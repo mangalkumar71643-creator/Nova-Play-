@@ -21,6 +21,7 @@ import {
   placeAviatorBet,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT } from '../utils/limits';
 
 const MIN_STAKE = 10;
 const STAKE_STEP = 10;
@@ -1586,7 +1587,7 @@ export default function AviatorScreen() {
         )}
       </View>
 
-      {maxWin !== null && <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, textAlign: 'center', marginTop: 8 }}>Max win ₹{maxWin} per bet</Text>}
+      {maxWin !== null && maxWin < NO_LIMIT && <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, textAlign: 'center', marginTop: 8 }}>Max win ₹{maxWin} per bet</Text>}
       <AviatorBetsPanel
         currentPeriodNumber={round?.periodNumber ?? null}
         minHeight={scrollViewportHeight}

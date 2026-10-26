@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { TreasureConfig, TreasureRound, cashOutTreasure, digTreasureMound, fetchTreasureConfig, fetchTreasureCurrent, fetchTreasureHistory, startTreasureRound } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const SAND = '#F2D49A';
 const SEA = '#1AA8C8';
@@ -395,8 +396,8 @@ export default function TreasureDigScreen() {
   const siteX = (S - siteW) / 2;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const activeCrabs = round?.crabs ?? crabs;
   const ladder = useMemo(() => config?.modes.find((m) => m.crabs === activeCrabs)?.multipliers ?? ladderFor(activeCrabs), [config, activeCrabs]);
@@ -813,7 +814,7 @@ export default function TreasureDigScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per dig{'\n'}
+          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per dig{'\n'}
           No autoplay · the crabs are placed by your provably-fair seeds when the dig starts
         </GameInfoButton>
       </ScrollView>
@@ -884,7 +885,7 @@ function Rules({ bet, config }: { bet: number; config: TreasureConfig | null }) 
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Return to player {config.rtpPercent}% whenever you cash out. A dig pays at most {money(config.maxPayout)}; reaching it settles the round. No autoplay. Every round is decided by your
+        Return to player {config.rtpPercent}% whenever you cash out. {config.maxPayout >= NO_LIMIT ? 'A dig has no win limit.' : `A dig pays at most ${winLimit(config.maxPayout)}; reaching it settles the round.`} No autoplay. Every round is decided by your
         provably-fair seeds (server seed hash, client seed and nonce in each round).
       </Text>
     </View>

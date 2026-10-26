@@ -22,6 +22,7 @@ import {
   placeWinGoBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 // ---------- theme ----------
 
@@ -232,8 +233,8 @@ export default function WinGoScreen() {
   const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP_PERCENT;
   const leastStaked = config?.resultRule === 'LEAST_STAKED';
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const lockSeconds = config?.lockSeconds ?? 5;
   const rateOf = (key: string) => (key.startsWith('NUM:') ? P.number : key === 'BIG' || key === 'SMALL' ? P.size : key === 'VIOLET' ? P.violet : P.color);
 
@@ -394,7 +395,7 @@ export default function WinGoScreen() {
     if (locked) return showToast('Betting is closed for this period');
     if (perBet < minStake) return showToast(`Minimum ₹${minStake}`);
     if (perBet > maxStake) return showToast(`Max ₹${maxStake} per bet`);
-    if (perBet * rateOf(selection) > maxPayout) return showToast(`Max ₹${Math.floor(maxPayout / rateOf(selection))} here (max win ₹${maxPayout})`);
+    if (perBet * rateOf(selection) > maxPayout) return showToast(`Max ₹${Math.floor(maxPayout / rateOf(selection))} here (max win ${winLimit(maxPayout)})`);
     if (perBet > coins) return showToast('Insufficient balance');
     setPlacing(true);
     try {
@@ -886,7 +887,7 @@ export default function WinGoScreen() {
                         `Win chances, House included: a number wins ${pctText(0.1 * (1 - housePercent / 100))} of periods, Big or Small ${pctText(0.5 * (1 - housePercent / 100))}, Green or Red ${pctText(0.5 * (1 - housePercent / 100))}, Violet ${pctText(0.2 * (1 - housePercent / 100))}. Every bet returns ${rtpPercent}% of stakes on average.`,
                       ],
                 )
-                .concat([`Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`])
+                .concat([`Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ${winLimit(maxPayout)}.`])
                 .concat(
                   leastStaked
                     ? ['Whether a period is ⭐ House, and how ties are decided, come from a server seed whose hash is published before the period and the seed itself after it.']

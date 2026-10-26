@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { PumpConfig, PumpDifficulty, PumpRound, cashOutPump, fetchActivePump, fetchPumpConfig, fetchPumpHistory, pumpOnce, startPump } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const INK = '#F3F0FF';
@@ -236,8 +237,8 @@ export default function PumpScreen() {
   const bannerAnim = useRef(new Animated.Value(0)).current;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const live = round?.status === 'ACTIVE';
   const diff = live && round ? round.difficulty : difficulty;
@@ -790,7 +791,7 @@ function Rules({ config }: { config: PumpConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Multiplier after n pumps = {(config?.rtpPercent ?? 85) / 100} ÷ (chance of surviving n pumps), so the return is {config?.rtpPercent ?? 75}% whenever you cash out — except that a win never pays less than 1.01x, so the first pumps on Easy, Medium and Hard pay 1.01x. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per balloon ₹{config?.maxPayout ?? 10000} — reaching it cashes out automatically.
+        Multiplier after n pumps = {(config?.rtpPercent ?? 85) / 100} ÷ (chance of surviving n pumps), so the return is {config?.rtpPercent ?? 75}% whenever you cash out — except that a win never pays less than 1.01x, so the first pumps on Easy, Medium and Hard pay 1.01x. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}; {config?.maxPayout == null || config.maxPayout >= NO_LIMIT ? 'max win per balloon: no limit' : `max win per balloon ${winLimit(config.maxPayout)} — reaching it cashes out automatically`}.
       </Text>
       <Text style={styles.ruleLine}>Where the balloon pops is fixed from your provably-fair seeds when it's handed to you and shown when the round ends (Settings → Provably Fair).</Text>
     </View>

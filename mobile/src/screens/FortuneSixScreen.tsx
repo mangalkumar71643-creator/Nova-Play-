@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { FortuneSixBetRow, FortuneSixConfig, fetchFortuneSixConfig, fetchFortuneSixHistory, playFortuneSix } from '../api/backend';
 import GameInfoButton from '../components/GameInfoButton';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -193,8 +194,8 @@ export default function FortuneSixScreen() {
   const tile = Math.floor((S - 16 - 7 * 5) / 8);
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((v) => v >= minStake && v <= maxStake), [minStake, maxStake]);
   const pays = useMemo(() => {
     const m: Record<number, number> = { ...FALLBACK_PAYS };
@@ -562,7 +563,7 @@ export default function FortuneSixScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? FALLBACK_RTP}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
+          RTP {config?.rtpPercent ?? FALLBACK_RTP}% · ticket {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per ticket{'\n'}
           One ticket in five is a ⭐ House ticket, which loses{'\n'}
           No autoplay or turbo · each ticket takes at least 2.5 seconds · provably fair
         </GameInfoButton>
@@ -627,7 +628,7 @@ function Rules({ bet, config }: { bet: number; config: FortuneSixConfig | null }
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Tickets return {config.rtpPercent}% over time (before the {money(config.maxPayout)} per-ticket limit). No autoplay or turbo; each ticket takes at least 2.5
+        Tickets return {config.rtpPercent}% over time (before the {winLimit(config.maxPayout)} per-ticket limit). No autoplay or turbo; each ticket takes at least 2.5
         seconds. The draw order comes from your provably-fair seeds (server seed hash, client seed and nonce on each ticket).
       </Text>
     </View>

@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { FruitMachineConfig, FruitOutcome, FruitSpinRow, FruitSymbol, fetchFruitMachineConfig, fetchFruitMachineHistory, spinFruitMachine } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { winLimit } from '../utils/limits';
 
 const GOLD = '#FFD166';
 const GOLD_DEEP = '#B8860B';
@@ -666,7 +667,7 @@ export default function FruitMachineScreen() {
   const ladderPrizes = config?.ladder ?? FALLBACK_LADDER;
   const lineCount = config?.lineCount ?? 5;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
   useEffect(() => {
@@ -1036,7 +1037,7 @@ export default function FruitMachineScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config ? `${config.rtpPercent}%` : '—'} · bet {money(minStake)}–{money(maxStake)} · max win {money(config?.maxPayout ?? 10000)} per spin{'\n'}
+          RTP {config ? `${config.rtpPercent}%` : '—'} · bet {money(minStake)}–{money(maxStake)} · max win {winLimit(config?.maxPayout)} per spin{'\n'}
           No autoplay or turbo · each spin takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

@@ -25,6 +25,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { useAuth } from '../state/AuthContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
+import { NO_LIMIT } from '../utils/limits';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500, 1000];
 const CHIP_COLORS: Record<number, string> = {
@@ -379,7 +380,7 @@ export default function TeenPattiScreen() {
 
   const multipliers = config?.multipliers ?? FALLBACK_MULTIPLIERS;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -802,7 +803,7 @@ export default function TeenPattiScreen() {
   const winner = boardResult?.winner ?? null;
   const statusLabel = phase === 'BETTING' ? 'Place Your Bets' : phase === 'DEALING' ? 'Dealing Cards' : boardResult ? (boardResult.winner === 'TIE' ? 'Tie' : `${SIDE_LOOK[boardResult.winner as Side].label} Wins`) : 'Dealing Cards';
   const tieMult = multipliers.TIE;
-  const tieMax = Math.max(minStake, Math.floor((config?.maxPayout ?? 10000) / tieMult));
+  const tieMax = Math.max(minStake, Math.floor((config?.maxPayout ?? NO_LIMIT) / tieMult));
   const stepsFor = (area: TeenPattiArea) => (area === 'TIE' ? TIE_STEPS.filter((v) => v >= minStake && v <= Math.min(maxStake, tieMax)) : STAKE_STEPS.filter((v) => v >= minStake && v <= maxStake));
   const stepAmount = (area: TeenPattiArea, dir: 1 | -1) => {
     const steps = stepsFor(area);

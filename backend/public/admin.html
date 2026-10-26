@@ -830,10 +830,11 @@
         </div>
         <div class="card" style="max-width:420px;">
           <div class="card-head"><h2>Max win per bet</h2></div>
-          <div class="item-meta" style="margin:-6px 0 12px;">The most any single bet can pay, in every game. Players see it in each game. A lower limit cuts the house's worst single loss, but also caps big wins.</div>
+          <div class="item-meta" style="margin:-6px 0 12px;">The most any single bet can pay, in every game. Empty = no limit (the default): players can win any amount. A limit cuts the house's worst single loss, but also caps big wins; players see it in each game.</div>
           <div class="form-row">
-            <input id="maxPayoutInput" type="number" min="1000" step="500" placeholder="e.g. 10000" />
+            <input id="maxPayoutInput" type="number" min="1000" step="500" placeholder="No limit" />
             <button class="btn" id="maxPayoutSave" style="flex:0 0 auto;">Save</button>
+            <button class="btn secondary" id="maxPayoutClear" style="flex:0 0 auto;">No limit</button>
           </div>
           <div class="item-meta" id="maxPayoutStatus"></div>
         </div>
@@ -2349,9 +2350,10 @@
     if (!quiet) {
       api('/admin/settings').then(function (st) {
         var input = document.getElementById('maxPayoutInput');
-        input.value = st.maxPayout;
+        input.value = st.maxPayout >= st.maxMaxPayout ? '' : st.maxPayout;
         input.min = st.minMaxPayout;
         input.max = st.maxMaxPayout;
+        document.getElementById('maxPayoutStatus').textContent = st.maxPayout >= st.maxMaxPayout ? 'Now: no limit on wins.' : 'Now: ' + fmtMoney(st.maxPayout) + ' per bet.';
       }).catch(function () {});
     }
   }
@@ -2423,6 +2425,16 @@
     btn.disabled = true;
     api('/admin/settings', { method: 'PATCH', body: JSON.stringify({ maxPayout: value }) })
       .then(function (st) { status.textContent = 'Saved. Max win is now ' + fmtMoney(st.maxPayout) + ' per bet in every game.'; })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
+      .finally(function () { btn.disabled = false; });
+  });
+  document.getElementById('maxPayoutClear').addEventListener('click', function () {
+    var btn = this;
+    var status = document.getElementById('maxPayoutStatus');
+    var input = document.getElementById('maxPayoutInput');
+    btn.disabled = true;
+    api('/admin/settings', { method: 'PATCH', body: JSON.stringify({ maxPayout: Number(input.max) }) })
+      .then(function () { input.value = ''; status.textContent = 'Saved. No limit on wins in any game.'; })
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
   });

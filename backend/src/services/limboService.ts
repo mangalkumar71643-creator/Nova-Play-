@@ -25,9 +25,10 @@ function floor2(n: number): number {
   return Math.floor(n * 100 + 1e-9) / 100;
 }
 
-/** Top target: the max payout at the minimum stake. */
+/** Top target: the max payout at the minimum stake, and never above 10,000x. */
+export const TOP_TARGET = 10_000;
 export function maxTarget(): number {
-  return Math.floor(env.games.maxPayout / env.games.minStake);
+  return Math.min(Math.floor(env.games.maxPayout / env.games.minStake), TOP_TARGET);
 }
 
 /** The result multiplier for these seeds, rounded down to 2 decimals. */

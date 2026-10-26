@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { PokerConfig, PokerHand, PokerRound, dealPoker, drawPoker, fetchActivePoker, fetchPokerConfig, fetchPokerHistory } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const AMBER = '#FFE58A';
@@ -251,8 +252,8 @@ export default function VideoPokerScreen() {
   const bannerAnim = useRef(new Animated.Value(0)).current;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const paytable = config?.paytable ?? FALLBACK_PAYTABLE;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const live = round?.status === 'ACTIVE';
@@ -704,7 +705,7 @@ function Rules({ config }: { config: PokerConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Payouts are the total returned for your bet, so Jacks or Better gives your bet back. The return with perfect play is {config?.rtpPercent ?? 84.84}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per hand ₹{config?.maxPayout ?? 10000}.
+        Payouts are the total returned for your bet, so Jacks or Better gives your bet back. The return with perfect play is {config?.rtpPercent ?? 84.84}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}; max win per hand {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>The deal and the draw come from your provably-fair seeds, fixed when the cards are dealt (Settings → Provably Fair).</Text>
     </View>

@@ -11,6 +11,7 @@ import { ApiClientError } from '../api/client';
 import { ZeusCell, ZeusConfig, ZeusOutcome, ZeusRound, ZeusSpinRow, ZeusStep, ZeusSym, ZeusSymbol, fetchZeusConfig, fetchZeusHistory, spinZeus } from '../api/backend';
 import GameInfoButton from '../components/GameInfoButton';
 import { useGameState } from '../state/GameStateContext';
+import { winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const GOLD_LIGHT = '#FFF4C8';
@@ -494,7 +495,7 @@ export default function GatesOfZeusScreen() {
 
   const paytable = config?.paytable ?? FALLBACK_PAYTABLE;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
   // ---------- layout ----------
@@ -1225,7 +1226,7 @@ function Paytable({ paytable, bet, config }: { paytable: ZeusConfig['paytable'];
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 84.75}% (measured over 600 million simulated spins). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win {config?.maxWinX ?? 5000}x the bet, and ₹{config?.maxPayout ?? 10000} per spin.
+        Return to player {config?.rtpPercent ?? 84.75}% (measured over 600 million simulated spins). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win {config?.maxWinX ?? 5000}x the bet, and {winLimit(config?.maxPayout)} per spin.
       </Text>
       <Text style={styles.ruleLine}>No autoplay or turbo; each paid spin takes at least 2.5 seconds. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

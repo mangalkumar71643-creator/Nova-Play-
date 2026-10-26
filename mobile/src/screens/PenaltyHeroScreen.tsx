@@ -20,6 +20,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const PITCH = '#1F8A3A';
 const LIME = '#C6FF3A';
@@ -451,8 +452,8 @@ export default function PenaltyHeroScreen() {
   );
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const activeDiff = round?.difficulty ?? difficulty;
   const ladder = useMemo(() => {
@@ -1245,7 +1246,7 @@ export default function PenaltyHeroScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per round
+          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per round
           {'\n'}
           No autoplay · the keeper's zones are fixed by your provably-fair seeds before you shoot
         </GameInfoButton>
@@ -1342,7 +1343,7 @@ function Rules({ bet, config }: { bet: number; config: PenaltyConfig | null }) {
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Return to player {config.rtpPercent}% whenever you cash out. A round pays at most {money(config.maxPayout)}; reaching it settles the round. No autoplay. Your kicks are decided by your
+        Return to player {config.rtpPercent}% whenever you cash out. {config.maxPayout >= NO_LIMIT ? 'A round has no win limit.' : `A round pays at most ${winLimit(config.maxPayout)}; reaching it settles the round.`} No autoplay. Your kicks are decided by your
         provably-fair seeds (server seed hash, client seed and nonce in each round).
       </Text>
     </View>

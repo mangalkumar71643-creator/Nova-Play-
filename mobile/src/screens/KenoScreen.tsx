@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { KenoBet, KenoConfig, KenoRisk, fetchKenoConfig, fetchKenoHistory, playKeno } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const AMBER = '#FFB547';
 const GOLD = '#FFD66B';
@@ -242,8 +243,8 @@ export default function KenoScreen() {
 
   const tables = config?.tables ?? FALLBACK_TABLES;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const row = picks.length > 0 ? tables[risk][picks.length - 1] : null;
   const locked = busy || autoLeft > 0;
@@ -735,7 +736,7 @@ function Paytable({ tables, risk, picks, config }: { tables: Record<KenoRisk, nu
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpRange ? `${config.rtpRange[0]}–${config.rtpRange[1]}` : '84.5–85'}% depending on picks and risk. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per bet ₹{config?.maxPayout ?? 10000}.
+        Return to player {config?.rtpRange ? `${config.rtpRange[0]}–${config.rtpRange[1]}` : '84.5–85'}% depending on picks and risk. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per bet {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>Every draw comes from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

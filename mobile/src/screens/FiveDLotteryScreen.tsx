@@ -22,6 +22,7 @@ import {
   placeFiveDBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 // ---------- theme ----------
 
@@ -285,8 +286,8 @@ export default function FiveDLotteryScreen() {
   const lockPulse = useRef(new Animated.Value(1)).current;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const lockSeconds = config?.lockSeconds ?? 5;
   const houseChance = config?.houseChancePercent ?? 0;
   const rtpPercent = config?.rtpPercent ?? 80;
@@ -458,7 +459,7 @@ export default function FiveDLotteryScreen() {
     if (perBet < minStake) return showToast(`Minimum ₹${minStake} per bet`);
     if (perBet > maxStake) return showToast(`Max ₹${maxStake} per bet`);
     const capped = keys.find((k) => perBet * multOf(k) > maxPayout);
-    if (capped) return showToast(`Max ₹${Math.floor(maxPayout / multOf(capped))} on ${labelFor(capped)} (max win ₹${maxPayout})`);
+    if (capped) return showToast(`Max ₹${Math.floor(maxPayout / multOf(capped))} on ${labelFor(capped)} (max win ${winLimit(maxPayout)})`);
     if (totalCost > coins) return showToast('Insufficient balance');
     setPlacing(true);
     try {
@@ -993,7 +994,7 @@ export default function FiveDLotteryScreen() {
                     `Position bets (A–E): the exact digit pays ${multOf('A:0')}X. Big (5–9), Small (0–4), Odd or Even pay ${multOf('A:BIG')}X.`,
                     `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X.`,
                     'Pick as many as you like in a tab — every pick is its own bet.',
-                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
+                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ${winLimit(maxPayout)}.`,
                     'Whether a period is ⭐ House, and how ties are decided, come from a server seed whose hash is published before the period and the seed itself after it.',
                   ]
                 : [
@@ -1002,7 +1003,7 @@ export default function FiveDLotteryScreen() {
                     `Position bets (A–E): the exact digit pays ${multOf('A:0')}X and wins ${chance(0.1)}% of periods. Big (5–9), Small (0–4), Odd or Even pay ${multOf('A:BIG')}X and win ${chance(0.5)}%.`,
                     `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X and win ${chance(0.5)}% of periods.`,
                     'Pick as many as you like in a tab — every pick is its own bet.',
-                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
+                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ${winLimit(maxPayout)}.`,
                     'Provably fair: each period’s digits, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
                   ]
               ).filter((t) => houseChance > 0 || !t.startsWith('⭐ House')).map((t, i) => (

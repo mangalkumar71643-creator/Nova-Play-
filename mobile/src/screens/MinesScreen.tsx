@@ -29,6 +29,7 @@ import {
   startMinesRound,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT } from '../utils/limits';
 
 const TILE_COUNT = 25;
 const COLUMNS = 5;
@@ -126,7 +127,7 @@ export default function MinesScreen() {
   const [stakeRowY, setStakeRowY] = useState(0);
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const maxPayout = config?.maxPayout ?? Infinity;
 
   const loadHistory = useCallback(() => {
@@ -726,7 +727,7 @@ export default function MinesScreen() {
                 <Text style={styles.limitLabel}>Minimum bet INR:</Text>
                 <Text style={styles.limitValue}>{inr(minStake)}</Text>
               </View>
-              {Number.isFinite(maxPayout) && (
+              {Number.isFinite(maxPayout) && maxPayout < NO_LIMIT && (
                 <View style={styles.limitRow}>
                   <Text style={styles.limitLabel}>Maximum win for one bet INR:</Text>
                   <Text style={styles.limitValue}>{inr(maxPayout)}</Text>

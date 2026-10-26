@@ -22,6 +22,7 @@ import {
   placeRocketBet,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { winLimit } from '../utils/limits';
 
 // How far the live number may run past the server's latest reply.
 const MAX_AHEAD_OF_SERVER_MS = 1200;
@@ -337,7 +338,7 @@ export default function RocketScreen() {
 
   const growth = config?.growthRate ?? DEFAULT_GROWTH;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const minAuto = config?.minAutoCashout ?? 1.01;
 
   const showToast = useCallback((text: string, good = false) => {
@@ -817,7 +818,7 @@ export default function RocketScreen() {
             );
           })
         )}
-        <Text style={styles.footNote}>Provably fair · bet ₹{minStake}–₹{maxStake} · max win ₹{config?.maxPayout ?? 10000} per bet</Text>
+        <Text style={styles.footNote}>Provably fair · bet ₹{minStake}–₹{maxStake} · max win {winLimit(config?.maxPayout)} per bet</Text>
       </ScrollView>
 
       {toast && (

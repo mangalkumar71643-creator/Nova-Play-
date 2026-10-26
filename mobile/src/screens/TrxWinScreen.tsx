@@ -23,6 +23,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { HouseBall, HousePill, NumberBall, pctText } from './WinGoScreen';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 // ---------- theme ----------
 
@@ -461,8 +462,8 @@ export default function TrxWinScreen() {
   const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP_PERCENT;
   const leastStaked = config?.resultRule === 'LEAST_STAKED';
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const lockSeconds = config?.lockSeconds ?? 5;
   const rateOf = (key: string) => (key.startsWith('NUM:') ? P.number : key === 'BIG' || key === 'SMALL' ? P.size : key === 'VIOLET' ? P.violet : P.color);
 
@@ -642,7 +643,7 @@ export default function TrxWinScreen() {
     if (locked) return showToast('Betting is closed for this period');
     if (perBet < minStake) return showToast(`Minimum ₹${minStake}`);
     if (perBet > maxStake) return showToast(`Max ₹${maxStake} per bet`);
-    if (perBet * rateOf(selection) > maxPayout) return showToast(`Max ₹${Math.floor(maxPayout / rateOf(selection))} here (max win ₹${maxPayout})`);
+    if (perBet * rateOf(selection) > maxPayout) return showToast(`Max ₹${Math.floor(maxPayout / rateOf(selection))} here (max win ${winLimit(maxPayout)})`);
     if (perBet > coins) return showToast('Insufficient balance');
     setPlacing(true);
     try {
@@ -1200,7 +1201,7 @@ export default function TrxWinScreen() {
                     `Violet: 0 or 5 pays ${P.violet}X.`,
                     `Number: the exact number pays ${P.number}X.`,
                     `Big (5–9) / Small (0–4): ${P.size}X.`,
-                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
+                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ${winLimit(maxPayout)}.`,
                     `If the TRON network can't be read for ${config?.voidAfterMinutes ?? 60} minutes after a draw, that period is cancelled and every bet on it refunded.`,
                   ]
                 : [
@@ -1214,7 +1215,7 @@ export default function TrxWinScreen() {
                     `Number: the exact number pays ${P.number}X.`,
                     `Big (5–9) / Small (0–4): ${P.size}X.`,
                     `Win chances, House included: a number wins ${pctText(0.1 * (1 - housePercent / 100))} of periods, Big or Small ${pctText(0.5 * (1 - housePercent / 100))}, Green or Red ${pctText(0.5 * (1 - housePercent / 100))}, Violet ${pctText(0.2 * (1 - housePercent / 100))}. Every bet returns ${rtpPercent}% of stakes on average.`,
-                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ₹${maxPayout}.`,
+                    `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ${winLimit(maxPayout)}.`,
                     `If the TRON network can't be read for ${config?.voidAfterMinutes ?? 60} minutes after a draw, that period is cancelled and every bet on it refunded.`,
                   ]
               ).filter((t) => housePercent > 0 || !t.startsWith('⭐ House')).map((t, i) => (

@@ -9,6 +9,13 @@ function required(name: string, fallback?: string): string {
   return value;
 }
 
+/**
+ * "No limit" on what a bet can win: the largest payout the money columns
+ * (Decimal(12,2)) can hold, so a payout can never overflow the database.
+ * The app shows any limit at or above this as "unlimited".
+ */
+export const NO_PAYOUT_LIMIT = 9_999_999_999;
+
 export const env = {
   port: Number(process.env.PORT ?? 4000),
   databaseUrl: required("DATABASE_URL"),
@@ -58,10 +65,10 @@ export const env = {
     // bets wins. Shown in the app from 1.0.26.
     tableLeastPayout: process.env.TABLE_LEAST_PAYOUT === "true",
     // Most a single bet can pay out in any game, whatever the stake and
-    // multiplier — bounds the house's worst single-bet loss. The admin can
-    // change it from the panel; this is the default until they do.
+    // multiplier — bounds the house's worst single-bet loss. By default there
+    // is no limit (NO_PAYOUT_LIMIT); the admin can set one from the panel.
     get maxPayout(): number {
-      return runtimeSettings.maxPayout ?? Number(process.env.GAME_MAX_PAYOUT ?? 10000);
+      return runtimeSettings.maxPayout ?? Number(process.env.GAME_MAX_PAYOUT ?? NO_PAYOUT_LIMIT);
     },
   },
 

@@ -40,6 +40,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500];
 const CHIP_COLORS: Record<number, string> = {
@@ -520,7 +521,7 @@ export default function BaccaratScreen() {
 
   const multipliers = config?.multipliers ?? FALLBACK_MULTIPLIERS;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -1490,7 +1491,7 @@ export default function BaccaratScreen() {
             </View>
             <ScrollView contentContainerStyle={{ padding: 14 }}>
               {panel === 'rules' ? (
-                <Rules multipliers={multipliers} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? 10000} leastPayout={config?.resultRule === 'LEAST_PAYOUT'} />
+                <Rules multipliers={multipliers} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? NO_LIMIT} leastPayout={config?.resultRule === 'LEAST_PAYOUT'} />
               ) : (
                 <MyBets bets={myBets} />
               )}
@@ -1590,7 +1591,7 @@ function Rules({
       {line('On a Tie, Player and Banker bets are returned.')}
       {line('Pair: the first two cards of that hand have the same rank.')}
       <Text style={styles.ruleHead}>Limits</Text>
-      {line(`Bet per box ₹${minStake} – ₹${maxStake}. Max win per box ₹${maxPayout}.`)}
+      {line(`Bet per box ₹${minStake} – ₹${maxStake}. Max win per box ${winLimit(maxPayout)}.`)}
       {leastPayout
         ? line(
             'Result rule — least payout wins: when betting closes, the hand dealt is the kind (winner and pairs) that pays the least in total on all players’ bets; ties are decided at random. The hand is not a random deal: the more money is on a bet, the less likely it is to win.'

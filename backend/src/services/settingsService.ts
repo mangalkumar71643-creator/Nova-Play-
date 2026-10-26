@@ -1,5 +1,5 @@
 import { prisma } from "../db/prismaClient";
-import { env } from "../config/env";
+import { env, NO_PAYOUT_LIMIT } from "../config/env";
 import { runtimeSettings } from "../config/runtimeSettings";
 import { loadIntegrationSettings } from "./integrationSettings";
 
@@ -8,11 +8,13 @@ const REFRESH_MS = 15_000;
 let loadedAt = 0;
 
 export const MIN_MAX_PAYOUT = 1000;
-export const MAX_MAX_PAYOUT = 10_000_000;
+export const MAX_MAX_PAYOUT = NO_PAYOUT_LIMIT;
+// The limit the admin sets is kept under its own key; an earlier 10,000 limit (key "maxPayout") is dropped, so by default wins are unlimited.
+const MAX_PAYOUT_KEY = "maxPayoutCap";
 
 async function load() {
-  const rows = await prisma.setting.findMany({ where: { key: { in: ["maxPayout"] } } });
-  const maxPayout = Number(rows.find((r) => r.key === "maxPayout")?.value);
+  const rows = await prisma.setting.findMany({ where: { key: MAX_PAYOUT_KEY } });
+  const maxPayout = Number(rows.find((r) => r.key === MAX_PAYOUT_KEY)?.value);
   runtimeSettings.maxPayout = Number.isFinite(maxPayout) && maxPayout > 0 ? maxPayout : undefined;
   await loadIntegrationSettings();
   loadedAt = Date.now();
@@ -34,7 +36,7 @@ export function getGameSettings() {
 }
 
 export async function setMaxPayout(value: number) {
-  await prisma.setting.upsert({ where: { key: "maxPayout" }, update: { value: String(value) }, create: { key: "maxPayout", value: String(value) } });
+  await prisma.setting.upsert({ where: { key: MAX_PAYOUT_KEY }, update: { value: String(value) }, create: { key: MAX_PAYOUT_KEY, value: String(value) } });
   await load();
   return getGameSettings();
 }

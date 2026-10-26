@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { VaultConfig, VaultRound, VaultTry, cashOutVault, crackVaultLock, fetchVaultConfig, fetchVaultCurrent, fetchVaultHistory, startVaultRound } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const STEEL = '#8A96A8';
 const CYAN = '#3CE0FF';
@@ -296,8 +297,8 @@ export default function VaultHeistScreen() {
   const dialR = R * 0.56;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const activeAlarms = round?.alarms ?? alarms;
   const ladder = useMemo(() => config?.modes.find((m) => m.alarms === activeAlarms)?.multipliers ?? ladderFor(activeAlarms), [config, activeAlarms]);
@@ -816,7 +817,7 @@ export default function VaultHeistScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per heist{'\n'}
+          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per heist{'\n'}
           No autoplay · each lock's alarm digits are fixed by your provably-fair seeds before you dial
         </GameInfoButton>
       </ScrollView>
@@ -898,7 +899,7 @@ function Rules({ bet, config }: { bet: number; config: VaultConfig | null }) {
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Return to player {config.rtpPercent}% whenever you cash out. A heist pays at most {money(config.maxPayout)}; reaching it settles the round. No autoplay. Every lock is decided by your
+        Return to player {config.rtpPercent}% whenever you cash out. {config.maxPayout >= NO_LIMIT ? 'A heist has no win limit.' : `A heist pays at most ${winLimit(config.maxPayout)}; reaching it settles the round.`} No autoplay. Every lock is decided by your
         provably-fair seeds (server seed hash, client seed and nonce in each round).
       </Text>
     </View>

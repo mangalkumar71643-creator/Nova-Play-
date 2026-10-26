@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { BombConfig, BombRound, cashOutBomb, cutBombWire, fetchBombConfig, fetchBombCurrent, fetchBombHistory, startBombRound } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const HAZARD = '#FFC21A';
 const LED_RED = '#FF2A2A';
@@ -331,8 +332,8 @@ export default function BombSquadScreen() {
   const g = useMemo(() => geometry(S, H), [S, H]);
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const activeLive = round?.live ?? live;
   const ladder = useMemo(() => config?.modes.find((m) => m.live === activeLive)?.multipliers ?? ladderFor(activeLive), [config, activeLive]);
@@ -773,7 +774,7 @@ export default function BombSquadScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per bomb{'\n'}
+          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per bomb{'\n'}
           No autoplay · the live wires are fixed by your provably-fair seeds when you arm the bomb
         </GameInfoButton>
       </ScrollView>
@@ -844,7 +845,7 @@ function Rules({ bet, config }: { bet: number; config: BombConfig | null }) {
       ))}
       <Text style={styles.section}>GAME INFO</Text>
       <Text style={styles.note}>
-        Return to player {config.rtpPercent}% whenever you cash out. A bomb pays at most {money(config.maxPayout)}; reaching it settles the round. No autoplay. Every round is decided by your
+        Return to player {config.rtpPercent}% whenever you cash out. {config.maxPayout >= NO_LIMIT ? 'A bomb has no win limit.' : `A bomb pays at most ${winLimit(config.maxPayout)}; reaching it settles the round.`} No autoplay. Every round is decided by your
         provably-fair seeds (server seed hash, client seed and nonce in each round).
       </Text>
     </View>

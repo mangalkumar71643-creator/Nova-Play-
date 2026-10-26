@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { ScratchConfig, ScratchTicketRow, buyScratchTicket, fetchScratchConfig, fetchScratchHistory } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -426,8 +427,8 @@ export default function ScratchCardScreen() {
 
   const symbols = config?.symbols ?? FALLBACK_SYMBOLS;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const busy = phase === 'buying' || phase === 'scratching';
   const topX = symbols[symbols.length - 1]?.multiplier ?? 1000;
@@ -845,7 +846,7 @@ export default function ScratchCardScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% · ticket {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per ticket{'\n'}
+          RTP {config?.rtpPercent ?? 85}% · ticket {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per ticket{'\n'}
           No autoplay or turbo · each ticket takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

@@ -21,6 +21,7 @@ import {
   placeJhandiMundaBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const SYMBOLS: JhandiSymbol[] = ['HEART', 'SPADE', 'DIAMOND', 'CLUB', 'FLAG', 'CROWN'];
@@ -475,7 +476,7 @@ export default function JhandiMundaScreen() {
 
   const paytable = config?.paytable ?? FALLBACK_PAYTABLE;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP;
   const winChance = config?.winChancePercent ?? FALLBACK_WIN_CHANCE;
   const houseOn = (config?.houseChancePercent ?? 0) > 0;
@@ -937,7 +938,7 @@ export default function JhandiMundaScreen() {
                 <Text style={styles.rulesText}>⭐ House: one round in five is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses.</Text>
               ) : null}
               <Text style={styles.rulesText}>
-                Bet ₹{minStake}–₹{maxStake} per symbol · max win ₹{config?.maxPayout ?? 10000} per bet · Whether a round is House, and how ties are decided, come from a server
+                Bet ₹{minStake}–₹{maxStake} per symbol · max win {winLimit(config?.maxPayout)} per bet · Whether a round is House, and how ties are decided, come from a server
                 seed published after the round.
               </Text>
             </>
@@ -948,7 +949,7 @@ export default function JhandiMundaScreen() {
                 of rounds; bets return {rtpPercent}% over time.
               </Text>
               <Text style={styles.rulesText}>
-                Bet ₹{minStake}–₹{maxStake} per symbol · max win ₹{config?.maxPayout ?? 10000} per bet · Provably fair: every throw, and whether the round is House, comes
+                Bet ₹{minStake}–₹{maxStake} per symbol · max win {winLimit(config?.maxPayout)} per bet · Provably fair: every throw, and whether the round is House, comes
                 from a server seed published after the round.
               </Text>
             </>

@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { DiceDuelBetRow, DiceDuelConfig, DuelPick, fetchDiceDuelConfig, fetchDiceDuelHistory, playDiceDuel } from '../api/backend';
 import GameInfoButton from '../components/GameInfoButton';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -229,8 +230,8 @@ export default function DiceDuelScreen() {
   const dieSize = Math.min(trayW * 0.42, 70);
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const pays = useCallback((p: DuelPick) => config?.picks.find((x) => x.pick === p)?.multiplier ?? FALLBACK_PAYS[p], [config]);
 
@@ -542,7 +543,7 @@ export default function DiceDuelScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {rtpLine} · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per roll{'\n'}
+          RTP {rtpLine} · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per roll{'\n'}
           No autoplay or turbo · each roll takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

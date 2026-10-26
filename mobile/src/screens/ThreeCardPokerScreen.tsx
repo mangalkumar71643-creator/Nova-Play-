@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { ThreeCardConfig, ThreeCardHand, ThreeCardHandClass, dealThreeCard, fetchActiveThreeCard, fetchThreeCardConfig, fetchThreeCardHistory, threeCardAction } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { winLimit } from '../utils/limits';
 
 const GOLD = '#E9C46A';
 const CREAM = '#FFF6DF';
@@ -324,7 +325,7 @@ export default function ThreeCardPokerScreen() {
   const bannerAnim = useRef(new Animated.Value(0)).current;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const antePays = config?.antePays ?? FALLBACK_ANTE_PAYS;
   const playPays = config?.playPays ?? FALLBACK_PLAY_PAYS;
   const anteBonus = config?.anteBonus ?? FALLBACK_BONUS;
@@ -842,7 +843,7 @@ function Rules({
       <PayBox rows={pairPlus} />
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player: ante and play {config?.rtpPercent ? `${config.rtpPercent}%` : '—'} of the money bet when every decision is the best one; Pair Plus {config?.pairPlusRtpPercent ? `${config.pairPlusRtpPercent}%` : '—'}. Bets ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}; max win per hand ₹{config?.maxPayout ?? 10000}.
+        Return to player: ante and play {config?.rtpPercent ? `${config.rtpPercent}%` : '—'} of the money bet when every decision is the best one; Pair Plus {config?.pairPlusRtpPercent ? `${config.pairPlusRtpPercent}%` : '—'}. Bets ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}; max win per hand {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>All six cards of a hand come from your provably-fair seeds, fixed when the hand is dealt (Settings → Provably Fair).</Text>
     </View>

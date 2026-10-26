@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { AcesCard, AcesCell, AcesConfig, AcesOutcome, AcesRound, AcesSpinRow, AcesStep, AcesSym, fetchAcesConfig, fetchAcesHistory, spinAces } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const GOLD_DEEP = '#B8862B';
@@ -335,7 +336,7 @@ export default function AcesScreen() {
   const baseLadder = config?.baseMultipliers ?? FALLBACK_BASE;
   const freeLadder = config?.freeMultipliers ?? FALLBACK_FREE;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
   // ---------- layout ----------
@@ -1070,7 +1071,7 @@ function Paytable({ paytable, bet, config }: { paytable: Record<AcesCard, [numbe
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 84.69}% (measured over 120 million spins). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
+        Return to player {config?.rtpPercent ?? 84.69}% (measured over 120 million spins). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per spin {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>Tap SPIN during a spin to speed it up. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

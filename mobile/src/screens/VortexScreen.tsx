@@ -22,13 +22,14 @@ import {
   startVortexRound,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 // Same wheel and rings as the server (vortexService.ts); the server's own
 // config replaces this as soon as it loads.
 const FALLBACK_CONFIG: VortexConfig = {
   minStake: 1,
-  maxStake: 500,
-  maxPayout: 10000,
+  maxStake: 100000,
+  maxPayout: NO_LIMIT,
   rtpPercent: 75,
   wheel: ['WATER', 'EARTH', 'WATER', 'CRASH', 'WATER', 'FIRE', 'WATER', 'EARTH', 'CRASH', 'WATER', 'EARTH', 'WATER', 'CRASH', 'WATER', 'EARTH', 'CRASH', 'FIRE', 'WATER', 'EARTH', 'CRASH'],
   elements: [
@@ -792,7 +793,7 @@ export default function VortexScreen() {
                   {[
                     ['Minimum bet', `₹${config.minStake}`],
                     ['Maximum bet', `₹${config.maxStake}`],
-                    ['Maximum win per round', `₹${config.maxPayout}`],
+                    ['Maximum win per round', `${winLimit(config.maxPayout)}`],
                     ['Return to player', `${config.rtpPercent}%`],
                   ].map(([k, v]) => (
                     <View key={k} style={styles.limitRow}>

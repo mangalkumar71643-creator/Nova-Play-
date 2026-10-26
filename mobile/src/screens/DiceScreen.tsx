@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { DiceBet, DiceConfig, fetchDiceConfig, fetchDiceHistory, rollDice } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const CYAN = '#3DF2FF';
 const TEAL = '#14B8C4';
@@ -238,8 +239,8 @@ export default function DiceScreen() {
 
   const rtp = config?.rtpPercent ?? 85;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const minChance = config?.minChance ?? 0.01;
   const maxChance = config?.maxChance ?? 84;
   const minWin = config?.minWinMultiplier ?? 1.01;
@@ -403,7 +404,7 @@ export default function DiceScreen() {
       return;
     }
     if (floor2(stake * m) > maxPayout) {
-      showToast(`Max win per roll is ₹${maxPayout}. Lower the bet or the multiplier.`);
+      showToast(`Max win per roll is ${winLimit(maxPayout)}. Lower the bet or the multiplier.`);
       setAutoLeft(0);
       return;
     }
@@ -729,7 +730,7 @@ export default function DiceScreen() {
           </View>
           <View style={styles.profitRow}>
             <Text style={styles.profitLabel}>WIN AMOUNT</Text>
-            <Text style={[styles.profitValue, overCap && { color: LOSE }]}>{overCap ? `Max win ₹${maxPayout}` : `₹${winAmount.toFixed(2)}`}</Text>
+            <Text style={[styles.profitValue, overCap && { color: LOSE }]}>{overCap ? `Max win ${winLimit(maxPayout)}` : `₹${winAmount.toFixed(2)}`}</Text>
           </View>
 
           {/* Actions */}
@@ -838,7 +839,7 @@ function Rules({ config }: { config: DiceConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {rtp}%. Win chance {config?.minChance ?? 0.01}% – {config?.maxChance ?? 84}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per roll ₹{config?.maxPayout ?? 10000}.
+        Return to player {rtp}%. Win chance {config?.minChance ?? 0.01}% – {config?.maxChance ?? 84}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per roll {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>Every roll is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

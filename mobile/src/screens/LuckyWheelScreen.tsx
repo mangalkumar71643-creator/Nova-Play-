@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { WheelConfig, WheelRisk, WheelSpinRow, fetchWheelConfig, fetchWheelHistory, spinLuckyWheel } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -226,8 +227,8 @@ export default function LuckyWheelScreen() {
   const faceSize = (frameSize * 100) / 120;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const segmentsFor = useCallback((r: WheelRisk) => config?.wheels.find((w) => w.risk === r)?.segments ?? FALLBACK[r], [config]);
   const segments = segmentsFor(risk);
@@ -526,7 +527,7 @@ export default function LuckyWheelScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% on every risk level · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per spin{'\n'}
+          RTP {config?.rtpPercent ?? 85}% on every risk level · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per spin{'\n'}
           No autoplay or turbo · each spin takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

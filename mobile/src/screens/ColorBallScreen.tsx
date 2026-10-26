@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { BallColor, ColorBallBetRow, ColorBallConfig, fetchColorBallConfig, fetchColorBallHistory, playColorBall } from '../api/backend';
 import GameInfoButton from '../components/GameInfoButton';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -213,8 +214,8 @@ export default function ColorBallScreen() {
   const balls = config?.balls ?? FALLBACK_BALLS;
   const { rest, fly } = useMemo(() => layout(R, b, balls.length), [R, b, balls.length]);
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const betLevels = useMemo(() => BET_LEVELS.filter((v) => v >= minStake && v <= maxStake), [minStake, maxStake]);
   const info = useCallback(
     (c: BallColor) => config?.colors.find((x) => x.color === c) ?? { color: c, balls: FALLBACK_BALLS.filter((x) => x === c).length, multiplier: FALLBACK_PAYS[c], rtpPercent: 85 },
@@ -552,7 +553,7 @@ export default function ColorBallScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {rtpLine} · bet {money(minStake)}–{money(maxStake)} · max {money(maxPayout)} per draw{'\n'}
+          RTP {rtpLine} · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per draw{'\n'}
           No autoplay or turbo · each draw takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

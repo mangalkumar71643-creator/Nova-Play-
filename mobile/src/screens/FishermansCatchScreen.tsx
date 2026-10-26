@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { FishFreeSpin, FishLineWin, FishSymbol, FishermanConfig, FishermanSpinRow, fetchFishermanConfig, fetchFishermanHistory, spinFisherman } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { winLimit } from '../utils/limits';
 
 const GOLD = '#FFD166';
 const GOLD_DEEP = '#B8860B';
@@ -641,7 +642,7 @@ export default function FishermansCatchScreen() {
 
   const lineCount = config?.lineCount ?? 10;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const perLevel = config?.fishermenPerLevel ?? 4;
   const multipliers = config?.multipliers ?? [1, 2, 3, 10];
   const lines = config?.lines ?? [];
@@ -1117,7 +1118,7 @@ export default function FishermansCatchScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config ? `${config.rtpPercent}%` : '—'} · bet {money(minStake)}–{money(maxStake)} · max win {money(config?.maxPayout ?? 10000)} per spin{'\n'}
+          RTP {config ? `${config.rtpPercent}%` : '—'} · bet {money(minStake)}–{money(maxStake)} · max win {winLimit(config?.maxPayout)} per spin{'\n'}
           No autoplay or turbo · each paid spin takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

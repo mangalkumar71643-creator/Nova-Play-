@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { MoneyComingConfig, MoneyComingOutcome, MoneyComingSpecial, MoneyComingSpinRow, fetchMoneyComingConfig, fetchMoneyComingHistory, spinMoneyComing } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { winLimit } from '../utils/limits';
 
 const ACCENT = '#22C55E';
 const ACCENT2 = '#FFD24A';
@@ -520,7 +521,7 @@ export default function MoneyComingScreen() {
   const special = config?.special ?? FALLBACK_SPECIAL;
   const wheelSegments = config?.wheel ?? FALLBACK_WHEEL;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
   // ---------- layout ----------
@@ -1170,7 +1171,7 @@ function Paytable({ special, wheel, bet, config }: { special: MoneyComingSpecial
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 84.84}% (exact, counted over every reel stop). {config?.hitRatePercent ?? 14.26}% of spins win. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per spin ₹{config?.maxPayout ?? 10000}.
+        Return to player {config?.rtpPercent ?? 84.84}% (exact, counted over every reel stop). {config?.hitRatePercent ?? 14.26}% of spins win. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per spin {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>Tap SPIN during a spin to stop the reels at once. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

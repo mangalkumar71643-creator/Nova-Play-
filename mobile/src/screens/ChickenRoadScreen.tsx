@@ -758,7 +758,7 @@ export default function ChickenRoadScreen() {
             textAlign="center"
           />
           <Pressable
-            onPress={() => setStakeValue(config?.maxStake ?? 500)}
+            onPress={() => setStakeValue(config?.maxStake ?? 100000)}
             disabled={isPlaying}
             style={styles.stakeMinMaxBtn}
           >

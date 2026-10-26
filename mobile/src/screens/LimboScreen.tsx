@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { LimboBet, LimboConfig, fetchLimboConfig, fetchLimboHistory, playLimbo } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const PINK = '#FF5FD2';
 const VIOLET = '#A78BFA';
@@ -214,8 +215,8 @@ export default function LimboScreen() {
 
   const rtp = config?.rtpPercent ?? 85;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
-  const maxPayout = config?.maxPayout ?? 10000;
+  const maxStake = config?.maxStake ?? 100000;
+  const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const minTarget = config?.minTarget ?? 1.01;
   const maxTarget = config?.maxTarget ?? 10000;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
@@ -330,7 +331,7 @@ export default function LimboScreen() {
       return;
     }
     if (floor2(stake * t) > maxPayout) {
-      showToast(`Max win per bet is ₹${maxPayout}. Lower the bet or the target.`);
+      showToast(`Max win per bet is ${winLimit(maxPayout)}. Lower the bet or the target.`);
       setAutoLeft(0);
       return;
     }
@@ -616,7 +617,7 @@ export default function LimboScreen() {
         </View>
         <View style={styles.profitRow}>
           <Text style={styles.profitLabel}>WIN AMOUNT</Text>
-          <Text style={[styles.profitValue, overCap && { color: LOSE }]}>{overCap ? `Max win ₹${maxPayout}` : `₹${winAmount.toFixed(2)}`}</Text>
+          <Text style={[styles.profitValue, overCap && { color: LOSE }]}>{overCap ? `Max win ${winLimit(maxPayout)}` : `₹${winAmount.toFixed(2)}`}</Text>
         </View>
 
         <View style={styles.actions}>
@@ -717,7 +718,7 @@ function Rules({ config }: { config: LimboConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {rtp}%. Target {config?.minTarget ?? 1.01}x – {config?.maxTarget ?? 10000}x. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per bet ₹{config?.maxPayout ?? 10000}.
+        Return to player {rtp}%. Target {config?.minTarget ?? 1.01}x – {config?.maxTarget ?? 10000}x. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per bet {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>Every result is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

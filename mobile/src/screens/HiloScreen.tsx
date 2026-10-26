@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { HiloAction, HiloChoice, HiloConfig, HiloRound, HiloStep, fetchActiveHilo, fetchHiloConfig, fetchHiloHistory, hiloAction, startHilo } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const CORAL = '#FF6B4A';
 const MINT = '#34E3A0';
@@ -212,7 +213,7 @@ export default function HiloScreen() {
   const bannerAnim = useRef(new Animated.Value(0)).current;
 
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
   const live = round?.status === 'ACTIVE';
 
@@ -566,7 +567,7 @@ export default function HiloScreen() {
                         </View>
                         <Text style={styles.choiceMult}>{o.multiplier.toFixed(2)}x</Text>
                         <Text style={styles.choiceChance}>
-                          {o.chance.toFixed(2)}% · win ₹{Math.min(Math.floor(stake * o.multiplier * 100) / 100, config?.maxPayout ?? 10000).toFixed(2)}
+                          {o.chance.toFixed(2)}% · win ₹{Math.min(Math.floor(stake * o.multiplier * 100) / 100, config?.maxPayout ?? NO_LIMIT).toFixed(2)}
                         </Text>
                       </LinearGradient>
                     </Pressable>
@@ -680,7 +681,7 @@ function Rules({ config }: { config: HiloConfig | null }) {
       <Text style={styles.ruleLine}>Don't like the card? SKIP it for a new one; your multiplier stays the same. Up to {config?.maxSkips ?? 52} skips a round.</Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Unlimited decks. Return to player {rtp}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 500}. Max win per round ₹{config?.maxPayout ?? 10000} — reaching it cashes out automatically. An unfinished round waits for you when you come back.
+        Unlimited decks. Return to player {rtp}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. {config?.maxPayout == null || config.maxPayout >= NO_LIMIT ? 'Max win per round: no limit' : `Max win per round ${winLimit(config.maxPayout)} — reaching it cashes out automatically`}. An unfinished round waits for you when you come back.
       </Text>
       <Text style={styles.ruleLine}>Every card is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

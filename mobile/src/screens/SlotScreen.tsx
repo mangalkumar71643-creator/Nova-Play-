@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { SlotConfig, SlotSpin, SlotSymbol, fetchSlotConfig, fetchSlotHistory, spinSlot } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import { NO_LIMIT, winLimit } from '../utils/limits';
 
 const GOLD = '#FFD66B';
 const GOLD_DEEP = '#B8862B';
@@ -459,7 +460,7 @@ export default function SlotScreen() {
   const paylines = config?.paylines ?? FALLBACK_LINES;
   const multValues = config?.multipliers ?? FALLBACK_MULTIPLIERS;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
   const initialRows = useMemo(() => FALLBACK_REELS.map((strip, i) => [0, 1, 2].map((r) => strip[(i * 7 + r) % strip.length])), []);
@@ -994,7 +995,7 @@ export default function SlotScreen() {
             </View>
             <ScrollView contentContainerStyle={{ padding: 14 }}>
               {panel === 'pay' ? (
-                <Paytable paytable={paytable} paylines={paylines} multipliers={multValues} rtp={config?.rtpPercent ?? 84.92} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? 10000} />
+                <Paytable paytable={paytable} paylines={paylines} multipliers={multValues} rtp={config?.rtpPercent ?? 84.92} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? NO_LIMIT} />
               ) : (
                 <History spins={history} />
               )}
@@ -1068,7 +1069,7 @@ function Paytable({
       </View>
       <Text style={styles.ruleLine}>The fourth reel spins with every bet. The value it stops on multiplies the total of all winning lines.</Text>
       <Text style={styles.ruleHead}>Game info</Text>
-      <Text style={styles.ruleLine}>Return to player {rtp}%. Bet ₹{minStake} – ₹{maxStake}. Max win per spin ₹{maxPayout}.</Text>
+      <Text style={styles.ruleLine}>Return to player {rtp}%. Bet ₹{minStake} – ₹{maxStake}. Max win per spin {winLimit(maxPayout)}.</Text>
       <Text style={styles.ruleLine}>Tap SPIN while the reels run to stop them at once. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>
   );

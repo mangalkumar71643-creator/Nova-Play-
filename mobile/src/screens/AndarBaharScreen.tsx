@@ -25,6 +25,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { useAuth } from '../state/AuthContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
+import { winLimit } from '../utils/limits';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500, 1000];
 const CHIP_COLORS: Record<number, string> = {
@@ -401,7 +402,7 @@ export default function AndarBaharScreen() {
 
   const multipliers = config?.multipliers ?? FALLBACK_MULTIPLIERS;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -973,7 +974,7 @@ export default function AndarBaharScreen() {
                 <Text style={styles.balanceLabel}>Balance</Text>
                 <Text style={styles.balanceValue}>₹{displayBalance.toFixed(2)}</Text>
                 <Text style={styles.balanceLabel}>My bet ₹{myTotal.toFixed(2)}</Text>
-                <Text style={styles.balanceLabel}>Max win ₹{config?.maxPayout ?? 10000}</Text>
+                <Text style={styles.balanceLabel}>Max win {winLimit(config?.maxPayout)}</Text>
               </View>
             )}
             <View style={styles.sideCtrl}>

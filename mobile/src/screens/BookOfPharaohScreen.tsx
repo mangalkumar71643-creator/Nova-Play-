@@ -9,6 +9,7 @@ import { ApiClientError } from '../api/client';
 import { BookOfPharaohConfig, PharaohFreeSpin, PharaohLineWin, PharaohSpinRow, PharaohSymbol, fetchBookOfPharaohConfig, fetchBookOfPharaohHistory, spinBookOfPharaoh } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
+import { winLimit } from '../utils/limits';
 
 const GOLD = '#F5C542';
 const GOLD_LIGHT = '#FFF1B0';
@@ -674,7 +675,7 @@ export default function BookOfPharaohScreen() {
 
   const lineCount = config?.lineCount ?? 10;
   const minStake = config?.minStake ?? 1;
-  const maxStake = config?.maxStake ?? 500;
+  const maxStake = config?.maxStake ?? 100000;
   const lines = config?.lines ?? [];
   const betLevels = useMemo(() => BET_LEVELS.filter((b) => b >= minStake && b <= maxStake), [minStake, maxStake]);
 
@@ -1097,7 +1098,7 @@ export default function BookOfPharaohScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config ? `${config.rtpPercent}%` : '—'} · bet {money(minStake)}–{money(maxStake)} · max win {money(config?.maxPayout ?? 10000)} per spin{'\n'}
+          RTP {config ? `${config.rtpPercent}%` : '—'} · bet {money(minStake)}–{money(maxStake)} · max win {winLimit(config?.maxPayout)} per spin{'\n'}
           No autoplay or turbo · each paid spin takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>
