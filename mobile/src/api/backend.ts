@@ -90,6 +90,9 @@ export interface BackendWallet {
 /** Charged on a withdrawal past the day's free ones: ₹flat + percent%, kept out of the payout. */
 export type WithdrawalFee = { flat: number; percent: number };
 
+/** "₹6", or "₹6 + 3%" while there is a percentage part. */
+export const withdrawalFeeLabel = (fee: WithdrawalFee) => (fee.percent ? `₹${fee.flat} + ${fee.percent}%` : `₹${fee.flat}`);
+
 export function withdrawalFeeFor(amount: number, fee: WithdrawalFee) {
   return Math.round((fee.flat + (amount * fee.percent) / 100) * 100) / 100;
 }

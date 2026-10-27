@@ -37,7 +37,12 @@ export const VIP_LEVELS: {
 ];
 
 /** Fee on a withdrawal past the day's free ones: ₹flat + percent% of the amount, kept out of the payout. */
-export const WITHDRAWAL_FEE = { flat: 6, percent: 3 };
+// Our own fee: a flat ₹6 (owner, 2026-10-27). The payout company's own ~3%
+// is separate: it takes that out of what it sends.
+export const WITHDRAWAL_FEE = { flat: 6, percent: 0 };
+
+/** "₹6", or "₹6 + 3%" while there is a percentage part. */
+export const feeLabel = (f: { flat: number; percent: number }) => (f.percent ? `₹${f.flat} + ${f.percent}%` : `₹${f.flat}`);
 
 export function withdrawalFee(amount: number) {
   return Math.round((WITHDRAWAL_FEE.flat + (amount * WITHDRAWAL_FEE.percent) / 100) * 100) / 100;

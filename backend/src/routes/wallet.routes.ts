@@ -11,7 +11,7 @@ import { depositNumberOf, depositUtrOf, withdrawableOf } from "../services/depos
 import { playerDepositBonus } from "../services/depositBonusService";
 import { alertAdmins } from "../services/adminAlertService";
 import { tryAutoPayout } from "../services/autoPayoutService";
-import { istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
+import { feeLabel, istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
 
 const router = Router();
 
@@ -238,7 +238,7 @@ router.post(
       // The day's first few withdrawals are free; after that the fee comes out of the payout.
       const fee = view.freeWithdrawalsLeft > 0 ? 0 : withdrawalFee(amount);
       if (fee >= amount) {
-        throw new ApiError(400, `The withdrawal fee would be ₹${fee.toFixed(2)} (₹${WITHDRAWAL_FEE.flat} + ${WITHDRAWAL_FEE.percent}%), so withdraw more than that.`);
+        throw new ApiError(400, `The withdrawal fee would be ₹${fee.toFixed(2)} (${feeLabel(WITHDRAWAL_FEE)}), so withdraw more than that.`);
       }
 
       // The amount is deducted right away so the funds are earmarked and

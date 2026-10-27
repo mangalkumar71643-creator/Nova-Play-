@@ -2,14 +2,14 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { VipStatus } from '../api/backend';
+import { VipStatus, withdrawalFeeLabel } from '../api/backend';
 import { IconName } from '../data/models';
 import { colors, gradients, spacing, typography } from '../theme';
 
 const LEVEL_COL = 62;
 const ROW_H = 46;
 const HEAD_H = 54;
-const DEFAULT_FEE = { flat: 6, percent: 3 };
+const DEFAULT_FEE = { flat: 6, percent: 0 };
 
 const inr = (n?: number) => (n ? `₹${n.toLocaleString('en-IN')}` : '-');
 
@@ -24,7 +24,7 @@ export default function VipLevelTable({ visible, onClose, vip }: { visible: bool
     { key: 'xp', title: 'XP\nNeeded', width: 96, value: (l) => l.xpRequired.toLocaleString('en-IN') },
     { key: 'upgrade', title: 'Upgrade\nBonus', width: 96, value: (l) => inr(l.upgradeBonus) },
     { key: 'monthly', title: 'Monthly\nBonus', width: 96, value: (l) => inr(l.weeklyBonus) },
-    { key: 'fee', title: 'Withdrawal\nFee', width: 104, value: () => `₹${fee.flat} + ${fee.percent}%` },
+    { key: 'fee', title: 'Withdrawal\nFee', width: 104, value: () => withdrawalFeeLabel(fee) },
     { key: 'limit', title: 'Daily Withdrawal\nLimit', width: 132, value: (l) => inr(l.dailyWithdrawalLimit) },
     { key: 'free', title: 'Free Daily\nWithdrawals', width: 104, value: (l) => (l.freeWithdrawals ? String(l.freeWithdrawals) : '-') },
   ];
@@ -44,7 +44,7 @@ export default function VipLevelTable({ visible, onClose, vip }: { visible: bool
     { icon: 'calendar-month', text: 'Monthly bonus: once every month for your current level. It opens again on the 1st.' },
     {
       icon: 'bank-transfer-out',
-      text: `Free daily withdrawals have no fee. After those, ₹${fee.flat} + ${fee.percent}% of the amount is kept from what is sent to your bank.`,
+      text: `Free daily withdrawals have no fee. After those, a ${withdrawalFeeLabel(fee)} fee is kept from what is sent to your bank.`,
     },
     { icon: 'clock-outline', text: 'Daily withdrawal limits and free withdrawals reset at midnight (India time).' },
   ];

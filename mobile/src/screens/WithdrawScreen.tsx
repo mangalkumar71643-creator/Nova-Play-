@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { showAlert } from '../components/AppAlert';
 import ScreenContainer from '../components/ScreenContainer';
-import { withdrawalFeeFor } from '../api/backend';
+import { withdrawalFeeFor, withdrawalFeeLabel } from '../api/backend';
 import { ApiClientError } from '../api/client';
 import { RootStackParamList } from '../navigation/types';
 import { KYC_REQUIRED, useAuth } from '../state/AuthContext';
@@ -282,7 +282,7 @@ export default function WithdrawScreen() {
                 <Text style={styles.limitLabel}>Fee on this withdrawal</Text>
                 {feeApplies ? (
                   <Text style={styles.limitValue}>
-                    ₹{fee.toLocaleString('en-IN')} (₹{withdrawalFee.flat} + {withdrawalFee.percent}%)
+                    ₹{fee.toLocaleString('en-IN')}
                   </Text>
                 ) : (
                   <Text style={[styles.limitValue, { color: colors.positive }]}>Free</Text>
@@ -309,13 +309,13 @@ export default function WithdrawScreen() {
             your bank account — usually within minutes.
           </Text>
           <Text style={styles.tipsText}>
-            When a withdrawal is sent through our payout partner, the partner takes its own bank transfer charge
-            out of the amount it sends. That charge is shown on the withdrawal in your history.
+            Our payout partner takes its own bank transfer charge (about 3%) out of the amount it sends, so a little
+            less than "You will receive" reaches your bank. That charge is shown on the withdrawal in your history.
           </Text>
           {withdrawalFee ? (
             <Text style={styles.tipsText}>
-              Your first {freeWithdrawalsPerDay} withdrawals each day are free. After that, ₹{withdrawalFee.flat} +{' '}
-              {withdrawalFee.percent}% is kept from the amount sent to your bank. Limits reset at midnight (India
+              Your first {freeWithdrawalsPerDay} withdrawals each day are free. After that, a {withdrawalFeeLabel(withdrawalFee)} fee
+              is kept from the amount sent to your bank. Limits reset at midnight (India
               time) — higher VIP levels get bigger limits and more free withdrawals.
             </Text>
           ) : null}
