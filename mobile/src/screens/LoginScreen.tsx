@@ -64,6 +64,10 @@ export default function LoginScreen() {
 
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  // A friend's invite code (agent program): asked here, as sign-up has no other step.
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const invite = inviteCode.trim() || undefined;
 
   async function sendOtpInline() {
     if (resendCooldown > 0 || sendingOtp) return;
@@ -73,7 +77,7 @@ export default function LoginScreen() {
       return;
     }
     setSendingOtp(true);
-    const error = await quickLogin(digits);
+    const error = await quickLogin(digits, invite);
     setSendingOtp(false);
     if (error) {
       showAlert('Could not send code', error);
@@ -102,7 +106,7 @@ export default function LoginScreen() {
     }
     if (otpSent && otpCode.length === 6) {
       setVerifying(true);
-      const error = await verifyOtp(otpCode);
+      const error = await verifyOtp(otpCode, invite);
       setVerifying(false);
       if (error) {
         showAlert('Incorrect code', error);
@@ -115,7 +119,7 @@ export default function LoginScreen() {
         return;
       }
       setVerifying(true);
-      const error = await quickLogin(digits);
+      const error = await quickLogin(digits, invite);
       setVerifying(false);
       if (error) {
         showAlert('Login failed', error);
@@ -228,6 +232,23 @@ export default function LoginScreen() {
               </Pressable>
             </View>
           </View>
+          <View style={styles.inviteWrap}>
+            {inviteOpen ? (
+              <TextInput
+                value={inviteCode}
+                onChangeText={(t) => setInviteCode(t.replace(/[^0-9]/g, '').slice(0, 12))}
+                keyboardType="number-pad"
+                placeholder="Friend's invite code (optional)"
+                placeholderTextColor="#8f7b7e"
+                style={styles.inviteInput}
+                autoFocus
+              />
+            ) : (
+              <Pressable onPress={() => setInviteOpen(true)} hitSlop={8}>
+                <Text style={styles.inviteLink}>Have an invite code? Tap to add it</Text>
+              </Pressable>
+            )}
+          </View>
         </ScrollView>
         <Text style={styles.ageGateNote}>18+ only. NovaPlay is a real-money game — please play responsibly.</Text>
       </KeyboardAvoidingView>
@@ -247,6 +268,19 @@ function box(left: number, top: number, width: number, height: number) {
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.background },
   scroll: { flexGrow: 1, justifyContent: 'center' },
+  inviteWrap: { paddingHorizontal: 28, paddingTop: 10, alignItems: 'center' },
+  inviteLink: { color: '#f0b93d', fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' },
+  inviteInput: {
+    alignSelf: 'stretch',
+    color: '#f3e7c9',
+    fontSize: 16,
+    textAlign: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(240,185,61,0.45)',
+    backgroundColor: '#1c0d10',
+    borderRadius: 12,
+    paddingVertical: 10,
+  },
   ageGateNote: {
     color: '#8f7b7e',
     fontSize: 11,

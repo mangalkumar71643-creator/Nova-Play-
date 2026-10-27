@@ -93,14 +93,24 @@ router.post(
   })
 );
 
-const otpVerifySchema = z.object({ phone: z.string().min(10).max(20), code: z.string().length(6) });
+const otpVerifySchema = z.object({
+  phone: z.string().min(10).max(20),
+  code: z.string().length(6),
+  // The inviter's uid (agent program); optional.
+  inviteCode: z
+    .string()
+    .trim()
+    .max(12)
+    .optional()
+    .transform((v) => v || undefined),
+});
 
 router.post(
   "/otp/verify",
   asyncHandler(async (req, res) => {
-    const { phone, code } = otpVerifySchema.parse(req.body);
+    const { phone, code, inviteCode } = otpVerifySchema.parse(req.body);
     try {
-      const result = await verifyOtpAndAuth(phone, code);
+      const result = await verifyOtpAndAuth(phone, code, inviteCode);
       res.json(result);
     } catch (err) {
       if (err instanceof ApiError && err.message === "profile_required") {

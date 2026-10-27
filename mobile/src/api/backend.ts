@@ -41,10 +41,11 @@ export function requestPhoneOtp(phone: string) {
   });
 }
 
-export function verifyPhoneOtp(phone: string, code: string) {
+/** Signs in; a new number gets its account here (no profile step). The invite code only matters for a new account. */
+export function verifyPhoneOtp(phone: string, code: string, inviteCode?: string) {
   return apiFetch<AuthResult>('/auth/otp/verify', {
     method: 'POST',
-    body: JSON.stringify({ phone, code }),
+    body: JSON.stringify({ phone, code, ...(inviteCode ? { inviteCode } : {}) }),
   });
 }
 

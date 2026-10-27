@@ -128,7 +128,8 @@ model User {
   phone        String?   @unique
   firstName    String
   lastName     String
-  dateOfBirth  DateTime
+  // Not asked at sign-up any more (phone + OTP only); null for those accounts.
+  dateOfBirth  DateTime?
   country      String
   role         Role      @default(USER)
   kycStatus    KycStatus @default(NOT_STARTED)

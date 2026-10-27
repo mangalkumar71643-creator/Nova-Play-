@@ -89,7 +89,7 @@ router.get(
   <button class="copy" onclick="var b=this;navigator.clipboard&&navigator.clipboard.writeText('${code}').then(function(){b.textContent='Copied ✓'})">Copy code</button>
   <ol>
     <li>Download NovaPlay and sign up with your phone number.</li>
-    <li>Enter invite code <b class="g">${code || "—"}</b> on the profile step.</li>
+    <li>On the login screen tap <b>Have an invite code?</b> and enter <b class="g">${code || "—"}</b>, then sign in with your number.</li>
     <li>Deposit <b class="g">₹${minDeposit}</b> and play <b class="g">₹${minDeposit * wagerMultiple}</b> in games — you get <b class="g">₹${inviteeReward}</b> as a welcome reward.</li>
   </ol>
 </div>

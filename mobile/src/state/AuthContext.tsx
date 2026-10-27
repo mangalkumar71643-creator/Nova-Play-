@@ -54,13 +54,14 @@ type AuthState = {
   // Each returns null on success, or a human-readable error message on failure.
   requestOtp: (phone: string) => Promise<string | null>;
   resendOtp: (phone: string) => Promise<string | null>;
-  verifyOtp: (code: string) => Promise<string | null>;
+  /** inviteCode: a friend's code, used only when this number is new. */
+  verifyOtp: (code: string, inviteCode?: string) => Promise<string | null>;
   // Testing shortcut: requests the code and, when the backend is in
   // SMS_PROVIDER_MODE=mock (so it already hands us the code), verifies it
   // immediately — no manual OTP entry. Falls back to the normal
   // request-then-enter-code flow when a real code was actually texted.
   // TODO: remove this shortcut once real OTP delivery is ready for launch.
-  quickLogin: (phone: string) => Promise<string | null>;
+  quickLogin: (phone: string, inviteCode?: string) => Promise<string | null>;
   verifyIdentityOtp: (code: string) => Promise<string | null>;
   hasLoginPassword: boolean;
   setLoginPassword: (password: string) => Promise<void>;
@@ -217,10 +218,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const verifyOtp = useCallback(
-    async (code: string): Promise<string | null> => {
+    async (code: string, inviteCode?: string): Promise<string | null> => {
       if (!pendingPhone) return 'No code was sent yet.';
       try {
-        const result = await verifyPhoneOtp(pendingPhone, code);
+        const result = await verifyPhoneOtp(pendingPhone, code, inviteCode);
         await completeBackendLogin(pendingPhone, result);
         return null;
       } catch (err) {
@@ -241,7 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const quickLogin = useCallback(
-    async (phoneNumber: string): Promise<string | null> => {
+    async (phoneNumber: string, inviteCode?: string): Promise<string | null> => {
       setOtpError(null);
       setDevOtpCode(null);
       try {
@@ -254,7 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return null;
         }
         try {
-          const result = await verifyPhoneOtp(phoneNumber, otpResult.devCode);
+          const result = await verifyPhoneOtp(phoneNumber, otpResult.devCode, inviteCode);
           await completeBackendLogin(phoneNumber, result);
           return null;
         } catch (err) {

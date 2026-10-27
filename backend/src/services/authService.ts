@@ -163,17 +163,37 @@ export async function sendPhoneOtp(phone: string, ip: string | null = null) {
   return requestOtpCode(toE164(phone), ip);
 }
 
-/** Step 2: verifies the OTP. If the phone belongs to an existing user,
- * logs them in directly. If it's brand new, leaves the phone in a
- * "verified" state and asks the caller to complete registration —
- * see `completePhoneRegistration`. */
-export async function verifyOtpAndAuth(phoneInput: string, code: string) {
+/** Step 2: verifies the OTP and signs the player in. A brand-new number
+ * gets its account right here — sign-up asks nothing but the phone and
+ * the code (no name or date of birth); the name is "Player" and the last
+ * four digits of the number until the player changes it. An invite code,
+ * if given, links the new account to its inviter; it is checked before
+ * the code is used up, so a mistyped invite code can be fixed and sent
+ * again. (Older apps still finish sign-up through `completePhoneRegistration`.) */
+export async function verifyOtpAndAuth(phoneInput: string, code: string, inviteCode?: string) {
   const phone = toE164(phoneInput);
+  const existing = await prisma.user.findUnique({ where: { phone } });
+  const inviterId = !existing && inviteCode ? await findInviter(inviteCode) : null;
   await verifyOtpCode(phone, code);
 
-  const existing = await prisma.user.findUnique({ where: { phone } });
   if (!existing) {
-    throw new ApiError(428, "profile_required");
+    const user = await createUserWithUniqueUid((uid) =>
+      prisma.user.create({
+        data: {
+          uid,
+          phone,
+          firstName: "Player",
+          lastName: phone.slice(-4),
+          country: "IN",
+          wallet: { create: { balance: 0 } },
+        },
+      })
+    );
+    if (inviterId) await linkInvitee(inviterId, user.id);
+    await consumeOtp(phone);
+    await markSignedIn(user.id);
+    const token = signToken({ userId: user.id, role: user.role });
+    return { user: sanitizeUser(user), token, isNewUser: true };
   }
   assertNotBanned(existing);
 
