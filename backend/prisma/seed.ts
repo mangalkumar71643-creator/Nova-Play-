@@ -64,6 +64,7 @@ async function main() {
 
   await backfillUids();
   await seedDepositBonusPopup();
+  await seedAppDownloadUrlOnce();
   await ensureUnplayedDepositTrigger();
   await ensureManualReferenceIndex();
   await ensureStockpayOrderIndex();
@@ -187,6 +188,23 @@ async function seedDepositBonusPopup() {
     update: {},
     create: { id: "seed-deposit-bonus", title: "Deposit bonus 7% + 5%", image, mimeType: "image/webp", width: 832, height: 1248, sortOrder: 0 },
   });
+}
+
+/**
+ * The website's "Download app" link, pointing at the APK served from this
+ * deployment (public/download/NovaPlay.apk). Set once, only if the admin
+ * hasn't set one; after that the admin panel's Home Slider card owns it
+ * (a cleared link stays cleared).
+ */
+const APP_DOWNLOAD_SEEDED_KEY = "appDownloadUrlSeeded";
+async function seedAppDownloadUrlOnce() {
+  if (await prisma.setting.findUnique({ where: { key: APP_DOWNLOAD_SEEDED_KEY } })) return;
+  await prisma.setting.upsert({
+    where: { key: "appDownloadUrl" },
+    update: {},
+    create: { key: "appDownloadUrl", value: "https://novaplay-server.vercel.app/download/NovaPlay.apk" },
+  });
+  await prisma.setting.create({ data: { key: APP_DOWNLOAD_SEEDED_KEY, value: new Date().toISOString() } });
 }
 
 main()
