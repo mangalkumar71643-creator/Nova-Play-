@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { appDatabaseUrl } from "./databaseUrl";
 
 // On Vercel, a warm serverless instance can be reused across invocations
 // but the module is re-evaluated on cold starts and hot reloads — caching
@@ -8,7 +9,8 @@ import { PrismaClient } from "@prisma/client";
 // DATABASE_URL in serverless environments.
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+const datasourceUrl = appDatabaseUrl();
+export const prisma = globalForPrisma.prisma ?? new PrismaClient(datasourceUrl ? { datasourceUrl } : undefined);
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

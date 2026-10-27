@@ -97,6 +97,15 @@ app.use(express.static(resolve(__dirname, "../public")));
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
+// MAINTENANCE=1 (Vercel env): every API call is turned away while the server
+// is being moved or upgraded, so nothing is written meanwhile. The admin
+// panel's page itself still loads (static files are served above).
+app.use((_req, res, next) => {
+  if (process.env.MAINTENANCE !== "1") return next();
+  res.setHeader("Retry-After", "600");
+  res.status(503).json({ error: "NovaPlay is being upgraded to run faster — please try again in 10 minutes. Your balance is safe." });
+});
+
 // Money is kept to the paisa: a stake like 10.005 would be stored rounded
 // but paid out / refunded on a different rounding, so reject it up front.
 const MONEY_KEYS = new Set(["stake", "amount", "ante", "pairPlus", "maxPayout", "depositLimitDaily", "depositLimitWeekly", "depositLimitMonthly"]);
