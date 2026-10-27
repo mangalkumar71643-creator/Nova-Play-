@@ -7,6 +7,7 @@ import {
   fetchBackendWallet,
   setPayoutBankAccount as setPayoutBankAccountRequest,
   withdrawFromWallet,
+  type AutoPayoutStatus,
   WithdrawalFee,
 } from '../api/backend';
 
@@ -121,14 +122,12 @@ export async function fetchWallet(): Promise<WalletSummary> {
   return toSummary(wallet, transactions.map(mapTransaction));
 }
 
-/** Withdrawals now go to PENDING until an admin approves them (see
- * backend/public/admin.html) — this returns the new balance (already
- * reduced, so the amount can't be double-spent while pending), the fee kept
- * back and what goes to the bank. */
-export async function withdraw(amount: number): Promise<{ balance: number; fee: number; payout: number }> {
+/** The new balance (already reduced), the fee kept back, what goes to the
+ * bank, and whether it was paid out automatically or waits for the admin. */
+export async function withdraw(amount: number): Promise<{ balance: number; fee: number; payout: number; autoPayout: AutoPayoutStatus }> {
   const wallet = await withdrawFromWallet(amount);
   const fee = wallet.fee ?? 0;
-  return { balance: Number(wallet.balance), fee, payout: wallet.payout ?? amount - fee };
+  return { balance: Number(wallet.balance), fee, payout: wallet.payout ?? amount - fee, autoPayout: wallet.autoPayout ?? 'MANUAL' };
 }
 
 export async function setPayoutBankAccount(accountHolderName: string, accountNumber: string, ifsc: string): Promise<void> {

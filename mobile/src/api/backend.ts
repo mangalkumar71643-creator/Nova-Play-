@@ -124,8 +124,11 @@ export function fetchBackendTransactions() {
 }
 
 
+/** What happened right after the request: paid, sent to the bank, refunded, or waiting for the admin (older servers leave it out). */
+export type AutoPayoutStatus = 'COMPLETED' | 'SENT' | 'REFUNDED' | 'MANUAL';
+
 export function withdrawFromWallet(amount: number) {
-  return apiFetch<BackendWallet & { fee?: number; payout?: number }>('/wallet/withdraw', { method: 'POST', body: JSON.stringify({ amount }) });
+  return apiFetch<BackendWallet & { fee?: number; payout?: number; autoPayout?: AutoPayoutStatus }>('/wallet/withdraw', { method: 'POST', body: JSON.stringify({ amount }) });
 }
 
 export function setPayoutBankAccount(accountHolderName: string, accountNumber: string, ifsc: string) {

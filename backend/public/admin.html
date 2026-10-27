@@ -427,6 +427,19 @@
           <div class="item-meta" id="rupayexBalance" style="margin:4px 0 10px;"></div>
           <div id="withdrawalsList"></div>
         </div>
+        <div class="card" style="max-width:520px;">
+          <div class="card-head"><h2>Automatic withdrawals</h2></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">When on, a withdrawal up to the limit goes to the player's bank through RupayEx by itself, the moment they ask. It still waits for you if it is over the limit, or the account needs a look (play-money deposits, balance changed by hand, a bank account shared with another player, an earlier withdrawal still waiting).</div>
+          <div class="form-row">
+            <select id="autoPayoutEnabled" style="flex:0 0 auto;">
+              <option value="1">On</option>
+              <option value="0">Off</option>
+            </select>
+            <input id="autoPayoutMax" type="number" min="100" step="100" placeholder="Limit per withdrawal (₹)" />
+            <button class="btn" id="autoPayoutSave" style="flex:0 0 auto;">Save</button>
+          </div>
+          <div class="item-meta" id="autoPayoutStatus"></div>
+        </div>
 
 
       </div>
@@ -1545,7 +1558,32 @@
     );
   }
 
+  function autoPayoutText(st) {
+    return st.enabled ? 'Now: ON — withdrawals up to ' + fmtMoney(st.max) + ' are paid automatically.' : 'Now: OFF — every withdrawal waits for you.';
+  }
+  function loadAutoPayout() {
+    api('/admin/auto-payout').then(function (st) {
+      document.getElementById('autoPayoutEnabled').value = st.enabled ? '1' : '0';
+      var input = document.getElementById('autoPayoutMax');
+      input.value = st.max;
+      input.max = st.limit;
+      document.getElementById('autoPayoutStatus').textContent = autoPayoutText(st);
+    }).catch(function () {});
+  }
+  document.getElementById('autoPayoutSave').addEventListener('click', function () {
+    var btn = this;
+    var status = document.getElementById('autoPayoutStatus');
+    var input = document.getElementById('autoPayoutMax');
+    var max = Math.round(Number(input.value));
+    if (!max || max < 100 || max > Number(input.max)) { status.textContent = 'Use a limit from ₹100 to ' + fmtMoney(input.max) + '.'; return; }
+    btn.disabled = true;
+    api('/admin/auto-payout', { method: 'PUT', body: JSON.stringify({ enabled: document.getElementById('autoPayoutEnabled').value === '1', max: max }) })
+      .then(function (st) { status.textContent = 'Saved. ' + autoPayoutText(st); })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
+      .finally(function () { btn.disabled = false; });
+  });
   function loadWithdrawals() {
+    loadAutoPayout();
     var status = document.getElementById('withdrawalStatus').value;
     var qs = status ? '?status=' + status : '';
     api('/admin/rupayex/balance').then(function (b) {

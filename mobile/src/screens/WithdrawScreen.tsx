@@ -110,14 +110,23 @@ export default function WithdrawScreen() {
     try {
       const result = await walletService.withdraw(amount);
       refreshWallet().catch(() => {});
-      showAlert(
-        'Withdrawal successful',
-        result.fee > 0
-          ? `₹${result.payout.toLocaleString('en-IN')} is on its way to your bank account ending ${payoutAccountNumber?.slice(-4)} (fee ₹${result.fee.toLocaleString('en-IN')}).`
-          : `The full amount is on its way to your bank account ending ${payoutAccountNumber?.slice(-4)} — no fee.`,
-        [{ text: 'Done', onPress: () => navigation.goBack() }],
-        { kind: 'success', highlight: `₹${amount.toLocaleString('en-IN')}` }
-      );
+      const account = `bank account ending ${payoutAccountNumber?.slice(-4)}`;
+      const feeNote = result.fee > 0 ? ` (fee ₹${result.fee.toLocaleString('en-IN')})` : ' — no fee';
+      const payout = `₹${result.payout.toLocaleString('en-IN')}`;
+      if (result.autoPayout === 'REFUNDED') {
+        showAlert('Withdrawal failed', `The bank transfer was refused, so ₹${amount.toLocaleString('en-IN')} is back in your wallet. Check your bank details and try again.`);
+      } else {
+        const message =
+          result.autoPayout === 'COMPLETED'
+            ? `${payout} has been sent to your ${account}${feeNote}.`
+            : result.autoPayout === 'SENT'
+              ? `${payout} is being sent to your ${account}${feeNote}. It usually arrives in a few minutes.`
+              : `${payout} will be sent to your ${account}${feeNote} after a quick check.`;
+        showAlert(result.autoPayout === 'MANUAL' ? 'Withdrawal requested' : 'Withdrawal successful', message, [{ text: 'Done', onPress: () => navigation.goBack() }], {
+          kind: 'success',
+          highlight: `₹${amount.toLocaleString('en-IN')}`,
+        });
+      }
     } catch (err) {
       // Nothing was taken: put the real balance back.
       refreshWallet().catch(() => {});

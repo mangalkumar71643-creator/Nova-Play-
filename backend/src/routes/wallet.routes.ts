@@ -10,6 +10,7 @@ import { env } from "../config/env";
 import { depositNumberOf, depositUtrOf, withdrawableOf } from "../services/depositService";
 import { playerDepositBonus } from "../services/depositBonusService";
 import { alertAdmins } from "../services/adminAlertService";
+import { tryAutoPayout } from "../services/autoPayoutService";
 import { istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
 
 const router = Router();
@@ -213,7 +214,7 @@ router.post(
     // so parallel requests are handled one at a time: each one sees the
     // balance and daily total left by the one before, and none can withdraw
     // money (or limit) another has already taken.
-    const fee = await prisma.$transaction(async (tx) => {
+    const { fee, withdrawalId } = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
       const view = await buildWalletView(userId, tx);
       if (amount > view.withdrawable) {
@@ -240,30 +241,37 @@ router.post(
         throw new ApiError(400, `The withdrawal fee would be ₹${fee.toFixed(2)} (₹${WITHDRAWAL_FEE.flat} + ${WITHDRAWAL_FEE.percent}%), so withdraw more than that.`);
       }
 
-      // Withdrawals now require manual admin approval (see admin.routes.ts
-      // PATCH /admin/withdrawals/:id/approve|reject) rather than completing
-      // instantly — the amount is deducted right away so the funds are
-      // earmarked and can't be double-spent while the request is pending.
+      // The amount is deducted right away so the funds are earmarked and
+      // can't be double-spent while the withdrawal is paid out (by itself,
+      // below, or by the admin).
       // Conditional debit as a last guard: the balance can never go negative.
       const debited = await tx.wallet.updateMany({
         where: { userId, balance: { gte: amount } },
         data: { balance: { decrement: amount } },
       });
       if (debited.count === 0) throw new ApiError(400, "Insufficient balance");
-      await tx.transaction.create({
+      const row = await tx.transaction.create({
         data: { userId, type: "WITHDRAWAL", amount, status: "PENDING", fee: fee > 0 ? fee : null },
       });
-      return fee;
+      return { fee, withdrawalId: row.id };
     });
 
+    // Straight to the bank when nothing needs a look (autoPayoutService.ts);
+    // otherwise it waits for the admin as before.
+    const auto = await tryAutoPayout(withdrawalId);
+    console.log(`[auto-payout] ${withdrawalId}: ${auto.status}${auto.status === "MANUAL" ? ` (${auto.reason})` : ""}`);
     const who = await prisma.user.findUnique({ where: { id: userId }, select: { uid: true, firstName: true, phone: true } });
+    const player = `UID ${who?.uid ?? "—"} ${who?.firstName ?? ""} · ${who?.phone ?? ""}`;
     await alertAdmins({
-      title: `💸 Withdrawal request: ₹${amount}`,
-      body: `UID ${who?.uid ?? "—"} ${who?.firstName ?? ""} · ${who?.phone ?? ""} — waiting for you. Tap to open.`,
+      title: auto.status === "MANUAL" ? `💸 Withdrawal request: ₹${amount}` : `✅ Auto withdrawal: ₹${amount}`,
+      body:
+        auto.status === "MANUAL"
+          ? `${player} — waiting for you (${auto.reason}). Tap to open.`
+          : `${player} — ${auto.status === "COMPLETED" ? "paid by RupayEx" : auto.status === "SENT" ? "sent to RupayEx" : "RupayEx refused it, refunded to the wallet"}.`,
       tag: "withdrawal",
       page: "transactions",
     });
-    res.json({ ...(await buildWalletView(userId)), fee, payout: Math.round((amount - fee) * 100) / 100 });
+    res.json({ ...(await buildWalletView(userId)), fee, payout: Math.round((amount - fee) * 100) / 100, autoPayout: auto.status });
   })
 );
 

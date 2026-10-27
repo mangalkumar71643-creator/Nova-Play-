@@ -18,6 +18,7 @@ import {
   setDepositAmounts,
   setDepositBonusConfig,
 } from "../services/depositBonusService";
+import { getAutoPayoutSettings, MAX_AUTO_PAYOUT_MAX, setAutoPayoutSettings } from "../services/autoPayoutService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
 import { getPlayerReport } from "../services/playerReportService";
@@ -869,6 +870,23 @@ router.patch(
   asyncHandler(async (req, res) => {
     const { maxPayout } = settingsSchema.parse(req.body);
     res.json(await setMaxPayout(maxPayout));
+  })
+);
+
+// --- Automatic withdrawals (autoPayoutService.ts) ---
+
+router.get(
+  "/auto-payout",
+  asyncHandler(async (_req, res) => {
+    res.json({ ...(await getAutoPayoutSettings()), limit: MAX_AUTO_PAYOUT_MAX });
+  })
+);
+
+const autoPayoutSchema = z.object({ enabled: z.boolean(), max: z.number().int().min(100).max(MAX_AUTO_PAYOUT_MAX) });
+router.put(
+  "/auto-payout",
+  asyncHandler(async (req, res) => {
+    res.json({ ...(await setAutoPayoutSettings(autoPayoutSchema.parse(req.body))), limit: MAX_AUTO_PAYOUT_MAX });
   })
 );
 
