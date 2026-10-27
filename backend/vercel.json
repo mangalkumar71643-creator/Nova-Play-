@@ -2,7 +2,7 @@
   "buildCommand": "npx tsx prisma/build.ts",
   "outputDirectory": "public",
   "regions": [
-    "iad1"
+    "sin1"
   ],
   "rewrites": [
     {
