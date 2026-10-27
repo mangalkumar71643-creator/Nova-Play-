@@ -302,6 +302,22 @@ export async function handleReturn(orderId: string | undefined) {
  * credited now — whatever its age, since the admin is looking at this very
  * payment — but never a deposit the admin reversed.
  */
+/**
+ * Read-only: what RupayEx says about one deposit order, without crediting
+ * anything (the support bot only reports; the admin credits with "Check
+ * with RupayEx", adminRecheckDeposit below). `matches` is true only when
+ * RupayEx's answer is about this very order, for exactly its amount.
+ */
+export async function peekDeposit(tx: { providerReferenceId: string | null; amount: unknown; createdAt: Date }) {
+  if (!token() || !tx.providerReferenceId) return { answered: false, state: null as string | null, matches: false, paidAmount: null as number | null, utr: null as string | null };
+  const { ok, httpStatus, json } = await call("GET", "/order-status", { order_id: tx.providerReferenceId });
+  const o = fieldsOf(json);
+  const notFound = notFoundLongEnough(httpStatus, tx.createdAt);
+  const state = notFound ? "NOT FOUND" : upper(o.payment_status ?? (typeof o.status === "string" && o.status !== "true" && o.status !== "1" ? o.status : "")) || null;
+  const matches = ok && String(o.order_id ?? "") === tx.providerReferenceId && paise(o.amount) === Math.round(Number(tx.amount) * 100);
+  return { answered: ok || notFound, state, matches, paidAmount: o.amount != null ? Number(o.amount) : null, utr: utrOf(o) };
+}
+
 export async function adminRecheckDeposit(depositId: string) {
   if (!token()) throw new ApiError(503, "RupayEx is not set up yet (no API token).");
   const tx = await prisma.transaction.findUniqueOrThrow({ where: { id: depositId } });

@@ -3896,7 +3896,7 @@ export function fetchSupportOrders() {
   return apiFetch<SupportOrder[]>('/support/orders');
 }
 
-export type DepositVerifyResult = { status: 'COMPLETED' | 'PENDING' | 'FAILED' | 'REVERSED'; amount: number; message: string };
+export type DepositVerifyResult = { status: 'COMPLETED' | 'VERIFIED' | 'REVIEW' | 'PENDING' | 'FAILED' | 'REVERSED'; amount: number; message: string };
 export function verifyDepositOrder(orderRef: string) {
   return apiFetch<DepositVerifyResult>('/support/deposit-verify', { method: 'POST', body: JSON.stringify({ orderRef }) });
 }

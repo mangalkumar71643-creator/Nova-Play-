@@ -1,4 +1,5 @@
 import { prisma } from "../db/prismaClient";
+import { alertAdmins } from "./adminAlertService";
 import { ApiError } from "../middleware/errorHandler";
 import { depositNumberOf } from "./depositService";
 import * as rupayex from "./rupayexService";
@@ -48,35 +49,50 @@ export async function findOrderKind(userId: string, ref: string): Promise<"depos
 }
 
 /**
- * Self Deposit Verify: asks RupayEx again about one of the player's own
- * deposits, by its number, and credits it if it was paid (the same
- * settlement as the Deposit screen's check, so it can't credit twice).
+ * Self Deposit Verify and the chat bot: asks RupayEx about one of the
+ * player's own deposits, by its number — read-only (owner's choice,
+ * 2026-10-28): nothing is credited here. A payment RupayEx confirms is
+ * flagged to the admin, who credits it with "Check with RupayEx" on the
+ * Deposits page. (Paid deposits are still credited by the normal deposit
+ * check and the sweep, as before.)
  */
 export async function verifyDeposit(userId: string, ref: string) {
   const tx = await findDeposit(userId, ref);
   if (!tx) throw new ApiError(404, "No deposit with this number on your account. Copy it from Deposit history.");
   const amount = Number(tx.amount);
+  const inr = `₹${amount.toLocaleString("en-IN")}`;
   if (tx.reversedAt) return { status: "REVERSED", amount, message: "This deposit was cancelled. Contact customer service if you were charged." };
-  if (tx.status === "COMPLETED") return { status: "COMPLETED", amount, message: `This deposit was already added to your wallet (₹${amount.toLocaleString("en-IN")}).` };
+  if (tx.status === "COMPLETED") return { status: "COMPLETED", amount, message: `This deposit was already added to your wallet (${inr}).` };
   if (tx.provider === rupayex.PROVIDER && tx.providerReferenceId) {
     // Each player can ask the payment company at most this often.
     const last = lastVerify.get(userId) ?? 0;
     if (Date.now() - last < VERIFY_EVERY_MS) throw new ApiError(429, "Please wait a few seconds before checking again.");
     lastVerify.set(userId, Date.now());
-    let results: { status: string }[] = [];
-    try {
-      ({ results } = await rupayex.confirmUpiDeposits(userId, tx.providerReferenceId));
-    } catch (err) {
-      // e.g. RupayEx reports a different amount: never credited by a bot.
-      if (err instanceof ApiError && err.status === 400)
-        return { status: "REVIEW", amount, message: "This payment needs a check by our team (the paid amount does not match this deposit). They will contact you here." };
+    const live = await rupayex.peekDeposit(tx).catch(() => null);
+    if (live?.state === "SUCCESS" && live.matches) {
+      await alertVerified(userId, tx.providerReferenceId, amount, live.utr);
+      return { status: "VERIFIED", amount, message: `Payment confirmed ✅ — the payment company shows ${inr} paid for this order. Our team has been told and will add it to your wallet shortly.` };
     }
-    const now = await prisma.transaction.findUniqueOrThrow({ where: { id: tx.id }, select: { status: true } });
-    if (now.status === "COMPLETED") return { status: "COMPLETED", amount, message: `Payment found — ₹${amount.toLocaleString("en-IN")} has been added to your wallet.` };
-    if (now.status === "FAILED" || results[0]?.status === "FAILED")
+    if (live?.state === "SUCCESS")
+      return { status: "REVIEW", amount, message: "This payment needs a check by our team (the paid amount does not match this deposit). They will contact you here." };
+    if (live?.state === "NOT FOUND" || (live?.state && ["FAILED", "FAILURE", "EXPIRED", "CANCELLED", "CANCELED", "REJECTED", "DECLINED"].includes(live.state)))
       return { status: "FAILED", amount, message: "The payment company has no successful payment for this order. If money left your bank, use Deposit Not Receive with your UTR and a screenshot." };
   }
   return { status: "PENDING", amount, message: "The payment is not confirmed yet. Wait a few minutes and check again, or use Deposit Not Receive with your UTR and a screenshot." };
+}
+
+/** Tells the admin's phones that the bot found a deposit paid at RupayEx, once per order. */
+const alertedVerified = new Set<string>();
+async function alertVerified(userId: string, orderId: string, amount: number, utr: string | null) {
+  if (alertedVerified.has(orderId)) return;
+  alertedVerified.add(orderId);
+  const who = await prisma.user.findUnique({ where: { id: userId }, select: { uid: true, phone: true } });
+  await alertAdmins({
+    title: `✅ Paid deposit to add: ₹${amount.toLocaleString("en-IN")}`,
+    body: `UID ${who?.uid ?? "—"} · ${who?.phone ?? ""} — RupayEx shows order ${orderId} paid${utr ? ` (UTR ${utr})` : ""}. Deposits page → Check with RupayEx to add it.`,
+    tag: `deposit-verified-${orderId}`,
+    page: "deposits",
+  });
 }
 
 /**

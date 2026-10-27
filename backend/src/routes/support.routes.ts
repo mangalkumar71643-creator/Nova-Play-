@@ -100,9 +100,9 @@ router.post(
 
 /**
  * The chat bot: the player types one of their order numbers and gets the
- * answer at once — a paid deposit is credited (verifyDeposit, only ever on
- * RupayEx's own word for this player's order, at the amount we recorded),
- * a withdrawal's status is reported (never refunded or paid again here).
+ * answer at once. It only checks and reports — nothing is credited or
+ * refunded here: a deposit RupayEx confirms as paid is flagged to the admin
+ * (verifyDeposit), a withdrawal's status is reported.
  * Both lines go into the conversation so the team sees what the bot said;
  * the team is alerted only when a person still has to look.
  */
@@ -133,7 +133,8 @@ router.post(
     if (needsPerson && ticket.status === "RESOLVED") await prisma.supportTicket.update({ where: { id: ticket.id }, data: { status: "OPEN", resolvedAt: null } });
     await prisma.chatMessage.create({ data: { ticketId: ticket.id, sender: "USER", text: text || `Check order ${orderRef.trim().toUpperCase()}` } });
     await prisma.chatMessage.create({ data: { ticketId: ticket.id, sender: "ADMIN", text: `🤖 Auto check: ${message}` } });
-    if (needsPerson) await alertSupport(userId, ticket.id, `Order ${orderRef} — bot: ${status}`);
+    // A confirmed payment was already alerted on its own (verifyDeposit).
+    if (needsPerson && status !== "VERIFIED") await alertSupport(userId, ticket.id, `Order ${orderRef} — bot: ${status}`);
     res.json({ kind, status, message });
   })
 );

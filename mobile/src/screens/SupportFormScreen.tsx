@@ -31,7 +31,7 @@ const TITLES: Record<SupportFormKind, string> = {
   bankName: 'Modify Bank Name',
 };
 const INTROS: Record<SupportFormKind, string> = {
-  verify: 'Pick your deposit (or type its number) and we ask the payment company again. If it was paid, the money is added to your wallet at once.',
+  verify: 'Pick your deposit (or type its number) and we ask the payment company again. If it was paid, our team is told at once and adds it to your wallet.',
   deposit: 'Paid but the money did not arrive? Pick the deposit, enter the UTR from your UPI app and attach a screenshot of the payment.',
   withdraw: 'Pick the withdrawal, tell us what went wrong and attach a screenshot if you have one.',
   ifsc: 'Change the IFSC code of the bank account your withdrawals are sent to.',
@@ -231,12 +231,12 @@ export default function SupportFormScreen() {
         ) : null}
 
         {result ? (
-          <View style={[styles.card, { borderColor: result.status === 'COMPLETED' ? colors.positive : colors.border }]}>
-            <Text style={[styles.resultTitle, { color: result.status === 'COMPLETED' ? colors.positive : colors.gold }]}>
-              {result.status === 'COMPLETED' ? 'Deposit credited' : result.status === 'PENDING' ? 'Not confirmed yet' : 'No payment found'}
+          <View style={[styles.card, { borderColor: result.status === 'COMPLETED' || result.status === 'VERIFIED' ? colors.positive : colors.border }]}>
+            <Text style={[styles.resultTitle, { color: result.status === 'COMPLETED' || result.status === 'VERIFIED' ? colors.positive : colors.gold }]}>
+              {result.status === 'COMPLETED' ? 'Already credited' : result.status === 'VERIFIED' ? 'Payment confirmed' : result.status === 'PENDING' ? 'Not confirmed yet' : result.status === 'REVIEW' ? 'Needs a check' : 'No payment found'}
             </Text>
             <Text style={styles.body}>{result.message}</Text>
-            {result.status !== 'COMPLETED' ? (
+            {result.status !== 'COMPLETED' && result.status !== 'VERIFIED' ? (
               <Pressable style={styles.linkBtn} onPress={() => navigation.replace('SupportForm', { kind: 'deposit' })}>
                 <Text style={styles.linkText}>Report: Deposit Not Receive</Text>
               </Pressable>
