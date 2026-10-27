@@ -40,6 +40,13 @@ async function findWithdrawal(userId: string, ref: string) {
 const VERIFY_EVERY_MS = 10_000;
 const lastVerify = new Map<string, number>();
 
+/** Whether an order number is one of the player's deposits or withdrawals (null: neither). */
+export async function findOrderKind(userId: string, ref: string): Promise<"deposit" | "withdraw" | null> {
+  if (await findDeposit(userId, ref)) return "deposit";
+  if (await findWithdrawal(userId, ref)) return "withdraw";
+  return null;
+}
+
 /**
  * Self Deposit Verify: asks RupayEx again about one of the player's own
  * deposits, by its number, and credits it if it was paid (the same
@@ -56,13 +63,51 @@ export async function verifyDeposit(userId: string, ref: string) {
     const last = lastVerify.get(userId) ?? 0;
     if (Date.now() - last < VERIFY_EVERY_MS) throw new ApiError(429, "Please wait a few seconds before checking again.");
     lastVerify.set(userId, Date.now());
-    const { results } = await rupayex.confirmUpiDeposits(userId, tx.providerReferenceId).catch(() => ({ results: [] as { status: string }[] }));
+    let results: { status: string }[] = [];
+    try {
+      ({ results } = await rupayex.confirmUpiDeposits(userId, tx.providerReferenceId));
+    } catch (err) {
+      // e.g. RupayEx reports a different amount: never credited by a bot.
+      if (err instanceof ApiError && err.status === 400)
+        return { status: "REVIEW", amount, message: "This payment needs a check by our team (the paid amount does not match this deposit). They will contact you here." };
+    }
     const now = await prisma.transaction.findUniqueOrThrow({ where: { id: tx.id }, select: { status: true } });
     if (now.status === "COMPLETED") return { status: "COMPLETED", amount, message: `Payment found — ₹${amount.toLocaleString("en-IN")} has been added to your wallet.` };
     if (now.status === "FAILED" || results[0]?.status === "FAILED")
       return { status: "FAILED", amount, message: "The payment company has no successful payment for this order. If money left your bank, use Deposit Not Receive with your UTR and a screenshot." };
   }
   return { status: "PENDING", amount, message: "The payment is not confirmed yet. Wait a few minutes and check again, or use Deposit Not Receive with your UTR and a screenshot." };
+}
+
+/**
+ * The chat bot's answer about one of the player's own withdrawals. Only
+ * ever reports: a withdrawal RupayEx paid is never given back (that would
+ * pay it twice), and a refused one was already refunded by syncPayout.
+ */
+export async function checkWithdrawal(userId: string, ref: string) {
+  let tx = await findWithdrawal(userId, ref);
+  if (!tx) throw new ApiError(404, "No withdrawal with this number on your account.");
+  if (tx.status === "PENDING" && tx.provider === rupayex.PROVIDER) {
+    const last = lastVerify.get(userId) ?? 0;
+    if (Date.now() - last < VERIFY_EVERY_MS) throw new ApiError(429, "Please wait a few seconds before checking again.");
+    lastVerify.set(userId, Date.now());
+    await rupayex.syncPayout(tx.id).catch(() => {});
+    tx = await prisma.transaction.findUniqueOrThrow({ where: { id: tx.id } });
+  }
+  const amount = Number(tx.amount);
+  const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  const sent = Math.round((amount - Number(tx.fee ?? 0) - Number(tx.providerFee ?? 0)) * 100) / 100;
+  if (tx.status === "COMPLETED")
+    return {
+      status: "COMPLETED",
+      amount,
+      message: `This withdrawal is PAID ✅ — ${inr(sent)} was sent to your bank account (withdrawal of ${tx.createdAt.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" })}). Banks can take up to 24 hours to show it. If it is still not in your bank after 24 hours, send a screenshot of your bank statement through Withdrawal Problem.`,
+    };
+  if (tx.status === "FAILED")
+    return { status: "FAILED", amount, message: `This withdrawal did not go through, and ${inr(amount)} was returned to your game wallet. Check your bank details (IFSC and name) and withdraw again.` };
+  if (tx.provider === rupayex.PROVIDER)
+    return { status: "PENDING", amount, message: `Your withdrawal of ${inr(amount)} is being transferred to your bank right now. It usually arrives within minutes; please check again a little later.` };
+  return { status: "PENDING", amount, message: `Your withdrawal of ${inr(amount)} is waiting for a quick check by our team and is usually paid within 2 hours.` };
 }
 
 /** The player's recent deposits and withdrawals, to pick the one a request is about. */

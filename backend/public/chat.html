@@ -188,8 +188,9 @@
   var QUICK = [
     { label: 'Official Website', answer: function () { return 'Our official website is:\n' + links.websiteUrl + '\n\nOnly use this link. Never log in on a site someone else sends you.'; } },
     { label: 'APP Download', answer: function () { return links.appDownloadUrl ? 'Download the official NovaPlay app here:\n' + links.appDownloadUrl : 'The download link is not available right now. Please ask our team below.'; } },
-    { label: 'Deposit Issue', answer: function () { return 'Deposit not added to your wallet?\n\n1. In the app open Customer Service → Self Deposit Verify and enter your deposit number (Deposit history shows it). Paid deposits are added at once.\n2. Still missing? Use Deposit Not Receive there, with your UTR and a screenshot of the payment.\n\nOr send us here: your UID, the deposit number, the amount and the UTR.'; } },
-    { label: 'Withdraw Issue', answer: function () { return 'We are here to help with your withdrawal. Kindly provide:\n1. UID\n2. Withdraw order number\n3. Withdrawal amount\n4. Screenshot of the withdraw history\n\nThe fastest way is Customer Service → Withdrawal Problem in the app, where you can attach the screenshot. Or type the details here.'; } },
+    { label: 'Check my order', answer: function () { return '🤖 Type or paste your order number here (it starts with NP — find it in Deposit history or Withdraw history in the app) and I will check it right away.\n\nA paid deposit is added to your wallet at once.'; } },
+    { label: 'Deposit Issue', answer: function () { return 'Deposit not added to your wallet?\n\n🤖 Type your deposit number here (Deposit history shows it, it starts with NP) and I will check it with the payment company right away. If it was paid, the money is added at once.\n\nStill missing? Use Customer Service → Deposit Not Receive in the app with your UTR and a screenshot of the payment.'; } },
+    { label: 'Withdraw Issue', answer: function () { return 'We are here to help with your withdrawal.\n\n🤖 Type your withdraw order number here (Withdraw history shows it, it starts with NPW) and I will tell you its status right away.\n\nFor anything else send:\n1. UID\n2. Withdraw order number\n3. Withdrawal amount\n4. Screenshot of the withdraw history\n\nor use Customer Service → Withdrawal Problem in the app to attach the screenshot.'; } },
     { label: 'Game Issue', answer: function () { return 'Tell us:\n1. The game name\n2. The round / period number and time\n3. Your bet amount and what went wrong\n\nPull down on any game to reload it if it seems stuck — a bet already placed is never lost.'; } },
     { label: 'Bonus Detail', answer: function () { return 'Bonuses:\n• Deposit bonus — shown on the Deposit screen; it unlocks after its wagering is played.\n• VIP upgrade & monthly bonus — Profile → VIP.\n• Invite rewards — Invite page.\n• Gift codes — the gift box on Home.\n\nAsk below if a bonus did not arrive.'; } },
   ];
@@ -227,7 +228,7 @@
   }
   function welcomeHtml() {
     var chips = quickList().map(function (q, i) { return '<button class="chip" data-q="' + i + '">' + escapeHtml(q.label) + '</button>'; }).join('');
-    return '<div class="bubble admin">📌 Welcome to NovaPlay Customer Support!\n\nPick a question below for a quick answer, or type your message and a team member will reply here as soon as possible.' +
+    return '<div class="bubble admin">📌 Welcome to NovaPlay 24-hour Customer Support!\n\n🤖 Type your deposit or withdraw order number (it starts with NP) and I check it instantly. Or pick a question below, or type your message for our team.' +
       (links.appDownloadUrl ? '\n\nOfficial app: ' + linkify(escapeHtml(links.appDownloadUrl)) : '') +
       '\n\n🔔 <b>Security reminder:</b> we will never ask for your OTP or password.</div>' +
       '<div class="chips-title">I guess you want to ask</div><div class="chips">' + chips + '</div>';
@@ -262,10 +263,38 @@
       .catch(function () {});
   }
 
+  // An order number in the message ("NP…" / "NPW…") is checked by the bot at once.
+  var ORDER_RE = /\b(NP-?[A-Z0-9]{6,})\b/i;
+  function checkOrder(orderRef, text, done) {
+    fetch(API + '/support/chat/check-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ orderRef: orderRef, text: text }),
+    })
+      .then(function (r) {
+        if (r.status === 401) { showExpired(); throw new Error('expired'); }
+        return r.json().then(function (b) { return { ok: r.ok, body: b }; });
+      })
+      .then(function (res) {
+        if (!res.ok) {
+          var now = new Date().toISOString();
+          localMessages.push({ sender: 'ADMIN', text: '🤖 ' + (res.body.error || 'Could not check this order. Please try again.'), createdAt: now, local: true, bot: true });
+          render();
+        }
+        textEl.value = '';
+        lastCount = -1;
+        loadChat();
+      })
+      .catch(function () {})
+      .finally(done);
+  }
+
   function send() {
     var text = textEl.value.trim();
     if (!text) return;
     sendBtn.disabled = true;
+    var order = text.match(ORDER_RE);
+    if (order) { checkOrder(order[1], text, function () { sendBtn.disabled = false; }); return; }
     fetch(API + '/support/chat/message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },

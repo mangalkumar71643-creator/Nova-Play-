@@ -69,8 +69,9 @@ export default function CustomerServiceScreen() {
             <MaterialCommunityIcons name="face-agent" size={64} color={colors.goldLight} />
           </View>
           <View style={{ flex: 1 }}>
+            <Text style={styles.bannerHours}>24 Hours</Text>
             <Text style={styles.bannerTitle}>Customer Service</Text>
-            <Text style={styles.bannerSub}>Check a deposit, report a problem or chat with our team.</Text>
+            <Text style={styles.bannerSub}>Check a deposit, report a problem or chat with us any time.</Text>
           </View>
           <MaterialCommunityIcons name="lifebuoy" size={42} color="rgba(255,222,140,0.35)" style={styles.bannerDecor} />
         </LinearGradient>
@@ -109,6 +110,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl * 2 },
   banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.lg, padding: spacing.lg, marginTop: spacing.sm, overflow: 'hidden' },
   bannerIcon: { width: 84, height: 84, borderRadius: 42, backgroundColor: 'rgba(0,0,0,0.25)', alignItems: 'center', justifyContent: 'center' },
+  bannerHours: { color: colors.goldLight, fontWeight: '900', fontSize: typography.xxl, lineHeight: 30 },
   bannerTitle: { color: colors.goldLight, fontWeight: '900', fontSize: typography.xl },
   bannerSub: { color: colors.textPrimary, fontSize: typography.sm, marginTop: spacing.xs, lineHeight: 20 },
   bannerDecor: { position: 'absolute', right: 10, top: 8 },

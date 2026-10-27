@@ -114,6 +114,11 @@ export default function HistoryScreen() {
                 ) : (
                   <Text style={styles.rowStatusDone}>{isDeposit ? 'Successful' : 'Payment successful'}</Text>
                 )}
+                {!isDeposit && t.withdrawNo ? (
+                  <Text selectable style={styles.rowTimestamp}>
+                    Order no. {t.withdrawNo}
+                  </Text>
+                ) : null}
                 {!isDeposit && t.status === 'COMPLETED' && t.utr ? <Text style={styles.rowTimestamp}>UTR {t.utr}</Text> : null}
                 {isDeposit && t.depositNo ? (
                   <Text selectable style={styles.rowTimestamp}>

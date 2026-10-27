@@ -3731,6 +3731,8 @@ export type WalletHistory = {
     utr?: string | null;
     /** Deposits: the deposit's own number (quote it to support) and the bank's UTR once known. */
     depositNo?: string;
+    /** Withdrawals: their own number, to quote to support (older servers leave it out). */
+    withdrawNo?: string;
     depositUtr?: string | null;
   }[];
 };

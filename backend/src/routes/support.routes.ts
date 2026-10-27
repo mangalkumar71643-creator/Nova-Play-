@@ -6,7 +6,7 @@ import { prisma } from "../db/prismaClient";
 import { signChatToken } from "../utils/jwt";
 import { alertAdmins, shouldAlertChat } from "../services/adminAlertService";
 import { getAppVersionInfo, getSupportTelegramUrl } from "../services/settingsService";
-import { createRequest, myRequests, recentOrders, REQUEST_CATEGORIES, verifyDeposit } from "../services/supportRequestService";
+import { checkWithdrawal, createRequest, findOrderKind, myRequests, recentOrders, REQUEST_CATEGORIES, verifyDeposit } from "../services/supportRequestService";
 
 const router = Router();
 
@@ -95,6 +95,46 @@ router.post(
     });
     await alertSupport(req.chatUserId!, ticket.id, text);
     res.status(201).json(created);
+  })
+);
+
+/**
+ * The chat bot: the player types one of their order numbers and gets the
+ * answer at once — a paid deposit is credited (verifyDeposit, only ever on
+ * RupayEx's own word for this player's order, at the amount we recorded),
+ * a withdrawal's status is reported (never refunded or paid again here).
+ * Both lines go into the conversation so the team sees what the bot said;
+ * the team is alerted only when a person still has to look.
+ */
+const checkOrderSchema = z.object({ orderRef: z.string().trim().min(4).max(60), text: z.string().trim().max(2000).optional() });
+router.post(
+  "/chat/check-order",
+  requireChatAuth,
+  asyncHandler(async (req, res) => {
+    const { orderRef, text } = checkOrderSchema.parse(req.body);
+    const userId = req.chatUserId!;
+    const kind = await findOrderKind(userId, orderRef);
+    let status: string;
+    let message: string;
+    if (!kind) {
+      status = "NOT_FOUND";
+      message = "I can't find this order number on your account. Copy it from Deposit history or Withdraw history in the app (it starts with NP), or type your question and our team will help.";
+    } else {
+      try {
+        ({ status, message } = kind === "deposit" ? await verifyDeposit(userId, orderRef) : await checkWithdrawal(userId, orderRef));
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 429) return res.status(429).json({ error: err.message });
+        throw err;
+      }
+    }
+    const needsPerson = kind === "deposit" ? status !== "COMPLETED" : false;
+    const latest = await prisma.supportTicket.findFirst({ where: { userId }, orderBy: { createdAt: "desc" }, select: { id: true, status: true } });
+    const ticket = latest ?? (await prisma.supportTicket.create({ data: { userId, topic: "Live chat", status: needsPerson ? "OPEN" : "RESOLVED" }, select: { id: true, status: true } }));
+    if (needsPerson && ticket.status === "RESOLVED") await prisma.supportTicket.update({ where: { id: ticket.id }, data: { status: "OPEN", resolvedAt: null } });
+    await prisma.chatMessage.create({ data: { ticketId: ticket.id, sender: "USER", text: text || `Check order ${orderRef.trim().toUpperCase()}` } });
+    await prisma.chatMessage.create({ data: { ticketId: ticket.id, sender: "ADMIN", text: `🤖 Auto check: ${message}` } });
+    if (needsPerson) await alertSupport(userId, ticket.id, `Order ${orderRef} — bot: ${status}`);
+    res.json({ kind, status, message });
   })
 );
 

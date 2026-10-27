@@ -318,7 +318,7 @@ router.get(
         // Deposits: their own number (to quote to support) and the bank's UTR once known.
         ...(type === "DEPOSIT"
           ? { depositNo: depositNumberOf({ id: t.id, provider, providerReferenceId }), depositUtr: depositUtrOf({ provider, providerReferenceId, paymentUtr }) }
-          : {}),
+          : { withdrawNo: rupayex.payoutIdFor(t.id) }),
         amount: Number(t.amount),
         fee: Number(t.fee ?? 0),
         providerFee: t.providerFee == null ? null : Number(t.providerFee),
