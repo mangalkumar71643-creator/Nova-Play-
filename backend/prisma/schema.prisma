@@ -178,8 +178,8 @@ model User {
   referrerId          String?
   referralQualifiedAt DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   // Last sign-in (OTP or password) and last request from the app (at most
   // every 5 minutes, see middleware/auth.ts) — shown to the admin on Problems.
   lastLoginAt DateTime?
@@ -411,15 +411,23 @@ model RevealedServerSeed {
 // support.routes.ts). Shown to staff on the priority support dashboard
 // (public/admin-support.html) so real escalations get a real response.
 model SupportTicket {
-  id         String              @id @default(uuid())
-  userId     String
-  user       User                @relation(fields: [userId], references: [id])
-  topic      String
-  message    String?
-  status     SupportTicketStatus @default(OPEN)
-  createdAt  DateTime            @default(now())
-  resolvedAt DateTime?
-  messages   ChatMessage[]
+  id             String              @id @default(uuid())
+  userId         String
+  user           User                @relation(fields: [userId], references: [id])
+  topic          String
+  message        String?
+  status         SupportTicketStatus @default(OPEN)
+  createdAt      DateTime            @default(now())
+  resolvedAt     DateTime?
+  messages       ChatMessage[]
+  // Requests from the app's Customer Service page (supportRequestService.ts):
+  // which form, the deposit/withdrawal it is about, and the player's proof.
+  category       String?
+  orderRef       String?
+  amount         Decimal?            @db.Decimal(12, 2)
+  utr            String?
+  attachment     Bytes?
+  attachmentType String?
 }
 
 // One message in a Live Support conversation (see support.routes.ts /

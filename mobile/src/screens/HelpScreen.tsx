@@ -1,11 +1,9 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState } from 'react';
-import { LayoutAnimation, Linking, Platform, Pressable, StyleSheet, Text, UIManager, View } from 'react-native';
-import { showAlert } from '../components/AppAlert';
+import { LayoutAnimation, Platform, Pressable, StyleSheet, Text, UIManager, View } from 'react-native';
 import AppHeader from '../components/AppHeader';
 import ScreenContainer from '../components/ScreenContainer';
-import { API_BASE_URL, ApiClientError } from '../api/client';
-import { startChatSession } from '../api/backend';
+import { openLiveChat } from '../utils/liveChat';
 import { colors, radius, spacing, typography } from '../theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -74,19 +72,13 @@ export default function HelpScreen() {
 
   async function openLiveSupport() {
     setConnecting(true);
-    try {
-      const { chatToken } = await startChatSession();
-      await Linking.openURL(`${API_BASE_URL}/chat.html?token=${encodeURIComponent(chatToken)}`);
-    } catch (err) {
-      showAlert('Could not connect', err instanceof ApiClientError ? err.message : 'Please try again.');
-    } finally {
-      setConnecting(false);
-    }
+    await openLiveChat();
+    setConnecting(false);
   }
 
   return (
     <ScreenContainer>
-      <AppHeader showBack title="Help Center" showCoins={false} showNotifications={false} showProfile={false} />
+      <AppHeader showBack title="FAQ" showCoins={false} showNotifications={false} showProfile={false} />
 
       <Pressable style={styles.topContactButton} onPress={openLiveSupport} disabled={connecting}>
         <MaterialCommunityIcons name="headset" size={18} color={colors.textPrimary} />

@@ -137,7 +137,7 @@ export default function SettingsScreen() {
           label="Terms of Service"
           onPress={() => showAlert('Terms of Service', 'Terms of service coming soon.')}
         />
-        <NavRow icon="help-circle-outline" label="Help" onPress={() => navigation.navigate('Help')} last />
+        <NavRow icon="help-circle-outline" label="Customer Service" onPress={() => navigation.navigate('Help')} last />
       </View>
 
       <SectionHeader title="Identity & Responsible Gambling" />

@@ -5,6 +5,8 @@ import { requireAuth, requireChatAuth } from "../middleware/auth";
 import { prisma } from "../db/prismaClient";
 import { signChatToken } from "../utils/jwt";
 import { alertAdmins, shouldAlertChat } from "../services/adminAlertService";
+import { getAppVersionInfo, getSupportTelegramUrl } from "../services/settingsService";
+import { createRequest, myRequests, recentOrders, REQUEST_CATEGORIES, verifyDeposit } from "../services/supportRequestService";
 
 const router = Router();
 
@@ -93,6 +95,61 @@ router.post(
     });
     await alertSupport(req.chatUserId!, ticket.id, text);
     res.status(201).json(created);
+  })
+);
+
+// --- Customer Service page (supportRequestService.ts) ---
+
+/** Links the page and the live chat's quick answers show. */
+router.get(
+  "/config",
+  asyncHandler(async (req, res) => {
+    const { downloadUrl } = await getAppVersionInfo();
+    res.json({ telegramUrl: await getSupportTelegramUrl(), appDownloadUrl: downloadUrl, websiteUrl: `https://${req.get("host")}` });
+  })
+);
+
+router.get(
+  "/orders",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await recentOrders(req.user!.userId));
+  })
+);
+
+const verifySchema = z.object({ orderRef: z.string().trim().min(4).max(60) });
+router.post(
+  "/deposit-verify",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { orderRef } = verifySchema.parse(req.body);
+    res.json(await verifyDeposit(req.user!.userId, orderRef));
+  })
+);
+
+const requestSchema = z.object({
+  category: z.enum(Object.keys(REQUEST_CATEGORIES) as [keyof typeof REQUEST_CATEGORIES]),
+  orderRef: z.string().trim().min(4).max(60),
+  utr: z.string().trim().max(40).optional(),
+  message: z.string().trim().max(1000).optional(),
+  image: z.object({ base64: z.string().min(1).max(3_000_000), type: z.string().max(40) }).optional(),
+});
+router.post(
+  "/requests",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const body = requestSchema.parse(req.body);
+    const { ticketId, text } = await createRequest(req.user!.userId, body);
+    await alertSupport(req.user!.userId, ticketId, text);
+    res.status(201).json({ ticketId });
+  })
+);
+
+router.get(
+  "/requests",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await myRequests(req.user!.userId));
   })
 );
 

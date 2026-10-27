@@ -73,3 +73,18 @@ export async function setLatestAppVersion(version: string) {
   else await prisma.setting.upsert({ where: { key: LATEST_APP_VERSION_KEY }, update: { value: version }, create: { key: LATEST_APP_VERSION_KEY, value: version } });
   return { latestVersion: version || null };
 }
+
+// The Customer Service page's Telegram link (empty hides the row).
+const SUPPORT_TELEGRAM_KEY = "supportTelegramUrl";
+
+export async function getSupportTelegramUrl(): Promise<string | null> {
+  const row = await prisma.setting.findUnique({ where: { key: SUPPORT_TELEGRAM_KEY } });
+  return row?.value || null;
+}
+
+/** An empty value clears it. */
+export async function setSupportTelegramUrl(url: string) {
+  if (!url) await prisma.setting.deleteMany({ where: { key: SUPPORT_TELEGRAM_KEY } });
+  else await prisma.setting.upsert({ where: { key: SUPPORT_TELEGRAM_KEY }, update: { value: url }, create: { key: SUPPORT_TELEGRAM_KEY, value: url } });
+  return { telegramUrl: url || null };
+}

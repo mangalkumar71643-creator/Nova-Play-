@@ -129,7 +129,7 @@ export default function ProfileScreen() {
         <MenuRow icon="bell-outline" label="Notifications" onPress={() => navigation.navigate('Notifications')} />
         <MenuRow icon="history" label="Balance records" onPress={() => navigation.navigate('BalanceRecords')} />
         <MenuRow icon="shield-account-outline" label="Account & Security" onPress={() => setSecurityVisible(true)} />
-        <MenuRow icon="headset" label="Live Support" onPress={() => navigation.navigate('Help')} />
+        <MenuRow icon="headset" label="Customer Service" onPress={() => navigation.navigate('Help')} />
         <MenuRow icon="handshake-outline" label="Invite & Earn" onPress={() => navigation.navigate('MainTabs', { screen: 'Earn' })} />
         <MenuRow icon="cog-outline" label="Settings" onPress={() => navigation.navigate('Settings')} />
         <MenuRow icon="logout" label="Logout" onPress={() => setLogoutVisible(true)} />

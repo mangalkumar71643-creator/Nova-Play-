@@ -36,7 +36,7 @@ import { getChickenRoadConfig } from "../services/chickenRoadService";
 import { getMinesConfig } from "../services/minesService";
 import * as popupService from "../services/popupService";
 import * as giftCodeService from "../services/giftCodeService";
-import { getAppDownloadUrl, getAppVersionInfo, getGameSettings, MAX_MAX_PAYOUT, MIN_MAX_PAYOUT, setAppDownloadUrl, setLatestAppVersion, setMaxPayout } from "../services/settingsService";
+import { getAppDownloadUrl, getAppVersionInfo, getGameSettings, getSupportTelegramUrl, MAX_MAX_PAYOUT, MIN_MAX_PAYOUT, setAppDownloadUrl, setLatestAppVersion, setMaxPayout, setSupportTelegramUrl } from "../services/settingsService";
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -1160,13 +1160,53 @@ router.get(
   asyncHandler(async (_req, res) => {
     const tickets = await prisma.supportTicket.findMany({
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-      include: {
-        user: { select: { firstName: true, lastName: true, email: true, phone: true } },
+      // Everything but the screenshot's bytes (fetched one at a time below).
+      select: {
+        id: true,
+        userId: true,
+        topic: true,
+        message: true,
+        status: true,
+        createdAt: true,
+        resolvedAt: true,
+        category: true,
+        orderRef: true,
+        amount: true,
+        utr: true,
+        attachmentType: true,
+        user: { select: { uid: true, firstName: true, lastName: true, email: true, phone: true } },
         messages: { orderBy: { createdAt: "desc" }, take: 1 },
       },
       take: 200,
     });
-    res.json(tickets);
+    res.json(tickets.map(({ attachmentType, ...t }) => ({ ...t, hasAttachment: Boolean(attachmentType) })));
+  })
+);
+
+/** A request's screenshot, as a data URL for the panel to show. */
+router.get(
+  "/support-tickets/:ticketId/attachment",
+  asyncHandler(async (req, res) => {
+    const t = await prisma.supportTicket.findUniqueOrThrow({ where: { id: req.params.ticketId }, select: { attachment: true, attachmentType: true } });
+    if (!t.attachment || !t.attachmentType) throw new ApiError(404, "No screenshot on this request.");
+    res.json({ dataUrl: `data:${t.attachmentType};base64,${Buffer.from(t.attachment).toString("base64")}` });
+  })
+);
+
+// The Customer Service page's Telegram link.
+router.get(
+  "/support-links",
+  asyncHandler(async (_req, res) => {
+    res.json({ telegramUrl: await getSupportTelegramUrl() });
+  })
+);
+const supportLinksSchema = z.object({
+  telegramUrl: z.union([z.literal(""), z.string().trim().url().max(300).refine((u) => /^https?:\/\//i.test(u), "Link must start with http:// or https://")]),
+});
+router.put(
+  "/support-links",
+  asyncHandler(async (req, res) => {
+    res.json(await setSupportTelegramUrl(supportLinksSchema.parse(req.body).telegramUrl));
   })
 );
 

@@ -104,6 +104,27 @@
     cursor: pointer;
   }
   #send:disabled { opacity: 0.5; }
+  .bubble a { color: var(--gold); word-break: break-all; }
+  #notice {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+  }
+  .chips-title { font-size: 12px; color: var(--text-muted); margin: 4px 0 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .chip:active { background: var(--surface-alt); }
   #expired {
     display: none;
     margin: auto;
@@ -122,6 +143,8 @@
   <h1>Live Support</h1>
   <div class="sub">NovaPlay team</div>
 </header>
+
+<div id="notice">🔔 Stay alert: NovaPlay staff will never ask for your OTP or password. Don't share them with anyone.</div>
 
 <div id="messages"></div>
 
@@ -150,6 +173,37 @@
   var expiredEl = document.getElementById('expired');
   var composerEl = document.getElementById('composer');
   var lastCount = 0;
+  var serverMessages = [];
+  // Quick questions answered right here (never sent to the team), merged
+  // into the conversation by time; anything typed goes to a real person.
+  var localMessages = [];
+  var links = { websiteUrl: location.origin, appDownloadUrl: null, telegramUrl: null };
+  fetch(API + '/support/config').then(function (r) { return r.json(); }).then(function (c) {
+    links.websiteUrl = c.websiteUrl || links.websiteUrl;
+    links.appDownloadUrl = c.appDownloadUrl;
+    links.telegramUrl = c.telegramUrl;
+    render();
+  }).catch(function () {});
+
+  var QUICK = [
+    { label: 'Official Website', answer: function () { return 'Our official website is:\n' + links.websiteUrl + '\n\nOnly use this link. Never log in on a site someone else sends you.'; } },
+    { label: 'APP Download', answer: function () { return links.appDownloadUrl ? 'Download the official NovaPlay app here:\n' + links.appDownloadUrl : 'The download link is not available right now. Please ask our team below.'; } },
+    { label: 'Deposit Issue', answer: function () { return 'Deposit not added to your wallet?\n\n1. In the app open Customer Service → Self Deposit Verify and enter your deposit number (Deposit history shows it). Paid deposits are added at once.\n2. Still missing? Use Deposit Not Receive there, with your UTR and a screenshot of the payment.\n\nOr send us here: your UID, the deposit number, the amount and the UTR.'; } },
+    { label: 'Withdraw Issue', answer: function () { return 'We are here to help with your withdrawal. Kindly provide:\n1. UID\n2. Withdraw order number\n3. Withdrawal amount\n4. Screenshot of the withdraw history\n\nThe fastest way is Customer Service → Withdrawal Problem in the app, where you can attach the screenshot. Or type the details here.'; } },
+    { label: 'Game Issue', answer: function () { return 'Tell us:\n1. The game name\n2. The round / period number and time\n3. Your bet amount and what went wrong\n\nPull down on any game to reload it if it seems stuck — a bet already placed is never lost.'; } },
+    { label: 'Bonus Detail', answer: function () { return 'Bonuses:\n• Deposit bonus — shown on the Deposit screen; it unlocks after its wagering is played.\n• VIP upgrade & monthly bonus — Profile → VIP.\n• Invite rewards — Invite page.\n• Gift codes — the gift box on Home.\n\nAsk below if a bonus did not arrive.'; } },
+  ];
+  function quickList() {
+    return links.telegramUrl ? QUICK.concat([{ label: 'Official Channel', answer: function () { return 'Join our official Telegram channel:\n' + links.telegramUrl; } }]) : QUICK;
+  }
+  function askQuick(i) {
+    var q = quickList()[i];
+    if (!q) return;
+    var now = new Date().toISOString();
+    localMessages.push({ sender: 'USER', text: q.label, createdAt: now, local: true });
+    localMessages.push({ sender: 'ADMIN', text: q.answer(), createdAt: now, local: true, bot: true });
+    render();
+  }
 
   function showExpired() {
     expiredEl.style.display = 'block';
@@ -166,7 +220,17 @@
   function bubbleHtml(m) {
     var cls = m.sender === 'USER' ? 'user' : 'admin';
     var time = new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    return '<div class="bubble ' + cls + '">' + escapeHtml(m.text) + '<div class="meta">' + time + '</div></div>';
+    return '<div class="bubble ' + cls + '">' + linkify(escapeHtml(m.text)) + '<div class="meta">' + (m.bot ? 'Auto reply · ' : '') + time + '</div></div>';
+  }
+  function linkify(html) {
+    return html.replace(/https?:\/\/[^\s<]+/g, function (u) { return '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>'; });
+  }
+  function welcomeHtml() {
+    var chips = quickList().map(function (q, i) { return '<button class="chip" data-q="' + i + '">' + escapeHtml(q.label) + '</button>'; }).join('');
+    return '<div class="bubble admin">📌 Welcome to NovaPlay Customer Support!\n\nPick a question below for a quick answer, or type your message and a team member will reply here as soon as possible.' +
+      (links.appDownloadUrl ? '\n\nOfficial app: ' + linkify(escapeHtml(links.appDownloadUrl)) : '') +
+      '\n\n🔔 <b>Security reminder:</b> we will never ask for your OTP or password.</div>' +
+      '<div class="chips-title">I guess you want to ask</div><div class="chips">' + chips + '</div>';
   }
 
   function escapeHtml(s) {
@@ -175,15 +239,16 @@
     });
   }
 
-  function render(messages) {
-    if (messages.length === 0) {
-      messagesEl.innerHTML = '<div class="bubble system">Send a message and our team will reply here shortly.</div>';
-    } else {
-      messagesEl.innerHTML = messages.map(bubbleHtml).join('');
-    }
+  function render() {
+    var all = serverMessages.concat(localMessages).sort(function (a, b) { return new Date(a.createdAt) - new Date(b.createdAt); });
+    messagesEl.innerHTML = welcomeHtml() + all.map(bubbleHtml).join('');
     messagesEl.scrollTop = messagesEl.scrollHeight;
-    lastCount = messages.length;
+    lastCount = serverMessages.length;
   }
+  messagesEl.addEventListener('click', function (e) {
+    var chip = e.target.closest && e.target.closest('.chip');
+    if (chip) askQuick(Number(chip.getAttribute('data-q')));
+  });
 
   function loadChat() {
     fetch(API + '/support/chat', { headers: { Authorization: 'Bearer ' + token } })
@@ -192,7 +257,7 @@
         return r.json();
       })
       .then(function (data) {
-        if (data.messages.length !== lastCount) render(data.messages);
+        if (data.messages.length !== lastCount) { serverMessages = data.messages; render(); }
       })
       .catch(function () {});
   }
@@ -227,6 +292,7 @@
   });
 
   function boot() {
+    render();
     loadChat();
     setInterval(loadChat, 4000);
   }

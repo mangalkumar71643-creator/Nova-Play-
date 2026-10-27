@@ -13,11 +13,18 @@ export type AuthStackParamList = {
   Otp: { phone: string };
 };
 
+/** The Customer Service page's forms (SupportFormScreen). */
+export type SupportFormKind = 'verify' | 'deposit' | 'withdraw' | 'ifsc' | 'bankName';
+
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<BottomTabParamList>;
   Profile: undefined;
   Settings: undefined;
+  /** Customer Service: self-service checks, requests, live chat. */
   Help: undefined;
+  FAQ: undefined;
+  SupportForm: { kind: SupportFormKind };
+  SupportProgress: undefined;
   Notifications: undefined;
   BalanceRecords: undefined;
   /** Deposit or withdraw history; without a kind (from Wallet) the screen lets you switch. */

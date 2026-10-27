@@ -3881,3 +3881,47 @@ export function fetchJackpotHistory() {
 export function fetchHotGames() {
   return apiFetch<{ games: { key: string; plays30d: number; players30d: number }[] }>('/players/hot-games');
 }
+
+// --- Customer Service page (backend supportRequestService.ts) ---
+
+export type SupportConfig = { telegramUrl: string | null; appDownloadUrl: string | null; websiteUrl: string };
+export function fetchSupportConfig() {
+  return apiFetch<SupportConfig>('/support/config');
+}
+
+export type SupportOrder = { kind: 'deposit' | 'withdraw'; orderNo: string; amount: number; status: string; createdAt: string };
+export function fetchSupportOrders() {
+  return apiFetch<SupportOrder[]>('/support/orders');
+}
+
+export type DepositVerifyResult = { status: 'COMPLETED' | 'PENDING' | 'FAILED' | 'REVERSED'; amount: number; message: string };
+export function verifyDepositOrder(orderRef: string) {
+  return apiFetch<DepositVerifyResult>('/support/deposit-verify', { method: 'POST', body: JSON.stringify({ orderRef }) });
+}
+
+export type SupportRequestCategory = 'DEPOSIT_NOT_RECEIVED' | 'WITHDRAWAL_PROBLEM';
+export function createSupportRequest(body: {
+  category: SupportRequestCategory;
+  orderRef: string;
+  utr?: string;
+  message?: string;
+  image?: { base64: string; type: string };
+}) {
+  return apiFetch<{ ticketId: string }>('/support/requests', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export type SupportRequestItem = {
+  id: string;
+  topic: string;
+  category: SupportRequestCategory | null;
+  orderRef: string | null;
+  amount: number | null;
+  utr: string | null;
+  status: 'OPEN' | 'RESOLVED';
+  createdAt: string;
+  resolvedAt: string | null;
+  messages: { sender: 'USER' | 'ADMIN'; text: string; createdAt: string }[];
+};
+export function fetchMySupportRequests() {
+  return apiFetch<SupportRequestItem[]>('/support/requests');
+}

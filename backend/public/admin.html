@@ -672,7 +672,16 @@
 
       <div class="panel" id="panel-support">
         <h1 class="page-title">Support</h1>
-        <div class="page-sub">Live chat with players who've escalated a ticket.</div>
+        <div class="page-sub">Live chats, and requests from the app's Customer Service page (deposit not received, withdrawal problem) with their order, UTR and screenshot.</div>
+        <div class="card" style="max-width:520px;">
+          <div class="card-head"><h2>Telegram link</h2></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Shown as "Telegram" on the app's Customer Service page. Empty hides it.</div>
+          <div class="form-row">
+            <input id="supportTelegramUrl" placeholder="https://t.me/…" maxlength="300" />
+            <button class="btn" id="supportLinksSave" style="flex:0 0 auto;">Save</button>
+          </div>
+          <div class="item-meta" id="supportLinksStatus"></div>
+        </div>
         <div class="card">
           <h2 style="margin-bottom:12px;">Open (<span id="openCount">0</span>)</h2>
           <div id="openList"></div>
@@ -924,6 +933,7 @@
       </div>
       <button class="btn secondary small" id="threadClose">Close</button>
     </div>
+    <div id="threadRequest" class="item-meta" style="display:none;padding:10px 16px;border-bottom:1px solid var(--border);"></div>
     <div id="threadMessages"></div>
     <div id="threadComposer">
       <textarea id="threadText" rows="1" placeholder="Reply…"></textarea>
@@ -2063,14 +2073,28 @@
       '<div class="item" style="cursor:pointer;" data-id="' + t.id + '">' +
         '<div class="item-top"><div>' +
           '<div class="item-title">' + escapeHtml(t.topic) + '</div>' +
-          '<div class="item-meta">' + escapeHtml(name) + (contact ? ' · ' + escapeHtml(contact) : '') + ' · ' + when + '</div>' +
+          '<div class="item-meta">' + (t.user && t.user.uid ? 'UID ' + t.user.uid + ' · ' : '') + escapeHtml(name) + (contact ? ' · ' + escapeHtml(contact) : '') + ' · ' + when + '</div>' +
+          (t.orderRef ? '<div class="item-meta">Order ' + escapeHtml(t.orderRef) + (t.amount != null ? ' · ' + fmtMoney(t.amount) : '') + (t.utr ? ' · UTR ' + escapeHtml(t.utr) : '') + (t.hasAttachment ? ' · 📷 screenshot' : '') + '</div>' : '') +
         '</div></div>' +
         (lastMsg ? '<div class="item-meta" style="margin-top:8px;">' + escapeHtml(lastMsg) + '</div>' : '') +
       '</div>'
     );
   }
 
+  function loadSupportLinks() {
+    api('/admin/support-links').then(function (r) { document.getElementById('supportTelegramUrl').value = r.telegramUrl || ''; }).catch(function () {});
+  }
+  document.getElementById('supportLinksSave').addEventListener('click', function () {
+    var btn = this;
+    var status = document.getElementById('supportLinksStatus');
+    btn.disabled = true;
+    api('/admin/support-links', { method: 'PUT', body: JSON.stringify({ telegramUrl: document.getElementById('supportTelegramUrl').value.trim() }) })
+      .then(function (r) { status.textContent = r.telegramUrl ? 'Saved. Players see the Telegram row.' : 'Saved. The Telegram row is hidden.'; })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
+      .finally(function () { btn.disabled = false; });
+  });
   function loadTickets() {
+    loadSupportLinks();
     api('/admin/support-tickets').then(function (tickets) {
       ticketsById = {};
       tickets.forEach(function (t) { ticketsById[t.id] = t; });
@@ -2106,6 +2130,24 @@
     var t = ticketsById[id];
     document.getElementById('threadName').textContent = t.user ? [t.user.firstName, t.user.lastName].filter(Boolean).join(' ') : 'Unknown';
     document.getElementById('threadContact').textContent = t.user ? (t.user.email || t.user.phone || '') : '';
+    var req = document.getElementById('threadRequest');
+    if (t.orderRef) {
+      req.style.display = 'block';
+      req.innerHTML = '<b>' + escapeHtml(t.topic) + '</b> · order ' + escapeHtml(t.orderRef) + (t.amount != null ? ' · ' + fmtMoney(t.amount) : '') + (t.utr ? ' · UTR ' + escapeHtml(t.utr) : '') +
+        (t.user && t.user.uid ? ' · <a href="#" id="threadReport">Player report</a>' : '') +
+        (t.hasAttachment ? '<div id="threadShot" style="margin-top:8px;">Loading screenshot…</div>' : '');
+      var rep = document.getElementById('threadReport');
+      if (rep) rep.addEventListener('click', function (e) { e.preventDefault(); closeThread(); openPlayerReport(t.user.uid); });
+      if (t.hasAttachment) {
+        api('/admin/support-tickets/' + id + '/attachment').then(function (a) {
+          var box = document.getElementById('threadShot');
+          if (box) box.innerHTML = '<a href="' + a.dataUrl + '" target="_blank" rel="noopener"><img src="' + a.dataUrl + '" alt="Screenshot" style="max-width:100%;max-height:260px;border-radius:8px;" /></a>';
+        }).catch(function (err) { var box = document.getElementById('threadShot'); if (box) box.textContent = err.message; });
+      }
+    } else {
+      req.style.display = 'none';
+      req.innerHTML = '';
+    }
     threadOverlay.style.display = 'flex';
     loadThread();
     if (threadPollInterval) clearInterval(threadPollInterval);

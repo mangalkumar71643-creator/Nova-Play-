@@ -65,6 +65,9 @@ import GameCategoryScreen from '../screens/GameCategoryScreen';
 import CompleteProfileScreen from '../screens/CompleteProfileScreen';
 import DepositScreen from '../screens/DepositScreen';
 import HelpScreen from '../screens/HelpScreen';
+import CustomerServiceScreen from '../screens/CustomerServiceScreen';
+import SupportFormScreen from '../screens/SupportFormScreen';
+import SupportProgressScreen from '../screens/SupportProgressScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import LoginScreen from '../screens/LoginScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
@@ -170,7 +173,10 @@ function MainNavigator() {
       <Stack.Screen name="MainTabs" component={BottomTabs} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen name="Help" component={HelpScreen} />
+      <Stack.Screen name="Help" component={CustomerServiceScreen} />
+      <Stack.Screen name="FAQ" component={HelpScreen} />
+      <Stack.Screen name="SupportForm" component={SupportFormScreen} />
+      <Stack.Screen name="SupportProgress" component={SupportProgressScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="BalanceRecords" component={BalanceRecordsScreen} />
       <Stack.Screen name="History" component={HistoryScreen} />
