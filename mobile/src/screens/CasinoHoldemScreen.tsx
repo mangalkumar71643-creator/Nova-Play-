@@ -764,7 +764,7 @@ export default function CasinoHoldemScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={GOLD} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>{panel === 'history' ? <History hands={history} /> : <Rules config={config} antePays={antePays} callPays={callPays} />}</ScrollView>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>{panel === 'history' ? <History hands={history} /> : <Rules config={config} antePays={antePays} callPays={callPays} />}</ScrollView>
           </Pressable>
         </Pressable>
       )}

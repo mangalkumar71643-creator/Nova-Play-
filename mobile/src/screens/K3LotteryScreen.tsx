@@ -529,7 +529,7 @@ export default function K3LotteryScreen() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={{ paddingBottom: (sheetOpen ? sheetH : 0) + insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: (sheetOpen ? sheetH : 0) + insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <LinearGradient colors={[G1, G2, G3]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + 6, height: insets.top + 58 + 110 }]}>
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -1047,7 +1047,7 @@ export default function K3LotteryScreen() {
             <LinearGradient colors={[G1, G2]} style={styles.rulesHead}>
               <Text style={styles.rulesTitle}>How to play</Text>
             </LinearGradient>
-            <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
               {(leastPayout
                 ? [
                     `Three dice are decided at the end of every period. ${DURATION_LABEL[duration]} per period; betting closes in the last ${lockSeconds} seconds.`,

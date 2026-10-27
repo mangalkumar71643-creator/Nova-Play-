@@ -653,7 +653,7 @@ export default function HiloScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={CORAL} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>{panel === 'history' ? <History rounds={history} /> : <Rules config={config} />}</ScrollView>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>{panel === 'history' ? <History rounds={history} /> : <Rules config={config} />}</ScrollView>
           </Pressable>
         </Pressable>
       )}

@@ -686,7 +686,7 @@ export default function LimboScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={PINK} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>{panel === 'bets' ? <History bets={history} /> : <Rules config={config} />}</ScrollView>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>{panel === 'bets' ? <History bets={history} /> : <Rules config={config} />}</ScrollView>
           </Pressable>
         </Pressable>
       )}

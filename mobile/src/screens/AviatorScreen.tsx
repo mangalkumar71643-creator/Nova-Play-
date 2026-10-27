@@ -22,6 +22,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT } from '../utils/limits';
+import { usePullToRefresh } from '../components/PullToRefresh';
 
 const MIN_STAKE = 10;
 const STAKE_STEP = 10;
@@ -1171,6 +1172,10 @@ export default function AviatorScreen() {
   }, []);
   const [bet1, setBet1] = useState<PanelBetState>({ status: 'idle' });
   const [bet2, setBet2] = useState<PanelBetState>({ status: 'idle' });
+  // A reload would not bring a bet in the air back on screen: hold the pull-to-refresh meanwhile.
+  usePullToRefresh({
+    blockedReason: [bet1, bet2].some((b) => b.status === 'placing' || b.status === 'pending' || b.status === 'cashingOut') ? 'Your bet is still in this round — cash out or wait for the round to end, then pull down to refresh.' : null,
+  });
 
   // Polling reads the latest bet state via refs (not the state variables
   // directly) so the interval set up once on mount always sees the
@@ -1422,7 +1427,7 @@ export default function AviatorScreen() {
 
       <Text style={[styles.balanceChip, { top: insets.top + 8 }]}>₹{coins.toFixed(2)}</Text>
 
-      <ScrollView
+      <ScrollView nestedScrollEnabled
         style={styles.scrollArea}
         contentContainerStyle={styles.root}
         showsVerticalScrollIndicator={false}
@@ -1471,7 +1476,7 @@ export default function AviatorScreen() {
             ) : fullHistory.length === 0 ? (
               <Text style={styles.historyModalEmptyText}>No rounds yet.</Text>
             ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
                 <View style={styles.historyModalGrid}>
                   {fullHistory.map((mult, i) => (
                     <Text key={i} style={[styles.historyModalChip, { color: historyColor(mult) }]}>

@@ -74,7 +74,7 @@ export default function AgentTeamScreen() {
           {depth === 1 && !failed ? <Text style={styles.emptyHint}>Share your invite code from the EARN page to build your team.</Text> : null}
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 40 }}>
+        <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 40 }}>
           {team.members.map((m, i) => (
             <LinearGradient key={`${m.name}-${i}`} colors={['#4A0B17', '#24050B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.member}>
               <Image source={AVATARS[(Number(m.name.replace(/\D/g, '')) || i) % AVATARS.length]} style={styles.avatar} />

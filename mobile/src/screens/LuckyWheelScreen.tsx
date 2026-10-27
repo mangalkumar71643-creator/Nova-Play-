@@ -390,7 +390,7 @@ export default function LuckyWheelScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
         {/* Recent results */}
         <View style={[styles.recentRow, { width: S }]}>
           {recent.length === 0 ? (
@@ -560,7 +560,7 @@ export default function LuckyWheelScreen() {
                 <MaterialCommunityIcons name="close" size={22} color={TEXT} />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History spins={history} />}</ScrollView>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History spins={history} />}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

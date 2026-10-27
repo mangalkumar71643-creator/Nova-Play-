@@ -993,7 +993,7 @@ export default function SlotScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={GOLD} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>
               {panel === 'pay' ? (
                 <Paytable paytable={paytable} paylines={paylines} multipliers={multValues} rtp={config?.rtpPercent ?? 84.92} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? NO_LIMIT} />
               ) : (

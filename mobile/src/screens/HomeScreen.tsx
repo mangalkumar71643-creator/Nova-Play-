@@ -165,7 +165,7 @@ export default function HomeScreen() {
         </Pressable>
       </View>
       {/* Everything under the top bar scrolls together: the control panel, then the banners. */}
-      <ScrollView
+      <ScrollView nestedScrollEnabled
         style={{ position: 'absolute', top: TOP_BAR_HEIGHT, left: 0, right: 0, bottom: 0 }}
         contentContainerStyle={{ paddingHorizontal: BANNER_SIDE, paddingBottom: BANNER_GAP * 2, gap: BANNER_GAP }}
         showsVerticalScrollIndicator={false}

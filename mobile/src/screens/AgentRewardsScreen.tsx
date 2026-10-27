@@ -125,7 +125,7 @@ export default function AgentRewardsScreen() {
           ) : !rewards || rewards.items.length === 0 ? (
             empty
           ) : (
-            <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: 40 }}>
               {rewards.items.map((r) => (
                 <View key={r.id} style={styles.row}>
                   <View style={{ flex: 1.5 }}>
@@ -154,7 +154,7 @@ export default function AgentRewardsScreen() {
           ) : !claims || claims.length === 0 ? (
             empty
           ) : (
-            <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: 40 }}>
               {claims.map((c) => (
                 <View key={c.id} style={[styles.row, { paddingVertical: spacing.xl }]}>
                   <Text style={[styles.td, { flex: 1.5 }]}>{stamp(c.createdAt)}</Text>

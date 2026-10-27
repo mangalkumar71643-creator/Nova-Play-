@@ -801,7 +801,7 @@ export default function DiceScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={CYAN} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>{panel === 'bets' ? <History bets={history} /> : <Rules config={config} />}</ScrollView>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>{panel === 'bets' ? <History bets={history} /> : <Rules config={config} />}</ScrollView>
           </Pressable>
         </Pressable>
       )}

@@ -88,7 +88,7 @@ export default function AgentJackpotScreen() {
       </LinearGradient>
 
       {tab === 'ranking' ? (
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}>
+        <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}>
           <LinearGradient colors={['#8A1A2C', '#3A0913']} style={styles.poolCard}>
             <Text style={styles.poolLabel}>AGENT JACKPOT POOL</Text>
             <Text style={styles.poolValue}>{inr(ranking?.pool ?? 0)}</Text>
@@ -107,7 +107,7 @@ export default function AgentJackpotScreen() {
           )}
         </ScrollView>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}>
+        <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}>
           {!history && !failed ? (
             <ActivityIndicator color={colors.gold} style={{ marginTop: spacing.xl }} />
           ) : !history || history.length === 0 ? (

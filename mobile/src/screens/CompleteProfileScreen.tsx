@@ -56,7 +56,7 @@ export default function CompleteProfileScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>One last step</Text>
         <Text style={styles.subtitle}>
           {pendingPhone ? `Setting up your account for +91 ${pendingPhone}` : 'Complete your profile'}

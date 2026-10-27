@@ -595,7 +595,7 @@ export default function MinesScreen() {
             },
           ]}
         >
-          <ScrollView
+          <ScrollView nestedScrollEnabled
             contentContainerStyle={styles.dropdownContent}
             contentOffset={{ x: 0, y: Math.max(0, (mineCount - 3) * (MINES_OPTION_HEIGHT + MINES_OPTION_GAP)) }}
             persistentScrollbar
@@ -675,7 +675,7 @@ export default function MinesScreen() {
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={styles.rulesBody}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={styles.rulesBody}>
               <View style={styles.rulesLogo}>
                 <View style={styles.rulesLogoIcons}>
                   <MaterialCommunityIcons name="star-outline" size={24} color="#1FA3E0" style={styles.rulesLogoStarA} />

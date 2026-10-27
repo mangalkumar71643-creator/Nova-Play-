@@ -98,7 +98,7 @@ export default function HistoryScreen() {
           <Text style={styles.emptyText}>{failed ? 'Could not load. Please try again.' : 'No records'}</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        <ScrollView nestedScrollEnabled contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {records.map((t) => (
             <View key={t.id} style={styles.row}>
               <View style={styles.rowIconWrap}>

@@ -758,7 +758,7 @@ export default function VortexScreen() {
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={styles.sheetBody}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={styles.sheetBody}>
               {sheet === 'rules' && (
                 <>
                   {[

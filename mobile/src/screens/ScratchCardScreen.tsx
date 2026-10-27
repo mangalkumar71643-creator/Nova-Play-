@@ -10,6 +10,7 @@ import { ScratchConfig, ScratchTicketRow, buyScratchTicket, fetchScratchConfig, 
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import { usePullToRefresh } from '../components/PullToRefresh';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -382,6 +383,8 @@ export default function ScratchCardScreen() {
   const [config, setConfig] = useState<ScratchConfig | null>(null);
   const [bet, setBet] = useState(DEFAULT_BET);
   const [phase, setPhase] = useState<Phase>('idle');
+  // Scratching is a drag: no pull-to-refresh meanwhile.
+  usePullToRefresh({ disabled: phase === 'scratching' });
   const [ticket, setTicket] = useState<ScratchTicketRow | null>(null);
   const [masks, setMasks] = useState<string[]>(freshMasks);
   const [revealed, setRevealed] = useState<boolean[]>(() => Array(9).fill(false));
@@ -691,7 +694,7 @@ export default function ScratchCardScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={phase !== 'scratching'}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={phase !== 'scratching'}>
         {/* Recent results */}
         <View style={[styles.recentRow, { width: S }]}>
           {recent.length === 0 ? (
@@ -879,7 +882,7 @@ export default function ScratchCardScreen() {
                 <MaterialCommunityIcons name="close" size={22} color={TEXT} />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History tickets={history} symbols={symbols} />}</ScrollView>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History tickets={history} symbols={symbols} />}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

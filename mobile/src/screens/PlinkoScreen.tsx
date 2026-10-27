@@ -872,7 +872,7 @@ export default function PlinkoScreen() {
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={styles.sheetBody}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={styles.sheetBody}>
               {sheet === 'rules' && (
               <>
               <View style={styles.logoRow}>
@@ -939,7 +939,7 @@ export default function PlinkoScreen() {
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={styles.sheetBody}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={styles.sheetBody}>
               {history.length === 0 ? (
                 <Text style={styles.sheetText}>{t.noBets}</Text>
               ) : (

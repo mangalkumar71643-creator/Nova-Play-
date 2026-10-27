@@ -551,7 +551,7 @@ export default function LuckyCupsScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }}>
         <View style={[styles.stage, { width: S, height: H }]}>
           <Stage S={S} H={H} tableY={tableY} />
           <View style={{ position: 'absolute', top: H * 0.085, alignSelf: 'center' }}>
@@ -758,7 +758,7 @@ export default function LuckyCupsScreen() {
                 <MaterialCommunityIcons name="close" size={22} color={CREAM} />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History rounds={history} />}</ScrollView>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History rounds={history} />}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

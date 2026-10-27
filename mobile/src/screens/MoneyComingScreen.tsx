@@ -1098,7 +1098,7 @@ export default function MoneyComingScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={ACCENT2} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>
               {panel === 'pay' ? <Paytable special={special} wheel={wheelSegments} bet={bet} config={config} /> : <History spins={history} />}
             </ScrollView>
           </Pressable>

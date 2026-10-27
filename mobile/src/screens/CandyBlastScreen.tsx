@@ -1162,7 +1162,7 @@ export default function CandyBlastScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={PINK} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>
               {panel === 'pay' ? <Paytable paytable={paytable} bet={bet} config={config} /> : <History spins={history} />}
             </ScrollView>
           </Pressable>

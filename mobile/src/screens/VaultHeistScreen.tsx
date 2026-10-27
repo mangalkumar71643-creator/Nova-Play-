@@ -559,7 +559,7 @@ export default function VaultHeistScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }}>
         <View style={[styles.stage, { width: S, height: H }]}>
           <Wall S={S} H={H} cx={cx} cy={cy} R={R} />
 
@@ -854,7 +854,7 @@ export default function VaultHeistScreen() {
                 <MaterialCommunityIcons name="close" size={22} color={TEXT} />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History rounds={history} />}</ScrollView>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History rounds={history} />}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

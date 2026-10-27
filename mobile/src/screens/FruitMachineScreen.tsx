@@ -10,6 +10,7 @@ import { FruitMachineConfig, FruitOutcome, FruitSpinRow, FruitSymbol, fetchFruit
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
+import { usePullToRefresh } from '../components/PullToRefresh';
 
 const GOLD = '#FFD166';
 const GOLD_DEEP = '#B8860B';
@@ -630,6 +631,8 @@ const START_ROWS: FruitSymbol[][] = [
 type LadderState = { active: boolean; lit: number; final: boolean };
 
 export default function FruitMachineScreen() {
+  // The lever is pulled down, so a pull on this screen never means refresh.
+  usePullToRefresh({ disabled: true });
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { width: W } = useWindowDimensions();
@@ -893,7 +896,7 @@ export default function FruitMachineScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
         <View style={{ flexDirection: 'row', width: outerW, marginTop: 4 }}>
           {/* Cabinet */}
           <View style={[styles.cabinet, { width: cabW }]}>
@@ -1075,7 +1078,7 @@ export default function FruitMachineScreen() {
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 460 }}>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 460 }}>
               {panel === 'pay' ? (
                 <Paytable bet={bet} lineCount={lineCount} threePays={threePays} twoCherries={config?.twoCherries ?? 4} ladder={ladderPrizes} config={config} />
               ) : (

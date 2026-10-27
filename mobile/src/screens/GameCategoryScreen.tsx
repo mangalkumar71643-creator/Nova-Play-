@@ -325,7 +325,7 @@ export default function GameCategoryScreen() {
         </Pressable>
       </View>
 
-      <ScrollView
+      <ScrollView nestedScrollEnabled
         ref={scrollRef}
         stickyHeaderIndices={[1]}
         onScroll={onScroll}

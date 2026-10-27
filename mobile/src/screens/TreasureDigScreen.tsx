@@ -639,7 +639,7 @@ export default function TreasureDigScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }}>
         <Animated.View style={[styles.stage, { width: S, height: H, transform: [{ translateX: shake }] }]}>
           <Island S={S} H={H} siteY={siteY} siteH={siteH} />
 
@@ -847,7 +847,7 @@ export default function TreasureDigScreen() {
                 <MaterialCommunityIcons name="close" size={22} color={TEXT} />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History rounds={history} />}</ScrollView>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History rounds={history} />}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

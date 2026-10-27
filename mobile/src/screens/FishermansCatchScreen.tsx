@@ -953,7 +953,7 @@ export default function FishermansCatchScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
         <View style={[styles.cabinet, { width: cabW }]} onLayout={(e) => setSceneH(Math.round(e.nativeEvent.layout.height))}>
           {sceneH > 0 && <LakeScene w={cabW} h={sceneH} night={free.active} />}
           <Waves w={cabW} drift={drift} night={free.active} />
@@ -1150,7 +1150,7 @@ export default function FishermansCatchScreen() {
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 480 }}>{panel === 'pay' ? <Paytable bet={bet} config={config} /> : <History spins={history} />}</ScrollView>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 480 }}>{panel === 'pay' ? <Paytable bet={bet} config={config} /> : <History spins={history} />}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

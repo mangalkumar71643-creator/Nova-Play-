@@ -26,6 +26,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
+import { usePullToRefresh } from '../components/PullToRefresh';
 
 // How far the live number may run past the server's latest reply.
 const MAX_AHEAD_OF_SERVER_MS = 1200;
@@ -423,6 +424,10 @@ export default function SkyJetScreen() {
     view && lastReplyRef.current.periodNumber === view.periodNumber ? Math.min(srvNow, lastReplyRef.current.serverMs + MAX_AHEAD_OF_SERVER_MS) : srvNow;
   const elapsed = Math.max(0, (shownNow - flyStart) / 1000);
   const liveMult = localPhase === 'CRASHED' ? view?.crashMultiplier ?? 1 : localPhase === 'FLYING' ? round2(Math.exp(growth * elapsed)) : 1;
+  // A reload would not bring a bet in the air back on screen: hold the pull-to-refresh meanwhile.
+  usePullToRefresh({
+    blockedReason: panels.some((p) => p.busy || (!!p.bet && !p.cashedAt && localPhase !== 'CRASHED')) ? 'Your bet is still in this round — cash out or wait for the round to end, then pull down to refresh.' : null,
+  });
 
   useEffect(() => {
     let raf = 0;
@@ -631,7 +636,7 @@ export default function SkyJetScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
         {/* Jackpot meter */}
         <View style={[styles.jackpot, { width: SW }]}>
           <LinearGradient colors={['#3A2604', '#1A1002']} style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} />

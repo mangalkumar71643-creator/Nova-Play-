@@ -882,7 +882,7 @@ export default function PenaltyHeroScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <ScrollView nestedScrollEnabled
         contentContainerStyle={{
           paddingBottom: insets.bottom + 24,
           alignItems: 'center',
@@ -1301,7 +1301,7 @@ export default function PenaltyHeroScreen() {
                 <MaterialCommunityIcons name="close" size={22} color={WHITE} />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History rounds={history} />}</ScrollView>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History rounds={history} />}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

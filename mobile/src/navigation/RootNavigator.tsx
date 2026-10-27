@@ -79,6 +79,66 @@ import LoadingState from '../components/LoadingState';
 import ScreenContainer from '../components/ScreenContainer';
 import { colors } from '../theme';
 import { useAuth } from '../state/AuthContext';
+import { withPullToRefresh } from '../components/PullToRefresh';
+
+// Every game reloads on a pull down (components/PullToRefresh.tsx). Made once here,
+// not inline, so a re-render never swaps in a new screen component.
+const AviatorScreenWithRefresh = withPullToRefresh(AviatorScreen);
+const ChickenRoadScreenWithRefresh = withPullToRefresh(ChickenRoadScreen);
+const MinesScreenWithRefresh = withPullToRefresh(MinesScreen);
+const SevenUpDownScreenWithRefresh = withPullToRefresh(SevenUpDownScreen);
+const PlinkoScreenWithRefresh = withPullToRefresh(PlinkoScreen);
+const DragonTigerScreenWithRefresh = withPullToRefresh(DragonTigerScreen);
+const VortexScreenWithRefresh = withPullToRefresh(VortexScreen);
+const AndarBaharScreenWithRefresh = withPullToRefresh(AndarBaharScreen);
+const TeenPattiScreenWithRefresh = withPullToRefresh(TeenPattiScreen);
+const CricketXScreenWithRefresh = withPullToRefresh(CricketXScreen);
+const RocketScreenWithRefresh = withPullToRefresh(RocketScreen);
+const GoalRushScreenWithRefresh = withPullToRefresh(GoalRushScreen);
+const BigCatchScreenWithRefresh = withPullToRefresh(BigCatchScreen);
+const CosmonautScreenWithRefresh = withPullToRefresh(CosmonautScreen);
+const SkyJetScreenWithRefresh = withPullToRefresh(SkyJetScreen);
+const NightRacerScreenWithRefresh = withPullToRefresh(NightRacerScreen);
+const AirshipScreenWithRefresh = withPullToRefresh(AirshipScreen);
+const GatesOfZeusScreenWithRefresh = withPullToRefresh(GatesOfZeusScreen);
+const WolfMoonScreenWithRefresh = withPullToRefresh(WolfMoonScreen);
+const PenaltyHeroScreenWithRefresh = withPullToRefresh(PenaltyHeroScreen);
+const LuckyCupsScreenWithRefresh = withPullToRefresh(LuckyCupsScreen);
+const BombSquadScreenWithRefresh = withPullToRefresh(BombSquadScreen);
+const VaultHeistScreenWithRefresh = withPullToRefresh(VaultHeistScreen);
+const TreasureDigScreenWithRefresh = withPullToRefresh(TreasureDigScreen);
+const LuckyWheelScreenWithRefresh = withPullToRefresh(LuckyWheelScreen);
+const ScratchCardScreenWithRefresh = withPullToRefresh(ScratchCardScreen);
+const DiceDuelScreenWithRefresh = withPullToRefresh(DiceDuelScreen);
+const ColorBallScreenWithRefresh = withPullToRefresh(ColorBallScreen);
+const FortuneSixScreenWithRefresh = withPullToRefresh(FortuneSixScreen);
+const FruitMachineScreenWithRefresh = withPullToRefresh(FruitMachineScreen);
+const FishermansCatchScreenWithRefresh = withPullToRefresh(FishermansCatchScreen);
+const BookOfPharaohScreenWithRefresh = withPullToRefresh(BookOfPharaohScreen);
+const MoneyComingScreenWithRefresh = withPullToRefresh(MoneyComingScreen);
+const JhandiMundaScreenWithRefresh = withPullToRefresh(JhandiMundaScreen);
+const RouletteScreenWithRefresh = withPullToRefresh(RouletteScreen);
+const K3LotteryScreenWithRefresh = withPullToRefresh(K3LotteryScreen);
+const WinGoScreenWithRefresh = withPullToRefresh(WinGoScreen);
+const FiveDLotteryScreenWithRefresh = withPullToRefresh(FiveDLotteryScreen);
+const TrxWinScreenWithRefresh = withPullToRefresh(TrxWinScreen);
+const BaccaratScreenWithRefresh = withPullToRefresh(BaccaratScreen);
+const SlotScreenWithRefresh = withPullToRefresh(SlotScreen);
+const AcesScreenWithRefresh = withPullToRefresh(AcesScreen);
+const DiceScreenWithRefresh = withPullToRefresh(DiceScreen);
+const LimboScreenWithRefresh = withPullToRefresh(LimboScreen);
+const BlackjackScreenWithRefresh = withPullToRefresh(BlackjackScreen);
+const KenoScreenWithRefresh = withPullToRefresh(KenoScreen);
+const HiloScreenWithRefresh = withPullToRefresh(HiloScreen);
+const DragonTowerScreenWithRefresh = withPullToRefresh(DragonTowerScreen);
+const VideoPokerScreenWithRefresh = withPullToRefresh(VideoPokerScreen);
+const DiamondsScreenWithRefresh = withPullToRefresh(DiamondsScreen);
+const PumpScreenWithRefresh = withPullToRefresh(PumpScreen);
+const CoinFlipScreenWithRefresh = withPullToRefresh(CoinFlipScreen);
+const CasinoHoldemScreenWithRefresh = withPullToRefresh(CasinoHoldemScreen);
+const ThreeCardPokerScreenWithRefresh = withPullToRefresh(ThreeCardPokerScreen);
+const CandyBlastScreenWithRefresh = withPullToRefresh(CandyBlastScreen);
+const Neon777ScreenWithRefresh = withPullToRefresh(Neon777Screen);
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -119,63 +179,63 @@ function MainNavigator() {
       <Stack.Screen name="AgentRewards" component={AgentRewardsScreen} />
       <Stack.Screen name="AgentTeam" component={AgentTeamScreen} />
       <Stack.Screen name="AgentJackpot" component={AgentJackpotScreen} />
-      <Stack.Screen name="Aviator" component={AviatorScreen} />
-      <Stack.Screen name="ChickenRoad" component={ChickenRoadScreen} />
-      <Stack.Screen name="Mines" component={MinesScreen} />
-      <Stack.Screen name="SevenUpDown" component={SevenUpDownScreen} />
-      <Stack.Screen name="Plinko" component={PlinkoScreen} />
-      <Stack.Screen name="DragonTiger" component={DragonTigerScreen} />
-      <Stack.Screen name="Vortex" component={VortexScreen} />
-      <Stack.Screen name="AndarBahar" component={AndarBaharScreen} />
-      <Stack.Screen name="TeenPatti" component={TeenPattiScreen} />
-      <Stack.Screen name="CricketX" component={CricketXScreen} />
-      <Stack.Screen name="Rocket" component={RocketScreen} />
-      <Stack.Screen name="GoalRush" component={GoalRushScreen} />
-      <Stack.Screen name="BigCatch" component={BigCatchScreen} />
-      <Stack.Screen name="Cosmonaut" component={CosmonautScreen} />
-      <Stack.Screen name="SkyJet" component={SkyJetScreen} />
-      <Stack.Screen name="NightRacer" component={NightRacerScreen} />
-      <Stack.Screen name="Airship" component={AirshipScreen} />
-      <Stack.Screen name="GatesOfZeus" component={GatesOfZeusScreen} />
-      <Stack.Screen name="WolfMoon" component={WolfMoonScreen} />
-      <Stack.Screen name="PenaltyHero" component={PenaltyHeroScreen} />
-      <Stack.Screen name="LuckyCups" component={LuckyCupsScreen} />
-      <Stack.Screen name="BombSquad" component={BombSquadScreen} />
-      <Stack.Screen name="VaultHeist" component={VaultHeistScreen} />
-      <Stack.Screen name="TreasureDig" component={TreasureDigScreen} />
-      <Stack.Screen name="LuckyWheel" component={LuckyWheelScreen} />
-      <Stack.Screen name="ScratchCard" component={ScratchCardScreen} />
-      <Stack.Screen name="DiceDuel" component={DiceDuelScreen} />
-      <Stack.Screen name="ColorBall" component={ColorBallScreen} />
-      <Stack.Screen name="FortuneSix" component={FortuneSixScreen} />
-      <Stack.Screen name="FruitMachine" component={FruitMachineScreen} />
-      <Stack.Screen name="FishermansCatch" component={FishermansCatchScreen} />
-      <Stack.Screen name="BookOfPharaoh" component={BookOfPharaohScreen} />
-      <Stack.Screen name="MoneyComing" component={MoneyComingScreen} />
+      <Stack.Screen name="Aviator" component={AviatorScreenWithRefresh} />
+      <Stack.Screen name="ChickenRoad" component={ChickenRoadScreenWithRefresh} />
+      <Stack.Screen name="Mines" component={MinesScreenWithRefresh} />
+      <Stack.Screen name="SevenUpDown" component={SevenUpDownScreenWithRefresh} />
+      <Stack.Screen name="Plinko" component={PlinkoScreenWithRefresh} />
+      <Stack.Screen name="DragonTiger" component={DragonTigerScreenWithRefresh} />
+      <Stack.Screen name="Vortex" component={VortexScreenWithRefresh} />
+      <Stack.Screen name="AndarBahar" component={AndarBaharScreenWithRefresh} />
+      <Stack.Screen name="TeenPatti" component={TeenPattiScreenWithRefresh} />
+      <Stack.Screen name="CricketX" component={CricketXScreenWithRefresh} />
+      <Stack.Screen name="Rocket" component={RocketScreenWithRefresh} />
+      <Stack.Screen name="GoalRush" component={GoalRushScreenWithRefresh} />
+      <Stack.Screen name="BigCatch" component={BigCatchScreenWithRefresh} />
+      <Stack.Screen name="Cosmonaut" component={CosmonautScreenWithRefresh} />
+      <Stack.Screen name="SkyJet" component={SkyJetScreenWithRefresh} />
+      <Stack.Screen name="NightRacer" component={NightRacerScreenWithRefresh} />
+      <Stack.Screen name="Airship" component={AirshipScreenWithRefresh} />
+      <Stack.Screen name="GatesOfZeus" component={GatesOfZeusScreenWithRefresh} />
+      <Stack.Screen name="WolfMoon" component={WolfMoonScreenWithRefresh} />
+      <Stack.Screen name="PenaltyHero" component={PenaltyHeroScreenWithRefresh} />
+      <Stack.Screen name="LuckyCups" component={LuckyCupsScreenWithRefresh} />
+      <Stack.Screen name="BombSquad" component={BombSquadScreenWithRefresh} />
+      <Stack.Screen name="VaultHeist" component={VaultHeistScreenWithRefresh} />
+      <Stack.Screen name="TreasureDig" component={TreasureDigScreenWithRefresh} />
+      <Stack.Screen name="LuckyWheel" component={LuckyWheelScreenWithRefresh} />
+      <Stack.Screen name="ScratchCard" component={ScratchCardScreenWithRefresh} />
+      <Stack.Screen name="DiceDuel" component={DiceDuelScreenWithRefresh} />
+      <Stack.Screen name="ColorBall" component={ColorBallScreenWithRefresh} />
+      <Stack.Screen name="FortuneSix" component={FortuneSixScreenWithRefresh} />
+      <Stack.Screen name="FruitMachine" component={FruitMachineScreenWithRefresh} />
+      <Stack.Screen name="FishermansCatch" component={FishermansCatchScreenWithRefresh} />
+      <Stack.Screen name="BookOfPharaoh" component={BookOfPharaohScreenWithRefresh} />
+      <Stack.Screen name="MoneyComing" component={MoneyComingScreenWithRefresh} />
       <Stack.Screen name="GiftCode" component={GiftCodeScreen} />
-      <Stack.Screen name="JhandiMunda" component={JhandiMundaScreen} />
-      <Stack.Screen name="Roulette" component={RouletteScreen} />
-      <Stack.Screen name="K3Lottery" component={K3LotteryScreen} />
-      <Stack.Screen name="WinGo" component={WinGoScreen} />
-      <Stack.Screen name="FiveDLottery" component={FiveDLotteryScreen} />
-      <Stack.Screen name="TrxWin" component={TrxWinScreen} />
-      <Stack.Screen name="Baccarat" component={BaccaratScreen} />
-      <Stack.Screen name="Slot" component={SlotScreen} />
-      <Stack.Screen name="Aces" component={AcesScreen} />
-      <Stack.Screen name="Dice" component={DiceScreen} />
-      <Stack.Screen name="Limbo" component={LimboScreen} />
-      <Stack.Screen name="Blackjack" component={BlackjackScreen} />
-      <Stack.Screen name="Keno" component={KenoScreen} />
-      <Stack.Screen name="Hilo" component={HiloScreen} />
-      <Stack.Screen name="DragonTower" component={DragonTowerScreen} />
-      <Stack.Screen name="VideoPoker" component={VideoPokerScreen} />
-      <Stack.Screen name="Diamonds" component={DiamondsScreen} />
-      <Stack.Screen name="Pump" component={PumpScreen} />
-      <Stack.Screen name="CoinFlip" component={CoinFlipScreen} />
-      <Stack.Screen name="CasinoHoldem" component={CasinoHoldemScreen} />
-      <Stack.Screen name="ThreeCardPoker" component={ThreeCardPokerScreen} />
-      <Stack.Screen name="CandyBlast" component={CandyBlastScreen} />
-      <Stack.Screen name="Neon777" component={Neon777Screen} />
+      <Stack.Screen name="JhandiMunda" component={JhandiMundaScreenWithRefresh} />
+      <Stack.Screen name="Roulette" component={RouletteScreenWithRefresh} />
+      <Stack.Screen name="K3Lottery" component={K3LotteryScreenWithRefresh} />
+      <Stack.Screen name="WinGo" component={WinGoScreenWithRefresh} />
+      <Stack.Screen name="FiveDLottery" component={FiveDLotteryScreenWithRefresh} />
+      <Stack.Screen name="TrxWin" component={TrxWinScreenWithRefresh} />
+      <Stack.Screen name="Baccarat" component={BaccaratScreenWithRefresh} />
+      <Stack.Screen name="Slot" component={SlotScreenWithRefresh} />
+      <Stack.Screen name="Aces" component={AcesScreenWithRefresh} />
+      <Stack.Screen name="Dice" component={DiceScreenWithRefresh} />
+      <Stack.Screen name="Limbo" component={LimboScreenWithRefresh} />
+      <Stack.Screen name="Blackjack" component={BlackjackScreenWithRefresh} />
+      <Stack.Screen name="Keno" component={KenoScreenWithRefresh} />
+      <Stack.Screen name="Hilo" component={HiloScreenWithRefresh} />
+      <Stack.Screen name="DragonTower" component={DragonTowerScreenWithRefresh} />
+      <Stack.Screen name="VideoPoker" component={VideoPokerScreenWithRefresh} />
+      <Stack.Screen name="Diamonds" component={DiamondsScreenWithRefresh} />
+      <Stack.Screen name="Pump" component={PumpScreenWithRefresh} />
+      <Stack.Screen name="CoinFlip" component={CoinFlipScreenWithRefresh} />
+      <Stack.Screen name="CasinoHoldem" component={CasinoHoldemScreenWithRefresh} />
+      <Stack.Screen name="ThreeCardPoker" component={ThreeCardPokerScreenWithRefresh} />
+      <Stack.Screen name="CandyBlast" component={CandyBlastScreenWithRefresh} />
+      <Stack.Screen name="Neon777" component={Neon777ScreenWithRefresh} />
       <Stack.Screen name="GameCategory" component={GameCategoryScreen} />
     </Stack.Navigator>
   );

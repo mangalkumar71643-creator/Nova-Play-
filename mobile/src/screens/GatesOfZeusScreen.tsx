@@ -1163,7 +1163,7 @@ export default function GatesOfZeusScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={GOLD_DEEP} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>{panel === 'pay' ? <Paytable paytable={paytable} bet={bet} config={config} /> : <History spins={history} />}</ScrollView>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>{panel === 'pay' ? <Paytable paytable={paytable} bet={bet} config={config} /> : <History spins={history} />}</ScrollView>
           </Pressable>
         </Pressable>
       )}

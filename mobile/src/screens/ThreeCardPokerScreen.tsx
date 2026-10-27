@@ -784,7 +784,7 @@ export default function ThreeCardPokerScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={GOLD} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>
               {panel === 'history' ? <History hands={history} /> : <Rules config={config} antePays={antePays} playPays={playPays} anteBonus={anteBonus} pairPlus={pairPlusPays} />}
             </ScrollView>
           </Pressable>

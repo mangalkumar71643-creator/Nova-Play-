@@ -1489,7 +1489,7 @@ export default function BaccaratScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={GOLD} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>
               {panel === 'rules' ? (
                 <Rules multipliers={multipliers} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? NO_LIMIT} leastPayout={config?.resultRule === 'LEAST_PAYOUT'} />
               ) : (

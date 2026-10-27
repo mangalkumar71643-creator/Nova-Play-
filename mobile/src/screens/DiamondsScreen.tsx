@@ -571,7 +571,7 @@ export default function DiamondsScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={GOLD} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>{panel === 'history' ? <History bets={history} /> : <Rules config={config} />}</ScrollView>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>{panel === 'history' ? <History bets={history} /> : <Rules config={config} />}</ScrollView>
           </Pressable>
         </Pressable>
       )}

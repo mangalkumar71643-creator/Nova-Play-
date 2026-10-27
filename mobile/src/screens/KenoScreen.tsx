@@ -687,7 +687,7 @@ export default function KenoScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={AMBER} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>{panel === 'bets' ? <History bets={history} /> : <Paytable tables={tables} risk={risk} picks={picks.length} config={config} />}</ScrollView>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>{panel === 'bets' ? <History bets={history} /> : <Paytable tables={tables} risk={risk} picks={picks.length} config={config} />}</ScrollView>
           </Pressable>
         </Pressable>
       )}

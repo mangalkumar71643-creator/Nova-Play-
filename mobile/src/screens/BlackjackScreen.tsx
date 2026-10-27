@@ -926,7 +926,7 @@ export default function BlackjackScreen() {
                 <MaterialCommunityIcons name="close" size={20} color={GOLD} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>{panel === 'history' ? <History hands={history} /> : <Rules config={config} />}</ScrollView>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>{panel === 'history' ? <History hands={history} /> : <Rules config={config} />}</ScrollView>
           </Pressable>
         </Pressable>
       )}

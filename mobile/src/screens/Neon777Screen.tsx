@@ -1013,7 +1013,7 @@ export default function Neon777Screen() {
                 <MaterialCommunityIcons name="close" size={20} color={NEON_CYAN} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 14 }}>
+            <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>
               {panel === 'pay' ? <Paytable pays={linePays} special={special} bet={bet} config={config} /> : <History spins={history} />}
             </ScrollView>
           </Pressable>

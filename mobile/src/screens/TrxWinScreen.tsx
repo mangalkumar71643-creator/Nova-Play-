@@ -677,7 +677,7 @@ export default function TrxWinScreen() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={{ paddingBottom: (sheetOpen ? sheetH : 0) + insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: (sheetOpen ? sheetH : 0) + insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <LinearGradient colors={[G1, G2, G3]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + 4, height: insets.top + 60 + 130 }]}>
           <View pointerEvents="none" style={[styles.headerArc, { width: W * 1.4, height: W * 1.4, borderRadius: W * 0.7, right: -W * 0.9, top: -W * 0.55 }]} />
@@ -1188,7 +1188,7 @@ export default function TrxWinScreen() {
             <LinearGradient colors={[G1, G2]} style={styles.rulesHead}>
               <Text style={styles.rulesTitle}>How to play</Text>
             </LinearGradient>
-            <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 380 }} contentContainerStyle={{ padding: 14, gap: 8 }}>
               {(leastStaked
                 ? [
                     `Each period (${DURATION_LABEL[duration]}) ends at a set time. Betting closes ${lockSeconds} seconds before it.`,

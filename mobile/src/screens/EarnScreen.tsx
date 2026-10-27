@@ -143,7 +143,7 @@ export default function EarnScreen() {
           )}
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView nestedScrollEnabled contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {tab === 'mine' ? (
             <MyRewards
               data={data}

@@ -946,7 +946,7 @@ export default function BookOfPharaohScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
         <View style={[styles.cabinet, { width: cabW }]} onLayout={(e) => setSceneH(Math.round(e.nativeEvent.layout.height))}>
           {sceneH > 0 && <Desert w={cabW} h={sceneH} free={free.active} />}
           {sceneH > 0 && <Twinkles w={cabW} h={sceneH} twinkle={twinkle} />}
@@ -1134,7 +1134,7 @@ export default function BookOfPharaohScreen() {
                 <MaterialCommunityIcons name="close" size={22} color="#3A2A10" />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 480 }}>{panel === 'pay' ? <Paytable bet={bet} config={config} /> : <History spins={history} />}</ScrollView>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 480 }}>{panel === 'pay' ? <Paytable bet={bet} config={config} /> : <History spins={history} />}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

@@ -793,7 +793,7 @@ export default function JhandiMundaScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
         {/* Recent rounds: the symbol that came most, and how many times (⭐ on a House round) */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.histRow}>
           {history.length === 0 && <Text style={styles.histEmpty}>Results will show here</Text>}

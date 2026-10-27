@@ -669,7 +669,7 @@ export default function WolfMoonScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
         <View style={[styles.cabinet, { width: cabW }]}>
           <Desert w={cabW} h={reelsH + 250} free={!!free} />
           <View style={{ alignItems: 'center', marginTop: 4 }}>
@@ -896,7 +896,7 @@ export default function WolfMoonScreen() {
                 <MaterialCommunityIcons name="close" size={22} color={SILVER} />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 480 }}>{panel === 'pay' ? <Paytable bet={bet} config={config} /> : <History spins={history} />}</ScrollView>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 480 }}>{panel === 'pay' ? <Paytable bet={bet} config={config} /> : <History spins={history} />}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

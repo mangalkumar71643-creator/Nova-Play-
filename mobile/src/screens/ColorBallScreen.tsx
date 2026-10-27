@@ -385,7 +385,7 @@ export default function ColorBallScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
+      <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: 'center' }} scrollEnabled={!busy}>
         {/* Recent draws */}
         <View style={[styles.recentRow, { width: S }]}>
           {recent.length === 0 ? (
@@ -586,7 +586,7 @@ export default function ColorBallScreen() {
                 <MaterialCommunityIcons name="close" size={22} color={TEXT} />
               </Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History bets={history} />}</ScrollView>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 480 }}>{panel === 'info' ? <Rules bet={bet} config={config} /> : <History bets={history} />}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
