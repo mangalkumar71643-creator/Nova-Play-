@@ -1,16 +1,19 @@
 import { useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Vibration } from 'react-native';
 import { fetchNotifications, markNotificationsRead } from '../api/backend';
 import { useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
 import { showAlert } from './AppAlert';
 
 const EVERY_MS = 60_000;
+// Three buzzes when a message arrives: wait, buzz, pause, buzz, pause, buzz (ms).
+const BUZZ_THREE_TIMES = [0, 400, 250, 400, 250, 400];
 
 /**
  * Shows each unread message (money the admin added: bonus, deposit,
  * returned withdrawal) as a popup while the app is open — on start, when it
- * comes back to the front, and every minute — then marks it read. They stay
+ * comes back to the front, and every minute — buzzing the phone three
+ * times, then marks it read. They stay
  * listed under Notifications → Personal.
  */
 export default function NotificationWatcher() {
@@ -29,6 +32,7 @@ export default function NotificationWatcher() {
         if (unread.length === 0) return;
         await markNotificationsRead(unread.map((n) => n.id));
         refreshWallet().catch(() => {});
+        Vibration.vibrate(BUZZ_THREE_TIMES);
         for (const n of unread) {
           showAlert(n.title, n.body, undefined, {
             kind: n.kind === 'WITHDRAWAL_REFUND' ? 'info' : 'success',
