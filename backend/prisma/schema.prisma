@@ -193,6 +193,8 @@ model User {
   kycVerifications   KycVerification[]
   supportTickets     SupportTicket[]
   notifications      PlayerNotification[]
+  // Messages the admin sent to every player (Broadcast) up to this time count as read.
+  broadcastsSeenAt   DateTime?
   colorGameBets      ColorGameBet[]
   aviatorBets        AviatorBet[]
   chickenRoadRounds  ChickenRoadRound[]
@@ -2342,8 +2344,22 @@ model PlayerNotification {
   title     String
   body      String
   amount    Decimal?  @db.Decimal(12, 2)
+  // A gift code the message offers (the app shows a "Redeem" button).
+  giftCode  String?
   readAt    DateTime?
   createdAt DateTime  @default(now())
 
   @@index([userId, createdAt])
+}
+
+/// A message the admin sent to every player from the panel's Messages page
+/// (playerNotificationService.ts); read state is User.broadcastsSeenAt.
+model Broadcast {
+  id        String   @id @default(uuid())
+  title     String
+  body      String
+  giftCode  String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }

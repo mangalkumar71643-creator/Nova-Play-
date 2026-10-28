@@ -19,7 +19,7 @@ import {
   setDepositBonusConfig,
 } from "../services/depositBonusService";
 import { getAutoPayoutSettings, MAX_AUTO_PAYOUT_MAX, setAutoPayoutSettings } from "../services/autoPayoutService";
-import { notifyBonus, notifyDeposit, notifyWithdrawalRefund } from "../services/playerNotificationService";
+import { notifyBonus, notifyDeposit, notifyWithdrawalRefund, sendBroadcast, sendToPlayer, sentMessages } from "../services/playerNotificationService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
 import { getPlayerReport } from "../services/playerReportService";
@@ -881,6 +881,35 @@ router.patch(
   asyncHandler(async (req, res) => {
     const { maxPayout } = settingsSchema.parse(req.body);
     res.json(await setMaxPayout(maxPayout));
+  })
+);
+
+// --- Messages to players (panel → Messages; playerNotificationService.ts) ---
+
+router.get(
+  "/messages",
+  asyncHandler(async (_req, res) => {
+    res.json(await sentMessages());
+  })
+);
+
+const messageSchema = z.object({
+  to: z.enum(["all", "player"]),
+  uid: z.number().int().positive().optional(),
+  title: z.string().trim().min(1, "Write a title.").max(80),
+  body: z.string().trim().min(1, "Write the message.").max(500),
+  giftCode: z.string().trim().max(40).optional(),
+});
+router.post(
+  "/messages",
+  asyncHandler(async (req, res) => {
+    const { to, uid, title, body, giftCode } = messageSchema.parse(req.body);
+    const msg = { title, body, giftCode: giftCode || undefined };
+    if (to === "player") {
+      if (!uid) throw new ApiError(400, "Enter the player's UID.");
+      return res.status(201).json(await sendToPlayer(uid, msg));
+    }
+    res.status(201).json(await sendBroadcast(msg));
   })
 );
 

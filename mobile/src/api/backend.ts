@@ -3932,10 +3932,12 @@ export function fetchMySupportRequests() {
 
 export type PlayerNotification = {
   id: string;
-  kind: 'ADMIN_BONUS' | 'ADMIN_DEPOSIT' | 'WITHDRAWAL_REFUND' | string;
+  kind: 'ADMIN_BONUS' | 'ADMIN_DEPOSIT' | 'WITHDRAWAL_REFUND' | 'ADMIN_MESSAGE' | 'BROADCAST' | string;
   title: string;
   body: string;
   amount: number | null;
+  /** A gift code the message offers: the app shows a Redeem button. */
+  giftCode: string | null;
   readAt: string | null;
   createdAt: string;
 };

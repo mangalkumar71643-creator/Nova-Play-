@@ -59,6 +59,11 @@ export default function NotificationsScreen() {
               </View>
               {n.amount != null ? <Text style={styles.itemAmount}>₹{n.amount.toLocaleString('en-IN')}</Text> : null}
               <Text style={styles.itemBody}>{n.body}</Text>
+              {n.giftCode ? (
+                <Text selectable style={styles.itemCode}>
+                  Gift code: {n.giftCode}
+                </Text>
+              ) : null}
               <Text style={styles.itemTime}>
                 {new Date(n.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
               </Text>
@@ -83,6 +88,7 @@ const styles = StyleSheet.create({
   dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.crimsonLight },
   itemAmount: { color: colors.gold, fontWeight: '900', fontSize: typography.xl, marginTop: spacing.xs },
   itemBody: { color: colors.textSecondary, fontSize: typography.sm, lineHeight: 20, marginTop: spacing.xs },
+  itemCode: { color: colors.gold, fontWeight: '800', fontSize: typography.md, marginTop: spacing.sm },
   itemTime: { color: colors.textMuted, fontSize: typography.xs, marginTop: spacing.sm },
   header: {
     flexDirection: 'row',

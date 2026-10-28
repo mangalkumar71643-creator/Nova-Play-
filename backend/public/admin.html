@@ -691,6 +691,32 @@
         </div>
       </div>
 
+      <div class="panel" id="panel-messages">
+        <h1 class="page-title">Messages</h1>
+        <div class="page-sub">Send a message to every player, or to one player by UID. It pops up in their app (the phone buzzes three times), shows as a phone notification, and stays under Notifications. Add a gift code to give a bonus: players get a "Redeem" button.</div>
+        <div class="card" style="max-width:560px;">
+          <div class="card-head"><h2>New message</h2></div>
+          <div class="form-row">
+            <select id="msgTo" style="flex:0 0 auto;">
+              <option value="all">All players</option>
+              <option value="player">One player (UID)</option>
+            </select>
+            <input id="msgUid" type="number" placeholder="Player UID" style="display:none;" />
+          </div>
+          <div class="form-row"><input id="msgTitle" maxlength="80" placeholder="Title, e.g. 🎁 Free ₹10 bonus for you!" /></div>
+          <div class="form-row"><textarea id="msgBody" rows="4" maxlength="500" placeholder="Message, e.g. Use code below in the gift box and get ₹10 free. Hurry, only today!" style="width:100%;"></textarea></div>
+          <div class="form-row">
+            <input id="msgCode" maxlength="40" placeholder="Gift code (optional) — make it on Gift Codes first" />
+            <button class="btn" id="msgSend" style="flex:0 0 auto;">Send</button>
+          </div>
+          <div class="item-meta" id="msgStatus"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Sent</h2></div>
+          <div id="msgList"></div>
+        </div>
+      </div>
+
       <div class="panel" id="panel-popups">
         <h1 class="page-title">Popups</h1>
         <div class="page-sub">Images players see when the app opens. #1 shows first; the next one appears when they close it.</div>
@@ -1151,6 +1177,7 @@
         { id: 'game-aviator', label: 'Aviator' },
       ] },
     { id: 'support', label: 'Support', icon: 'support' },
+    { id: 'messages', label: 'Messages', icon: 'bell' },
     { id: 'popups', label: 'Popups', icon: 'image' },
     { id: 'slider', label: 'Home Slider', icon: 'slider' },
     { id: 'category-slider', label: 'Category Slider', icon: 'slider' },
@@ -1231,6 +1258,7 @@
     'game-colorpredict': function () { loadColorPredictPanel(); activeGamePollInterval = setInterval(loadColorPredictPanel, 4000); },
     'game-aviator': function () { loadAviatorPanel(); activeGamePollInterval = setInterval(loadAviatorPanel, 2000); },
     support: loadTickets,
+    messages: loadMessages,
     popups: loadPopups,
     slider: function () { loadPopups(); loadAppDownloadUrl(); },
     'category-slider': loadPopups,
@@ -2093,6 +2121,44 @@
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
   });
+  // ---------- Messages to players ----------
+  document.getElementById('msgTo').addEventListener('change', function () {
+    document.getElementById('msgUid').style.display = this.value === 'player' ? '' : 'none';
+  });
+  function loadMessages() {
+    api('/admin/messages').then(function (list) {
+      document.getElementById('msgList').innerHTML = list.length ? list.map(function (m) {
+        return '<div class="item"><div class="item-top"><div>' +
+          '<div class="item-title">' + escapeHtml(m.title) + '</div>' +
+          '<div class="item-meta">' + escapeHtml(m.to) + ' · ' + new Date(m.createdAt).toLocaleString() + (m.giftCode ? ' · code <b>' + escapeHtml(m.giftCode) + '</b>' : '') + (m.to !== 'All players' ? (m.readAt ? ' · seen' : ' · not seen yet') : '') + '</div>' +
+          '</div></div><div class="item-meta" style="margin-top:6px;white-space:pre-wrap;">' + escapeHtml(m.body) + '</div></div>';
+      }).join('') : '<div class="empty">Nothing sent yet.</div>';
+    }).catch(function (err) { if (err.authError) doLogout(); });
+  }
+  document.getElementById('msgSend').addEventListener('click', function () {
+    var btn = this;
+    var status = document.getElementById('msgStatus');
+    var to = document.getElementById('msgTo').value;
+    var body = { to: to, title: document.getElementById('msgTitle').value.trim(), body: document.getElementById('msgBody').value.trim() };
+    var code = document.getElementById('msgCode').value.trim();
+    if (code) body.giftCode = code;
+    if (to === 'player') body.uid = Number(document.getElementById('msgUid').value);
+    if (!body.title || !body.body) { status.textContent = 'Write a title and a message.'; return; }
+    if (to === 'player' && !body.uid) { status.textContent = "Enter the player's UID."; return; }
+    if (to === 'all' && !confirm('Send this message to ALL players?')) return;
+    btn.disabled = true;
+    api('/admin/messages', { method: 'POST', body: JSON.stringify(body) })
+      .then(function (r) {
+        status.textContent = to === 'all' ? 'Sent to all ' + r.players + ' players.' : 'Sent to UID ' + body.uid + '.';
+        document.getElementById('msgTitle').value = '';
+        document.getElementById('msgBody').value = '';
+        document.getElementById('msgCode').value = '';
+        loadMessages();
+      })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
+      .finally(function () { btn.disabled = false; });
+  });
+
   function loadTickets() {
     loadSupportLinks();
     api('/admin/support-tickets').then(function (tickets) {

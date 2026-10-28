@@ -14,7 +14,7 @@ router.get(
   })
 );
 
-const readSchema = z.object({ ids: z.array(z.string().uuid()).max(100).optional() });
+const readSchema = z.object({ ids: z.array(z.string().min(1).max(60)).max(100).optional() });
 router.post(
   "/read",
   requireAuth,
