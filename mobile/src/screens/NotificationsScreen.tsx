@@ -1,17 +1,32 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { fetchNotifications, markNotificationsRead, PlayerNotification } from '../api/backend';
 import ScreenContainer from '../components/ScreenContainer';
 import { RootStackParamList } from '../navigation/types';
-import { colors, spacing, typography } from '../theme';
+import { colors, radius, spacing, typography } from '../theme';
 
 type Tab = 'platform' | 'personal';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [tab, setTab] = useState<Tab>('platform');
+  const [tab, setTab] = useState<Tab>('personal');
+  // Personal: messages about the player's own money (bonus / deposit added by NovaPlay, returned withdrawals).
+  const [personal, setPersonal] = useState<PlayerNotification[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchNotifications()
+        .then(({ items, unread }) => {
+          setPersonal(items);
+          if (unread > 0) markNotificationsRead().catch(() => {});
+        })
+        .catch(() => {});
+    }, [])
+  );
+  const shown = tab === 'personal' ? personal : [];
 
   return (
     <ScreenContainer scroll={false}>
@@ -34,15 +49,41 @@ export default function NotificationsScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.body}>
-        <MaterialCommunityIcons name="text-box-multiple-outline" size={64} color={colors.crimsonLight} style={{ opacity: 0.35 }} />
-        <Text style={styles.emptyText}>You have not received any {tab} notifications.</Text>
-      </View>
+      {shown.length > 0 ? (
+        <ScrollView contentContainerStyle={styles.list}>
+          {shown.map((n) => (
+            <View key={n.id} style={styles.item}>
+              <View style={styles.itemTop}>
+                <Text style={styles.itemTitle}>{n.title}</Text>
+                {!n.readAt ? <View style={styles.dot} /> : null}
+              </View>
+              {n.amount != null ? <Text style={styles.itemAmount}>₹{n.amount.toLocaleString('en-IN')}</Text> : null}
+              <Text style={styles.itemBody}>{n.body}</Text>
+              <Text style={styles.itemTime}>
+                {new Date(n.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={styles.body}>
+          <MaterialCommunityIcons name="text-box-multiple-outline" size={64} color={colors.crimsonLight} style={{ opacity: 0.35 }} />
+          <Text style={styles.emptyText}>You have not received any {tab} notifications.</Text>
+        </View>
+      )}
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  list: { padding: spacing.md, gap: spacing.sm },
+  item: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md },
+  itemTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  itemTitle: { flex: 1, color: colors.textPrimary, fontWeight: '800', fontSize: typography.md },
+  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.crimsonLight },
+  itemAmount: { color: colors.gold, fontWeight: '900', fontSize: typography.xl, marginTop: spacing.xs },
+  itemBody: { color: colors.textSecondary, fontSize: typography.sm, lineHeight: 20, marginTop: spacing.xs },
+  itemTime: { color: colors.textMuted, fontSize: typography.xs, marginTop: spacing.sm },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

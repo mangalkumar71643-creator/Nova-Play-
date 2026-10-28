@@ -3927,3 +3927,21 @@ export type SupportRequestItem = {
 export function fetchMySupportRequests() {
   return apiFetch<SupportRequestItem[]>('/support/requests');
 }
+
+// --- Messages to the player (backend playerNotificationService.ts) ---
+
+export type PlayerNotification = {
+  id: string;
+  kind: 'ADMIN_BONUS' | 'ADMIN_DEPOSIT' | 'WITHDRAWAL_REFUND' | string;
+  title: string;
+  body: string;
+  amount: number | null;
+  readAt: string | null;
+  createdAt: string;
+};
+export function fetchNotifications() {
+  return apiFetch<{ unread: number; items: PlayerNotification[] }>('/notifications');
+}
+export function markNotificationsRead(ids?: string[]) {
+  return apiFetch<{ ok: true }>('/notifications/read', { method: 'POST', body: JSON.stringify(ids ? { ids } : {}) });
+}

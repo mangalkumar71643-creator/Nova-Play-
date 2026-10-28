@@ -192,6 +192,7 @@ model User {
   gameRounds         GameRound[]
   kycVerifications   KycVerification[]
   supportTickets     SupportTicket[]
+  notifications      PlayerNotification[]
   colorGameBets      ColorGameBet[]
   aviatorBets        AviatorBet[]
   chickenRoadRounds  ChickenRoadRound[]
@@ -2329,4 +2330,20 @@ model AdminPushSubscription {
   auth      String
   userAgent String?
   createdAt DateTime @default(now())
+}
+
+/// Messages to one player in the app's Notifications (Personal) and as a
+/// popup when they open the app: money the admin added (playerNotificationService.ts).
+model PlayerNotification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  kind      String
+  title     String
+  body      String
+  amount    Decimal?  @db.Decimal(12, 2)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
 }

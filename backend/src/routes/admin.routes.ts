@@ -19,6 +19,7 @@ import {
   setDepositBonusConfig,
 } from "../services/depositBonusService";
 import { getAutoPayoutSettings, MAX_AUTO_PAYOUT_MAX, setAutoPayoutSettings } from "../services/autoPayoutService";
+import { notifyBonus, notifyDeposit, notifyWithdrawalRefund } from "../services/playerNotificationService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
 import { getPlayerReport } from "../services/playerReportService";
@@ -393,6 +394,7 @@ router.post(
       await tx.transaction.create({ data: { userId: user.id, type: "BONUS", amount: rounded, status: "COMPLETED", provider: "admin-credit" } });
       return updated;
     });
+    await notifyBonus(user.id, rounded);
     res.json({ user, credited: rounded, balance: wallet.balance });
   })
 );
@@ -458,6 +460,7 @@ router.post(
     await assertReferenceUnused("DEPOSIT", reference);
     await prisma.wallet.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id, balance: 0 } });
     const { bonus } = await completeDeposit(user.id, rounded, MANUAL, reference).catch(duplicateReference(reference));
+    await notifyDeposit(user.id, rounded, bonus);
     const wallet = await prisma.wallet.findUniqueOrThrow({ where: { userId: user.id } });
     res.json({ user, deposited: rounded, bonus, balance: wallet.balance, withdrawable: withdrawableOf(wallet) });
   })
@@ -573,7 +576,15 @@ router.get(
 router.post(
   "/deposits/:id/recheck",
   asyncHandler(async (req, res) => {
-    res.json(await rupayex.adminRecheckDeposit(req.params.id));
+    const before = await prisma.transaction.findUniqueOrThrow({ where: { id: req.params.id }, select: { status: true, userId: true, amount: true } });
+    const result = await rupayex.adminRecheckDeposit(req.params.id);
+    // Credited just now (not already before): tell the player.
+    if (before.status !== "COMPLETED" && result.status === "COMPLETED") {
+      const bonus = await prisma.transaction.findFirst({ where: { userId: before.userId, type: "DEPOSIT_BONUS" }, orderBy: { createdAt: "desc" }, select: { amount: true, createdAt: true } });
+      const fresh = bonus && Date.now() - bonus.createdAt.getTime() < 60_000 ? Number(bonus.amount) : 0;
+      await notifyDeposit(before.userId, Number(before.amount), fresh);
+    }
+    res.json(result);
   })
 );
 
@@ -1113,7 +1124,9 @@ router.post(
   "/withdrawals/:transactionId/rupayex-settle",
   asyncHandler(async (req, res) => {
     const { outcome } = rupayexSettleSchema.parse(req.body ?? {});
-    res.json(await rupayex.settlePayoutByHand(req.params.transactionId, outcome));
+    const tx = await rupayex.settlePayoutByHand(req.params.transactionId, outcome);
+    if (outcome === "refund") await notifyWithdrawalRefund(tx.userId, Number(tx.amount));
+    res.json(tx);
   })
 );
 router.get(
@@ -1149,6 +1162,7 @@ router.post(
       });
       return tx.transaction.findUniqueOrThrow({ where: { id: transaction.id } });
     });
+    await notifyWithdrawalRefund(transaction.userId, Number(transaction.amount));
     res.json(updated);
   })
 );
