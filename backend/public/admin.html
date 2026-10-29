@@ -3225,8 +3225,11 @@
           '<div style="flex:1;min-width:0;">' +
             '<div class="item-top">' +
               '<div class="item-title"><span class="popup-pos">#' + (i + 1) + '</span>' + escapeHtml(p.title) + '</div>' +
-              '<span class="pill ' + (p.active ? 'active' : 'banned') + '">' + (p.active ? 'Showing' : 'Hidden') + '</span>' +
+              '<span class="pill ' + (p.active ? 'active' : 'banned') + '">' + (!p.active ? 'Hidden' : p.buttonTarget === 'DOWNLOAD' ? 'Website only' : 'Showing') + '</span>' +
             '</div>' +
+            (p.active && p.buttonTarget === 'DOWNLOAD'
+              ? '<div class="item-meta" style="color:#f5a524;">⚠ Not shown in the app: its button is "Download app", which only people on the website need. To show it in the app, press Button and pick a game (or Opens: nothing).</div>'
+              : '') +
             (kind !== 'POPUP'
               ? '<div class="item-meta">' + (p.buttonText
                   ? 'Button: "' + escapeHtml(p.buttonText) + '"' + (p.buttonTarget ? ' → opens ' + escapeHtml(gameName(p.buttonTarget)) : ' (opens nothing)')
@@ -3440,6 +3443,7 @@
       var title = titleEl.value.trim();
       if (!upload) { status.textContent = 'Choose an image first.'; return; }
       if (!title) { status.textContent = 'Give it a name.'; return; }
+      var target = buttonTargetEl ? buttonTargetEl.value : '';
       btn.disabled = true;
       status.textContent = 'Uploading…';
       api('/admin/popups', { method: 'POST', body: JSON.stringify({
@@ -3453,7 +3457,9 @@
           if (buttonTextEl) { buttonTextEl.value = ''; buttonTargetEl.value = ''; }
           fileEl.value = '';
           preview.style.display = 'none';
-          status.textContent = 'Added at the end of the order.';
+          status.textContent = target === 'DOWNLOAD'
+            ? 'Added — but its button is "Download app", so it shows on the website only, not in the app.'
+            : 'Added at the end of the order.';
           loadPopups();
         })
         .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
