@@ -532,6 +532,16 @@ export default function TrxWinScreen() {
   const secsLeft = round ? Math.ceil(Math.max(0, endMs - srvNow) / 1000) : 0;
   const locked = !!round && secsLeft <= lockSeconds;
 
+  // The period has ended but the next one hasn't loaded (a slow network):
+  // keep asking every 2 s rather than waiting for the 15 s sync, so the
+  // bet buttons don't stay closed.
+  const staleRetryRef = useRef(0);
+  useEffect(() => {
+    if (!round || srvNow < endMs + 1500 || Date.now() - staleRetryRef.current < 2000) return;
+    staleRetryRef.current = Date.now();
+    loadRound(durationRef.current).catch(() => {});
+  }, [round, srvNow, endMs, loadRound]);
+
   useEffect(() => {
     if (!locked) return;
     const loop = Animated.loop(
