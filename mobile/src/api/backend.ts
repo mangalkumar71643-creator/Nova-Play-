@@ -3947,3 +3947,19 @@ export function fetchNotifications() {
 export function markNotificationsRead(ids?: string[]) {
   return apiFetch<{ ok: true }>('/notifications/read', { method: 'POST', body: JSON.stringify(ids ? { ids } : {}) });
 }
+
+// --- Deposit offer popup (backend depositBonusService.playerDepositOffer) ---
+
+export type DepositOfferStage = {
+  /** 1 = first deposit. */
+  number: number;
+  tiers: { min: number; bonus: number }[];
+  /** What the player deposited for this one, once made. */
+  deposited: number | null;
+  /** The bonus that deposit reached. */
+  bonus: number;
+};
+export type DepositOffer = { enabled: boolean; nextDeposit: number; stages: DepositOfferStage[] };
+export function fetchDepositOffer() {
+  return apiFetch<DepositOffer>('/wallet/deposit-offer');
+}

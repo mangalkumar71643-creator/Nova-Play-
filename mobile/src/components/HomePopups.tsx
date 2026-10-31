@@ -35,10 +35,18 @@ async function readHidden(): Promise<Record<string, string>> {
  * order: closing one shows the next. Each has its own "Don't show again
  * today" box.
  */
+// Settles once this launch's image popups are all closed (or there are none),
+// so the deposit-offer popup (DepositOfferPopup.tsx) comes up after them, not on top.
+let markPopupsDone: () => void = () => {};
+export const homePopupsDone = new Promise<void>((resolve) => {
+  markPopupsDone = resolve;
+});
+
 export default function HomePopups() {
   const { width, height } = useWindowDimensions();
   const [queue, setQueue] = useState<HomePopup[]>([]);
   const [dontShow, setDontShow] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (shownThisLaunch) return;
@@ -55,6 +63,8 @@ export default function HomePopups() {
         if (!cancelled) setQueue(due);
       } catch {
         // No popups if the server can't be reached; the app carries on.
+      } finally {
+        if (!cancelled) setLoaded(true);
       }
     })();
     return () => {
@@ -63,6 +73,9 @@ export default function HomePopups() {
   }, []);
 
   const current = queue[0];
+  useEffect(() => {
+    if (loaded && queue.length === 0) markPopupsDone();
+  }, [loaded, queue.length]);
 
   const close = async () => {
     if (!current) return;

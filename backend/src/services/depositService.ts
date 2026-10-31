@@ -1,7 +1,7 @@
 import { prisma } from "../db/prismaClient";
 import { env } from "../config/env";
 import { ApiError } from "../middleware/errorHandler";
-import { bonusFor, getDepositBonusConfig } from "./depositBonusService";
+import { bonusFor, getDepositBonusConfig, getDepositOffer } from "./depositBonusService";
 
 /**
  * Records a completed real-money deposit and credits it, with the first- or
@@ -69,7 +69,7 @@ export async function completeDeposit(
     // bonus has been staked in games — each game service (e.g.
     // vortexService.ts, andarBaharService.ts) advances wageringProgress and
     // releases the lock.
-    const granted = bonusFor(await getDepositBonusConfig(tx), amount, previousDeposits);
+    const granted = bonusFor(await getDepositBonusConfig(tx), amount, previousDeposits, await getDepositOffer(tx));
 
     let depositId: string;
     if (pendingTransactionId) {

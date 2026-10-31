@@ -17,6 +17,10 @@ import {
   MAX_TIER_AMOUNT,
   setDepositAmounts,
   setDepositBonusConfig,
+  getDepositOffer,
+  setDepositOffer,
+  MAX_OFFER_STAGES,
+  MAX_OFFER_TIERS,
 } from "../services/depositBonusService";
 import { getAutoPayoutSettings, MAX_AUTO_PAYOUT_MAX, setAutoPayoutSettings } from "../services/autoPayoutService";
 import { notifyBonus, notifyDeposit, notifyWithdrawalRefund, sendBroadcast, sendToPlayer, sentMessages } from "../services/playerNotificationService";
@@ -992,6 +996,34 @@ router.put(
     const empty = (r: z.infer<typeof bonusRuleSchema>) => (r.type === "percent" ? r.percent === 0 : r.tiers.length === 0);
     if (body.enabled && empty(body.first) && empty(body.every)) throw new ApiError(400, "Set a bonus for the first deposit or for every deposit, or switch the bonus off.");
     res.json(await setDepositBonusConfig({ enabled: body.enabled, first: body.first, every: body.every }));
+  })
+);
+
+// --- Deposit Offer: slabs per deposit number, shown as the app's popup (depositBonusService.ts) ---
+
+router.get(
+  "/deposit-offer",
+  asyncHandler(async (_req, res) => {
+    res.json({ ...(await getDepositOffer()), maxStages: MAX_OFFER_STAGES, maxTiers: MAX_OFFER_TIERS });
+  })
+);
+
+const offerTierSchema = z.object({ min: z.number().int().min(1).max(MAX_TIER_AMOUNT), bonus: z.number().min(0).max(MAX_TIER_AMOUNT) });
+const depositOfferSchema = z.object({
+  enabled: z.boolean(),
+  stages: z.array(z.array(offerTierSchema).max(MAX_OFFER_TIERS)).max(MAX_OFFER_STAGES),
+});
+router.put(
+  "/deposit-offer",
+  asyncHandler(async (req, res) => {
+    const body = depositOfferSchema.parse(req.body);
+    for (const [i, tiers] of body.stages.entries()) {
+      const mins = tiers.map((t) => t.min);
+      if (new Set(mins).size !== mins.length) throw new ApiError(400, `Deposit ${i + 1}: two rows have the same deposit amount.`);
+      for (const t of tiers) if (t.bonus > t.min * 2) throw new ApiError(400, `Deposit ${i + 1}: a ₹${t.bonus} bonus on ₹${t.min} looks like a typo (more than double the deposit).`);
+    }
+    if (body.enabled && !body.stages.some((t) => t.length > 0)) throw new ApiError(400, "Add at least one row, or switch the offer off.");
+    res.json({ ...(await setDepositOffer(body)), maxStages: MAX_OFFER_STAGES, maxTiers: MAX_OFFER_TIERS });
   })
 );
 

@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -41,7 +41,8 @@ export default function DepositScreen() {
   const { coins, withdrawable, refreshWallet } = useGameState();
   const [bonusInfo, setBonusInfo] = useState<DepositBonusInfo | null>(null);
   const { backendUser } = useAuth();
-  const [amountText, setAmountText] = useState(String(QUICK_AMOUNTS[1]));
+  const startAmount = useRoute<RouteProp<RootStackParamList, 'Deposit'>>().params?.amount;
+  const [amountText, setAmountText] = useState(String(startAmount ?? QUICK_AMOUNTS[1]));
   const [busy, setBusy] = useState(false);
   const [upi, setUpi] = useState<UpiDepositStatus | null>(null);
   // Celebration overlay shown when a deposit is confirmed (replaces a plain alert).

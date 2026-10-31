@@ -8,7 +8,7 @@ import { assertCanTransact, assertWithinDepositLimits } from "../services/respon
 import * as rupayex from "../services/rupayexService";
 import { env } from "../config/env";
 import { depositNumberOf, depositUtrOf, withdrawableOf } from "../services/depositService";
-import { playerDepositBonus } from "../services/depositBonusService";
+import { playerDepositBonus, playerDepositOffer } from "../services/depositBonusService";
 import { alertAdmins } from "../services/adminAlertService";
 import { tryAutoPayout } from "../services/autoPayoutService";
 import { feeLabel, istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
@@ -97,6 +97,15 @@ router.get(
 );
 
 /** The bonus this player's next deposit earns (the admin's slabs), for the Deposit screen. */
+/** The Deposit Offer popup: every deposit number's slabs and what this player deposited for each. */
+router.get(
+  "/deposit-offer",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await playerDepositOffer(req.user!.userId));
+  })
+);
+
 router.get(
   "/deposit-bonus",
   requireAuth,

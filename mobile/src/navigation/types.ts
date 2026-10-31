@@ -29,7 +29,8 @@ export type RootStackParamList = {
   BalanceRecords: undefined;
   /** Deposit or withdraw history; without a kind (from Wallet) the screen lets you switch. */
   History: { kind?: 'deposit' | 'withdraw' } | undefined;
-  Deposit: undefined;
+  /** amount: start with this amount filled in (the deposit-offer popup). */
+  Deposit: { amount?: number } | undefined;
   Withdraw: undefined;
   /** EARN: reward details (optionally one kind) or the claim history. */
   AgentRewards: { tab?: 'details' | 'withdrawals'; kind?: 'BET' | 'DEPOSIT' | 'TASK' | 'INVITE' | 'JACKPOT' } | undefined;

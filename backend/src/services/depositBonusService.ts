@@ -97,8 +97,14 @@ function bonusFromRule(rule: DepositBonusRule | null, amount: number): number {
   return round2(bonus);
 }
 
-/** The bonus a deposit of `amount` earns when the player already has `previousDeposits` completed deposits. */
-export function bonusFor(config: DepositBonusConfig | null, amount: number, previousDeposits: number): number {
+/**
+ * The bonus a deposit of `amount` earns when the player already has
+ * `previousDeposits` completed deposits: the Deposit Offer's slabs for that
+ * deposit number when it has some, else the Bonus page's rule.
+ */
+export function bonusFor(config: DepositBonusConfig | null, amount: number, previousDeposits: number, offer: DepositOffer | null = null): number {
+  const tiers = offerTiersFor(offer, previousDeposits);
+  if (tiers) return bonusFromRule({ type: "slabs", tiers }, amount);
   return bonusFromRule(ruleFor(config, previousDeposits), amount);
 }
 
@@ -128,12 +134,14 @@ const NO_CAP = 1_000_000_000;
  * the bonus out again when the money arrives.
  */
 export async function playerDepositBonus(userId: string) {
-  const [config, previousDeposits, amounts] = await Promise.all([
+  const [config, previousDeposits, amounts, offer] = await Promise.all([
     getDepositBonusConfig(),
     prisma.transaction.count({ where: { userId, type: "DEPOSIT", status: "COMPLETED" } }),
     getDepositAmounts(),
+    getDepositOffer(),
   ]);
-  const rule = ruleFor(config, previousDeposits);
+  const offerTiers = offerTiersFor(offer, previousDeposits);
+  const rule: DepositBonusRule | null = offerTiers ? { type: "slabs", tiers: offerTiers } : ruleFor(config, previousDeposits);
   // amounts: the Deposit screen's buttons (app 1.0.39+).
   const base = { amounts, firstDeposit: previousDeposits === 0, firstOnly: false, wageringMultiplier: env.wallet.wageringMultiplier };
   if (!rule) return { ...base, tiers: [] as DepositBonusTier[], percent: 0, cap: 0 };
@@ -168,4 +176,71 @@ export async function setDepositAmounts(amounts: number[] | null) {
     await prisma.setting.upsert({ where: { key: DEPOSIT_AMOUNTS_KEY }, update: { value }, create: { key: DEPOSIT_AMOUNTS_KEY, value } });
   }
   return { amounts: await getDepositAmounts(), saved: amounts !== null };
+}
+
+// --- Deposit offer: slabs per deposit number (Setting "depositOffer") ---
+//
+// The admin's "Deposit Offer" page: for the 1st, 2nd, 3rd… deposit its own
+// slabs ("deposit ₹100 -> +₹20"), shown to players as the deposit-offer
+// popup and paid by completeDeposit exactly as shown. A deposit number with
+// slabs here takes them instead of the Bonus page's rule; deposits past the
+// last one set here fall back to the Bonus page.
+
+const DEPOSIT_OFFER_KEY = "depositOffer";
+export const MAX_OFFER_STAGES = 10;
+export const MAX_OFFER_TIERS = 10;
+
+export interface DepositOffer {
+  enabled: boolean;
+  /** stages[0] = the 1st deposit's slabs, stages[1] = the 2nd's, … */
+  stages: DepositBonusTier[][];
+}
+
+export async function getDepositOffer(db: Db = prisma): Promise<DepositOffer> {
+  const row = await db.setting.findUnique({ where: { key: DEPOSIT_OFFER_KEY } });
+  if (!row) return { enabled: false, stages: [] };
+  try {
+    const parsed = JSON.parse(row.value) as DepositOffer;
+    return { enabled: Boolean(parsed.enabled), stages: (parsed.stages ?? []).map((s) => sortTiers(s ?? [])) };
+  } catch {
+    return { enabled: false, stages: [] };
+  }
+}
+
+export async function setDepositOffer(offer: DepositOffer) {
+  // Empty stages at the end mean nothing; one in the middle keeps its place (no bonus for that deposit).
+  const stages = offer.stages.map((s) => sortTiers(s));
+  while (stages.length && stages[stages.length - 1].length === 0) stages.pop();
+  const value = JSON.stringify({ enabled: offer.enabled, stages });
+  await prisma.setting.upsert({ where: { key: DEPOSIT_OFFER_KEY }, update: { value }, create: { key: DEPOSIT_OFFER_KEY, value } });
+  return getDepositOffer();
+}
+
+/** The offer's slabs for a deposit made after `previousDeposits` others, or null when the offer doesn't cover it. */
+export function offerTiersFor(offer: DepositOffer | null, previousDeposits: number): DepositBonusTier[] | null {
+  if (!offer?.enabled) return null;
+  return offer.stages[previousDeposits] ?? null;
+}
+
+/**
+ * The player's view of the offer: every deposit number's slabs, what they
+ * deposited for each one already made (shown on its progress bars), and
+ * which one is next.
+ */
+export async function playerDepositOffer(userId: string) {
+  const [offer, deposits] = await Promise.all([
+    getDepositOffer(),
+    prisma.transaction.findMany({ where: { userId, type: "DEPOSIT", status: "COMPLETED" }, orderBy: { createdAt: "asc" }, select: { amount: true }, take: MAX_OFFER_STAGES }),
+  ]);
+  const made = deposits.length;
+  return {
+    enabled: offer.enabled && offer.stages.some((s) => s.length > 0),
+    nextDeposit: made + 1,
+    stages: offer.stages.map((tiers, i) => {
+      const deposited = i < made ? Number(deposits[i].amount) : null;
+      let bonus = 0;
+      if (deposited != null) for (const t of tiers) if (deposited >= t.min) bonus = t.bonus;
+      return { number: i + 1, tiers, deposited, bonus: round2(bonus) };
+    }),
+  };
 }

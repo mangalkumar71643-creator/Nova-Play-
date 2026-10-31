@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import { Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import HomePopups from '../components/HomePopups';
+import DepositOfferPopup from '../components/DepositOfferPopup';
 import HomeSlider from '../components/HomeSlider';
 import { GAME_CATEGORIES } from '../components/GameTile';
 import ScreenContainer from '../components/ScreenContainer';
@@ -204,6 +205,7 @@ export default function HomeScreen() {
         ))}
       </ScrollView>
       <HomePopups />
+      <DepositOfferPopup />
     </ScreenContainer>
   );
 }

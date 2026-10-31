@@ -691,6 +691,23 @@
         </div>
       </div>
 
+      <div class="panel" id="panel-deposit-offer">
+        <h1 class="page-title">Deposit Offer</h1>
+        <div class="page-sub">The "Extra deposit bonus" popup players see when they open the app: for the 1st, 2nd, 3rd… deposit, rows like "deposit ₹100 → +₹20". Each player sees the deposit they are on next, with what they deposited before shown on its bars. The bonus paid is exactly what the popup shows (locked until wagered, like every deposit bonus). Deposits after the last one here use the Bonus page.</div>
+        <div class="card" style="max-width:640px;">
+          <div class="form-row">
+            <select id="offerEnabled" style="flex:0 0 auto;">
+              <option value="1">Offer ON</option>
+              <option value="0">Offer OFF</option>
+            </select>
+            <button class="btn secondary" id="offerAddStage" style="flex:0 0 auto;">+ Add deposit</button>
+            <button class="btn" id="offerSave" style="flex:0 0 auto;">Save</button>
+          </div>
+          <div class="item-meta" id="offerStatus"></div>
+        </div>
+        <div id="offerStages"></div>
+      </div>
+
       <div class="panel" id="panel-messages">
         <h1 class="page-title">Messages</h1>
         <div class="page-sub">Send a message to every player, or to one player by UID. It pops up in their app (the phone buzzes three times), shows as a phone notification, and stays under Notifications. Add a gift code to give a bonus: players get a "Redeem" button.</div>
@@ -1170,6 +1187,7 @@
     { id: 'transactions', label: 'Withdrawals', icon: 'transactions' },
     { id: 'deposit-amounts', label: 'Deposit Amounts', icon: 'wallet' },
     { id: 'bonus', label: 'Bonus', icon: 'gift' },
+    { id: 'deposit-offer', label: 'Deposit Offer', icon: 'gift' },
     { id: 'invites', label: 'Invites', icon: 'users' },
     { id: 'games', label: 'Games', icon: 'games', children: [
         { id: 'game-all', label: 'All games' },
@@ -1259,6 +1277,7 @@
     'game-aviator': function () { loadAviatorPanel(); activeGamePollInterval = setInterval(loadAviatorPanel, 2000); },
     support: loadTickets,
     messages: loadMessages,
+    'deposit-offer': loadDepositOffer,
     popups: loadPopups,
     slider: function () { loadPopups(); loadAppDownloadUrl(); },
     'category-slider': loadPopups,
@@ -2121,6 +2140,101 @@
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
   });
+  // ---------- Deposit Offer (slabs per deposit number) ----------
+  var offerStages = [];
+  var offerLimits = { maxStages: 10, maxTiers: 10 };
+  var ORDINAL = ['1st', '2nd', '3rd'];
+  function ordinal(n) { return ORDINAL[n - 1] || n + 'th'; }
+  function readOfferInputs() {
+    document.querySelectorAll('#offerStages [data-stage]').forEach(function (card) {
+      var si = Number(card.getAttribute('data-stage'));
+      offerStages[si] = [];
+      card.querySelectorAll('[data-tier]').forEach(function (row) {
+        var min = Number(row.querySelector('[data-min]').value);
+        var bonus = Number(row.querySelector('[data-bonus]').value);
+        offerStages[si].push({ min: min, bonus: bonus });
+      });
+    });
+  }
+  function renderOffer() {
+    var box = document.getElementById('offerStages');
+    if (!offerStages.length) { box.innerHTML = '<div class="card"><div class="empty">No deposits set yet. Press "+ Add deposit".</div></div>'; return; }
+    box.innerHTML = offerStages.map(function (tiers, si) {
+      return '<div class="card" style="max-width:640px;" data-stage="' + si + '">' +
+        '<div class="card-head"><h2>' + ordinal(si + 1) + ' deposit</h2>' +
+        '<button class="btn danger small" data-remove-stage="' + si + '" style="flex:none;">Remove</button></div>' +
+        tiers.map(function (t, ti) {
+          return '<div data-tier="' + ti + '" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
+            '<span class="item-meta" style="flex:none;">Deposit ₹</span><input data-min type="number" min="1" step="1" value="' + (t.min || '') + '" placeholder="100" style="flex:1;min-width:0;" />' +
+            '<span class="item-meta" style="flex:none;">+ ₹</span><input data-bonus type="number" min="0" step="1" value="' + (t.bonus === 0 || t.bonus ? t.bonus : '') + '" placeholder="20" style="flex:1;min-width:0;" />' +
+            '<button class="btn secondary small" data-remove-tier="' + si + ':' + ti + '" style="flex:none;min-width:0;width:auto;">✕</button></div>';
+        }).join('') +
+        '<button class="btn secondary small" data-add-tier="' + si + '">+ Add row</button>' +
+        '</div>';
+    }).join('');
+    box.querySelectorAll('[data-add-tier]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        readOfferInputs();
+        var si = Number(b.getAttribute('data-add-tier'));
+        if (offerStages[si].length >= offerLimits.maxTiers) return;
+        offerStages[si].push({ min: 0, bonus: 0 });
+        renderOffer();
+      });
+    });
+    box.querySelectorAll('[data-remove-tier]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        readOfferInputs();
+        var parts = b.getAttribute('data-remove-tier').split(':').map(Number);
+        offerStages[parts[0]].splice(parts[1], 1);
+        renderOffer();
+      });
+    });
+    box.querySelectorAll('[data-remove-stage]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        readOfferInputs();
+        offerStages.splice(Number(b.getAttribute('data-remove-stage')), 1);
+        renderOffer();
+      });
+    });
+  }
+  function loadDepositOffer() {
+    api('/admin/deposit-offer').then(function (r) {
+      offerLimits = { maxStages: r.maxStages, maxTiers: r.maxTiers };
+      offerStages = r.stages.map(function (t) { return t.slice(); });
+      document.getElementById('offerEnabled').value = r.enabled ? '1' : '0';
+      document.getElementById('offerStatus').textContent = r.enabled ? 'Now: ON — players see the popup.' : 'Now: OFF — no popup, deposits use the Bonus page.';
+      renderOffer();
+    }).catch(function (err) { if (err.authError) doLogout(); });
+  }
+  document.getElementById('offerAddStage').addEventListener('click', function () {
+    readOfferInputs();
+    if (offerStages.length >= offerLimits.maxStages) return;
+    offerStages.push([{ min: 100, bonus: 0 }]);
+    renderOffer();
+  });
+  document.getElementById('offerSave').addEventListener('click', function () {
+    var btn = this;
+    var status = document.getElementById('offerStatus');
+    readOfferInputs();
+    var bad = null;
+    var stages = offerStages.map(function (tiers, si) {
+      return tiers.filter(function (t) { return t.min || t.bonus; }).map(function (t) {
+        if (!(t.min >= 1) || !(t.bonus >= 0)) bad = ordinal(si + 1) + ' deposit: fill both the deposit and the bonus.';
+        return { min: Math.round(t.min), bonus: Math.round(t.bonus * 100) / 100 };
+      });
+    });
+    if (bad) { status.textContent = bad; return; }
+    btn.disabled = true;
+    api('/admin/deposit-offer', { method: 'PUT', body: JSON.stringify({ enabled: document.getElementById('offerEnabled').value === '1', stages: stages }) })
+      .then(function (r) {
+        offerStages = r.stages.map(function (t) { return t.slice(); });
+        renderOffer();
+        status.textContent = 'Saved. ' + (r.enabled ? 'Players see the popup now.' : 'The offer is off.');
+      })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
+      .finally(function () { btn.disabled = false; });
+  });
+
   // ---------- Messages to players ----------
   document.getElementById('msgTo').addEventListener('change', function () {
     document.getElementById('msgUid').style.display = this.value === 'player' ? '' : 'none';
