@@ -180,14 +180,15 @@ export async function setDepositAmounts(amounts: number[] | null) {
 
 // --- Deposit offer: slabs per deposit number (Setting "depositOffer") ---
 //
-// The admin's "Deposit Offer" page: for the 1st, 2nd, 3rd… deposit its own
+// The admin's "Deposit Offer" page: for the 1st, 2nd and 3rd deposit its own
 // slabs ("deposit ₹100 -> +₹20"), shown to players as the deposit-offer
 // popup and paid by completeDeposit exactly as shown. A deposit number with
 // slabs here takes them instead of the Bonus page's rule; deposits past the
 // last one set here fall back to the Bonus page.
 
 const DEPOSIT_OFFER_KEY = "depositOffer";
-export const MAX_OFFER_STAGES = 10;
+/** Only the 1st, 2nd and 3rd deposit (owner, 2026-10-31). */
+export const MAX_OFFER_STAGES = 3;
 export const MAX_OFFER_TIERS = 10;
 
 export interface DepositOffer {
@@ -201,7 +202,7 @@ export async function getDepositOffer(db: Db = prisma): Promise<DepositOffer> {
   if (!row) return { enabled: false, stages: [] };
   try {
     const parsed = JSON.parse(row.value) as DepositOffer;
-    return { enabled: Boolean(parsed.enabled), stages: (parsed.stages ?? []).map((s) => sortTiers(s ?? [])) };
+    return { enabled: Boolean(parsed.enabled), stages: (parsed.stages ?? []).slice(0, MAX_OFFER_STAGES).map((s) => sortTiers(s ?? [])) };
   } catch {
     return { enabled: false, stages: [] };
   }

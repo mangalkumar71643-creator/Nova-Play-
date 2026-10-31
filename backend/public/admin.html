@@ -693,7 +693,7 @@
 
       <div class="panel" id="panel-deposit-offer">
         <h1 class="page-title">Deposit Offer</h1>
-        <div class="page-sub">The "Extra deposit bonus" popup players see when they open the app: for the 1st, 2nd, 3rd… deposit, rows like "deposit ₹100 → +₹20". Each player sees the deposit they are on next, with what they deposited before shown on its bars. The bonus paid is exactly what the popup shows (locked until wagered, like every deposit bonus). Deposits after the last one here use the Bonus page.</div>
+        <div class="page-sub">The "Extra deposit bonus" popup players see when they open the app: for the 1st, 2nd and 3rd deposit (3 at most), rows like "deposit ₹100 → +₹20". A player who has made all of them never sees the popup again. Each player sees the deposit they are on next, with what they deposited before shown on its bars. The bonus paid is exactly what the popup shows (locked until wagered, like every deposit bonus). Deposits after the last one here use the Bonus page.</div>
         <div class="card" style="max-width:640px;">
           <div class="form-row">
             <select id="offerEnabled" style="flex:0 0 auto;">
@@ -2142,7 +2142,7 @@
   });
   // ---------- Deposit Offer (slabs per deposit number) ----------
   var offerStages = [];
-  var offerLimits = { maxStages: 10, maxTiers: 10 };
+  var offerLimits = { maxStages: 3, maxTiers: 10 };
   var ORDINAL = ['1st', '2nd', '3rd'];
   function ordinal(n) { return ORDINAL[n - 1] || n + 'th'; }
   function readOfferInputs() {
@@ -2157,6 +2157,7 @@
     });
   }
   function renderOffer() {
+    syncOfferAddButton();
     var box = document.getElementById('offerStages');
     if (!offerStages.length) { box.innerHTML = '<div class="card"><div class="empty">No deposits set yet. Press "+ Add deposit".</div></div>'; return; }
     box.innerHTML = offerStages.map(function (tiers, si) {
@@ -2205,6 +2206,12 @@
       document.getElementById('offerStatus').textContent = r.enabled ? 'Now: ON — players see the popup.' : 'Now: OFF — no popup, deposits use the Bonus page.';
       renderOffer();
     }).catch(function (err) { if (err.authError) doLogout(); });
+  }
+  function syncOfferAddButton() {
+    var b = document.getElementById('offerAddStage');
+    var full = offerStages.length >= offerLimits.maxStages;
+    b.disabled = full;
+    b.textContent = full ? 'All ' + offerLimits.maxStages + ' deposits set' : '+ Add ' + ordinal(offerStages.length + 1) + ' deposit';
   }
   document.getElementById('offerAddStage').addEventListener('click', function () {
     readOfferInputs();
