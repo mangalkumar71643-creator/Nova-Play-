@@ -6,6 +6,7 @@ import RankingScreen from '../screens/RankingScreen';
 import EarnScreen from '../screens/EarnScreen';
 import VipScreen from '../screens/VipScreen';
 import WalletScreen from '../screens/WalletScreen';
+import PromotionScreen from '../screens/PromotionScreen';
 import { colors } from '../theme';
 import { BottomTabParamList } from './types';
 import { IconName } from '../data/models';
@@ -16,6 +17,7 @@ const TAB_ICONS: Record<keyof BottomTabParamList, IconName> = {
   Home: 'home-variant',
   Ranking: 'trophy-variant',
   Earn: 'handshake',
+  Promotion: 'gift',
   Wallet: 'wallet',
   Vip: 'crown',
 };
@@ -44,7 +46,9 @@ export default function BottomTabs() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Ranking" component={RankingScreen} />
       <Tab.Screen name="Earn" component={EarnScreen} />
-      <Tab.Screen name="Wallet" component={WalletScreen} />
+      <Tab.Screen name="Promotion" component={PromotionScreen} />
+      {/* Off the bar (Promotion took its place); still opened from the wallet icons. */}
+      <Tab.Screen name="Wallet" component={WalletScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
       <Tab.Screen name="Vip" component={VipScreen} options={{ title: 'VIP' }} />
     </Tab.Navigator>
   );

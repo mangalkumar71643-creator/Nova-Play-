@@ -3963,3 +3963,29 @@ export type DepositOffer = { enabled: boolean; nextDeposit: number; stages: Depo
 export function fetchDepositOffer() {
   return apiFetch<DepositOffer>('/wallet/deposit-offer');
 }
+
+// --- Promotion page (backend promotionService.ts) ---
+
+export type PromoTile = { key: string; label: string; icon: string; visible: boolean };
+export type PromoBanner = { id: string; title: string; width: number; height: number; imageUrl: string; buttonTarget: string | null };
+export function fetchPromotionPage() {
+  return apiFetch<{ tiles: PromoTile[]; banners: PromoBanner[] }>('/promotion');
+}
+
+export type BettingTask = {
+  id: string;
+  period: 'daily' | 'weekly';
+  category: string;
+  target: number;
+  reward: number;
+  progress: number;
+  complete: boolean;
+  claimed: boolean;
+  resetsAt: string;
+};
+export function fetchBettingTasks() {
+  return apiFetch<{ tasks: BettingTask[] }>('/promotion/tasks');
+}
+export function claimBettingTask(id: string) {
+  return apiFetch<{ amount: number; balance: number }>(`/promotion/tasks/${encodeURIComponent(id)}/claim`, { method: 'POST' });
+}

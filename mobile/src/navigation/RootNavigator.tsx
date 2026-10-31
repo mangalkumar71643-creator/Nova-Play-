@@ -68,6 +68,7 @@ import HelpScreen from '../screens/HelpScreen';
 import CustomerServiceScreen from '../screens/CustomerServiceScreen';
 import SupportFormScreen from '../screens/SupportFormScreen';
 import SupportProgressScreen from '../screens/SupportProgressScreen';
+import BettingTasksScreen from '../screens/BettingTasksScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import LoginScreen from '../screens/LoginScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
@@ -177,6 +178,7 @@ function MainNavigator() {
       <Stack.Screen name="FAQ" component={HelpScreen} />
       <Stack.Screen name="SupportForm" component={SupportFormScreen} />
       <Stack.Screen name="SupportProgress" component={SupportProgressScreen} />
+      <Stack.Screen name="BettingTasks" component={BettingTasksScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="BalanceRecords" component={BalanceRecordsScreen} />
       <Stack.Screen name="History" component={HistoryScreen} />

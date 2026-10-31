@@ -691,6 +691,49 @@
         </div>
       </div>
 
+      <div class="panel" id="panel-promotion">
+        <h1 class="page-title">Promotion</h1>
+        <div class="page-sub">The app's Promotion tab: the icon grid, the banner cards under it, and the Betting tasks players finish for a bonus.</div>
+
+        <div class="card" style="max-width:640px;">
+          <div class="card-head"><h2>Icons</h2><button class="btn small" id="promoTilesSave" style="flex:none;">Save icons</button></div>
+          <div class="item-meta" style="margin:-6px 0 10px;">Rename, hide or reorder the icons at the top of the page. Each opens its screen in the app.</div>
+          <div id="promoTiles"></div>
+          <div class="item-meta" id="promoTilesStatus"></div>
+        </div>
+
+        <div class="card" style="max-width:640px;">
+          <div class="card-head"><h2>Add banner</h2></div>
+          <div class="item-meta" style="margin:-6px 0 10px;">A picture card on the Promotion page with its name written under it (players see the name). Tapping it opens the game you pick.</div>
+          <div class="form-row">
+            <input id="promoTitle" placeholder="Name shown under the banner, e.g. Weekly Deposit Bonus" maxlength="80" />
+            <input id="promoFile" type="file" accept="image/png,image/jpeg,image/webp" />
+          </div>
+          <img id="promoPreview" class="upload-preview" alt="" />
+          <div class="form-row">
+            <input id="promoButtonText" placeholder="(optional) note, only you see it" maxlength="20" />
+            <select id="promoButtonTarget" data-game-select></select>
+          </div>
+          <button class="btn" id="promoAddBtn">Add Banner</button>
+          <div class="item-meta" id="promoAddStatus"></div>
+        </div>
+        <div class="card" style="max-width:640px;">
+          <div class="card-head"><h2>Banners</h2></div>
+          <div id="promoList"></div>
+        </div>
+
+        <div class="card" style="max-width:760px;">
+          <div class="card-head"><h2>Betting tasks</h2><button class="btn small" id="promoTasksSave" style="flex:none;">Save tasks</button></div>
+          <div class="item-meta" style="margin:-6px 0 10px;">"Bet ₹X in a category today (or this week) → +₹Y bonus". Progress counts the player's bets in that category's games since midnight (daily) or Monday (weekly), India time. The player taps Claim once it's done; each task pays once per day / week.</div>
+          <div id="promoTasks"></div>
+          <div class="form-row">
+            <button class="btn secondary small" id="promoAddDaily" style="flex:none;">+ Daily task</button>
+            <button class="btn secondary small" id="promoAddWeekly" style="flex:none;">+ Weekly task</button>
+          </div>
+          <div class="item-meta" id="promoTasksStatus"></div>
+        </div>
+      </div>
+
       <div class="panel" id="panel-deposit-offer">
         <h1 class="page-title">Deposit Offer</h1>
         <div class="page-sub">The "Extra deposit bonus" popup players see when they open the app: for the 1st, 2nd and 3rd deposit (3 at most), rows like "deposit ₹100 → +₹20". A player who has made all of them never sees the popup again. Each player sees the deposit they are on next, with what they deposited before shown on its bars. The bonus paid is exactly what the popup shows (locked until wagered, like every deposit bonus). Deposits after the last one here use the Bonus page.</div>
@@ -1188,6 +1231,7 @@
     { id: 'deposit-amounts', label: 'Deposit Amounts', icon: 'wallet' },
     { id: 'bonus', label: 'Bonus', icon: 'gift' },
     { id: 'deposit-offer', label: 'Deposit Offer', icon: 'gift' },
+    { id: 'promotion', label: 'Promotion', icon: 'gift' },
     { id: 'invites', label: 'Invites', icon: 'users' },
     { id: 'games', label: 'Games', icon: 'games', children: [
         { id: 'game-all', label: 'All games' },
@@ -1278,6 +1322,7 @@
     support: loadTickets,
     messages: loadMessages,
     'deposit-offer': loadDepositOffer,
+    promotion: function () { loadPromotion(); loadPopups(); },
     popups: loadPopups,
     slider: function () { loadPopups(); loadAppDownloadUrl(); },
     'category-slider': loadPopups,
@@ -2140,6 +2185,76 @@
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
   });
+  // ---------- Promotion page (icons + betting tasks) ----------
+  var promo = { tiles: [], tasks: [], catalog: [], categories: [] };
+  function readPromoTiles() {
+    document.querySelectorAll('#promoTiles [data-tile]').forEach(function (row) {
+      var t = promo.tiles[Number(row.getAttribute('data-tile'))];
+      t.label = row.querySelector('[data-label]').value.trim() || t.label;
+      t.visible = row.querySelector('[data-visible]').checked;
+    });
+  }
+  function readPromoTasks() {
+    document.querySelectorAll('#promoTasks [data-task]').forEach(function (row) {
+      var t = promo.tasks[Number(row.getAttribute('data-task'))];
+      t.period = row.querySelector('[data-period]').value;
+      t.category = row.querySelector('[data-category]').value;
+      t.target = Number(row.querySelector('[data-target]').value);
+      t.reward = Number(row.querySelector('[data-reward]').value);
+    });
+  }
+  function renderPromo() {
+    document.getElementById('promoTiles').innerHTML = promo.tiles.map(function (t, i) {
+      return '<div data-tile="' + i + '" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
+        '<input type="checkbox" data-visible' + (t.visible ? ' checked' : '') + ' title="Show" style="flex:none;width:20px;height:20px;" />' +
+        '<input data-label maxlength="30" value="' + escapeHtml(t.label) + '" style="flex:1;min-width:0;" />' +
+        '<button class="btn secondary small" data-tile-move="-1" data-i="' + i + '" style="flex:none;min-width:0;width:auto;"' + (i === 0 ? ' disabled' : '') + '>&uarr;</button>' +
+        '<button class="btn secondary small" data-tile-move="1" data-i="' + i + '" style="flex:none;min-width:0;width:auto;"' + (i === promo.tiles.length - 1 ? ' disabled' : '') + '>&darr;</button></div>';
+    }).join('');
+    document.querySelectorAll('[data-tile-move]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        readPromoTiles();
+        var i = Number(b.getAttribute('data-i')), j = i + Number(b.getAttribute('data-tile-move'));
+        promo.tiles.splice(j, 0, promo.tiles.splice(i, 1)[0]);
+        renderPromo();
+      });
+    });
+    var cats = promo.categories;
+    document.getElementById('promoTasks').innerHTML = promo.tasks.length ? promo.tasks.map(function (t, i) {
+      return '<div data-task="' + i + '" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">' +
+        '<select data-period style="flex:0 0 auto;width:auto;"><option value="daily"' + (t.period === 'daily' ? ' selected' : '') + '>Daily</option><option value="weekly"' + (t.period === 'weekly' ? ' selected' : '') + '>Weekly</option></select>' +
+        '<select data-category style="flex:1;min-width:120px;">' + cats.map(function (c) { return '<option' + (c === t.category ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') + '</select>' +
+        '<span class="item-meta" style="flex:none;">bet ₹</span><input data-target type="number" min="1" value="' + (t.target || '') + '" placeholder="500" style="flex:1;min-width:70px;" />' +
+        '<span class="item-meta" style="flex:none;">+ ₹</span><input data-reward type="number" min="0" step="0.01" value="' + (t.reward || '') + '" placeholder="6" style="flex:1;min-width:60px;" />' +
+        '<button class="btn secondary small" data-task-del="' + i + '" style="flex:none;min-width:0;width:auto;">✕</button></div>';
+    }).join('') : '<div class="empty">No tasks yet. Add a daily or weekly task.</div>';
+    document.querySelectorAll('[data-task-del]').forEach(function (b) {
+      b.addEventListener('click', function () { readPromoTasks(); promo.tasks.splice(Number(b.getAttribute('data-task-del')), 1); renderPromo(); });
+    });
+  }
+  function loadPromotion() {
+    api('/admin/promotion').then(function (r) { promo = r; renderPromo(); }).catch(function (err) { if (err.authError) doLogout(); });
+  }
+  function savePromotion(statusId, okText) {
+    var status = document.getElementById(statusId);
+    readPromoTiles(); readPromoTasks();
+    var bad = promo.tasks.some(function (t) { return !(t.target >= 1) || !(t.reward > 0); });
+    if (bad) { status.textContent = 'Every task needs a bet amount and a reward.'; return; }
+    api('/admin/promotion', { method: 'PUT', body: JSON.stringify({ tiles: promo.tiles, tasks: promo.tasks }) })
+      .then(function (r) { promo = r; renderPromo(); status.textContent = okText; })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; });
+  }
+  document.getElementById('promoTilesSave').addEventListener('click', function () { savePromotion('promoTilesStatus', 'Saved. The app shows these icons now.'); });
+  document.getElementById('promoTasksSave').addEventListener('click', function () { savePromotion('promoTasksStatus', 'Saved. Players see these tasks now.'); });
+  function addPromoTask(period) {
+    readPromoTasks();
+    if (promo.tasks.length >= promo.maxTasks) return;
+    promo.tasks.push({ id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), period: period, category: 'Lottery', target: 0, reward: 0 });
+    renderPromo();
+  }
+  document.getElementById('promoAddDaily').addEventListener('click', function () { addPromoTask('daily'); });
+  document.getElementById('promoAddWeekly').addEventListener('click', function () { addPromoTask('weekly'); });
+
   // ---------- Deposit Offer (slabs per deposit number) ----------
   var offerStages = [];
   var offerLimits = { maxStages: 3, maxTiers: 10 };
@@ -3309,6 +3424,7 @@
     renderPopupKind('POPUP', 'popupList', 'No popups yet. Players see nothing when the app opens.');
     renderPopupKind('SLIDER', 'sliderList', 'No slider images yet. The top of the Home screen stays empty.');
     renderPopupKind('CATEGORY_SLIDER', 'catSliderList', 'No banners yet. The category screen starts straight with the games.');
+    renderPopupKind('PROMOTION', 'promoList', 'No banners yet. The Promotion page shows only the icons and tasks.');
   }
 
   // Games a slider button can open: app screen name → name shown here.
@@ -3590,6 +3706,7 @@
   setupImageForm('popup', 'POPUP');
   setupImageForm('slider', 'SLIDER');
   setupImageForm('catSlider', 'CATEGORY_SLIDER');
+  setupImageForm('promo', 'PROMOTION');
 
   // ---------- App download link + latest version (Home slider) ----------
   function loadAppDownloadUrl() {

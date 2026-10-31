@@ -6,8 +6,8 @@ export const POPUP_MIME_TYPES = ["image/webp", "image/jpeg", "image/png"] as con
 export type PopupMimeType = (typeof POPUP_MIME_TYPES)[number];
 /** Decoded image size cap; the panel shrinks uploads well under this. */
 export const MAX_POPUP_IMAGE_BYTES = 2 * 1024 * 1024;
-/** POPUP: shown on app open. SLIDER: auto-sliding banner at the top of Home. CATEGORY_SLIDER: auto-sliding banner at the top of the game category screen. */
-export const POPUP_KINDS = ["POPUP", "SLIDER", "CATEGORY_SLIDER"] as const;
+/** POPUP: shown on app open. SLIDER: auto-sliding banner at the top of Home. CATEGORY_SLIDER: auto-sliding banner at the top of the game category screen. PROMOTION: a banner card on the Promotion page. */
+export const POPUP_KINDS = ["POPUP", "SLIDER", "CATEGORY_SLIDER", "PROMOTION"] as const;
 export type PopupKind = (typeof POPUP_KINDS)[number];
 /** A slider button target that downloads the app instead of opening a game. */
 export const DOWNLOAD_TARGET = "DOWNLOAD";

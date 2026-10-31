@@ -4,6 +4,7 @@ export type BottomTabParamList = {
   Home: undefined;
   Ranking: undefined;
   Earn: undefined;
+  Promotion: undefined;
   Wallet: undefined;
   Vip: undefined;
 };
@@ -25,6 +26,7 @@ export type RootStackParamList = {
   FAQ: undefined;
   SupportForm: { kind: SupportFormKind };
   SupportProgress: undefined;
+  BettingTasks: undefined;
   Notifications: undefined;
   BalanceRecords: undefined;
   /** Deposit or withdraw history; without a kind (from Wallet) the screen lets you switch. */

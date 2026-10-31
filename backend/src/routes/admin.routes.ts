@@ -23,6 +23,7 @@ import {
   MAX_OFFER_TIERS,
 } from "../services/depositBonusService";
 import { getAutoPayoutSettings, MAX_AUTO_PAYOUT_MAX, setAutoPayoutSettings } from "../services/autoPayoutService";
+import { getPromotionConfig, MAX_TASKS, setPromotionConfig, TASK_CATEGORIES, TILE_CATALOG, type TileKey } from "../services/promotionService";
 import { notifyBonus, notifyDeposit, notifyWithdrawalRefund, sendBroadcast, sendToPlayer, sentMessages } from "../services/playerNotificationService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
@@ -885,6 +886,39 @@ router.patch(
   asyncHandler(async (req, res) => {
     const { maxPayout } = settingsSchema.parse(req.body);
     res.json(await setMaxPayout(maxPayout));
+  })
+);
+
+// --- Promotion page (promotionService.ts) ---
+
+router.get(
+  "/promotion",
+  asyncHandler(async (_req, res) => {
+    res.json({ ...(await getPromotionConfig()), catalog: TILE_CATALOG, categories: TASK_CATEGORIES, maxTasks: MAX_TASKS });
+  })
+);
+
+const promotionSchema = z.object({
+  tiles: z.array(z.object({ key: z.enum(TILE_CATALOG.map((t) => t.key) as [TileKey, ...TileKey[]]), label: z.string().trim().min(1).max(30), visible: z.boolean() })).max(TILE_CATALOG.length),
+  tasks: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(40),
+        period: z.enum(["daily", "weekly"]),
+        category: z.enum(TASK_CATEGORIES),
+        target: z.number().int().min(1).max(100_000_000),
+        reward: z.number().min(0.01).max(1_000_000),
+      })
+    )
+    .max(MAX_TASKS),
+});
+router.put(
+  "/promotion",
+  asyncHandler(async (req, res) => {
+    const body = promotionSchema.parse(req.body);
+    if (new Set(body.tasks.map((t) => t.id)).size !== body.tasks.length) throw new ApiError(400, "Two tasks have the same id.");
+    for (const t of body.tasks) if (t.reward > t.target) throw new ApiError(400, `A ₹${t.reward} reward for betting ₹${t.target} looks like a typo (more than the bet itself).`);
+    res.json({ ...(await setPromotionConfig(body)), catalog: TILE_CATALOG, categories: TASK_CATEGORIES, maxTasks: MAX_TASKS });
   })
 );
 

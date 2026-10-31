@@ -2363,3 +2363,18 @@ model Broadcast {
 
   @@index([createdAt])
 }
+
+/// A betting-task reward the player has taken, once per task per day/week
+/// (promotionService.ts; the unique key stops a second claim).
+model PromoTaskClaim {
+  id        String   @id @default(uuid())
+  userId    String
+  taskId    String
+  // "2026-10-31" for a daily task, "W2026-10-26" (the week's Monday) for a weekly one.
+  periodKey String
+  amount    Decimal  @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, taskId, periodKey])
+  @@index([userId, createdAt])
+}
