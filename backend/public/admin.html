@@ -729,6 +729,7 @@
           <div class="form-row">
             <button class="btn secondary small" id="promoAddDaily" style="flex:none;">+ Daily task</button>
             <button class="btn secondary small" id="promoAddWeekly" style="flex:none;">+ Weekly task</button>
+            <button class="btn small" id="promoTasksSave2" style="flex:none;">Save tasks</button>
           </div>
           <div class="item-meta" id="promoTasksStatus"></div>
         </div>
@@ -2199,8 +2200,9 @@
       var t = promo.tasks[Number(row.getAttribute('data-task'))];
       t.period = row.querySelector('[data-period]').value;
       t.category = row.querySelector('[data-category]').value;
-      t.target = Number(row.querySelector('[data-target]').value);
-      t.reward = Number(row.querySelector('[data-reward]').value);
+      // Typed as text so "1,000" or "₹500" still reads as a number.
+      t.target = Number(String(row.querySelector('[data-target]').value).replace(/[^0-9.]/g, ''));
+      t.reward = Number(String(row.querySelector('[data-reward]').value).replace(/[^0-9.]/g, ''));
     });
   }
   function renderPromo() {
@@ -2224,8 +2226,8 @@
       return '<div data-task="' + i + '" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">' +
         '<select data-period style="flex:0 0 auto;width:auto;"><option value="daily"' + (t.period === 'daily' ? ' selected' : '') + '>Daily</option><option value="weekly"' + (t.period === 'weekly' ? ' selected' : '') + '>Weekly</option></select>' +
         '<select data-category style="flex:1;min-width:120px;">' + cats.map(function (c) { return '<option' + (c === t.category ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') + '</select>' +
-        '<span class="item-meta" style="flex:none;">bet ₹</span><input data-target type="number" min="1" value="' + (t.target || '') + '" placeholder="500" style="flex:1;min-width:70px;" />' +
-        '<span class="item-meta" style="flex:none;">+ ₹</span><input data-reward type="number" min="0" step="0.01" value="' + (t.reward || '') + '" placeholder="6" style="flex:1;min-width:60px;" />' +
+        '<span class="item-meta" style="flex:none;">bet ₹</span><input data-target inputmode="numeric" value="' + (t.target || '') + '" placeholder="bet amount" style="flex:1;min-width:70px;' + (t.target >= 1 ? '' : 'border-color:#ef4444;') + '" />' +
+        '<span class="item-meta" style="flex:none;">+ ₹</span><input data-reward inputmode="decimal" value="' + (t.reward || '') + '" placeholder="reward" style="flex:1;min-width:60px;' + (t.reward > 0 ? '' : 'border-color:#ef4444;') + '" />' +
         '<button class="btn secondary small" data-task-del="' + i + '" style="flex:none;min-width:0;width:auto;">✕</button></div>';
     }).join('') : '<div class="empty">No tasks yet. Add a daily or weekly task.</div>';
     document.querySelectorAll('[data-task-del]').forEach(function (b) {
@@ -2233,24 +2235,37 @@
     });
   }
   function loadPromotion() {
-    api('/admin/promotion').then(function (r) { promo = r; renderPromo(); }).catch(function (err) { if (err.authError) doLogout(); });
+    document.getElementById('promoTasksStatus').textContent = '';
+    document.getElementById('promoTilesStatus').textContent = '';
+    api('/admin/promotion').then(function (r) { promo = r; renderPromo(); })
+      .catch(function (err) { if (err.authError) doLogout(); else document.getElementById('promoTasksStatus').textContent = 'Could not load: ' + err.message; });
   }
   function savePromotion(statusId, okText) {
     var status = document.getElementById(statusId);
     readPromoTiles(); readPromoTasks();
-    var bad = promo.tasks.some(function (t) { return !(t.target >= 1) || !(t.reward > 0); });
-    if (bad) { status.textContent = 'Every task needs a bet amount and a reward.'; return; }
+    var badRow = -1;
+    promo.tasks.forEach(function (t, i) { if (badRow < 0 && (!(t.target >= 1) || !(t.reward > 0))) badRow = i; });
+    if (badRow >= 0) {
+      renderPromo();
+      status.textContent = 'Task ' + (badRow + 1) + ': fill in the bet amount and the reward (the boxes in red), then Save again.';
+      return;
+    }
+    status.textContent = 'Saving…';
     api('/admin/promotion', { method: 'PUT', body: JSON.stringify({ tiles: promo.tiles, tasks: promo.tasks }) })
       .then(function (r) { promo = r; renderPromo(); status.textContent = okText; })
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; });
   }
   document.getElementById('promoTilesSave').addEventListener('click', function () { savePromotion('promoTilesStatus', 'Saved. The app shows these icons now.'); });
   document.getElementById('promoTasksSave').addEventListener('click', function () { savePromotion('promoTasksStatus', 'Saved. Players see these tasks now.'); });
+  document.getElementById('promoTasksSave2').addEventListener('click', function () { savePromotion('promoTasksStatus', 'Saved. Players see these tasks now.'); });
   function addPromoTask(period) {
     readPromoTasks();
     if (promo.tasks.length >= promo.maxTasks) return;
-    promo.tasks.push({ id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), period: period, category: 'Lottery', target: 0, reward: 0 });
+    // Starts filled in (a real example, not a placeholder), so Save works straight away; change the numbers as you like.
+    var example = period === 'daily' ? { target: 500, reward: 6 } : { target: 5000, reward: 28 };
+    promo.tasks.push({ id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), period: period, category: 'Lottery', target: example.target, reward: example.reward });
     renderPromo();
+    document.getElementById('promoTasksStatus').textContent = 'Task added — change it if you like, then press Save tasks.';
   }
   document.getElementById('promoAddDaily').addEventListener('click', function () { addPromoTask('daily'); });
   document.getElementById('promoAddWeekly').addEventListener('click', function () { addPromoTask('weekly'); });
