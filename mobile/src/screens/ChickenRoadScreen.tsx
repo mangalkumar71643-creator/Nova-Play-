@@ -736,7 +736,7 @@ export default function ChickenRoadScreen() {
         </View>
       )}
 
-      <View style={styles.controls}>
+      <View style={[styles.controls, { paddingBottom: insets.bottom }]}>
         <View style={styles.stakeRow}>
           <Pressable
             onPress={() => setStakeValue(config?.minStake ?? MIN_STAKE)}

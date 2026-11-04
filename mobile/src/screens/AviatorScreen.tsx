@@ -1429,7 +1429,7 @@ export default function AviatorScreen() {
 
       <ScrollView nestedScrollEnabled
         style={styles.scrollArea}
-        contentContainerStyle={styles.root}
+        contentContainerStyle={[styles.root, { paddingBottom: 24 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         onLayout={(e) => setScrollViewportHeight(e.nativeEvent.layout.height)}
       >

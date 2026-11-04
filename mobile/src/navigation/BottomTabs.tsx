@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from '../screens/HomeScreen';
 import RankingScreen from '../screens/RankingScreen';
 import EarnScreen from '../screens/EarnScreen';
@@ -23,6 +24,9 @@ const TAB_ICONS: Record<keyof BottomTabParamList, IconName> = {
 };
 
 export default function BottomTabs() {
+  // Room for the phone's own buttons (3-button bar or gesture line): the app
+  // draws edge to edge, so without this they cover the tabs.
+  const bottomInset = useSafeAreaInsets().bottom;
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -33,8 +37,8 @@ export default function BottomTabs() {
           backgroundColor: colors.backgroundAlt,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 64,
-          paddingBottom: 8,
+          height: 64 + bottomInset,
+          paddingBottom: 8 + bottomInset,
           paddingTop: 6,
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
