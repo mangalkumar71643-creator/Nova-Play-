@@ -12,8 +12,11 @@ export function signToken(payload: JwtPayload): string {
   return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn as any });
 }
 
+/** A full session token. A scoped token (the live chat's) is refused: it must not open the account. */
 export function verifyToken(token: string): JwtPayload {
-  return jwt.verify(token, env.jwtSecret) as JwtPayload;
+  const payload = jwt.verify(token, env.jwtSecret) as JwtPayload & { scope?: string };
+  if (payload.scope !== undefined || typeof payload.userId !== "string") throw new Error("Not a session token");
+  return payload;
 }
 
 // A separate, short-lived, scope-limited token for the browser-based Live

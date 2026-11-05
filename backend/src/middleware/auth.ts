@@ -52,7 +52,8 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
           : "Your account has been suspended.",
       });
     }
-    req.user = { userId: payload.userId, role: payload.role };
+    // The role as it is now (a demoted admin loses admin access at once), not as signed into the token.
+    req.user = { userId: payload.userId, role: user.role };
     // When the player was last in the app, for the admin's Problems page —
     // written at most every SEEN_EVERY_MS, and never holding up the request.
     if (user.role !== "ADMIN" && (!user.lastSeenAt || Date.now() - user.lastSeenAt.getTime() > SEEN_EVERY_MS)) {
