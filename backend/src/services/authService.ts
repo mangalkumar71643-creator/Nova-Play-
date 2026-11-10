@@ -262,3 +262,95 @@ export async function completePhoneRegistration(input: CompleteProfileInput) {
   const token = signToken({ userId: user.id, role: user.role });
   return { user: sanitizeUser(user), token, isNewUser: true };
 }
+
+// --- Phone + password (no SMS code), owner's choice 2026-11-10 ---
+//
+// Sign-up takes a number and a password (and an invite code); login takes
+// the same. Accounts made earlier by SMS code have no password: their
+// owner sets one once with an SMS code (setPhonePasswordWithOtp), or the
+// admin sets one — never just by typing the number, or anyone could take
+// an existing account (and its money).
+
+export const MIN_PASSWORD_LENGTH = 6;
+const MAX_FAILED_LOGINS = 8;
+const LOGIN_LOCK_MS = 15 * 60 * 1000;
+
+function assertPasswordOk(password: string) {
+  if (password.length < MIN_PASSWORD_LENGTH) throw new ApiError(400, `Use a password of at least ${MIN_PASSWORD_LENGTH} characters.`);
+  if (password.length > 72) throw new ApiError(400, "That password is too long (72 characters at most).");
+}
+
+export async function registerWithPhonePassword(phoneInput: string, password: string, inviteCode?: string) {
+  const phone = toE164(phoneInput);
+  assertPasswordOk(password);
+  const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
+  if (existing) throw new ApiError(409, "This number already has an account. Please log in.");
+  // Checked before the account exists, so a mistyped invite code can be fixed.
+  const inviterId = inviteCode ? await findInviter(inviteCode) : null;
+  const passwordHash = await hashPassword(password);
+  let user;
+  try {
+    user = await createUserWithUniqueUid((uid) =>
+      prisma.user.create({
+        data: { uid, phone, passwordHash, firstName: "Player", lastName: phone.slice(-4), country: "IN", wallet: { create: { balance: 0 } } },
+      })
+    );
+  } catch (err) {
+    // Two sign-ups for one number at once: the unique phone lets one through.
+    if ((err as { code?: string })?.code === "P2002") throw new ApiError(409, "This number already has an account. Please log in.");
+    throw err;
+  }
+  if (inviterId) await linkInvitee(inviterId, user.id);
+  await markSignedIn(user.id);
+  return { user: sanitizeUser(user), token: signToken({ userId: user.id, role: user.role }), isNewUser: true };
+}
+
+export async function loginWithPhonePassword(phoneInput: string, password: string) {
+  const phone = toE164(phoneInput);
+  const user = await prisma.user.findUnique({ where: { phone } });
+  const wrong = () => new ApiError(401, "Wrong mobile number or password.");
+  if (!user) throw wrong();
+  if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
+    const mins = Math.ceil((user.loginLockedUntil.getTime() - Date.now()) / 60000);
+    throw new ApiError(429, `Too many wrong passwords. Try again in ${mins} minute${mins === 1 ? "" : "s"}, or use Forgot password.`);
+  }
+  if (!user.passwordHash) {
+    // An account from before passwords: its owner proves the number once.
+    throw new ApiError(403, "PASSWORD_NOT_SET");
+  }
+  if (!(await comparePassword(password, user.passwordHash))) {
+    const failed = user.failedLogins + 1;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: failed >= MAX_FAILED_LOGINS ? { failedLogins: 0, loginLockedUntil: new Date(Date.now() + LOGIN_LOCK_MS) } : { failedLogins: failed },
+    });
+    throw wrong();
+  }
+  assertNotBanned(user);
+  if (user.failedLogins || user.loginLockedUntil) await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, loginLockedUntil: null } });
+  await markSignedIn(user.id);
+  return { user: sanitizeUser(user), token: signToken({ userId: user.id, role: user.role }), isNewUser: false };
+}
+
+/** Forgot password, or an old account's first password: the SMS code proves the number. */
+export async function setPhonePasswordWithOtp(phoneInput: string, code: string, password: string) {
+  const phone = toE164(phoneInput);
+  assertPasswordOk(password);
+  const user = await prisma.user.findUnique({ where: { phone } });
+  if (!user) throw new ApiError(404, "No account with this number. Please register.");
+  await verifyOtpCode(phone, code);
+  assertNotBanned(user);
+  await consumeOtp(phone);
+  const updated = await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password), failedLogins: 0, loginLockedUntil: null } });
+  await markSignedIn(user.id);
+  return { user: sanitizeUser(updated), token: signToken({ userId: user.id, role: user.role }), isNewUser: false };
+}
+
+/** The admin sets a player's password (a player who can't get the SMS code). */
+export async function adminSetPlayerPassword(uid: number, password: string) {
+  assertPasswordOk(password);
+  const user = await prisma.user.findUnique({ where: { uid }, select: { id: true, role: true } });
+  if (!user || user.role === "ADMIN") throw new ApiError(404, "No player with that UID.");
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password), failedLogins: 0, loginLockedUntil: null } });
+  return { ok: true };
+}

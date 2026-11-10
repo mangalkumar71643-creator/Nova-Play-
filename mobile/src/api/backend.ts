@@ -49,6 +49,19 @@ export function verifyPhoneOtp(phone: string, code: string, inviteCode?: string)
   });
 }
 
+// --- Mobile number + password (no SMS code at sign-up or login) ---
+
+export function registerWithPassword(phone: string, password: string, inviteCode?: string) {
+  return apiFetch<AuthResult>('/auth/phone/register', { method: 'POST', body: JSON.stringify({ phone, password, ...(inviteCode ? { inviteCode } : {}) }) });
+}
+export function loginWithPhonePassword(phone: string, password: string) {
+  return apiFetch<AuthResult>('/auth/phone/login', { method: 'POST', body: JSON.stringify({ phone, password }) });
+}
+/** Forgot password, or an old account's first password: the SMS code proves the number. */
+export function setPasswordWithCode(phone: string, code: string, password: string) {
+  return apiFetch<AuthResult>('/auth/phone/set-password', { method: 'POST', body: JSON.stringify({ phone, code, password }) });
+}
+
 export function completePhoneProfile(input: {
   phone: string;
   firstName: string;

@@ -2,6 +2,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { showAlert } from '../components/AppAlert';
@@ -38,6 +39,8 @@ function previewBonus(info: DepositBonusInfo | null, amount: number): number {
 
 export default function DepositScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  // The pay bar is pinned to the bottom: lift its button above the phone's own buttons.
+  const bottomInset = useSafeAreaInsets().bottom;
   const { coins, withdrawable, refreshWallet } = useGameState();
   const [bonusInfo, setBonusInfo] = useState<DepositBonusInfo | null>(null);
   const { backendUser } = useAuth();
@@ -287,7 +290,7 @@ export default function DepositScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.payBar}>
+      <View style={[styles.payBar, { paddingBottom: spacing.lg + bottomInset }]}>
         {upi?.enabled ? (
           <Text style={{ color: colors.gold, textAlign: 'center', fontSize: 12, marginBottom: 6 }} testID="deposit-gateway-note">
             Pay by UPI with {upi.gatewayName}{upi.testMode ? ' · TEST MODE (no real money)' : ''}

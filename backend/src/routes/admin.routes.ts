@@ -24,6 +24,7 @@ import {
 } from "../services/depositBonusService";
 import { getAutoPayoutSettings, MAX_AUTO_PAYOUT_MAX, setAutoPayoutSettings } from "../services/autoPayoutService";
 import { getPromotionConfig, MAX_TASKS, setPromotionConfig, TASK_CATEGORIES, TILE_CATALOG, type TileKey } from "../services/promotionService";
+import { adminSetPlayerPassword } from "../services/authService";
 import { notifyBonus, notifyDeposit, notifyWithdrawalRefund, sendBroadcast, sendToPlayer, sentMessages } from "../services/playerNotificationService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
@@ -382,6 +383,17 @@ router.get(
     });
     if (!user) throw new ApiError(404, "No player with that UID.");
     res.json({ ...user, withdrawable: user.wallet ? withdrawableOf(user.wallet) : 0 });
+  })
+);
+
+/** Sets a player's login password (a player who can't get the SMS code to set it themselves). */
+const playerPasswordSchema = z.object({ password: z.string().min(6, "Use at least 6 characters.").max(72) });
+router.post(
+  "/users/by-uid/:uid/password",
+  asyncHandler(async (req, res) => {
+    const uid = Number(req.params.uid);
+    if (!Number.isInteger(uid)) throw new ApiError(400, "Enter a valid UID.");
+    res.json(await adminSetPlayerPassword(uid, playerPasswordSchema.parse(req.body).password));
   })
 );
 

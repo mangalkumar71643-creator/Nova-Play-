@@ -15,7 +15,11 @@ const HIDE_KEY = 'novaplay:depositOffer:hiddenDay:v1';
 const ORDINALS = ['First', 'Second', 'Third'];
 const ordinal = (n: number) => ORDINALS[n - 1] ?? `${n}th`;
 const inr = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-const today = () => new Date().toISOString().slice(0, 10);
+// The phone's own date (India time for players), like HomePopups — not the UTC date.
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
 // Once per launch, like the image popups.
 let shownThisLaunch = false;
 

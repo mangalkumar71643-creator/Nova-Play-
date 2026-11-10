@@ -169,6 +169,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
       setCoins(0);
       setWithdrawable(0);
       setLockedBonus(0);
+      setUnplayedDeposit(0);
       setWageringRequired(0);
       setWageringProgress(0);
       setPayoutAccountHolderName(null);

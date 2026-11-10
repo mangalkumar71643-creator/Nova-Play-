@@ -6,6 +6,9 @@ import {
   completePhoneProfile,
   fetchBackendMe,
   requestPhoneOtp,
+  registerWithPassword,
+  loginWithPhonePassword,
+  setPasswordWithCode,
   selfExcludeBackend,
   setBackendDepositLimits,
   submitBackendKyc,
@@ -62,6 +65,12 @@ type AuthState = {
   // request-then-enter-code flow when a real code was actually texted.
   // TODO: remove this shortcut once real OTP delivery is ready for launch.
   quickLogin: (phone: string, inviteCode?: string) => Promise<string | null>;
+  /** Mobile number + password. Each returns null on success, else a message ("PASSWORD_NOT_SET" for an old account with no password yet). */
+  passwordLogin: (phone: string, password: string) => Promise<string | null>;
+  passwordRegister: (phone: string, password: string, inviteCode?: string) => Promise<string | null>;
+  /** Sends the SMS code for setting / resetting a password; returns an error message, or null (devCode filled in mock mode). */
+  sendPasswordCode: (phone: string) => Promise<{ error: string | null; devCode: string | null }>;
+  resetPassword: (phone: string, code: string, password: string) => Promise<string | null>;
   verifyIdentityOtp: (code: string) => Promise<string | null>;
   hasLoginPassword: boolean;
   setLoginPassword: (password: string) => Promise<void>;
@@ -142,7 +151,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!token) throw new Error('no backend session for this account, needs re-login');
 
         await setBackendToken(token);
-        const me = await fetchBackendMe();
+        // Only a refused token (401/403) ends the session. No internet, a
+        // timeout or a server hiccup keeps the player signed in; their
+        // profile is fetched again a little later.
+        let me: BackendUser | null = null;
+        try {
+          me = await fetchBackendMe();
+        } catch (err) {
+          if (err instanceof ApiClientError && (err.status === 401 || err.status === 403)) throw err;
+          setTimeout(() => {
+            fetchBackendMe()
+              .then((u) => !cancelled && setBackendUser(u))
+              .catch(() => {});
+          }, 5000);
+        }
 
         if (cancelled) return;
         setPhone(saved.phone);
@@ -279,6 +301,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const message = err instanceof Error ? err.message : 'Could not sign you in.';
         setOtpError(message);
         return message;
+      }
+    },
+    [completeBackendLogin]
+  );
+
+  const passwordLogin = useCallback(
+    async (phoneNumber: string, password: string): Promise<string | null> => {
+      try {
+        await completeBackendLogin(phoneNumber, await loginWithPhonePassword(phoneNumber, password));
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : 'Could not log you in. Please try again.';
+      }
+    },
+    [completeBackendLogin]
+  );
+
+  const passwordRegister = useCallback(
+    async (phoneNumber: string, password: string, inviteCode?: string): Promise<string | null> => {
+      try {
+        await completeBackendLogin(phoneNumber, await registerWithPassword(phoneNumber, password, inviteCode));
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : 'Could not create your account. Please try again.';
+      }
+    },
+    [completeBackendLogin]
+  );
+
+  const sendPasswordCode = useCallback(async (phoneNumber: string) => {
+    try {
+      const r = await requestPhoneOtp(phoneNumber);
+      return { error: null, devCode: r.devCode ?? null };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Could not send the code.', devCode: null };
+    }
+  }, []);
+
+  const resetPassword = useCallback(
+    async (phoneNumber: string, code: string, password: string): Promise<string | null> => {
+      try {
+        await completeBackendLogin(phoneNumber, await setPasswordWithCode(phoneNumber, code, password));
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : 'Could not set the password. Please try again.';
       }
     },
     [completeBackendLogin]
@@ -451,6 +518,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resendOtp,
     verifyOtp,
     quickLogin,
+    passwordLogin,
+    passwordRegister,
+    sendPasswordCode,
+    resetPassword,
     verifyIdentityOtp,
     hasLoginPassword,
     setLoginPassword,

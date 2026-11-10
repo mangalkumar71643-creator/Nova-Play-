@@ -400,6 +400,16 @@
           </div>
           <div class="item-meta" id="creditStatus"></div>
         </div>
+        <div class="card" style="max-width:520px;">
+          <div class="card-head"><h2>Set a player's password</h2></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Players log in with their mobile number and password. For a player who forgot it and can't get the SMS code, or an old account made before passwords: set a new one here and tell them.</div>
+          <div class="form-row">
+            <input id="pwUid" inputmode="numeric" placeholder="Player UID" />
+            <input id="pwNew" placeholder="New password (6+ characters)" maxlength="72" />
+            <button class="btn" id="pwSet" style="flex:0 0 auto;">Set</button>
+          </div>
+          <div class="item-meta" id="pwStatus"></div>
+        </div>
         <div class="card">
           <div class="form-row">
             <input id="userSearch" placeholder="Search name, email or phone…" />
@@ -2368,6 +2378,21 @@
         renderOffer();
         status.textContent = 'Saved. ' + (r.enabled ? 'Players see the popup now.' : 'The offer is off.');
       })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
+      .finally(function () { btn.disabled = false; });
+  });
+
+  // ---------- A player's login password ----------
+  document.getElementById('pwSet').addEventListener('click', function () {
+    var btn = this;
+    var status = document.getElementById('pwStatus');
+    var uid = document.getElementById('pwUid').value.trim();
+    var pw = document.getElementById('pwNew').value;
+    if (!/^\d+$/.test(uid)) { status.textContent = 'Enter the player UID.'; return; }
+    if (pw.length < 6) { status.textContent = 'Use a password of at least 6 characters.'; return; }
+    btn.disabled = true;
+    api('/admin/users/by-uid/' + encodeURIComponent(uid) + '/password', { method: 'POST', body: JSON.stringify({ password: pw }) })
+      .then(function () { status.textContent = 'Done. UID ' + uid + ' can now log in with this password.'; document.getElementById('pwNew').value = ''; })
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
   });

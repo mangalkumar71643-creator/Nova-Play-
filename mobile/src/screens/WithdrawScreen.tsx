@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { showAlert } from '../components/AppAlert';
@@ -20,6 +21,8 @@ const QUICK_AMOUNTS = [100, 300, 500, 1000, 2000, 5000, 10000, 20000, 35000];
 
 export default function WithdrawScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  // The pay bar is pinned to the bottom: lift its button above the phone's own buttons.
+  const bottomInset = useSafeAreaInsets().bottom;
   const {
     coins,
     withdrawable,
@@ -328,7 +331,7 @@ export default function WithdrawScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.payBar}>
+      <View style={[styles.payBar, { paddingBottom: spacing.lg + bottomInset }]}>
         <Pressable
           onPress={handleWithdraw}
           disabled={(!isValidAmount && hasPayoutAccount) || !kycApproved || busy}

@@ -57,6 +57,8 @@ export function withPullToRefresh<P extends object>(Screen: React.ComponentType<
     const [refreshing, setRefreshing] = useState(false);
     const refreshingRef = useRef(false);
     const pull = useRef(new Animated.Value(0)).current;
+    // Where the touch began (PanResponder's own y0 is still 0 in the capture check).
+    const touchStartY = useRef(0);
     const ctl = useRef<Ctl>({ rules }).current;
 
     const settle = useCallback(() => {
@@ -88,9 +90,14 @@ export function withPullToRefresh<P extends object>(Screen: React.ComponentType<
     const responder = useMemo(
       () =>
         PanResponder.create({
-          // Never on touch-down, so taps are left alone; only a clear pull down from the top.
+          // Only notes where the touch began: never takes a touch on touch-down, so taps are left alone.
+          onStartShouldSetPanResponderCapture: (e) => {
+            touchStartY.current = e.nativeEvent.pageY;
+            return false;
+          },
+          // Only a clear pull down that began at the top of the screen.
           onMoveShouldSetPanResponderCapture: (_e, g) =>
-            !rules.current.disabled && !refreshingRef.current && g.y0 < TOP_ZONE && g.dy > START_AFTER && g.dy > Math.abs(g.dx) * 1.5,
+            !rules.current.disabled && !refreshingRef.current && touchStartY.current < TOP_ZONE && g.dy > START_AFTER && g.dy > Math.abs(g.dx) * 1.5,
           onPanResponderMove: (_e, g) => pull.setValue(Math.max(0, Math.min(MAX_PULL, g.dy - START_AFTER))),
           onPanResponderRelease: (_e, g) => {
             if (g.dy - START_AFTER >= TRIGGER) onRefresh();

@@ -319,7 +319,7 @@ export default function GameCategoryScreen() {
           <MaterialCommunityIcons name="chevron-left" size={26} color={GOLD} />
         </Pressable>
         <Text style={styles.topTitle}>GAMES</Text>
-        <Pressable onPress={() => (navigation as any).navigate('Wallet')} style={styles.balance} accessibilityLabel="Wallet">
+        <Pressable onPress={() => (navigation as any).navigate('MainTabs', { screen: 'Wallet' })} style={styles.balance} accessibilityLabel="Wallet">
           <MaterialCommunityIcons name="wallet" size={16} color={GOLD} />
           <Text style={styles.balanceText}>₹{coins.toLocaleString('en-IN')}</Text>
         </Pressable>

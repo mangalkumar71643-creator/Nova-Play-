@@ -1,322 +1,339 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import {
-  Image,
-  KeyboardAvoidingView,
-  LayoutChangeEvent,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showAlert } from '../components/AppAlert';
-import GameShineOverlay from '../components/GameShineOverlay';
-import { AuthStackParamList } from '../navigation/types';
-import { colors } from '../theme';
 import { useAuth } from '../state/AuthContext';
+import { colors, gradients, radius, spacing, typography } from '../theme';
 
-// The background is the exact reference screenshot the user supplied — every
-// field/button below is an invisible, real, functional control positioned on
-// top of it (as a % of the image's own 1024x1536 canvas), not a redraw.
-const IMAGE_WIDTH = 1024;
-const IMAGE_HEIGHT = 1536;
-const pctX = (px: number) => px / IMAGE_WIDTH;
-const pctY = (px: number) => px / IMAGE_HEIGHT;
+type Mode = 'login' | 'register' | 'reset';
 
+const LAST_PHONE_KEY = 'novaplay:lastPhone:v1';
+const MIN_PASSWORD = 6;
+const digitsOf = (s: string) => s.replace(/\D/g, '').slice(-10);
+const validPhone = (d: string) => /^[6-9]\d{9}$/.test(d);
+
+/**
+ * Log in / register with a mobile number and a password — no SMS code
+ * (owner's choice). The code is used only to set a password: "Forgot
+ * password", or an account made earlier by SMS code that has none yet.
+ */
 export default function LoginScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
-  const { quickLogin, verifyOtp, otpSent, loginWithPassword } = useAuth();
+  const { passwordLogin, passwordRegister, sendPasswordCode, resetPassword } = useAuth();
+  const insets = useSafeAreaInsets();
+  const [mode, setMode] = useState<Mode>('login');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [loginMode, setLoginMode] = useState<'otp' | 'password'>('otp');
-  const [layoutWidth, setLayoutWidth] = useState(0);
+  const [confirm, setConfirm] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [code, setCode] = useState('');
+  const [show, setShow] = useState(false);
+  const [agree, setAgree] = useState(true);
+  const [remember, setRemember] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [note, setNote] = useState<string | null>(null);
 
-  // Same rule as the server (backend/src/utils/phone.ts): a 10-digit Indian mobile starting 6-9, not 9999999999 and the like.
-  const digits = phone.trim();
-  const isValid = /^[6-9]\d{9}$/.test(digits) && new Set(digits).size > 2;
+  // The number used last time, so a returning player only types the password.
+  useEffect(() => {
+    AsyncStorage.getItem(LAST_PHONE_KEY)
+      .then((p) => p && setPhone(p))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const timer = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [resendCooldown]);
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
-  function handleImageWrapLayout(e: LayoutChangeEvent) {
-    setLayoutWidth(e.nativeEvent.layout.width);
+  const switchTo = (m: Mode, message: string | null = null) => {
+    setMode(m);
+    setNote(message);
+    setPassword('');
+    setConfirm('');
+    setCode('');
+    setCodeSent(false);
+  };
+
+  function checkPhone(): string | null {
+    const d = digitsOf(phone);
+    if (!validPhone(d)) {
+      showAlert('Mobile number', 'Enter a valid 10-digit mobile number.');
+      return null;
+    }
+    return d;
+  }
+  function checkNewPassword(): boolean {
+    if (password.length < MIN_PASSWORD) {
+      showAlert('Password', `Use a password of at least ${MIN_PASSWORD} characters.`);
+      return false;
+    }
+    if (password !== confirm) {
+      showAlert('Password', 'The two passwords do not match.');
+      return false;
+    }
+    return true;
   }
 
-  function selectLoginMode(mode: 'otp' | 'password') {
-    setLoginMode(mode);
-    if (mode === 'otp') setPassword('');
-    else {
-      setOtpCode('');
-      setResendCooldown(0);
+  async function onLogin() {
+    const d = checkPhone();
+    if (!d) return;
+    if (!password) return showAlert('Password', 'Enter your password.');
+    setBusy(true);
+    const err = await passwordLogin(d, password);
+    setBusy(false);
+    if (!err) {
+      if (remember) AsyncStorage.setItem(LAST_PHONE_KEY, d).catch(() => {});
+      else AsyncStorage.removeItem(LAST_PHONE_KEY).catch(() => {});
+      return;
     }
+    if (err === 'PASSWORD_NOT_SET') {
+      switchTo('reset', 'Your account was made with an SMS code and has no password yet. Get a code once and set your password.');
+      return;
+    }
+    showAlert('Could not log in', err);
   }
 
-  const [sendingOtp, setSendingOtp] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  // A friend's invite code (agent program): asked here, as sign-up has no other step.
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteCode, setInviteCode] = useState('');
-  const invite = inviteCode.trim() || undefined;
-
-  async function sendOtpInline() {
-    if (resendCooldown > 0 || sendingOtp) return;
-    setLoginMode('otp');
-    if (!isValid) {
-      showAlert('Enter your number', 'Please enter your own 10-digit mobile number. The login code is sent to it by SMS.');
+  async function onRegister() {
+    const d = checkPhone();
+    if (!d || !checkNewPassword()) return;
+    if (!agree) return showAlert('Privacy Agreement', 'Please read and agree to the Privacy Agreement.');
+    setBusy(true);
+    const err = await passwordRegister(d, password, inviteCode.trim() || undefined);
+    setBusy(false);
+    if (!err) {
+      AsyncStorage.setItem(LAST_PHONE_KEY, d).catch(() => {});
       return;
     }
-    setSendingOtp(true);
-    const error = await quickLogin(digits, invite);
-    setSendingOtp(false);
-    if (error) {
-      showAlert('Could not send code', error);
+    if (/already has an account/i.test(err)) {
+      switchTo('login', 'This number already has an account. Log in with its password.');
       return;
     }
-    setOtpCode('');
-    setResendCooldown(30);
+    showAlert('Could not register', err);
   }
 
-  async function handleSubmit() {
-    if (verifying) return;
-    if (loginMode === 'password') {
-      if (!isValid) {
-        showAlert('Enter your number', 'Please enter a valid 10-digit mobile number first.');
-        return;
-      }
-      if (!password.trim()) {
-        showAlert('Enter your password', 'Please enter your password, or switch to Verification Login.');
-        return;
-      }
-      const ok = await loginWithPassword(phone.trim(), password.trim());
-      if (!ok) {
-        showAlert('Login failed', 'Incorrect password, or no password set for this number yet. Switch to Verification Login to sign in with OTP instead.');
-      }
-      return;
-    }
-    if (otpSent && otpCode.length === 6) {
-      setVerifying(true);
-      const error = await verifyOtp(otpCode, invite);
-      setVerifying(false);
-      if (error) {
-        showAlert('Incorrect code', error);
-      }
-      return;
-    }
-    if (!otpSent) {
-      if (!isValid) {
-        showAlert('Enter your number', 'Please enter your own 10-digit mobile number. The login code is sent to it by SMS.');
-        return;
-      }
-      setVerifying(true);
-      const error = await quickLogin(digits, invite);
-      setVerifying(false);
-      if (error) {
-        showAlert('Login failed', error);
-      }
-      return;
-    }
-    showAlert('Enter the code', 'Please enter the 6-digit code sent to your number.');
+  async function onSendCode() {
+    const d = checkPhone();
+    if (!d) return;
+    setBusy(true);
+    const r = await sendPasswordCode(d);
+    setBusy(false);
+    if (r.error) return showAlert('Could not send the code', r.error);
+    setCodeSent(true);
+    setCooldown(30);
+    if (r.devCode) setCode(r.devCode);
   }
 
-  function comingSoon(label: string) {
-    showAlert(label, 'Coming soon — use your mobile number + OTP to sign in for now.');
+  async function onReset() {
+    const d = checkPhone();
+    if (!d) return;
+    if (!/^\d{6}$/.test(code)) return showAlert('Code', 'Enter the 6-digit code from the SMS.');
+    if (!checkNewPassword()) return;
+    setBusy(true);
+    const err = await resetPassword(d, code, password);
+    setBusy(false);
+    if (!err) {
+      AsyncStorage.setItem(LAST_PHONE_KEY, d).catch(() => {});
+      return;
+    }
+    showAlert('Could not set the password', err);
   }
+
+  const eye = (
+    <Pressable onPress={() => setShow((v) => !v)} hitSlop={10} accessibilityLabel={show ? 'Hide password' : 'Show password'}>
+      <MaterialCommunityIcons name={show ? 'eye-outline' : 'eye-off-outline'} size={22} color={colors.textMuted} />
+    </Pressable>
+  );
+
+  const title = mode === 'login' ? 'Log in' : mode === 'register' ? 'Register' : 'Set password';
+  const sub =
+    mode === 'login'
+      ? 'Log in with your mobile number and password.'
+      : mode === 'register'
+        ? 'Register with your mobile number.'
+        : 'We send a code to your number to set a new password.';
 
   return (
-    <View style={styles.fill}>
+    <LinearGradient colors={gradients.background} style={styles.fill}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView nestedScrollEnabled contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={styles.imageWrap} onLayout={handleImageWrapLayout}>
-            <Image source={require('../../assets/login-screen.webp')} style={styles.image} resizeMode="contain" />
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl }]} keyboardShouldPersistTaps="handled">
+          <Image source={require('../../assets/novaplay-badge.webp')} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.sub}>{sub}</Text>
 
-            <GameShineOverlay width={layoutWidth} height={layoutWidth * (IMAGE_HEIGHT / IMAGE_WIDTH)} />
-
-            {/* Phone Login tab (already the active state in the image) */}
-            <Pressable style={[styles.overlay, box(95, 565, 415, 80)]} />
-            {/* Email Login tab */}
-            <Pressable style={[styles.overlay, box(525, 565, 410, 80)]} onPress={() => comingSoon('Email Login')} />
-
-            {/* Mobile number field */}
-            <View style={[styles.inputPatch, box(200, 695, 730, 68)]}>
-              <TextInput
-                value={phone}
-                onChangeText={(t) => setPhone(t.replace(/[^0-9]/g, '').slice(0, 10))}
-                placeholder="Enter Mobile Number"
-                placeholderTextColor="#8f7b7e"
-                keyboardType="number-pad"
-                maxLength={10}
-                style={styles.input}
-              />
+          {mode !== 'reset' ? (
+            <View style={styles.tabs}>
+              {(['login', 'register'] as const).map((m) => (
+                <Pressable key={m} style={[styles.tab, mode === m && styles.tabOn]} onPress={() => switchTo(m)}>
+                  <Text style={[styles.tabText, mode === m && styles.tabTextOn]}>{m === 'login' ? 'Log in' : 'Register'}</Text>
+                </Pressable>
+              ))}
             </View>
+          ) : null}
 
-            {/* Icon badge to the left of the second field — swaps lock/shield to match the mode */}
-            <View style={[styles.iconBadge, box(95, 783, 100, 116)]}>
-              <MaterialCommunityIcons
-                name={loginMode === 'otp' ? 'shield-check' : 'lock'}
-                size={34}
-                color="#F0B93D"
-              />
+          {note ? <Text style={styles.note}>{note}</Text> : null}
+
+          <Text style={styles.label}>Phone number</Text>
+          <View style={styles.row}>
+            <View style={styles.cc}>
+              <Text style={styles.ccText}>+91</Text>
             </View>
-
-            {/* Second field — OTP entry in Verification mode, password in Password mode */}
-            <View style={[styles.inputPatch, styles.passwordPatch, box(200, 793, 715, 96)]}>
-              {loginMode === 'otp' ? (
-                <>
-                  <TextInput
-                    value={otpCode}
-                    onChangeText={(t) => setOtpCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
-                    placeholder="Enter OTP"
-                    placeholderTextColor="#8f7b7e"
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    style={[styles.input, styles.passwordInput]}
-                  />
-                  <Pressable onPress={sendOtpInline} disabled={resendCooldown > 0 || sendingOtp} hitSlop={8}>
-                    <Text style={styles.sendText}>
-                      {sendingOtp ? '...' : resendCooldown > 0 ? `${resendCooldown}s` : otpSent ? 'Resend' : 'Send'}
-                    </Text>
-                  </Pressable>
-                </>
-              ) : (
-                <>
-                  <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Enter Password"
-                    placeholderTextColor="#8f7b7e"
-                    secureTextEntry={!showPassword}
-                    style={[styles.input, styles.passwordInput]}
-                  />
-                  <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={10}>
-                    <MaterialCommunityIcons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={22} color="#c9a15a" />
-                  </Pressable>
-                </>
-              )}
-            </View>
-
-            {/* Forgot password link */}
-            <Pressable
-              style={[styles.overlay, box(560, 950, 370, 30)]}
-              onPress={() => comingSoon('Forgot Password')}
+            <TextInput
+              style={[styles.input, { flex: 1 }]}
+              value={phone}
+              onChangeText={(t) => setPhone(t.replace(/[^\d]/g, '').slice(0, 10))}
+              placeholder="Please enter the phone number"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="number-pad"
+              maxLength={10}
             />
+          </View>
 
-            {/* LOGIN button -> sends demo OTP and moves to verification */}
-            <Pressable style={[styles.overlay, box(95, 1010, 840, 95)]} onPress={handleSubmit} />
+          {mode === 'reset' ? (
+            <>
+              <Text style={styles.label}>SMS code</Text>
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  value={code}
+                  onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6-digit code"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+                <Pressable style={[styles.codeBtn, (cooldown > 0 || busy) && { opacity: 0.5 }]} onPress={onSendCode} disabled={cooldown > 0 || busy}>
+                  <Text style={styles.codeBtnText}>{cooldown > 0 ? `${cooldown}s` : codeSent ? 'Resend' : 'Send code'}</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : null}
 
-            {/* OTP quick icon (Google/Facebook removed — not used) — switches to Verification mode and sends the code inline */}
-            <Pressable style={[styles.overlay, styles.round, box(449, 1200, 120, 120)]} onPress={sendOtpInline} />
+          <Text style={styles.label}>{mode === 'login' ? 'Password' : mode === 'register' ? 'Set password' : 'New password'}</Text>
+          <View style={[styles.input, styles.withIcon]}>
+            <TextInput
+              style={styles.inner}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Please enter password"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry={!show}
+              autoCapitalize="none"
+              maxLength={72}
+            />
+            {eye}
+          </View>
 
-            {/* Verification (OTP) vs Password login mode toggle */}
-            <View style={[styles.overlay, styles.modeToggleRow, box(95, 1405, 830, 50)]}>
-              <Pressable style={styles.modeToggleOption} onPress={() => selectLoginMode('otp')}>
-                <Text style={[styles.modeToggleText, loginMode === 'otp' && styles.modeToggleTextActive]}>
-                  Verification Login
-                </Text>
+          {mode !== 'login' ? (
+            <>
+              <Text style={styles.label}>Confirm password</Text>
+              <View style={[styles.input, styles.withIcon]}>
+                <TextInput
+                  style={styles.inner}
+                  value={confirm}
+                  onChangeText={setConfirm}
+                  placeholder="Please enter password again"
+                  placeholderTextColor={colors.textMuted}
+                  secureTextEntry={!show}
+                  autoCapitalize="none"
+                  maxLength={72}
+                />
+                {eye}
+              </View>
+            </>
+          ) : null}
+
+          {mode === 'register' ? (
+            <>
+              <Text style={styles.label}>Invite code (optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={inviteCode}
+                onChangeText={(t) => setInviteCode(t.replace(/\D/g, '').slice(0, 12))}
+                placeholder="Your friend's invite code"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="number-pad"
+              />
+              <Pressable style={styles.checkRow} onPress={() => setAgree((v) => !v)}>
+                <MaterialCommunityIcons name={agree ? 'check-circle' : 'checkbox-blank-circle-outline'} size={22} color={agree ? colors.gold : colors.textMuted} />
+                <Text style={styles.checkText}>I am 18+ and agree to the Privacy Agreement</Text>
               </Pressable>
-              <View style={styles.modeToggleDivider} />
-              <Pressable style={styles.modeToggleOption} onPress={() => selectLoginMode('password')}>
-                <Text style={[styles.modeToggleText, loginMode === 'password' && styles.modeToggleTextActive]}>
-                  Password Login
-                </Text>
+            </>
+          ) : null}
+
+          {mode === 'login' ? (
+            <View style={styles.between}>
+              <Pressable style={styles.checkRow} onPress={() => setRemember((v) => !v)}>
+                <MaterialCommunityIcons name={remember ? 'check-circle' : 'checkbox-blank-circle-outline'} size={22} color={remember ? colors.gold : colors.textMuted} />
+                <Text style={styles.checkText}>Remember number</Text>
+              </Pressable>
+              <Pressable onPress={() => switchTo('reset')} hitSlop={8}>
+                <Text style={styles.link}>Forgot password</Text>
               </Pressable>
             </View>
-          </View>
-          <View style={styles.inviteWrap}>
-            {inviteOpen ? (
-              <TextInput
-                value={inviteCode}
-                onChangeText={(t) => setInviteCode(t.replace(/[^0-9]/g, '').slice(0, 12))}
-                keyboardType="number-pad"
-                placeholder="Friend's invite code (optional)"
-                placeholderTextColor="#8f7b7e"
-                style={styles.inviteInput}
-                autoFocus
-              />
-            ) : (
-              <Pressable onPress={() => setInviteOpen(true)} hitSlop={8}>
-                <Text style={styles.inviteLink}>Have an invite code? Tap to add it</Text>
-              </Pressable>
-            )}
-          </View>
+          ) : null}
+
+          <Pressable onPress={mode === 'login' ? onLogin : mode === 'register' ? onRegister : onReset} disabled={busy} style={{ marginTop: spacing.lg }}>
+            <LinearGradient colors={gradients.goldButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.primary, busy && { opacity: 0.6 }]}>
+              {busy ? <ActivityIndicator color="#2A1300" /> : <Text style={styles.primaryText}>{mode === 'login' ? 'Log in' : mode === 'register' ? 'Register' : 'Set password & log in'}</Text>}
+            </LinearGradient>
+          </Pressable>
+
+          {mode === 'reset' ? (
+            <Pressable style={styles.secondary} onPress={() => switchTo('login')}>
+              <Text style={styles.secondaryText}>Back to log in</Text>
+            </Pressable>
+          ) : (
+            <Pressable style={styles.secondary} onPress={() => switchTo(mode === 'login' ? 'register' : 'login')}>
+              <Text style={styles.secondaryText}>{mode === 'login' ? "New here? Register" : 'I have an account  Log in'}</Text>
+            </Pressable>
+          )}
         </ScrollView>
-        <Text style={styles.ageGateNote}>18+ only. NovaPlay is a real-money game — please play responsibly.</Text>
       </KeyboardAvoidingView>
-    </View>
+    </LinearGradient>
   );
 }
 
-function box(left: number, top: number, width: number, height: number) {
-  return {
-    left: `${pctX(left) * 100}%` as const,
-    top: `${pctY(top) * 100}%` as const,
-    width: `${pctX(width) * 100}%` as const,
-    height: `${pctY(height) * 100}%` as const,
-  };
-}
-
 const styles = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: colors.background },
-  scroll: { flexGrow: 1, justifyContent: 'center' },
-  inviteWrap: { paddingHorizontal: 28, paddingTop: 10, alignItems: 'center' },
-  inviteLink: { color: '#f0b93d', fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' },
-  inviteInput: {
-    alignSelf: 'stretch',
-    color: '#f3e7c9',
-    fontSize: 16,
-    textAlign: 'center',
+  fill: { flex: 1 },
+  scroll: { paddingHorizontal: spacing.lg, flexGrow: 1 },
+  logo: { width: 110, height: 110, alignSelf: 'center' },
+  title: { color: colors.goldLight, fontSize: typography.xxl, fontWeight: '900', textAlign: 'center', marginTop: spacing.sm },
+  sub: { color: colors.textSecondary, fontSize: typography.sm, textAlign: 'center', marginTop: 4 },
+  tabs: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, marginTop: spacing.lg, overflow: 'hidden' },
+  tab: { flex: 1, paddingVertical: spacing.md, alignItems: 'center' },
+  tabOn: { backgroundColor: colors.crimson },
+  tabText: { color: colors.textSecondary, fontWeight: '700', fontSize: typography.md },
+  tabTextOn: { color: colors.textPrimary },
+  note: { color: colors.gold, fontSize: typography.sm, marginTop: spacing.md, lineHeight: 19 },
+  label: { color: colors.textPrimary, fontWeight: '700', fontSize: typography.sm, marginTop: spacing.lg, marginBottom: spacing.sm },
+  row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+  cc: { backgroundColor: colors.surfaceAlt, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, height: 50, justifyContent: 'center' },
+  ccText: { color: colors.textPrimary, fontSize: typography.md, fontWeight: '700' },
+  input: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(240,185,61,0.45)',
-    backgroundColor: '#1c0d10',
-    borderRadius: 12,
-    paddingVertical: 10,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    color: colors.textPrimary,
+    paddingHorizontal: spacing.md,
+    height: 50,
+    fontSize: typography.md,
   },
-  ageGateNote: {
-    color: '#8f7b7e',
-    fontSize: 11,
-    textAlign: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-  },
-  imageWrap: {
-    width: '100%',
-    aspectRatio: IMAGE_WIDTH / IMAGE_HEIGHT,
-    position: 'relative',
-  },
-  image: { width: '100%', height: '100%' },
-  overlay: { position: 'absolute' },
-  round: { borderRadius: 999 },
-  inputPatch: {
-    position: 'absolute',
-    backgroundColor: '#1c0d10',
-    borderRadius: 12,
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  input: { color: '#f3e7c9', fontSize: 19, paddingVertical: 0 },
-  passwordPatch: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
-  passwordInput: { flex: 1, marginRight: 8 },
-  modeToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  modeToggleOption: { flex: 1, alignItems: 'center', justifyContent: 'center', height: '100%' },
-  modeToggleDivider: { width: 1, height: '50%', backgroundColor: 'rgba(240,185,61,0.35)' },
-  modeToggleText: { color: '#8f7b7e', fontSize: 15, fontWeight: '700' },
-  modeToggleTextActive: { color: '#f0b93d' },
-  iconBadge: {
-    position: 'absolute',
-    backgroundColor: '#4a1710',
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendText: { color: '#F0B93D', fontSize: 15, fontWeight: '800' },
+  withIcon: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  inner: { flex: 1, color: colors.textPrimary, fontSize: typography.md, height: 48 },
+  codeBtn: { height: 50, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.gold, justifyContent: 'center' },
+  codeBtnText: { color: colors.gold, fontWeight: '800', fontSize: typography.sm },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
+  checkText: { color: colors.textSecondary, fontSize: typography.sm },
+  between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  link: { color: colors.gold, fontWeight: '700', fontSize: typography.sm, marginTop: spacing.md },
+  primary: { borderRadius: 999, paddingVertical: spacing.md, alignItems: 'center' },
+  primaryText: { color: '#2A1300', fontWeight: '900', fontSize: typography.lg },
+  secondary: { borderRadius: 999, borderWidth: 1.5, borderColor: colors.gold, paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.md },
+  secondaryText: { color: colors.gold, fontWeight: '800', fontSize: typography.md },
 });

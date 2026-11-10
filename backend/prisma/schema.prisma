@@ -115,24 +115,27 @@ enum ChickenRoadDifficulty {
 }
 
 model User {
-  id           String    @id @default(uuid())
+  id               String    @id @default(uuid())
   // Short public-facing account number shown to the player (mobile UI's
   // "UID") — kept separate from `id` (the internal uuid every other
   // table's foreign keys point at) so this can be short/numeric without
   // touching any relation. Nullable so `prisma db push` can add the
   // column without a default; every create path generates one, and any
   // pre-existing row without one gets backfilled by prisma/seed.ts.
-  uid          Int?      @unique
-  email        String?   @unique
-  passwordHash String?
-  phone        String?   @unique
-  firstName    String
-  lastName     String
+  uid              Int?      @unique
+  email            String?   @unique
+  passwordHash     String?
+  // Wrong-password tries in a row on phone login, and until when that login is paused (authService.loginWithPhonePassword).
+  failedLogins     Int       @default(0)
+  loginLockedUntil DateTime?
+  phone            String?   @unique
+  firstName        String
+  lastName         String
   // Not asked at sign-up any more (phone + OTP only); null for those accounts.
-  dateOfBirth  DateTime?
-  country      String
-  role         Role      @default(USER)
-  kycStatus    KycStatus @default(NOT_STARTED)
+  dateOfBirth      DateTime?
+  country          String
+  role             Role      @default(USER)
+  kycStatus        KycStatus @default(NOT_STARTED)
 
   // Admin-initiated ban (distinct from the user's own isSelfExcluded) —
   // for rule violations. Checked in middleware/auth.ts's requireAuth so a

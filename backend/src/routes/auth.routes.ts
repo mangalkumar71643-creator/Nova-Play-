@@ -10,7 +10,7 @@ import {
 } from "../services/authService";
 import { requireAuth } from "../middleware/auth";
 import { prisma } from "../db/prismaClient";
-import { changeAdminCredentials, resetAdminWithKey, sanitizeUser } from "../services/authService";
+import { changeAdminCredentials, loginWithPhonePassword, registerWithPhonePassword, resetAdminWithKey, sanitizeUser, setPhonePasswordWithOtp } from "../services/authService";
 
 const router = Router();
 
@@ -104,6 +104,36 @@ const otpVerifySchema = z.object({
     .optional()
     .transform((v) => v || undefined),
 });
+
+// --- Phone + password (authService.registerWithPhonePassword etc.) ---
+
+const phonePasswordSchema = z.object({
+  phone: z.string().min(10).max(20),
+  password: z.string().min(1).max(100),
+  inviteCode: z.string().trim().max(12).optional().transform((v) => v || undefined),
+});
+router.post(
+  "/phone/register",
+  asyncHandler(async (req, res) => {
+    const { phone, password, inviteCode } = phonePasswordSchema.parse(req.body);
+    res.status(201).json(await registerWithPhonePassword(phone, password, inviteCode));
+  })
+);
+router.post(
+  "/phone/login",
+  asyncHandler(async (req, res) => {
+    const { phone, password } = phonePasswordSchema.parse(req.body);
+    res.json(await loginWithPhonePassword(phone, password));
+  })
+);
+const setPasswordSchema = z.object({ phone: z.string().min(10).max(20), code: z.string().length(6), password: z.string().min(1).max(100) });
+router.post(
+  "/phone/set-password",
+  asyncHandler(async (req, res) => {
+    const { phone, code, password } = setPasswordSchema.parse(req.body);
+    res.json(await setPhonePasswordWithOtp(phone, code, password));
+  })
+);
 
 router.post(
   "/otp/verify",

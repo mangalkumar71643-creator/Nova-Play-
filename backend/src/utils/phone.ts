@@ -24,7 +24,7 @@ export function indianMobileDigits(input: string): string | null {
 /** The number as +91XXXXXXXXXX, or a 400 the app shows to the player. */
 export function toIndianE164(input: string): string {
   const d = indianMobileDigits(input);
-  if (!d) throw new ApiError(400, "Enter your own 10-digit mobile number. We send the login code to it by SMS.");
+  if (!d) throw new ApiError(400, "Enter a valid 10-digit Indian mobile number.");
   return `+91${d}`;
 }
 
