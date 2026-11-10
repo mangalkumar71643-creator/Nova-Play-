@@ -317,7 +317,7 @@ export function runAgentSweep(): Promise<void> {
 /** Links a new player to whoever owns the invite code, and that player's inviters above. */
 export async function findInviter(code: string) {
   const uid = Number(code);
-  const inviter = Number.isInteger(uid) && uid > 0 ? await prisma.user.findUnique({ where: { uid }, select: { id: true, role: true, isBanned: true } }) : null;
+  const inviter = Number.isInteger(uid) && uid > 0 && uid <= 2147483647 ? await prisma.user.findUnique({ where: { uid }, select: { id: true, role: true, isBanned: true } }) : null;
   if (!inviter || inviter.role === "ADMIN" || inviter.isBanned) throw new ApiError(400, "This invite code is not valid. Check it, or leave it empty.");
   return inviter.id;
 }
@@ -450,7 +450,7 @@ export async function getAgentTeam(userId: string, depth: number) {
     prisma.$queryRaw<{ uid: number | null; joinedAt: Date; betting: number; deposited: boolean }[]>`
       SELECT u.uid, u."createdAt" AS "joinedAt",
         COALESCE((SELECT SUM(amount) FROM "Transaction" WHERE "userId" = u.id AND type IN ${STAKE_TYPES} AND status = 'COMPLETED'), 0)::float8 AS betting,
-        EXISTS (SELECT 1 FROM "Transaction" WHERE "userId" = u.id AND type = 'DEPOSIT' AND status = 'COMPLETED') AS deposited
+        EXISTS (SELECT 1 FROM "Transaction" WHERE "userId" = u.id AND type = 'DEPOSIT' AND status = 'COMPLETED' AND "reversedAt" IS NULL) AS deposited
       FROM "AgentLink" l JOIN "User" u ON u.id = l."descendantId"
       WHERE l."ancestorId" = ${userId} AND l.depth = ${depth}
       ORDER BY u."createdAt" DESC LIMIT 200`,
@@ -509,7 +509,7 @@ export async function adminAgentOverview(search: string, limit = 200) {
       (SELECT COUNT(*)::int FROM "User" c WHERE c."referrerId" = u.id AND c."referralQualifiedAt" IS NOT NULL) AS qualified,
       (SELECT COUNT(*)::int FROM "AgentLink" l WHERE l."ancestorId" = u.id) AS team,
       (SELECT COALESCE(SUM(t.amount), 0)::float8 FROM "Transaction" t JOIN "User" c ON c.id = t."userId"
-        WHERE c."referrerId" = u.id AND t.type = 'DEPOSIT' AND t.status = 'COMPLETED') AS "directDeposits",
+        WHERE c."referrerId" = u.id AND t.type = 'DEPOSIT' AND t.status = 'COMPLETED' AND t."reversedAt" IS NULL) AS "directDeposits",
       (SELECT COALESCE(SUM(r.amount), 0)::float8 FROM "AgentReward" r WHERE r."userId" = u.id AND r."periodKey" <> 'welcome') AS earned,
       (SELECT COALESCE(SUM(r.amount), 0)::float8 FROM "AgentReward" r WHERE r."userId" = u.id AND r."periodKey" <> 'welcome' AND r."claimId" IS NOT NULL) AS claimed,
       (SELECT COALESCE(SUM(r.amount), 0)::float8 FROM "AgentReward" r WHERE r."userId" = u.id AND r."periodKey" <> 'welcome' AND r."claimId" IS NULL) AS waiting,
@@ -544,7 +544,7 @@ export async function adminAgentDetail(uid: number) {
   const invitedBy = user.referrerId ? await prisma.user.findUnique({ where: { id: user.referrerId }, select: { uid: true, firstName: true, lastName: true } }) : null;
   const invitees = await prisma.$queryRaw<{ uid: number | null; name: string; phone: string | null; joinedAt: Date; qualifiedAt: Date | null; deposited: number; staked: number; theirInvites: number }[]>`
     SELECT c.uid, TRIM(CONCAT(c."firstName", ' ', c."lastName")) AS name, c.phone, c."createdAt" AS "joinedAt", c."referralQualifiedAt" AS "qualifiedAt",
-      (SELECT COALESCE(SUM(amount), 0)::float8 FROM "Transaction" WHERE "userId" = c.id AND type = 'DEPOSIT' AND status = 'COMPLETED') AS deposited,
+      (SELECT COALESCE(SUM(amount), 0)::float8 FROM "Transaction" WHERE "userId" = c.id AND type = 'DEPOSIT' AND status = 'COMPLETED' AND "reversedAt" IS NULL) AS deposited,
       (SELECT COALESCE(SUM(amount), 0)::float8 FROM "Transaction" WHERE "userId" = c.id AND type IN ${STAKE_TYPES} AND status = 'COMPLETED') AS staked,
       (SELECT COUNT(*)::int FROM "User" g WHERE g."referrerId" = c.id) AS "theirInvites"
     FROM "User" c WHERE c."referrerId" = ${user.id}

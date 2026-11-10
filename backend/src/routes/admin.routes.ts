@@ -45,6 +45,9 @@ import * as popupService from "../services/popupService";
 import * as giftCodeService from "../services/giftCodeService";
 import { getAppDownloadUrl, getAppVersionInfo, getGameSettings, getSupportTelegramUrl, MAX_MAX_PAYOUT, MIN_MAX_PAYOUT, setAppDownloadUrl, setLatestAppVersion, setMaxPayout, setSupportTelegramUrl } from "../services/settingsService";
 
+/** A player UID: a positive whole number that fits the database column (a bigger one made a 500). */
+const isUid = (n: number) => Number.isInteger(n) && n > 0 && n <= 2147483647;
+
 const router = Router();
 router.use(requireAuth, requireAdmin);
 
@@ -55,38 +58,51 @@ const userSummarySelect = { firstName: true, lastName: true, uid: true, email: t
 router.get(
   "/users",
   asyncHandler(async (req, res) => {
-    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
-    const users = await prisma.user.findMany({
-      where: search
-        ? {
-            OR: [
-              { email: { contains: search, mode: "insensitive" } },
-              { phone: { contains: search } },
-              { firstName: { contains: search, mode: "insensitive" } },
-              { lastName: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : undefined,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        uid: true,
-        email: true,
-        phone: true,
-        firstName: true,
-        lastName: true,
-        kycStatus: true,
-        isSelfExcluded: true,
-        isBanned: true,
-        banReason: true,
-        bannedAt: true,
-        role: true,
-        createdAt: true,
-        wallet: { select: { balance: true, currency: true } },
-      },
-      take: 200,
-    });
-    res.json(users);
+    const search = typeof req.query.search === "string" ? req.query.search.trim().slice(0, 100) : "";
+    // A player id as shown in the panel ("U48128") or just its digits finds that player by UID.
+    const uidDigits = /^u?(\d{1,10})$/i.exec(search)?.[1];
+    const uid = uidDigits ? Number(uidDigits) : NaN;
+    const where: Prisma.UserWhereInput | undefined = search
+      ? {
+          OR: [
+            { email: { contains: search, mode: "insensitive" } },
+            { phone: { contains: search } },
+            { firstName: { contains: search, mode: "insensitive" } },
+            { lastName: { contains: search, mode: "insensitive" } },
+            ...(Number.isSafeInteger(uid) && uid <= 2147483647 ? [{ uid }] : []),
+          ],
+        }
+      : undefined;
+    // ?page= asks for one page ({ users, total }); without it the first 200 as a plain list (the dashboard's table).
+    const paged = req.query.page !== undefined;
+    const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize) || 10));
+    const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+          phone: true,
+          firstName: true,
+          lastName: true,
+          kycStatus: true,
+          isSelfExcluded: true,
+          isBanned: true,
+          banReason: true,
+          bannedAt: true,
+          role: true,
+          createdAt: true,
+          wallet: { select: { balance: true, currency: true } },
+        },
+        skip: paged ? (page - 1) * pageSize : 0,
+        take: paged ? pageSize : 200,
+      }),
+      paged ? prisma.user.count({ where }) : Promise.resolve(0),
+    ]);
+    res.json(paged ? { users, total } : users);
   })
 );
 
@@ -203,17 +219,18 @@ router.get(
     const rows = await prisma.$queryRaw<DayRow[]>`
       SELECT to_char(("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date, 'YYYY-MM-DD') AS day,
              COALESCE(SUM(amount) FILTER (WHERE type = 'GAME_STAKE'), 0) AS staked,
-             COALESCE(SUM(amount) FILTER (WHERE type = 'GAME_PAYOUT'), 0) AS paid,
+             COALESCE(SUM(amount) FILTER (WHERE type IN ('GAME_PAYOUT', 'BET_REFUND')), 0) AS paid,
              COUNT(*) FILTER (WHERE type = 'GAME_STAKE') AS bets,
              COUNT(DISTINCT "userId") FILTER (WHERE type = 'GAME_STAKE') AS players
       FROM "Transaction"
-      WHERE type IN ('GAME_STAKE', 'GAME_PAYOUT') AND status = 'COMPLETED'
+      WHERE type IN ('GAME_STAKE', 'GAME_PAYOUT', 'BET_REFUND') AND status = 'COMPLETED'
         AND "createdAt" >= (date_trunc('day', now() AT TIME ZONE 'Asia/Kolkata') - make_interval(days => ${days - 1}::int)) AT TIME ZONE 'Asia/Kolkata' AT TIME ZONE 'UTC'
       GROUP BY 1
       ORDER BY 1 DESC`;
     const [allStaked, allPaid] = await Promise.all([
       prisma.transaction.aggregate({ where: { type: "GAME_STAKE", status: "COMPLETED" }, _sum: { amount: true } }),
-      prisma.transaction.aggregate({ where: { type: "GAME_PAYOUT", status: "COMPLETED" }, _sum: { amount: true } }),
+      // A cancelled bet's refund is money paid back, like the P&L report counts it.
+      prisma.transaction.aggregate({ where: { type: { in: ["GAME_PAYOUT", "BET_REFUND"] }, status: "COMPLETED" }, _sum: { amount: true } }),
     ]);
     const toDay = (r: DayRow) => {
       const staked = Number(r.staked);
@@ -350,7 +367,7 @@ router.get(
   "/games/:key/bets",
   asyncHandler(async (req, res) => {
     const uid = req.query.uid ? Number(req.query.uid) : null;
-    if (uid !== null && !Number.isInteger(uid)) throw new ApiError(400, "Enter a valid UID.");
+    if (uid !== null && !isUid(uid)) throw new ApiError(400, "Enter a valid UID.");
     const limit = req.query.limit ? Number(req.query.limit) : 100;
     const out = await getGameBets(req.params.key, uid, Number.isFinite(limit) ? limit : 100);
     if (!out) throw new ApiError(404, "No such game.");
@@ -376,7 +393,7 @@ router.get(
   "/users/by-uid/:uid",
   asyncHandler(async (req, res) => {
     const uid = Number(req.params.uid);
-    if (!Number.isInteger(uid)) throw new ApiError(400, "Enter a valid UID.");
+    if (!isUid(uid)) throw new ApiError(400, "Enter a valid UID.");
     const user = await prisma.user.findUnique({
       where: { uid },
       select: { id: true, ...userSummarySelect, isBanned: true, isSelfExcluded: true, wallet: { select: { balance: true, lockedBonus: true, unplayedDeposit: true } } },
@@ -387,12 +404,12 @@ router.get(
 );
 
 /** Sets a player's login password (a player who can't get the SMS code to set it themselves). */
-const playerPasswordSchema = z.object({ password: z.string().min(6, "Use at least 6 characters.").max(72) });
+const playerPasswordSchema = z.object({ password: z.string().min(6, "Use at least 6 characters.").max(72).refine((p) => p.trim().length > 0, "A password can't be only spaces.") });
 router.post(
   "/users/by-uid/:uid/password",
   asyncHandler(async (req, res) => {
     const uid = Number(req.params.uid);
-    if (!Number.isInteger(uid)) throw new ApiError(400, "Enter a valid UID.");
+    if (!isUid(uid)) throw new ApiError(400, "Enter a valid UID.");
     res.json(await adminSetPlayerPassword(uid, playerPasswordSchema.parse(req.body).password));
   })
 );
@@ -402,7 +419,7 @@ router.post(
   "/users/by-uid/:uid/credit",
   asyncHandler(async (req, res) => {
     const uid = Number(req.params.uid);
-    if (!Number.isInteger(uid)) throw new ApiError(400, "Enter a valid UID.");
+    if (!isUid(uid)) throw new ApiError(400, "Enter a valid UID.");
     const { amount } = creditSchema.parse(req.body);
     const rounded = Math.round(amount * 100) / 100;
     const user = await prisma.user.findUnique({ where: { uid }, select: { id: true, ...userSummarySelect } });
@@ -436,7 +453,7 @@ const manualSchema = z.object({
 
 async function findPlayerByUid(uidParam: string) {
   const uid = Number(uidParam);
-  if (!Number.isInteger(uid)) throw new ApiError(400, "Enter a valid UID.");
+  if (!isUid(uid)) throw new ApiError(400, "Enter a valid UID.");
   const user = await prisma.user.findUnique({ where: { uid }, select: { id: true, ...userSummarySelect, isBanned: true, role: true } });
   if (!user) throw new ApiError(404, "No player with that UID.");
   if (user.role === "ADMIN") throw new ApiError(400, "That is an admin account, not a player.");
@@ -706,7 +723,7 @@ router.get(
   "/players/:uid/report",
   asyncHandler(async (req, res) => {
     const uid = Number(req.params.uid);
-    if (!Number.isInteger(uid) || uid <= 0) throw new ApiError(400, "Enter a valid UID.");
+    if (!isUid(uid)) throw new ApiError(400, "Enter a valid UID.");
     res.json(await getPlayerReport(uid));
   })
 );
@@ -959,7 +976,7 @@ router.get(
 
 const messageSchema = z.object({
   to: z.enum(["all", "player"]),
-  uid: z.number().int().positive().optional(),
+  uid: z.number().int().positive().max(2147483647).optional(),
   title: z.string().trim().min(1, "Write a title.").max(80),
   body: z.string().trim().min(1, "Write the message.").max(500),
   giftCode: z.string().trim().max(40).optional(),
@@ -1008,7 +1025,7 @@ router.get(
   "/agents/:uid",
   asyncHandler(async (req, res) => {
     const uid = Number(req.params.uid);
-    if (!Number.isInteger(uid) || uid <= 0) throw new ApiError(400, "Enter a valid UID.");
+    if (!isUid(uid)) throw new ApiError(400, "Enter a valid UID.");
     res.json(await adminAgentDetail(uid));
   })
 );
@@ -1366,6 +1383,13 @@ router.post(
       data: { ticketId: req.params.ticketId, sender: "ADMIN", text },
     });
     res.status(201).json(message);
+  })
+);
+
+router.patch(
+  "/support-tickets/:ticketId/reopen",
+  asyncHandler(async (req, res) => {
+    res.json(await prisma.supportTicket.update({ where: { id: req.params.ticketId }, data: { status: "OPEN", resolvedAt: null } }));
   })
 );
 

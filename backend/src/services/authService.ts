@@ -276,6 +276,7 @@ const MAX_FAILED_LOGINS = 8;
 const LOGIN_LOCK_MS = 15 * 60 * 1000;
 
 function assertPasswordOk(password: string) {
+  if (!password.trim()) throw new ApiError(400, "A password can't be only spaces.");
   if (password.length < MIN_PASSWORD_LENGTH) throw new ApiError(400, `Use a password of at least ${MIN_PASSWORD_LENGTH} characters.`);
   if (password.length > 72) throw new ApiError(400, "That password is too long (72 characters at most).");
 }

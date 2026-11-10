@@ -50,7 +50,7 @@ const credentialsSchema = z
   .object({
     currentPassword: z.string().min(1),
     email: z.string().trim().toLowerCase().email().optional(),
-    newPassword: z.string().min(8, "New password must be at least 8 characters.").optional(),
+    newPassword: z.string().min(8, "New password must be at least 8 characters.").refine((p) => p.trim().length > 0, "A password can't be only spaces.").optional(),
   })
   .refine((v) => v.email || v.newPassword, { message: "Nothing to change." });
 
@@ -66,7 +66,7 @@ router.patch(
 
 const adminResetSchema = z.object({
   key: z.string().min(1),
-  newPassword: z.string().min(8, "New password must be at least 8 characters."),
+  newPassword: z.string().min(8, "New password must be at least 8 characters.").refine((p) => p.trim().length > 0, "A password can't be only spaces."),
   email: z.string().trim().toLowerCase().email().optional(),
 });
 

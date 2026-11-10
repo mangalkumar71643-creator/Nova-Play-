@@ -185,14 +185,20 @@ export async function getGameReport() {
 
   // Cross-check against the wallet: every game writes GAME_STAKE / GAME_PAYOUT,
   // so the games should add up to the same totals. Any gap is shown, not hidden.
-  const [stakeTx, payTx] = await Promise.all([
+  // A cancelled (VOID) bet took its stake and gave all of it back (a BET_REFUND): the game tables leave it
+  // out, the wallet has both rows. Counted here on both sides so only a real gap shows.
+  const voidParts = SOURCES.filter((src) => src.where === NOT_VOID).map((src) => `SELECT COALESCE(SUM(${src.stake}), 0) AS v FROM "${src.table}" t WHERE status::text = 'VOID'`);
+  const [stakeTx, payTx, refundTx, voidRows] = await Promise.all([
     prisma.transaction.aggregate({ where: { type: "GAME_STAKE", status: "COMPLETED" }, _sum: { amount: true } }),
     prisma.transaction.aggregate({ where: { type: "GAME_PAYOUT", status: "COMPLETED" }, _sum: { amount: true } }),
+    prisma.transaction.aggregate({ where: { type: "BET_REFUND", status: "COMPLETED" }, _sum: { amount: true } }),
+    prisma.$queryRawUnsafe<{ v: unknown }[]>(voidParts.join("\nUNION ALL\n")),
   ]);
-  const sumStaked = r2(games.reduce((t, g) => t + g.all.staked, 0));
-  const sumPaid = r2(games.reduce((t, g) => t + g.all.paid, 0));
+  const voided = r2(voidRows.reduce((t, r) => t + Number(r.v), 0));
+  const sumStaked = r2(games.reduce((t, g) => t + g.all.staked, 0) + voided);
+  const sumPaid = r2(games.reduce((t, g) => t + g.all.paid, 0) + voided);
   const walletStaked = r2(Number(stakeTx._sum.amount ?? 0));
-  const walletPaid = r2(Number(payTx._sum.amount ?? 0));
+  const walletPaid = r2(Number(payTx._sum.amount ?? 0) + Number(refundTx._sum.amount ?? 0));
 
   return {
     games,

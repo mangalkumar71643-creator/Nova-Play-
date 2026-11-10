@@ -153,7 +153,7 @@
 </div>
 
 <div id="composer">
-  <textarea id="text" rows="1" placeholder="Type your message…"></textarea>
+  <textarea id="text" rows="1" maxlength="2000" placeholder="Type your message…"></textarea>
   <button id="send">Send</button>
 </div>
 
@@ -277,9 +277,11 @@
       })
       .then(function (res) {
         if (!res.ok) {
+          // Not sent: keep what was typed, and say why.
           var now = new Date().toISOString();
-          localMessages.push({ sender: 'ADMIN', text: '🤖 ' + (res.body.error || 'Could not check this order. Please try again.'), createdAt: now, local: true, bot: true });
+          localMessages.push({ sender: 'ADMIN', text: '🤖 ' + ((res.body && res.body.error) || 'Could not check this order. Please try again.'), createdAt: now, local: true, bot: true });
           render();
+          return;
         }
         textEl.value = '';
         lastCount = -1;
@@ -291,7 +293,8 @@
 
   function send() {
     var text = textEl.value.trim();
-    if (!text) return;
+    // One at a time: a second Enter while the first is still going must not send it again.
+    if (!text || sendBtn.disabled) return;
     sendBtn.disabled = true;
     var order = text.match(ORDER_RE);
     if (order) { checkOrder(order[1], text, function () { sendBtn.disabled = false; }); return; }
@@ -302,13 +305,22 @@
     })
       .then(function (r) {
         if (r.status === 401) { showExpired(); throw new Error('expired'); }
-        return r.json();
+        return r.json().catch(function () { return {}; }).then(function (b) { return { ok: r.ok, body: b }; });
       })
-      .then(function () {
+      .then(function (res) {
+        if (!res.ok) {
+          localMessages.push({ sender: 'ADMIN', text: '⚠️ Your message was not sent: ' + ((res.body && (res.body.error)) || 'please try again.'), createdAt: new Date().toISOString(), local: true });
+          render();
+          return;
+        }
         textEl.value = '';
         loadChat();
       })
-      .catch(function () {})
+      .catch(function (err) {
+        if (err && err.message === 'expired') return;
+        localMessages.push({ sender: 'ADMIN', text: '⚠️ Your message was not sent — check your internet and try again.', createdAt: new Date().toISOString(), local: true });
+        render();
+      })
       .finally(function () { sendBtn.disabled = false; });
   }
 

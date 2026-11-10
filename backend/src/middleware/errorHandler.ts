@@ -18,7 +18,13 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     return res.status(err.status).json({ error: err.message });
   }
   if (err instanceof ZodError) {
-    return res.status(400).json({ error: "Validation failed", details: err.flatten() });
+    // Say what was wrong (the first problem), not just "Validation failed". A message the route wrote itself
+    // ("New password must be at least 8 characters.") goes as it is; Zod's stock ones get the field name in front.
+    const issue = err.issues[0];
+    const field = issue?.path.filter((p) => typeof p === "string").join(".");
+    const stock = /^(Expected|Required|Invalid|Number must|String must|Array must)/.test(issue?.message ?? "");
+    const message = issue ? (field && stock ? `${field}: ${issue.message}` : issue.message) : "Validation failed";
+    return res.status(400).json({ error: message, details: err.flatten() });
   }
   console.error(err);
   return res.status(500).json({ error: "Internal server error" });

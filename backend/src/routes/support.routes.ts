@@ -55,13 +55,23 @@ async function alertSupport(userId: string, ticketId: string, text: string) {
   });
 }
 
-async function findOrCreateOpenTicket(userId: string) {
-  const existing = await prisma.supportTicket.findFirst({
-    where: { userId, status: "OPEN" },
-    orderBy: { createdAt: "desc" },
+/**
+ * The ticket the chat writes to: the player's latest one — the very ticket
+ * GET /chat shows — reopened when staff had resolved it (a reply from the
+ * player makes the conversation active again), or a new one when they have
+ * none. Done under a per-player lock, so two messages sent at once (a double
+ * Enter) land in one ticket instead of making two.
+ */
+async function chatTicketFor(userId: string, opts: { reopen?: boolean } = { reopen: true }) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"chat:" + userId}))`;
+    const latest = await tx.supportTicket.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } });
+    if (!latest) return tx.supportTicket.create({ data: { userId, topic: "Live chat" } });
+    if (latest.status === "RESOLVED" && opts.reopen !== false) {
+      return tx.supportTicket.update({ where: { id: latest.id }, data: { status: "OPEN", resolvedAt: null } });
+    }
+    return latest;
   });
-  if (existing) return existing;
-  return prisma.supportTicket.create({ data: { userId, topic: "Live chat" } });
 }
 
 router.get(
@@ -84,12 +94,7 @@ router.post(
   requireChatAuth,
   asyncHandler(async (req, res) => {
     const { text } = chatMessageSchema.parse(req.body);
-    const ticket = await findOrCreateOpenTicket(req.chatUserId!);
-    // A reply from the customer means the conversation is active again,
-    // even if staff had marked it resolved.
-    if (ticket.status === "RESOLVED") {
-      await prisma.supportTicket.update({ where: { id: ticket.id }, data: { status: "OPEN", resolvedAt: null } });
-    }
+    const ticket = await chatTicketFor(req.chatUserId!);
     const created = await prisma.chatMessage.create({
       data: { ticketId: ticket.id, sender: "USER", text },
     });
@@ -114,6 +119,9 @@ router.post(
     const { orderRef, text } = checkOrderSchema.parse(req.body);
     const userId = req.chatUserId!;
     const kind = await findOrderKind(userId, orderRef);
+    // More than a bare order number was typed ("my withdrawal NPW… is not
+    // received for 3 days"): that is a question for a person, whatever the bot finds.
+    const extraText = (text ?? "").replace(new RegExp(orderRef.replace(/[^A-Za-z0-9-]/g, ""), "i"), "").trim().length >= 15;
     let status: string;
     let message: string;
     if (!kind) {
@@ -123,14 +131,15 @@ router.post(
       try {
         ({ status, message } = kind === "deposit" ? await verifyDeposit(userId, orderRef) : await checkWithdrawal(userId, orderRef));
       } catch (err) {
-        if (err instanceof ApiError && err.status === 429) return res.status(429).json({ error: err.message });
-        throw err;
+        // Checked again too soon: the typed text must still reach the team, so it is saved below like any other message.
+        if (err instanceof ApiError && err.status === 429) {
+          status = "WAIT";
+          message = err.message;
+        } else throw err;
       }
     }
-    const needsPerson = kind === "deposit" ? status !== "COMPLETED" : false;
-    const latest = await prisma.supportTicket.findFirst({ where: { userId }, orderBy: { createdAt: "desc" }, select: { id: true, status: true } });
-    const ticket = latest ?? (await prisma.supportTicket.create({ data: { userId, topic: "Live chat", status: needsPerson ? "OPEN" : "RESOLVED" }, select: { id: true, status: true } }));
-    if (needsPerson && ticket.status === "RESOLVED") await prisma.supportTicket.update({ where: { id: ticket.id }, data: { status: "OPEN", resolvedAt: null } });
+    const needsPerson = !kind || extraText || (kind === "deposit" && status !== "COMPLETED");
+    const ticket = await chatTicketFor(userId, { reopen: needsPerson });
     await prisma.chatMessage.create({ data: { ticketId: ticket.id, sender: "USER", text: text || `Check order ${orderRef.trim().toUpperCase()}` } });
     await prisma.chatMessage.create({ data: { ticketId: ticket.id, sender: "ADMIN", text: `🤖 Auto check: ${message}` } });
     // A confirmed payment was already alerted on its own (verifyDeposit).

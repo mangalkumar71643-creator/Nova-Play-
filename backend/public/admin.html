@@ -332,7 +332,7 @@
         <span class="search-kbd">⌘K</span>
       </div>
       <div class="topbar-right">
-        <div class="bell-wrap">
+        <div class="bell-wrap" id="bellWrap" style="cursor:pointer;" title="Open Support">
           <span id="bellIcon"></span>
           <span class="bell-badge" id="bellBadge" style="display:none;">0</span>
         </div>
@@ -412,7 +412,7 @@
         </div>
         <div class="card">
           <div class="form-row">
-            <input id="userSearch" placeholder="Search name, email or phone…" />
+            <input id="userSearch" placeholder="Search name, email, phone or UID…" />
             <button class="btn secondary" id="userSearchBtn" style="flex:0 0 auto;">Search</button>
           </div>
           <div class="table-scroll" id="usersTable"></div>
@@ -1033,7 +1033,7 @@
     <div id="threadRequest" class="item-meta" style="display:none;padding:10px 16px;border-bottom:1px solid var(--border);"></div>
     <div id="threadMessages"></div>
     <div id="threadComposer">
-      <textarea id="threadText" rows="1" placeholder="Reply…"></textarea>
+      <textarea id="threadText" rows="1" maxlength="2000" placeholder="Reply…"></textarea>
       <button class="btn" id="threadSend">Send</button>
     </div>
     <div style="padding:10px 16px;border-top:1px solid var(--border);">
@@ -1100,6 +1100,32 @@
     });
   }
   function askConfirm(message) { return openDialog(message, true); }
+  // A text box in the same in-page style (window.prompt() is dead in the admin app too): resolves the text, or null on Cancel.
+  function askPrompt(message, initial) {
+    return new Promise(function (resolve) {
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100;';
+      wrap.innerHTML =
+        '<div class="card" style="max-width:420px;width:100%;margin:0;">' +
+          '<div data-msg style="font-size:14px;line-height:1.5;margin-bottom:12px;white-space:pre-wrap;"></div>' +
+          '<textarea data-input rows="3" style="width:100%;margin-bottom:16px;"></textarea>' +
+          '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+            '<button class="btn secondary" data-ans="0">Cancel</button><button class="btn" data-ans="1">OK</button>' +
+          '</div>' +
+        '</div>';
+      wrap.querySelector('[data-msg]').textContent = message;
+      var input = wrap.querySelector('[data-input]');
+      input.value = initial || '';
+      wrap.addEventListener('click', function (e) {
+        var ans = e.target.getAttribute && e.target.getAttribute('data-ans');
+        if (ans === null || ans === undefined) return;
+        document.body.removeChild(wrap);
+        resolve(ans === '1' ? input.value : null);
+      });
+      document.body.appendChild(wrap);
+      input.focus();
+    });
+  }
   function showAlert(message) { openDialog(String(message), false); }
 
   // ---------- State / helpers ----------
@@ -1170,6 +1196,9 @@
     shell.style.display = 'none';
   }
 
+  ['email', 'password'].forEach(function (id) {
+    document.getElementById(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+  });
   document.getElementById('loginBtn').addEventListener('click', function () {
     loginError.textContent = '';
     var email = document.getElementById('email').value.trim();
@@ -1477,6 +1506,7 @@
         '<label style="margin:0 0 6px;">Set KYC status</label>' +
         '<div class="form-row" style="margin-bottom:0;">' +
           '<select data-kyc-select="' + u.id + '">' +
+            (u.kycStatus === 'APPROVED' || u.kycStatus === 'REJECTED' ? '' : '<option value="" selected disabled>' + escapeHtml(String(u.kycStatus || 'Not reviewed').replace(/_/g, ' ').toLowerCase()) + ' — choose</option>') +
             '<option value="APPROVED"' + (u.kycStatus === 'APPROVED' ? ' selected' : '') + '>Approved</option>' +
             '<option value="REJECTED"' + (u.kycStatus === 'REJECTED' ? ' selected' : '') + '>Rejected</option>' +
           '</select>' +
@@ -1486,12 +1516,13 @@
     );
   }
 
-  function renderUsersTable(tableId, paginationId, users, page, pageSize, isDashboard) {
-    var total = users.length;
+  // remote: { total } when `users` is already the one page the server sent (the Users page).
+  function renderUsersTable(tableId, paginationId, users, page, pageSize, isDashboard, remote) {
+    var total = remote ? remote.total : users.length;
     var pageCount = Math.max(1, Math.ceil(total / pageSize));
     page = Math.min(Math.max(1, page), pageCount);
     var start = (page - 1) * pageSize;
-    var pageUsers = users.slice(start, start + pageSize);
+    var pageUsers = remote ? users : users.slice(start, start + pageSize);
 
     var rows = pageUsers.map(function (u) {
       var name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Unnamed';
@@ -1534,6 +1565,7 @@
         var saveBtn = container.querySelector('[data-kyc-save="' + id + '"]');
         if (saveBtn) saveBtn.addEventListener('click', function () {
           var select = container.querySelector('[data-kyc-select="' + id + '"]');
+          if (!select.value) { showAlert('Choose Approved or Rejected first.'); return; }
           api('/admin/kyc/' + id, { method: 'PATCH', body: JSON.stringify({ status: select.value }) })
             .then(function () { refreshCurrentUsersView(); })
             .catch(function (err) { showAlert(err.message); });
@@ -1545,10 +1577,11 @@
         var id = btn.getAttribute('data-id');
         var actionName = btn.getAttribute('data-action');
         if (actionName === 'ban') {
-          var reason = prompt('Reason for banning this user:');
-          if (!reason) return;
-          api('/admin/users/' + id + '/ban', { method: 'PATCH', body: JSON.stringify({ reason: reason }) })
-            .then(refreshCurrentUsersView).catch(function (err) { showAlert(err.message); });
+          askPrompt('Reason for banning this user:').then(function (reason) {
+            if (!reason || !reason.trim()) return;
+            api('/admin/users/' + id + '/ban', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() }) })
+              .then(refreshCurrentUsersView).catch(function (err) { showAlert(err.message); });
+          });
         } else if (actionName === 'unban') {
           askConfirm('Unban this user?').then(function (ok) {
             if (!ok) return;
@@ -1559,7 +1592,8 @@
     });
 
     renderPagination(paginationId, page, pageCount, total, pageSize, function (p) {
-      renderUsersTable(tableId, paginationId, users, p, pageSize, isDashboard);
+      if (remote) loadUsers(p);
+      else renderUsersTable(tableId, paginationId, users, p, pageSize, isDashboard);
     });
   }
 
@@ -1574,7 +1608,7 @@
   // Whichever of Dashboard / Users is currently active gets re-fetched after
   // a ban/unban/KYC change so both stay in sync without a full page reload.
   function refreshCurrentUsersView() {
-    if (document.getElementById('panel-users').classList.contains('active')) loadUsers(1);
+    if (document.getElementById('panel-users').classList.contains('active')) loadUsers();
     else loadDashboard();
   }
 
@@ -1610,10 +1644,13 @@
   function loadUsers(page) {
     usersCurrentPage = page || usersCurrentPage;
     var search = document.getElementById('userSearch').value.trim();
-    var qs = search ? '?search=' + encodeURIComponent(search) : '';
-    api('/admin/users' + qs).then(function (users) {
-      allUsersCache = users;
-      renderUsersTable('usersTable', 'usersPagination', users, usersCurrentPage, 10, false);
+    var qs = '?page=' + usersCurrentPage + '&pageSize=10' + (search ? '&search=' + encodeURIComponent(search) : '');
+    api('/admin/users' + qs).then(function (r) {
+      allUsersCache = r.users;
+      var lastPage = Math.max(1, Math.ceil(r.total / 10));
+      // A page that no longer exists (fewer players after a search): go to the last one.
+      if (usersCurrentPage > lastPage) { usersCurrentPage = lastPage; return loadUsers(lastPage); }
+      renderUsersTable('usersTable', 'usersPagination', r.users, usersCurrentPage, 10, false, { total: r.total });
     }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
   }
   document.getElementById('userSearchBtn').addEventListener('click', function () { loadUsers(1); });
@@ -1714,12 +1751,13 @@
           var id = btn.getAttribute('data-id');
           var action = btn.getAttribute('data-action');
           if (action === 'approve') {
-            var ref = prompt('You have sent ' + fmtMoney(btn.getAttribute('data-payout')) + ' to the customer\'s bank/UPI?\nEnter the payment\'s UTR / reference to mark it paid:');
-            if (ref === null) return;
-            ref = ref.trim();
-            if (ref.length < 4) { showAlert('Enter the UTR / reference of the payment you sent (at least 4 characters).'); return; }
-            btn.disabled = true;
-            api('/admin/withdrawals/' + id + '/approve', { method: 'POST', body: JSON.stringify({ reference: ref }) }).then(loadWithdrawals).catch(function (err) { showAlert(err.message); loadWithdrawals(); });
+            askPrompt('You have sent ' + fmtMoney(btn.getAttribute('data-payout')) + ' to the customer\'s bank/UPI?\nEnter the payment\'s UTR / reference to mark it paid:').then(function (ref) {
+              if (ref === null) return;
+              ref = ref.trim();
+              if (ref.length < 4) { showAlert('Enter the UTR / reference of the payment you sent (at least 4 characters).'); return; }
+              btn.disabled = true;
+              api('/admin/withdrawals/' + id + '/approve', { method: 'POST', body: JSON.stringify({ reference: ref }) }).then(loadWithdrawals).catch(function (err) { showAlert(err.message); loadWithdrawals(); });
+            });
           } else if (action === 'rupayex') {
             askConfirm('Send ' + fmtMoney(btn.getAttribute('data-payout')) + ' with RupayEx to:\n' + btn.getAttribute('data-bank') + '\n\nRupayEx takes its own fee out of it. This sends real money.').then(function (ok) {
               if (!ok) return;
@@ -1814,38 +1852,42 @@
       // conversation with a pre-filled message they can edit before sending.
       document.querySelectorAll('#upiDepositsList button[data-action="msg"]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          var text = prompt(
+          askPrompt(
             'Message to ' + btn.getAttribute('data-name') + ' about this deposit:',
             'Aapka ₹' + btn.getAttribute('data-amount') + ' ka UPI deposit (order ' + btn.getAttribute('data-order') + ') abhi confirm nahi hua hai. Agar paisa kat gaya hai to apna UTR number yahan bhej dijiye — hum turant check karke balance jod denge.'
-          );
-          if (text === null) return;
-          text = text.trim();
-          if (!text) return;
-          btn.disabled = true;
-          api('/admin/support-tickets', { method: 'POST', body: JSON.stringify({ userId: btn.getAttribute('data-user'), topic: 'UPI deposit pending', message: text }) })
-            .then(function () { showAlert('Message sent — the player will see it in their Support screen.'); })
-            .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); })
-            .finally(function () { btn.disabled = false; });
+          ).then(function (text) {
+            if (text === null || !text.trim()) return;
+            btn.disabled = true;
+            api('/admin/support-tickets', { method: 'POST', body: JSON.stringify({ userId: btn.getAttribute('data-user'), topic: 'UPI deposit pending', message: text.trim() }) })
+              .then(function () { showAlert('Message sent — the player will see it in their Support screen.'); })
+              .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); })
+              .finally(function () { btn.disabled = false; });
+          });
         });
       });
     }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
   }
   document.getElementById('upiDepositsList').addEventListener('click', function (e) {
     var btn = e.target.closest('button[data-action="reverse"]');
-    if (!btn) return;
+    if (btn) reverseDepositFlow(btn, loadUpiDeposits);
+  });
+  // Takes a deposit back (credited) or voids it (not credited yet), after asking; `after` reloads whichever list the button is in.
+  function reverseDepositFlow(btn, after) {
     var completed = btn.getAttribute('data-status') === 'COMPLETED';
     var msg = completed
       ? 'Take back this ' + fmtMoney(btn.getAttribute('data-amount')) + ' deposit from the player\'s balance? It can never be credited again.'
       : 'Void this deposit? It can never be credited, even if the payment company later reports it paid.';
-    if (!confirm(msg)) return;
-    btn.disabled = true;
-    api('/admin/deposits/' + encodeURIComponent(btn.getAttribute('data-id')) + '/reverse', { method: 'POST' })
-      .then(function (r) {
-        showAlert(r.voided ? 'Deposit voided.' : 'Taken back ' + fmtMoney(r.takenBack) + (r.shortfall > 0 ? ' — ' + fmtMoney(r.shortfall) + ' was already spent and could not be taken back.' : '.'));
-        loadUpiDeposits();
-      })
-      .catch(function (err) { btn.disabled = false; if (err.authError) doLogout(); else showAlert(err.message); });
-  });
+    askConfirm(msg).then(function (ok) {
+      if (!ok) return;
+      btn.disabled = true;
+      api('/admin/deposits/' + encodeURIComponent(btn.getAttribute('data-id')) + '/reverse', { method: 'POST' })
+        .then(function (r) {
+          showAlert(r.voided ? 'Deposit voided.' : 'Taken back ' + fmtMoney(r.takenBack) + (r.shortfall > 0 ? ' — ' + fmtMoney(r.shortfall) + ' was already spent and could not be taken back.' : '.') + (r.shortfall <= 0 || r.takenBack > 0 ? ' (A deposit bonus it earned stays with the player.)' : ''));
+          after();
+        })
+        .catch(function (err) { btn.disabled = false; if (err.authError) doLogout(); else showAlert(err.message); });
+    });
+  }
   function depositTrackRowHtml(d) {
     var u = d.user || {};
     var name = [u.firstName, u.lastName].filter(Boolean).join(' ') || '—';
@@ -1858,7 +1900,14 @@
       '<div class="item-meta">UTR: ' + escapeHtml(d.utr || '— not known yet') + '</div>' +
       '<div class="item-meta" id="track-' + escapeHtml(d.id) + '"></div>' +
       '</div><div style="text-align:right;flex:0 0 auto;"><span class="pill ' + statusClass + '">' + statusText + '</span></div></div>' +
-      (d.provider === 'rupayex' ? '<div class="item-actions"><button class="icon-btn view" data-action="recheck" data-id="' + escapeHtml(d.id) + '">Check with RupayEx</button></div>' : '') +
+      ((d.provider === 'rupayex' || (!d.reversedAt && (d.status === 'COMPLETED' || d.status === 'PENDING')))
+        ? '<div class="item-actions">' +
+            (d.provider === 'rupayex' ? '<button class="icon-btn view" data-action="recheck" data-id="' + escapeHtml(d.id) + '">Check with RupayEx</button>' : '') +
+            (!d.reversedAt && (d.status === 'COMPLETED' || d.status === 'PENDING')
+              ? ' <button class="icon-btn ban" data-action="reverse" data-id="' + escapeHtml(d.id) + '" data-amount="' + Number(d.amount) + '" data-status="' + d.status + '">' + (d.status === 'COMPLETED' ? 'Reverse (take back)' : 'Void') + '</button>'
+              : '') +
+          '</div>'
+        : '') +
       '</div>';
   }
   function searchDeposits() {
@@ -1871,6 +1920,8 @@
   document.getElementById('depositSearchBtn').addEventListener('click', searchDeposits);
   document.getElementById('depositSearchQ').addEventListener('keydown', function (e) { if (e.key === 'Enter') searchDeposits(); });
   document.getElementById('depositSearchList').addEventListener('click', function (e) {
+    var rev = e.target.closest('button[data-action="reverse"]');
+    if (rev) { reverseDepositFlow(rev, searchDeposits); return; }
     var btn = e.target.closest('button[data-action="recheck"]');
     if (!btn) return;
     var id = btn.getAttribute('data-id');
@@ -1882,6 +1933,10 @@
           '<b>RupayEx now:</b> ' + escapeHtml(live.state || (live.answered ? 'no status' : 'no answer')) +
           (live.amount != null ? ' · ' + fmtMoney(live.amount) : '') + (live.utr ? ' · UTR ' + escapeHtml(live.utr) : '') +
           '<br/>' + escapeHtml(r.note);
+        // The row's own status label follows what the check just did.
+        var pill = btn.closest('.item') && btn.closest('.item').querySelector('.pill');
+        if (pill && r.status === 'COMPLETED') { pill.textContent = 'CREDITED'; pill.className = 'pill approved'; }
+        else if (pill && r.status === 'FAILED') { pill.textContent = 'FAILED'; pill.className = 'pill failed'; }
       })
       .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); })
       .finally(function () { btn.disabled = false; });
@@ -1889,13 +1944,15 @@
   document.getElementById('reverseTestBtn').addEventListener('click', function () {
     var uid = document.getElementById('reverseTestUid').value.trim();
     if (!uid) return showAlert('Enter the player\'s UID.');
-    if (!confirm('Take back every StockPay TEST deposit of UID ' + uid + ' and void their open test orders?')) return;
-    api('/admin/users/by-uid/' + encodeURIComponent(uid) + '/reverse-test-deposits', { method: 'POST' })
-      .then(function (r) {
-        showAlert('UID ' + uid + ': ' + r.reversed + ' test deposit(s) taken back (' + fmtMoney(r.takenBack) + ')' + (r.shortfall > 0 ? ', ' + fmtMoney(r.shortfall) + ' already spent' : '') + ', ' + r.voided + ' open order(s) voided. Balance now ' + fmtMoney(r.balance) + '.');
-        loadUpiDeposits();
-      })
-      .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+    askConfirm('Take back every StockPay TEST deposit of UID ' + uid + ' and void their open test orders?').then(function (ok) {
+      if (!ok) return;
+      api('/admin/users/by-uid/' + encodeURIComponent(uid) + '/reverse-test-deposits', { method: 'POST' })
+        .then(function (r) {
+          showAlert('UID ' + uid + ': ' + r.reversed + ' test deposit(s) taken back (' + fmtMoney(r.takenBack) + ')' + (r.shortfall > 0 ? ', ' + fmtMoney(r.shortfall) + ' already spent' : '') + ', ' + r.voided + ' open order(s) voided. Balance now ' + fmtMoney(r.balance) + '.');
+          loadUpiDeposits();
+        })
+        .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+    });
   });
   document.getElementById('balanceAuditBtn').addEventListener('click', function () {
     api('/admin/audit/balances').then(function (rows) {
@@ -2201,18 +2258,25 @@
   function readPromoTiles() {
     document.querySelectorAll('#promoTiles [data-tile]').forEach(function (row) {
       var t = promo.tiles[Number(row.getAttribute('data-tile'))];
+      if (!t) return;
       t.label = row.querySelector('[data-label]').value.trim() || t.label;
       t.visible = row.querySelector('[data-visible]').checked;
     });
   }
+  // "1,000" and "₹500" read as numbers; anything else ("-5", "1e3", words) is 0, which shows as an empty (red) box.
+  function promoNum(v) {
+    var t = String(v).replace(/[,\s₹]/g, '');
+    return /^\d+(\.\d+)?$/.test(t) ? Number(t) : 0;
+  }
   function readPromoTasks() {
     document.querySelectorAll('#promoTasks [data-task]').forEach(function (row) {
       var t = promo.tasks[Number(row.getAttribute('data-task'))];
+      if (!t) return;
       t.period = row.querySelector('[data-period]').value;
       t.category = row.querySelector('[data-category]').value;
       // Typed as text so "1,000" or "₹500" still reads as a number.
-      t.target = Number(String(row.querySelector('[data-target]').value).replace(/[^0-9.]/g, ''));
-      t.reward = Number(String(row.querySelector('[data-reward]').value).replace(/[^0-9.]/g, ''));
+      t.target = Math.round(promoNum(row.querySelector('[data-target]').value));
+      t.reward = promoNum(row.querySelector('[data-reward]').value);
     });
   }
   function renderPromo() {
@@ -2225,7 +2289,7 @@
     }).join('');
     document.querySelectorAll('[data-tile-move]').forEach(function (b) {
       b.addEventListener('click', function () {
-        readPromoTiles();
+        readPromoTiles(); readPromoTasks();
         var i = Number(b.getAttribute('data-i')), j = i + Number(b.getAttribute('data-tile-move'));
         promo.tiles.splice(j, 0, promo.tiles.splice(i, 1)[0]);
         renderPromo();
@@ -2241,7 +2305,7 @@
         '<button class="btn secondary small" data-task-del="' + i + '" style="flex:none;min-width:0;width:auto;">✕</button></div>';
     }).join('') : '<div class="empty">No tasks yet. Add a daily or weekly task.</div>';
     document.querySelectorAll('[data-task-del]').forEach(function (b) {
-      b.addEventListener('click', function () { readPromoTasks(); promo.tasks.splice(Number(b.getAttribute('data-task-del')), 1); renderPromo(); });
+      b.addEventListener('click', function () { readPromoTiles(); readPromoTasks(); promo.tasks.splice(Number(b.getAttribute('data-task-del')), 1); renderPromo(); });
     });
   }
   function loadPromotion() {
@@ -2269,8 +2333,8 @@
   document.getElementById('promoTasksSave').addEventListener('click', function () { savePromotion('promoTasksStatus', 'Saved. Players see these tasks now.'); });
   document.getElementById('promoTasksSave2').addEventListener('click', function () { savePromotion('promoTasksStatus', 'Saved. Players see these tasks now.'); });
   function addPromoTask(period) {
-    readPromoTasks();
-    if (promo.tasks.length >= promo.maxTasks) return;
+    readPromoTiles(); readPromoTasks();
+    if (promo.tasks.length >= promo.maxTasks) { document.getElementById('promoTasksStatus').textContent = 'You can have at most ' + promo.maxTasks + ' tasks. Delete one first.'; return; }
     // Starts filled in (a real example, not a placeholder), so Save works straight away; change the numbers as you like.
     var example = period === 'daily' ? { target: 500, reward: 6 } : { target: 5000, reward: 28 };
     promo.tasks.push({ id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), period: period, category: 'Lottery', target: example.target, reward: example.reward });
@@ -2290,8 +2354,10 @@
       var si = Number(card.getAttribute('data-stage'));
       offerStages[si] = [];
       card.querySelectorAll('[data-tier]').forEach(function (row) {
-        var min = Number(row.querySelector('[data-min]').value);
-        var bonus = Number(row.querySelector('[data-bonus]').value);
+        // An empty box is "not filled in" (NaN), not 0.
+        var minTxt = String(row.querySelector('[data-min]').value).trim(), bonusTxt = String(row.querySelector('[data-bonus]').value).trim();
+        var min = minTxt === '' ? NaN : Number(minTxt);
+        var bonus = bonusTxt === '' ? NaN : Number(bonusTxt);
         offerStages[si].push({ min: min, bonus: bonus });
       });
     });
@@ -2421,7 +2487,8 @@
     if (to === 'player') body.uid = Number(document.getElementById('msgUid').value);
     if (!body.title || !body.body) { status.textContent = 'Write a title and a message.'; return; }
     if (to === 'player' && !body.uid) { status.textContent = "Enter the player's UID."; return; }
-    if (to === 'all' && !confirm('Send this message to ALL players?')) return;
+    (to === 'all' ? askConfirm('Send this message to ALL players?') : Promise.resolve(true)).then(function (ok) {
+    if (!ok) return;
     btn.disabled = true;
     api('/admin/messages', { method: 'POST', body: JSON.stringify(body) })
       .then(function (r) {
@@ -2433,6 +2500,7 @@
       })
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
+    });
   });
 
   function loadTickets() {
@@ -2457,6 +2525,13 @@
       updateBellBadge(tickets.filter(function (t) { return t.status === 'OPEN'; }).length);
     }).catch(function () {});
   }
+  // The bell opens Support; Support and the bell then keep themselves fresh (a new player message appears without a reload).
+  document.getElementById('bellWrap').addEventListener('click', function () { switchTab('support'); });
+  setInterval(function () {
+    if (document.hidden || !token || !shell || shell.style.display === 'none') return;
+    if (document.getElementById('panel-support').classList.contains('active') && !openTicketId) loadTickets();
+    else refreshBellBadge();
+  }, 20000);
   function updateBellBadge(count) {
     var el = document.getElementById('bellBadge');
     if (count > 0) { el.style.display = 'flex'; el.textContent = count > 99 ? '99+' : count; }
@@ -2490,6 +2565,7 @@
       req.style.display = 'none';
       req.innerHTML = '';
     }
+    document.getElementById('threadResolve').textContent = t.status === 'RESOLVED' ? 'Reopen' : 'Mark Resolved';
     threadOverlay.style.display = 'flex';
     loadThread();
     if (threadPollInterval) clearInterval(threadPollInterval);
@@ -2511,20 +2587,28 @@
     api('/admin/support-tickets/' + openTicketId + '/messages').then(function (messages) {
       threadMessages.innerHTML = messages.length ? messages.map(tbubbleHtml).join('') : '<div class="empty">No messages yet.</div>';
       threadMessages.scrollTop = threadMessages.scrollHeight;
-    });
+    }).catch(function (err) { if (err.authError) { closeThread(); doLogout(); } });
   }
   document.getElementById('threadSend').addEventListener('click', function () {
     var text = threadText.value.trim();
     if (!text || !openTicketId) return;
+    var send = this;
+    send.disabled = true;
     api('/admin/support-tickets/' + openTicketId + '/reply', { method: 'POST', body: JSON.stringify({ text: text }) })
-      .then(function () { threadText.value = ''; loadThread(); });
+      .then(function () { threadText.value = ''; loadThread(); })
+      .catch(function (err) { if (err.authError) { closeThread(); doLogout(); } else showAlert('Not sent: ' + err.message); })
+      .finally(function () { send.disabled = false; });
   });
   threadText.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('threadSend').click(); }
   });
   document.getElementById('threadResolve').addEventListener('click', function () {
     if (!openTicketId) return;
-    api('/admin/support-tickets/' + openTicketId + '/resolve', { method: 'PATCH' }).then(function () { closeThread(); loadTickets(); });
+    var t = ticketsById[openTicketId];
+    var reopen = t && t.status === 'RESOLVED';
+    api('/admin/support-tickets/' + openTicketId + '/' + (reopen ? 'reopen' : 'resolve'), { method: 'PATCH' })
+      .then(function () { closeThread(); loadTickets(); })
+      .catch(function (err) { if (err.authError) { closeThread(); doLogout(); } else showAlert(err.message); });
   });
 
   // ---------- Real money: manual deposit / withdraw ----------
@@ -2774,7 +2858,10 @@
     if (!quiet) {
       api('/admin/settings').then(function (st) {
         var input = document.getElementById('maxPayoutInput');
-        input.value = st.maxPayout >= st.maxMaxPayout ? '' : st.maxPayout;
+        // Refresh the box only if nothing was typed in it (a typed value survives pressing 7 days / Refresh).
+        var shown = st.maxPayout >= st.maxMaxPayout ? '' : String(st.maxPayout);
+        if (input.value === (input.getAttribute('data-shown') || '')) input.value = shown;
+        input.setAttribute('data-shown', shown);
         input.min = st.minMaxPayout;
         input.max = st.maxMaxPayout;
         document.getElementById('maxPayoutStatus').textContent = st.maxPayout >= st.maxMaxPayout ? 'Now: no limit on wins.' : 'Now: ' + fmtMoney(st.maxPayout) + ' per bet.';
@@ -3189,7 +3276,8 @@
       var n = { d: r.stuckDeposits.length, w: r.pendingWithdrawals.length, t: r.openTickets.length, b: r.balanceMismatches.length };
       var total = n.d + n.w + n.t + n.b;
       document.getElementById('problemsSummary').textContent = total ? total + ' problem' + (total > 1 ? 's' : '') + ': ' + n.d + ' stuck deposit(s), ' + n.w + ' withdrawal(s) waiting, ' + n.t + ' open ticket(s), ' + n.b + ' balance mismatch(es).' : 'No problems — all clear.';
-      setProblemsBadge(total);
+      // The menu badge is the whole count: a search for one player must not overwrite it.
+      if (!probUidQs()) setProblemsBadge(total);
       document.getElementById('probDepTitle').textContent = 'Stuck UPI deposits (' + n.d + ')';
       document.getElementById('probDepAll').style.display = n.d ? '' : 'none';
       document.getElementById('probDeposits').innerHTML = n.d ? r.stuckDeposits.map(probDepositRowHtml).join('') : probEmpty('No stuck deposits.');
@@ -3226,16 +3314,21 @@
     var act = b.getAttribute('data-prob-act');
     var out = row.querySelector('[data-prob-result]');
     if (act === 'msg') {
-      var text = prompt('Message to the player about this deposit:', 'Aapka ₹' + b.getAttribute('data-amount') + ' ka UPI deposit (no. ' + b.getAttribute('data-no') + ') abhi confirm nahi hua hai. Agar paisa kat gaya hai to apna UTR number yahan bhej dijiye — hum turant check karke balance jod denge.');
-      if (!text || !text.trim()) return;
-      b.disabled = true;
-      api('/admin/support-tickets', { method: 'POST', body: JSON.stringify({ userId: b.getAttribute('data-user'), topic: 'UPI deposit pending', message: text.trim() }) })
-        .then(function () { out.textContent = 'Message sent — the player sees it in Support.'; })
-        .catch(function (err) { if (err.authError) doLogout(); else out.textContent = err.message; })
-        .finally(function () { b.disabled = false; });
+      askPrompt('Message to the player about this deposit:', 'Aapka ₹' + b.getAttribute('data-amount') + ' ka UPI deposit (no. ' + b.getAttribute('data-no') + ') abhi confirm nahi hua hai. Agar paisa kat gaya hai to apna UTR number yahan bhej dijiye — hum turant check karke balance jod denge.').then(function (text) {
+        if (!text || !text.trim()) return;
+        b.disabled = true;
+        api('/admin/support-tickets', { method: 'POST', body: JSON.stringify({ userId: b.getAttribute('data-user'), topic: 'UPI deposit pending', message: text.trim() }) })
+          .then(function () { out.textContent = 'Message sent — the player sees it in Support.'; })
+          .catch(function (err) { if (err.authError) doLogout(); else out.textContent = err.message; })
+          .finally(function () { b.disabled = false; });
+      });
       return;
     }
-    if (act === 'void' && !confirm('Void this ' + fmtMoney(b.getAttribute('data-amount')) + ' deposit? It can never be credited, even if the player pays later. Use "Check & fix" instead unless you are sure.')) return;
+    (act === 'void'
+      ? askConfirm('Void this ' + fmtMoney(b.getAttribute('data-amount')) + ' deposit? It can never be credited, even if the player pays later. Use "Check & fix" instead unless you are sure.')
+      : Promise.resolve(true)
+    ).then(function (ok) {
+    if (!ok) return;
     b.disabled = true;
     out.textContent = act === 'fix' ? 'Asking RupayEx…' : 'Voiding…';
     var req = act === 'fix'
@@ -3244,30 +3337,40 @@
     req.then(function (text) { out.textContent = text; setTimeout(reloadProblemViews, 2500); })
       .catch(function (err) { if (err.authError) doLogout(); else out.textContent = err.message; })
       .finally(function () { b.disabled = false; });
+    });
   });
   document.addEventListener('click', function (e) {
     var b = e.target.closest('#probDepAll, [data-prob-all]');
     if (!b) return;
-    if (!confirm('Check every stuck deposit with RupayEx now? Paid ones are credited, unpaid ones closed.')) return;
+    askConfirm('Check every stuck deposit with RupayEx now? Paid ones are credited, unpaid ones closed.').then(function (ok) {
+    if (!ok) return;
     b.disabled = true;
     document.getElementById('problemsSummary').textContent = 'Checking with RupayEx…';
     api('/admin/problems/deposits/resolve-all' + (b.id === 'probDepAll' ? probUidQs() : ''), { method: 'POST' }).then(function (r) {
       var credited = r.results.filter(function (x) { return x.status === 'COMPLETED'; }).length;
       var closed = r.results.filter(function (x) { return x.status === 'FAILED'; }).length;
-      var left = r.results.length - credited - closed;
-      showAlert('Checked ' + r.results.length + ': ' + credited + ' paid and credited, ' + closed + ' not paid and closed' + (left ? ', ' + left + ' still open (RupayEx did not answer — try again).' : '.'));
+      // Left open: told "needs your check" (RupayEx says paid but it does not match) vs. RupayEx not answering.
+      var review = r.results.filter(function (x) { return x.status !== 'COMPLETED' && x.status !== 'FAILED' && /needs your check/i.test(x.result || ''); }).length;
+      var left = r.results.length - credited - closed - review;
+      showAlert('Checked ' + r.results.length + ': ' + credited + ' paid and credited, ' + closed + ' not paid and closed' +
+        (review ? ', ' + review + ' need your check (RupayEx says paid, but not for this amount — see Problems)' : '') +
+        (left ? ', ' + left + ' still open (RupayEx did not answer — try again).' : '.') +
+        (r.results.length >= 50 ? ' (50 are checked at a time — press again for the rest.)' : ''));
       reloadProblemViews();
     }).catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); })
       .finally(function () { b.disabled = false; });
+    });
   });
   document.getElementById('probBalances').addEventListener('click', function (e) {
     var b = e.target.closest('[data-prob-fixbal]');
     if (!b) return;
-    if (!confirm('Change this balance from ' + fmtMoney(b.getAttribute('data-balance')) + ' to ' + fmtMoney(b.getAttribute('data-ledger')) + ' (what the transactions add up to)?')) return;
-    b.disabled = true;
-    api('/admin/problems/balances/' + encodeURIComponent(b.getAttribute('data-prob-fixbal')) + '/fix', { method: 'POST' })
-      .then(function (r) { showAlert('Balance changed from ' + fmtMoney(r.before) + ' to ' + fmtMoney(r.after) + '.'); loadProblems(); })
-      .catch(function (err) { b.disabled = false; if (err.authError) doLogout(); else showAlert(err.message); });
+    askConfirm('Change this balance from ' + fmtMoney(b.getAttribute('data-balance')) + ' to ' + fmtMoney(b.getAttribute('data-ledger')) + ' (what the transactions add up to)?').then(function (ok) {
+      if (!ok) return;
+      b.disabled = true;
+      api('/admin/problems/balances/' + encodeURIComponent(b.getAttribute('data-prob-fixbal')) + '/fix', { method: 'POST' })
+        .then(function (r) { showAlert('Balance changed from ' + fmtMoney(r.before) + ' to ' + fmtMoney(r.after) + '.'); loadProblems(); })
+        .catch(function (err) { b.disabled = false; if (err.authError) doLogout(); else showAlert(err.message); });
+    });
   });
   document.getElementById('problemsSearch').addEventListener('click', loadProblems);
   document.getElementById('problemsUid').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadProblems(); });
@@ -3332,8 +3435,10 @@
     saveDepositAmounts({ amounts: depAmt.list }, this);
   });
   document.getElementById('depAmtReset').addEventListener('click', function () {
-    if (!confirm('Go back to the default buttons (₹100 to ₹50,000)?')) return;
-    saveDepositAmounts({ reset: true, amounts: [] }, this);
+    var self = this;
+    askConfirm('Go back to the default buttons (₹100 to ₹50,000)?').then(function (ok) {
+      if (ok) saveDepositAmounts({ reset: true, amounts: [] }, self);
+    });
   });
 
   // ---------- Deposit bonus (Bonus page) ----------
@@ -3401,9 +3506,18 @@
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
   }
+  // The server pays a deposit the bonus of the highest amount at or below it, so an amount left
+  // without a bonus below one that has one must be saved as an explicit 0 — otherwise it
+  // would quietly get the lower amount's bonus.
   function depRule(key) {
     var m = depBonus[key];
-    return { type: 'slabs', tiers: Object.keys(m).map(Number).sort(function (x, y) { return x - y; }).map(function (a) { return { min: a, bonus: m[a] }; }) };
+    var amounts = DEP_AMOUNTS.concat(Object.keys(m).map(Number).filter(function (a) { return DEP_AMOUNTS.indexOf(a) < 0; })).sort(function (x, y) { return x - y; });
+    var tiers = [], last = 0;
+    amounts.forEach(function (a) {
+      if (m[a] > 0) { tiers.push({ min: a, bonus: m[a] }); last = m[a]; }
+      else if (last > 0) { tiers.push({ min: a, bonus: 0 }); last = 0; }
+    });
+    return { type: 'slabs', tiers: tiers };
   }
   ['first', 'every'].forEach(function (key) {
     document.getElementById('depGrid_' + key).addEventListener('click', function (e) {
@@ -3412,13 +3526,14 @@
       var amount = Number(chip.getAttribute('data-dep-amount'));
       var cur = depBonus[key][amount];
       var label = key === 'first' ? 'First deposit' : 'Every deposit after';
-      var input = prompt(label + ': bonus for a ₹' + depFmt(amount) + ' deposit, in ₹ (empty or 0 = no bonus)', cur ? String(cur) : '');
-      if (input === null) return;
-      var v = Number(String(input).trim() || 0);
-      if (!(v >= 0) || v > 1000000) { showAlert('Type a bonus in rupees, e.g. 50.'); return; }
-      if (v > 0) depBonus[key][amount] = Math.round(v * 100) / 100; else delete depBonus[key][amount];
-      depRenderGrid(key);
-      depRenderStatus('Not saved yet. ');
+      askPrompt(label + ': bonus for a ₹' + depFmt(amount) + ' deposit, in ₹ (empty or 0 = no bonus)', cur ? String(cur) : '').then(function (input) {
+        if (input === null) return;
+        var v = Number(String(input).trim() || 0);
+        if (!(v >= 0) || v > 1000000) { showAlert('Type a bonus in rupees, e.g. 50.'); return; }
+        if (v > 0) depBonus[key][amount] = Math.round(v * 100) / 100; else delete depBonus[key][amount];
+        depRenderGrid(key);
+        depRenderStatus('Not saved yet. ');
+      });
     });
   });
   document.querySelectorAll('[data-dep-fill]').forEach(function (b) {
@@ -3447,9 +3562,12 @@
     saveDepositBonus({ enabled: on, first: depRule('first'), every: depRule('every') }, this);
   });
   document.getElementById('depBonusReset').addEventListener('click', function () {
-    if (!confirm('Forget these bonus settings and go back to the default % bonus?')) return;
-    var none = { type: 'percent', percent: 0, cap: 0 };
-    saveDepositBonus({ reset: true, enabled: false, first: none, every: none }, this);
+    var self = this;
+    askConfirm('Forget these bonus settings and go back to the default % bonus?').then(function (ok) {
+      if (!ok) return;
+      var none = { type: 'percent', percent: 0, cap: 0 };
+      saveDepositBonus({ reset: true, enabled: false, first: none, every: none }, self);
+    });
   });
 
   // ---------- Popups ----------
