@@ -2,16 +2,15 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { changePassword } from '../api/backend';
 import { showAlert } from '../components/AppAlert';
 import ScreenContainer from '../components/ScreenContainer';
 import { AVATARS } from '../data/avatars';
 import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../state/AuthContext';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
-
-const OTP_SEND_COOLDOWN_SECONDS = 30;
 
 function comingSoon(label: string) {
   showAlert(label, 'Coming soon.');
@@ -28,7 +27,7 @@ function maskPhone(phone: string | null) {
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { phone, avatarId, setAvatarId, logout, hasLoginPassword, setLoginPassword, requestOtp, verifyIdentityOtp, otpSent, backendUser } = useAuth();
+  const { phone, avatarId, setAvatarId, logout, backendUser } = useAuth();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [securityVisible, setSecurityVisible] = useState(false);
@@ -37,35 +36,17 @@ export default function ProfileScreen() {
   // number) so two players can never end up sharing the same display name.
   const playerName = backendUser?.uid ? `Player${backendUser.uid}` : 'Player';
 
-  const [otpCode, setOtpCode] = useState('');
-  const [sendCooldown, setSendCooldown] = useState(0);
-  const [sendingOtp, setSendingOtp] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  useEffect(() => {
-    if (sendCooldown <= 0) return;
-    const timer = setTimeout(() => setSendCooldown((s) => s - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [sendCooldown]);
-
-  async function handleSendOtp() {
-    if (sendCooldown > 0 || sendingOtp || !phone) return;
-    setSendingOtp(true);
-    const error = await requestOtp(phone);
-    setSendingOtp(false);
-    if (error) {
-      alertMessage('Could not send code', error);
-      return;
-    }
-    setSendCooldown(OTP_SEND_COOLDOWN_SECONDS);
-  }
-
   function resetPasswordForm() {
-    setOtpCode('');
-    setSendCooldown(0);
+    setCurrentPassword('');
+    setShowCurrentPassword(false);
     setNewPassword('');
     setConfirmPassword('');
     setShowNewPassword(false);
@@ -73,27 +54,30 @@ export default function ProfileScreen() {
   }
 
   async function handleCompletePassword() {
-    if (!otpSent || otpCode.length !== 6) {
-      alertMessage('Verification required', 'Please send and enter the correct verification code first.');
+    if (!currentPassword) {
+      alertMessage('Current password', 'Enter your current password.');
       return;
     }
-    const verifyError = await verifyIdentityOtp(otpCode);
-    if (verifyError) {
-      alertMessage('Verification failed', verifyError);
-      return;
-    }
-    if (newPassword.length < 8 || newPassword.length > 32) {
-      alertMessage('Invalid password', 'Password must be between 8 and 32 characters.');
+    if (newPassword.length < 6 || newPassword.length > 72) {
+      alertMessage('Invalid password', 'Password must be between 6 and 72 characters.');
       return;
     }
     if (confirmPassword !== newPassword) {
       alertMessage("Passwords don't match", 'Please re-enter the same password.');
       return;
     }
-    await setLoginPassword(newPassword);
-    resetPasswordForm();
-    setPasswordModalVisible(false);
-    alertMessage('Password updated', 'Your login password has been saved. You can now log in with your phone number and this password.');
+    if (savingPassword) return;
+    setSavingPassword(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      resetPasswordForm();
+      setPasswordModalVisible(false);
+      alertMessage('Password updated', 'Your password has been changed. Use it the next time you log in.');
+    } catch (err) {
+      alertMessage('Could not change the password', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setSavingPassword(false);
+    }
   }
 
   return (
@@ -218,7 +202,6 @@ export default function ProfileScreen() {
               >
                 <MaterialCommunityIcons name="lock-outline" size={20} color={colors.gold} />
                 <Text style={styles.securityRowLabel}>Login password</Text>
-                {hasLoginPassword ? <Text style={styles.securityRowValue}>Set</Text> : null}
                 <MaterialCommunityIcons name="chevron-right" size={20} color={colors.crimsonLight} />
               </Pressable>
             </View>
@@ -240,7 +223,7 @@ export default function ProfileScreen() {
             <View style={styles.caretModalCaret} />
             <View style={styles.caretModalCard}>
               <View style={styles.caretModalHeader}>
-                <Text style={styles.caretModalTitle}>Set Login Password</Text>
+                <Text style={styles.caretModalTitle}>Change Password</Text>
                 <Pressable
                   onPress={() => {
                     resetPasswordForm();
@@ -262,37 +245,30 @@ export default function ProfileScreen() {
               <View style={styles.passwordFieldRow}>
                 <MaterialCommunityIcons name="shield-check-outline" size={20} color={colors.gold} />
                 <TextInput
-                  value={otpCode}
-                  onChangeText={(t) => setOtpCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
-                  placeholder="Enter the received verification code."
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  placeholder="Enter your current password."
                   placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
-                  maxLength={6}
+                  secureTextEntry={!showCurrentPassword}
+                  autoCapitalize="none"
+                  maxLength={72}
                   style={styles.passwordFieldInput}
                 />
-                <Pressable onPress={handleSendOtp} disabled={sendCooldown > 0 || sendingOtp} style={styles.sendButtonWrap}>
-                  <LinearGradient colors={gradients.crimsonButton} style={[styles.sendButton, (sendCooldown > 0 || sendingOtp) && styles.sendButtonDisabled]}>
-                    <Text style={styles.sendButtonText}>{sendingOtp ? '...' : sendCooldown > 0 ? `${sendCooldown}s` : otpSent ? 'Resend' : 'Send'}</Text>
-                  </LinearGradient>
+                <Pressable onPress={() => setShowCurrentPassword((v) => !v)} hitSlop={10}>
+                  <MaterialCommunityIcons name={showCurrentPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textMuted} />
                 </Pressable>
               </View>
-
-              {otpSent ? (
-                <View style={styles.demoBanner}>
-                  <MaterialCommunityIcons name="information-outline" size={14} color={colors.gold} />
-                  <Text style={styles.demoBannerText}>Code sent to +91 {maskPhone(phone)}</Text>
-                </View>
-              ) : null}
 
               <View style={styles.passwordFieldRow}>
                 <MaterialCommunityIcons name="shield-key-outline" size={20} color={colors.gold} />
                 <TextInput
                   value={newPassword}
                   onChangeText={setNewPassword}
-                  placeholder="Enter between 8 and 32 characters."
+                  placeholder="New password (6 to 72 characters)."
                   placeholderTextColor={colors.textMuted}
                   secureTextEntry={!showNewPassword}
-                  maxLength={32}
+                  maxLength={72}
+                  autoCapitalize="none"
                   style={styles.passwordFieldInput}
                 />
                 <Pressable onPress={() => setShowNewPassword((v) => !v)} hitSlop={10}>
@@ -308,7 +284,8 @@ export default function ProfileScreen() {
                   placeholder="Please re-enter the updated password."
                   placeholderTextColor={colors.textMuted}
                   secureTextEntry={!showConfirmPassword}
-                  maxLength={32}
+                  maxLength={72}
+                  autoCapitalize="none"
                   style={styles.passwordFieldInput}
                 />
                 <Pressable onPress={() => setShowConfirmPassword((v) => !v)} hitSlop={10}>
@@ -318,7 +295,7 @@ export default function ProfileScreen() {
 
               <Pressable onPress={handleCompletePassword} style={styles.completeButtonWrap}>
                 <LinearGradient colors={gradients.crimsonButton} style={styles.completeButton}>
-                  <Text style={styles.completeButtonText}>Complete</Text>
+                  <Text style={styles.completeButtonText}>{savingPassword ? '...' : 'Complete'}</Text>
                 </LinearGradient>
               </Pressable>
             </View>
@@ -600,23 +577,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   passwordFieldInput: { flex: 1, color: colors.textPrimary, fontSize: typography.sm, paddingVertical: spacing.md },
-  sendButtonWrap: {},
-  sendButton: { borderRadius: radius.pill, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  sendButtonDisabled: { opacity: 0.6 },
-  sendButtonText: { color: colors.textPrimary, fontSize: typography.sm, fontWeight: '800' },
-  demoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    marginTop: -spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  demoBannerText: { color: colors.gold, fontSize: typography.xs, fontWeight: '700', marginLeft: spacing.xs },
   completeButtonWrap: {},
   completeButton: { borderRadius: radius.pill, paddingVertical: spacing.lg, alignItems: 'center' },
   completeButtonText: { color: colors.textPrimary, fontSize: typography.lg, fontWeight: '800' },

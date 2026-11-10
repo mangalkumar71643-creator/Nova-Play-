@@ -5,9 +5,8 @@ import { isRealIndianMobile } from "../utils/phone";
 
 /**
  * Player sessions from before this moment are signed out once. Until then
- * the login code could be shown in the app (SMS_PROVIDER_MODE=mock), so
- * anyone could have signed in to any number; every login since was by a
- * code sent by SMS. Admin sessions are not affected.
+ * the login code could be shown in the app (test mode), so anyone could
+ * have signed in to any number. Admin sessions are not affected.
  */
 const PLAYER_SESSIONS_VALID_AFTER_MS = Date.parse("2026-10-21T21:25:00Z");
 

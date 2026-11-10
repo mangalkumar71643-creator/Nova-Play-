@@ -23,7 +23,6 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
   kycProviderMode: (process.env.KYC_PROVIDER_MODE ?? "mock") as "mock" | "live",
   paymentProviderMode: (process.env.PAYMENT_PROVIDER_MODE ?? "mock") as "mock" | "live",
-  smsProviderMode: (process.env.SMS_PROVIDER_MODE ?? "mock") as "mock" | "live",
 
   games: {
     minStake: Number(process.env.GAME_MIN_STAKE ?? 1),

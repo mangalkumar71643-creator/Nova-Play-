@@ -11,7 +11,6 @@ export type BottomTabParamList = {
 
 export type AuthStackParamList = {
   Login: undefined;
-  Otp: { phone: string };
 };
 
 /** The Customer Service page's forms (SupportFormScreen). */

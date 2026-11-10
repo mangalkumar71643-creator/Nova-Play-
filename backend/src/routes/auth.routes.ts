@@ -1,16 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, ApiError } from "../middleware/errorHandler";
-import {
-  completePhoneRegistration,
-  loginUser,
-  registerUser,
-  sendPhoneOtp,
-  verifyOtpAndAuth,
-} from "../services/authService";
+import { changePlayerPassword, loginUser, registerUser } from "../services/authService";
+import { getSupportTelegramUrl } from "../services/settingsService";
 import { requireAuth } from "../middleware/auth";
 import { prisma } from "../db/prismaClient";
-import { changeAdminCredentials, loginWithPhonePassword, registerWithPhonePassword, resetAdminWithKey, sanitizeUser, setPhonePasswordWithOtp } from "../services/authService";
+import { changeAdminCredentials, loginWithPhonePassword, registerWithPhonePassword, resetAdminWithKey, sanitizeUser } from "../services/authService";
 
 const router = Router();
 
@@ -79,32 +74,6 @@ router.post(
   })
 );
 
-const otpRequestSchema = z.object({ phone: z.string().min(10).max(20) });
-
-router.post(
-  "/otp/request",
-  asyncHandler(async (req, res) => {
-    const { phone } = otpRequestSchema.parse(req.body);
-    // Vercel puts the caller's address first in X-Forwarded-For.
-    const forwarded = req.headers["x-forwarded-for"];
-    const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() || req.socket.remoteAddress || null;
-    const result = await sendPhoneOtp(phone, ip);
-    res.json(result);
-  })
-);
-
-const otpVerifySchema = z.object({
-  phone: z.string().min(10).max(20),
-  code: z.string().length(6),
-  // The inviter's uid (agent program); optional.
-  inviteCode: z
-    .string()
-    .trim()
-    .max(12)
-    .optional()
-    .transform((v) => v || undefined),
-});
-
 // --- Phone + password (authService.registerWithPhonePassword etc.) ---
 
 const phonePasswordSchema = z.object({
@@ -126,52 +95,22 @@ router.post(
     res.json(await loginWithPhonePassword(phone, password));
   })
 );
-const setPasswordSchema = z.object({ phone: z.string().min(10).max(20), code: z.string().length(6), password: z.string().min(1).max(100) });
+const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(100), newPassword: z.string().min(1).max(100) });
+/** A signed-in player changes their own password. */
 router.post(
-  "/phone/set-password",
+  "/phone/change-password",
+  requireAuth,
   asyncHandler(async (req, res) => {
-    const { phone, code, password } = setPasswordSchema.parse(req.body);
-    res.json(await setPhonePasswordWithOtp(phone, code, password));
+    const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+    res.json(await changePlayerPassword(req.user!.userId, currentPassword, newPassword));
   })
 );
 
-router.post(
-  "/otp/verify",
-  asyncHandler(async (req, res) => {
-    const { phone, code, inviteCode } = otpVerifySchema.parse(req.body);
-    try {
-      const result = await verifyOtpAndAuth(phone, code, inviteCode);
-      res.json(result);
-    } catch (err) {
-      if (err instanceof ApiError && err.message === "profile_required") {
-        return res.status(428).json({ error: "profile_required" });
-      }
-      throw err;
-    }
-  })
-);
-
-const completeProfileSchema = z.object({
-  phone: z.string().min(10).max(20),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  dateOfBirth: z.string(),
-  country: z.string().min(2),
-  // The inviter's uid (agent program); optional.
-  inviteCode: z
-    .string()
-    .trim()
-    .max(12)
-    .optional()
-    .transform((v) => v || undefined),
-});
-
-router.post(
-  "/otp/complete-profile",
-  asyncHandler(async (req, res) => {
-    const input = completeProfileSchema.parse(req.body);
-    const result = await completePhoneRegistration(input);
-    res.json(result);
+/** Where a player who can't log in reaches customer service (no login needed). */
+router.get(
+  "/support-contact",
+  asyncHandler(async (_req, res) => {
+    res.json({ telegramUrl: await getSupportTelegramUrl() });
   })
 );
 

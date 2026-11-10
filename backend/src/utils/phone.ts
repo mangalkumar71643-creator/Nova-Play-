@@ -3,10 +3,8 @@ import { ApiError } from "../middleware/errorHandler";
 /**
  * Indian mobile numbers only: 10 digits starting 6-9 (an optional +91, 91
  * or 0 in front is dropped), and not an obviously made-up one such as
- * 9999999999 or 9876543210. Login is by SMS code to the number, so a
- * number nobody owns can't sign in anyway; this also refuses it up front
- * and shuts out accounts made with such numbers while the OTP was shown in
- * the app (mock mode).
+ * 9999999999 or 9876543210. Sign-up and login use the number
+ * with a password; this refuses a made-up number up front.
  */
 export function indianMobileDigits(input: string): string | null {
   let d = String(input ?? "").replace(/[\s\-()]/g, "");

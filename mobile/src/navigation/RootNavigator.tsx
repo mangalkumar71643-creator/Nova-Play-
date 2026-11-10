@@ -62,7 +62,6 @@ import ThreeCardPokerScreen from '../screens/ThreeCardPokerScreen';
 import CandyBlastScreen from '../screens/CandyBlastScreen';
 import Neon777Screen from '../screens/Neon777Screen';
 import GameCategoryScreen from '../screens/GameCategoryScreen';
-import CompleteProfileScreen from '../screens/CompleteProfileScreen';
 import DepositScreen from '../screens/DepositScreen';
 import HelpScreen from '../screens/HelpScreen';
 import CustomerServiceScreen from '../screens/CustomerServiceScreen';
@@ -72,7 +71,6 @@ import BettingTasksScreen from '../screens/BettingTasksScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import LoginScreen from '../screens/LoginScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
-import OtpScreen from '../screens/OtpScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AgentJackpotScreen from '../screens/AgentJackpotScreen';
@@ -163,7 +161,6 @@ function AuthNavigator() {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
-      <AuthStack.Screen name="Otp" component={OtpScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -250,7 +247,7 @@ function MainNavigator() {
 }
 
 export default function RootNavigator() {
-  const { loading, isAuthenticated, needsProfile } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
 
   return (
     <NavigationContainer theme={navigationTheme}>
@@ -258,8 +255,6 @@ export default function RootNavigator() {
         <ScreenContainer scroll={false}>
           <LoadingState />
         </ScreenContainer>
-      ) : needsProfile ? (
-        <CompleteProfileScreen />
       ) : isAuthenticated ? (
         <MainNavigator />
       ) : (

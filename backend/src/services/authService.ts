@@ -4,11 +4,8 @@ import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { comparePassword, hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
-import { isAtLeast18 } from "../utils/age";
 import { toIndianE164 } from "../utils/phone";
-import { env } from "../config/env";
 import { findInviter, linkInvitee } from "./agentService";
-import { consumeOtp, isRecentlyVerified, requestOtp as requestOtpCode, verifyOtp as verifyOtpCode } from "./otpService";
 
 function randomFiveDigitUid(): number {
   return Math.floor(10000 + Math.random() * 90000);
@@ -45,9 +42,8 @@ export interface RegisterInput {
   country: string;
 }
 
-/** Email sign-up is closed: players sign up only with an SMS code to their
- * own number (sendPhoneOtp / completePhoneRegistration). Kept so older
- * builds get a clear answer. */
+/** Email sign-up is closed: players sign up with their mobile number and a
+ * password (registerWithPhonePassword). Kept so older builds get a clear answer. */
 export async function registerUser(_input: RegisterInput): Promise<never> {
   throw new ApiError(403, "Sign up with your mobile number in the app.");
 }
@@ -70,7 +66,7 @@ export async function loginUser(email: string, password: string) {
   if (!user || !user.passwordHash || !(await comparePassword(password, user.passwordHash))) {
     throw new ApiError(401, "Invalid email or password");
   }
-  // Email and password are for the admin panel only; players log in with an SMS code.
+  // Email and password are for the admin panel only; players log in with their mobile number.
   if (user.role !== "ADMIN") throw new ApiError(403, "Log in with your mobile number in the app.");
   assertNotBanned(user);
   await markSignedIn(user.id);
@@ -150,126 +146,13 @@ export function sanitizeUser<T extends { passwordHash: string | null }>(user: T)
 /** India-only: a real-looking Indian mobile number, as +91XXXXXXXXXX (utils/phone.ts). */
 const toE164 = toIndianE164;
 
-/** Step 1: generates and sends (or, in mock mode, returns) an OTP for a
- * phone number. Same endpoint for both login and registration — which
- * one it turns into is decided in `verifyOtpAndAuth` once the code is
- * confirmed. */
-export async function sendPhoneOtp(phone: string, ip: string | null = null) {
-  // On the live server the code must go by SMS: in mock mode the app would
-  // show it, and anyone could sign in to any number. Never on production.
-  if (env.smsProviderMode !== "live" && process.env.VERCEL_ENV === "production") {
-    throw new ApiError(503, "Login by SMS code is unavailable right now. Please try again later.");
-  }
-  return requestOtpCode(toE164(phone), ip);
-}
-
-/** Step 2: verifies the OTP and signs the player in. A brand-new number
- * gets its account right here — sign-up asks nothing but the phone and
- * the code (no name or date of birth); the name is "Player" and the last
- * four digits of the number until the player changes it. An invite code,
- * if given, links the new account to its inviter; it is checked before
- * the code is used up, so a mistyped invite code can be fixed and sent
- * again. (Older apps still finish sign-up through `completePhoneRegistration`.) */
-export async function verifyOtpAndAuth(phoneInput: string, code: string, inviteCode?: string) {
-  const phone = toE164(phoneInput);
-  const existing = await prisma.user.findUnique({ where: { phone } });
-  const inviterId = !existing && inviteCode ? await findInviter(inviteCode) : null;
-  await verifyOtpCode(phone, code);
-
-  if (!existing) {
-    const user = await createUserWithUniqueUid((uid) =>
-      prisma.user.create({
-        data: {
-          uid,
-          phone,
-          firstName: "Player",
-          lastName: phone.slice(-4),
-          country: "IN",
-          wallet: { create: { balance: 0 } },
-        },
-      })
-    );
-    if (inviterId) await linkInvitee(inviterId, user.id);
-    await consumeOtp(phone);
-    await markSignedIn(user.id);
-    const token = signToken({ userId: user.id, role: user.role });
-    return { user: sanitizeUser(user), token, isNewUser: true };
-  }
-  assertNotBanned(existing);
-
-  await consumeOtp(phone);
-  await markSignedIn(existing.id);
-  const token = signToken({ userId: existing.id, role: existing.role });
-  return { user: sanitizeUser(existing), token, isNewUser: false };
-}
-
-export interface CompleteProfileInput {
-  phone: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
-  country: string;
-  /** The inviter's code (their uid), if the player was invited. */
-  inviteCode?: string;
-}
-
-/** Step 3 (new users only): creates the account once the phone has been
- * verified recently enough (see otpService.isRecentlyVerified) — the
- * mobile app doesn't need to re-collect the OTP code for this step. */
-export async function completePhoneRegistration(input: CompleteProfileInput) {
-  const phone = toE164(input.phone);
-  if (!(await isRecentlyVerified(phone))) {
-    throw new ApiError(401, "Phone verification expired. Please verify your number again.");
-  }
-
-  const existing = await prisma.user.findUnique({ where: { phone } });
-  if (existing) {
-    assertNotBanned(existing);
-    await consumeOtp(phone);
-    await markSignedIn(existing.id);
-    const token = signToken({ userId: existing.id, role: existing.role });
-    return { user: sanitizeUser(existing), token, isNewUser: false };
-  }
-
-  const dob = new Date(input.dateOfBirth);
-  if (Number.isNaN(dob.getTime())) {
-    throw new ApiError(400, "Invalid date of birth");
-  }
-  if (!isAtLeast18(dob)) {
-    throw new ApiError(403, "You must be at least 18 years old to register.");
-  }
-  // Checked before the account exists, so a mistyped code can be fixed.
-  const inviterId = input.inviteCode ? await findInviter(input.inviteCode) : null;
-
-  const user = await createUserWithUniqueUid((uid) =>
-    prisma.user.create({
-      data: {
-        uid,
-        phone,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        dateOfBirth: dob,
-        country: input.country,
-        wallet: { create: { balance: 0 } },
-      },
-    })
-  );
-
-  if (inviterId) await linkInvitee(inviterId, user.id);
-
-  await consumeOtp(phone);
-  await markSignedIn(user.id);
-  const token = signToken({ userId: user.id, role: user.role });
-  return { user: sanitizeUser(user), token, isNewUser: true };
-}
-
-// --- Phone + password (no SMS code), owner's choice 2026-11-10 ---
+// --- Phone + password, owner's choice 2026-11-10: there is no SMS code anywhere ---
 //
 // Sign-up takes a number and a password (and an invite code); login takes
-// the same. Accounts made earlier by SMS code have no password: their
-// owner sets one once with an SMS code (setPhonePasswordWithOtp), or the
-// admin sets one — never just by typing the number, or anyone could take
-// an existing account (and its money).
+// the same. A forgotten password, or an account made earlier by SMS code
+// (it has none), is set by the admin (adminSetPlayerPassword) after the
+// player asks customer service. A signed-in player changes their own with
+// changePlayerPassword.
 
 export const MIN_PASSWORD_LENGTH = 6;
 const MAX_FAILED_LOGINS = 8;
@@ -313,10 +196,10 @@ export async function loginWithPhonePassword(phoneInput: string, password: strin
   if (!user) throw wrong();
   if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
     const mins = Math.ceil((user.loginLockedUntil.getTime() - Date.now()) / 60000);
-    throw new ApiError(429, `Too many wrong passwords. Try again in ${mins} minute${mins === 1 ? "" : "s"}, or use Forgot password.`);
+    throw new ApiError(429, `Too many wrong passwords. Try again in ${mins} minute${mins === 1 ? "" : "s"}, or ask customer service.`);
   }
   if (!user.passwordHash) {
-    // An account from before passwords: its owner proves the number once.
+    // An account from before passwords: customer service sets one (admin panel → Players).
     throw new ApiError(403, "PASSWORD_NOT_SET");
   }
   if (!(await comparePassword(password, user.passwordHash))) {
@@ -333,21 +216,27 @@ export async function loginWithPhonePassword(phoneInput: string, password: strin
   return { user: sanitizeUser(user), token: signToken({ userId: user.id, role: user.role }), isNewUser: false };
 }
 
-/** Forgot password, or an old account's first password: the SMS code proves the number. */
-export async function setPhonePasswordWithOtp(phoneInput: string, code: string, password: string) {
-  const phone = toE164(phoneInput);
-  assertPasswordOk(password);
-  const user = await prisma.user.findUnique({ where: { phone } });
-  if (!user) throw new ApiError(404, "No account with this number. Please register.");
-  await verifyOtpCode(phone, code);
-  assertNotBanned(user);
-  await consumeOtp(phone);
-  const updated = await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password), failedLogins: 0, loginLockedUntil: null } });
-  await markSignedIn(user.id);
-  return { user: sanitizeUser(updated), token: signToken({ userId: user.id, role: user.role }), isNewUser: false };
+/** A signed-in player changes their own password; the current one is needed. */
+export async function changePlayerPassword(userId: string, currentPassword: string, newPassword: string) {
+  assertPasswordOk(newPassword);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new ApiError(404, "Account not found.");
+  if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
+    throw new ApiError(429, "Too many wrong passwords. Try again in a few minutes.");
+  }
+  if (!user.passwordHash || !(await comparePassword(currentPassword, user.passwordHash))) {
+    const failed = user.failedLogins + 1;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: failed >= MAX_FAILED_LOGINS ? { failedLogins: 0, loginLockedUntil: new Date(Date.now() + LOGIN_LOCK_MS) } : { failedLogins: failed },
+    });
+    throw new ApiError(400, "Your current password is wrong.");
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(newPassword), failedLogins: 0, loginLockedUntil: null } });
+  return { ok: true as const };
 }
 
-/** The admin sets a player's password (a player who can't get the SMS code). */
+/** The admin sets a player's password (forgotten, or an old account that has none). */
 export async function adminSetPlayerPassword(uid: number, password: string) {
   assertPasswordOk(password);
   const user = await prisma.user.findUnique({ where: { uid }, select: { id: true, role: true } });

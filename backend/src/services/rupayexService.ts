@@ -39,7 +39,7 @@ import { refreshSettingsIfStale } from "./settingsService";
  *
  * Real money from the first rupee — RupayEx has no test mode — so, like the
  * StockPay live pilot before it, deposits are open only to the listed numbers
- * and only while OTP really goes by SMS. Opening them to every player needs a
+ * only. Opening them to every player needs a
  * gambling licence and a payment company that allows it.
  */
 
@@ -147,10 +147,8 @@ export async function upiDepositStatus(userId: string) {
   if (!token()) return { ...base, enabled: false, reason: "UPI payments are not set up yet." };
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
   // Real money: only an account whose phone is exactly +91 and a listed
-  // number, and only while OTP really goes by SMS — with mock OTP anyone
-  // could sign in as that number. Everyone else finds UPI not open.
+  // number. Everyone else finds UPI not open.
   const listed = allowedPhones().map((p) => `+91${p}`);
-  if (env.smsProviderMode !== "live") return { ...base, enabled: false, reason: "UPI deposits are paused while OTP login is in test mode." };
   if (!openToAll() && !listed.includes(user.phone ?? "")) {
     // The player's own number's last digits, so the owner can see which number to add to the pilot list.
     const last4 = (user.phone ?? "").replace(/\D/g, "").slice(-4);

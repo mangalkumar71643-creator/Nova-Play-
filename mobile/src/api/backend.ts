@@ -28,28 +28,7 @@ export function fetchBackendMe() {
   return apiFetch<BackendUser>('/auth/me');
 }
 
-export interface OtpRequestResult {
-  /** Only present when the backend's SMS_PROVIDER_MODE=mock — shows the
-   * code on-screen for local testing since no real SMS is sent. */
-  devCode: string | null;
-}
-
-export function requestPhoneOtp(phone: string) {
-  return apiFetch<OtpRequestResult>('/auth/otp/request', {
-    method: 'POST',
-    body: JSON.stringify({ phone }),
-  });
-}
-
-/** Signs in; a new number gets its account here (no profile step). The invite code only matters for a new account. */
-export function verifyPhoneOtp(phone: string, code: string, inviteCode?: string) {
-  return apiFetch<AuthResult>('/auth/otp/verify', {
-    method: 'POST',
-    body: JSON.stringify({ phone, code, ...(inviteCode ? { inviteCode } : {}) }),
-  });
-}
-
-// --- Mobile number + password (no SMS code at sign-up or login) ---
+// --- Mobile number + password (there is no SMS code anywhere) ---
 
 export function registerWithPassword(phone: string, password: string, inviteCode?: string) {
   return apiFetch<AuthResult>('/auth/phone/register', { method: 'POST', body: JSON.stringify({ phone, password, ...(inviteCode ? { inviteCode } : {}) }) });
@@ -57,23 +36,13 @@ export function registerWithPassword(phone: string, password: string, inviteCode
 export function loginWithPhonePassword(phone: string, password: string) {
   return apiFetch<AuthResult>('/auth/phone/login', { method: 'POST', body: JSON.stringify({ phone, password }) });
 }
-/** Forgot password, or an old account's first password: the SMS code proves the number. */
-export function setPasswordWithCode(phone: string, code: string, password: string) {
-  return apiFetch<AuthResult>('/auth/phone/set-password', { method: 'POST', body: JSON.stringify({ phone, code, password }) });
+/** A signed-in player changes their own password (the current one is needed). */
+export function changePassword(currentPassword: string, newPassword: string) {
+  return apiFetch<{ ok: true }>('/auth/phone/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
 }
-
-export function completePhoneProfile(input: {
-  phone: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
-  country: string;
-  inviteCode?: string;
-}) {
-  return apiFetch<AuthResult>('/auth/otp/complete-profile', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+/** Where a player who can't log in reaches customer service (works without logging in). */
+export function fetchSupportContact() {
+  return apiFetch<{ telegramUrl: string | null }>('/auth/support-contact');
 }
 
 export interface BackendWallet {
