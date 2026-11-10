@@ -82,7 +82,7 @@ export default function LoginScreen() {
       return;
     }
     if (err === 'PASSWORD_NOT_SET') {
-      contactSupport('This account has no password yet. Customer service will set one for you.');
+      switchTo('register', 'This number has no password yet. Enter a new password below and tap Register to set it.');
       return;
     }
     showAlert('Could not log in', err);
@@ -97,6 +97,10 @@ export default function LoginScreen() {
     setBusy(false);
     if (!err) {
       AsyncStorage.setItem(LAST_PHONE_KEY, d).catch(() => {});
+      return;
+    }
+    if (err === 'PASSWORD_NOT_SET') {
+      contactSupport('This number has an old account with money in it. Customer service will set its password for you.');
       return;
     }
     if (/already has an account/i.test(err)) {

@@ -149,9 +149,10 @@ const toE164 = toIndianE164;
 // --- Phone + password, owner's choice 2026-11-10: there is no SMS code anywhere ---
 //
 // Sign-up takes a number and a password (and an invite code); login takes
-// the same. A forgotten password, or an account made earlier by SMS code
-// (it has none), is set by the admin (adminSetPlayerPassword) after the
-// player asks customer service. A signed-in player changes their own with
+// the same. An account made earlier by SMS code has no password: registering
+// with its number sets one (only while it holds no money), otherwise the
+// admin sets it (adminSetPlayerPassword) after the player asks customer
+// service; so is a forgotten password. A signed-in player changes their own with
 // changePlayerPassword.
 
 export const MIN_PASSWORD_LENGTH = 6;
@@ -167,8 +168,26 @@ function assertPasswordOk(password: string) {
 export async function registerWithPhonePassword(phoneInput: string, password: string, inviteCode?: string) {
   const phone = toE164(phoneInput);
   assertPasswordOk(password);
-  const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
-  if (existing) throw new ApiError(409, "This number already has an account. Please log in.");
+  const existing = await prisma.user.findUnique({ where: { phone }, include: { wallet: { select: { balance: true, lockedBonus: true } } } });
+  if (existing) {
+    if (existing.passwordHash || existing.role !== "USER") throw new ApiError(409, "This number already has an account. Please log in.");
+    // An account from before passwords has no valid login any more (owner's choice): registering
+    // with its number sets the password and takes it over. Not when it holds money — then
+    // customer service sets the password (admin panel → Players), so a stranger can't take a balance.
+    assertNotBanned(existing);
+    const pending = await prisma.transaction.count({ where: { userId: existing.id, type: "WITHDRAWAL", status: "PENDING" } });
+    if (Number(existing.wallet?.balance ?? 0) > 0 || Number(existing.wallet?.lockedBonus ?? 0) > 0 || pending > 0) {
+      throw new ApiError(403, "PASSWORD_NOT_SET");
+    }
+    const claimed = await prisma.user.updateMany({
+      where: { id: existing.id, passwordHash: null },
+      data: { passwordHash: await hashPassword(password), failedLogins: 0, loginLockedUntil: null },
+    });
+    if (claimed.count === 0) throw new ApiError(409, "This number already has an account. Please log in.");
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: existing.id } });
+    await markSignedIn(user.id);
+    return { user: sanitizeUser(user), token: signToken({ userId: user.id, role: user.role }), isNewUser: false };
+  }
   // Checked before the account exists, so a mistyped invite code can be fixed.
   const inviterId = inviteCode ? await findInviter(inviteCode) : null;
   const passwordHash = await hashPassword(password);
