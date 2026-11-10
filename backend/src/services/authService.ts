@@ -7,6 +7,7 @@ import { signToken } from "../utils/jwt";
 import { toIndianE164 } from "../utils/phone";
 import { alertAdmins } from "./adminAlertService";
 import { consumeOtp, issueAdminCode, verifyOtp as verifyOtpCode } from "./otpService";
+import { getSmsProvider } from "./smsService";
 import { findInviter, linkInvitee } from "./agentService";
 
 function randomFiveDigitUid(): number {
@@ -233,12 +234,16 @@ export async function loginWithPhonePassword(phoneInput: string, password: strin
 
 const RESET_REQUESTS_PER_DAY = 6; // codes made per number a day (the admin's own count too): a stranger can't keep asking for fresh codes to guess at
 const RESET_REQUESTS_PER_IP_PER_DAY = 10;
+const RESET_SMS_PER_CODE = 3; // texts of one code (asking again while it still works texts it again)
+const RESET_SMS_PER_IP_PER_DAY = 20; // texts caused by one IP: SMS costs money
+const RESET_SMS_GAP_MS = 30 * 1000;
 
 /**
- * Forgot password, step 1: the player taps Ask code. A one-time code (15 minutes, 5 tries) is made at once and
- * shown to the admin only: in an alert on the admin's phone and in Players → "Password reset requests".
- * The admin checks it is the owner and tells them the code; no SMS is sent and the asker never sees it.
- * Asking again while the code still works changes nothing; after it runs out a fresh one is made.
+ * Forgot password, step 1: the player taps Send code. A one-time code (15 minutes, 5 tries) is made and texted
+ * to the player's own number, so only the owner of the number gets it. The admin gets it too (an alert on the
+ * admin's phone and Players → "Password reset requests") to give by hand when the SMS doesn't arrive. Asking
+ * again while the code still works texts the same code again (30 s apart, 3 times); after it runs out a fresh
+ * one is made. Only for existing player accounts, so made-up numbers cost no SMS.
  */
 export async function askAdminForResetCode(phoneInput: string, ip: string | null = null) {
   const phone = toE164(phoneInput);
@@ -248,22 +253,47 @@ export async function askAdminForResetCode(phoneInput: string, ip: string | null
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 3600 * 1000);
   const open = await prisma.passwordResetRequest.findFirst({ where: { userId: user.id, handledAt: null, createdAt: { gte: dayAgo } }, orderBy: { createdAt: "desc" } });
-  if (open?.codeExpiresAt && open.codeExpiresAt > now) return { ok: true as const };
+
+  const text = async (code: string) => {
+    if (ip) {
+      const sent = await prisma.passwordResetRequest.aggregate({ _sum: { smsCount: true }, where: { ip, createdAt: { gte: dayAgo } } });
+      if ((sent._sum.smsCount ?? 0) >= RESET_SMS_PER_IP_PER_DAY) return false;
+    }
+    try {
+      await getSmsProvider().sendOtp(phone, code);
+      return true;
+    } catch (err) {
+      console.error("[reset] SMS failed:", (err as Error).message);
+      return false;
+    }
+  };
+
+  // The code still works: text it again (the player may not have got it), not too often.
+  if (open?.code && open.codeExpiresAt && open.codeExpiresAt > now) {
+    if (open.smsSentAt && now.getTime() - open.smsSentAt.getTime() < RESET_SMS_GAP_MS) throw new ApiError(429, "Please wait a few seconds before asking again.");
+    if (open.smsCount >= RESET_SMS_PER_CODE) return { ok: true as const, sms: false };
+    const sms = await text(open.code);
+    if (sms) await prisma.passwordResetRequest.update({ where: { id: open.id }, data: { smsSentAt: now, smsCount: { increment: 1 } } });
+    return { ok: true as const, sms };
+  }
+
   const [byUser, byIp] = await Promise.all([
     prisma.phoneOtp.count({ where: { phone, createdAt: { gte: dayAgo } } }),
     ip ? prisma.passwordResetRequest.count({ where: { ip, createdAt: { gte: dayAgo } } }) : Promise.resolve(0),
   ]);
   if (byUser >= RESET_REQUESTS_PER_DAY || byIp >= RESET_REQUESTS_PER_IP_PER_DAY) throw new ApiError(429, "Too many requests today. Please try again tomorrow.");
   const { code, expiresAt } = await issueAdminCode(phone);
-  if (open) await prisma.passwordResetRequest.update({ where: { id: open.id }, data: { code, codeExpiresAt: expiresAt, ip } });
-  else await prisma.passwordResetRequest.create({ data: { userId: user.id, phone, ip, code, codeExpiresAt: expiresAt } });
+  const sms = await text(code);
+  const data = { code, codeExpiresAt: expiresAt, ip, smsSentAt: sms ? now : null, smsCount: sms ? 1 : 0 };
+  if (open) await prisma.passwordResetRequest.update({ where: { id: open.id }, data });
+  else await prisma.passwordResetRequest.create({ data: { userId: user.id, phone, ...data } });
   await alertAdmins({
     title: "Password reset asked",
-    body: `UID ${user.uid ?? "—"} · ${phone}\nCode: ${code} (15 min). Check it is them, then tell them the code.`,
+    body: `UID ${user.uid ?? "—"} · ${phone}\nCode: ${code} (15 min). ${sms ? "Texted to the player." : "The SMS did not go: give them this code."}`,
     tag: `pwreset-${user.id}`,
     page: "users",
   });
-  return { ok: true as const };
+  return { ok: true as const, sms };
 }
 
 /** Admin: the player's open reset requests with the code that works now (newest first). */
@@ -278,7 +308,7 @@ export async function listPasswordResetRequests() {
   });
 }
 
-/** Admin: a fresh one-time code for a player (15 minutes, 5 tries); an open request of theirs shows it too. */
+/** Admin: a fresh one-time code for a player (15 minutes, 5 tries) to give by hand; an open request of theirs shows it too. */
 export async function adminIssueResetCode(uid: number) {
   const user = await prisma.user.findUnique({ where: { uid }, select: { id: true, phone: true, role: true } });
   if (!user || user.role !== "USER") throw new ApiError(404, "No player with that UID.");

@@ -28,7 +28,7 @@ export function fetchBackendMe() {
   return apiFetch<BackendUser>('/auth/me');
 }
 
-// --- Mobile number + password (a forgotten password is reset with a code that customer service gives) ---
+// --- Mobile number + password (a forgotten password is reset with a code texted to the number) ---
 
 export function registerWithPassword(phone: string, password: string, inviteCode?: string) {
   return apiFetch<AuthResult>('/auth/phone/register', { method: 'POST', body: JSON.stringify({ phone, password, ...(inviteCode ? { inviteCode } : {}) }) });
@@ -36,9 +36,9 @@ export function registerWithPassword(phone: string, password: string, inviteCode
 export function loginWithPhonePassword(phone: string, password: string) {
   return apiFetch<AuthResult>('/auth/phone/login', { method: 'POST', body: JSON.stringify({ phone, password }) });
 }
-/** Forgot password, step 1: asks customer service for a reset code (the admin gives it to the player; no SMS). */
+/** Forgot password, step 1: a reset code is texted to the number (sms false: it could not be texted, customer service gives it). */
 export function askPasswordResetCode(phone: string) {
-  return apiFetch<{ ok: true }>('/auth/password/ask-admin', { method: 'POST', body: JSON.stringify({ phone }) });
+  return apiFetch<{ ok: true; sms: boolean }>('/auth/password/ask-admin', { method: 'POST', body: JSON.stringify({ phone }) });
 }
 /** Forgot password, step 2: the code the admin gave and the new password; signs the player in. */
 export function resetPasswordWithCode(phone: string, code: string, password: string) {

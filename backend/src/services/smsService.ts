@@ -84,7 +84,7 @@ export class Fast2SmsProvider implements SmsProvider {
         ? { route: "dlt", sender_id: this.senderId, message: this.templateId, variables_values: code, numbers }
         : this.route === "otp"
           ? { route: "otp", variables_values: code, numbers }
-          : { route: "q", message: `Your NovaPlay OTP is ${code}. It is valid for 5 minutes. Do not share it with anyone.`, numbers };
+          : { route: "q", message: `Your NovaPlay password reset code is ${code}. It is valid for 15 minutes. Do not share it with anyone.`, numbers };
 
     let res: Response;
     try {

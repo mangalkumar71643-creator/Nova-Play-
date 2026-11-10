@@ -28,8 +28,8 @@ type AuthState = {
   /** Mobile number + password. Each returns null on success, else a message ("PASSWORD_NOT_SET" for an old account with no password yet). */
   passwordLogin: (phone: string, password: string) => Promise<string | null>;
   passwordRegister: (phone: string, password: string, inviteCode?: string) => Promise<string | null>;
-  /** Forgot password: asks customer service for a code (returns an error message, or null); then resetPassword with it. */
-  askResetCode: (phone: string) => Promise<string | null>;
+  /** Forgot password: a code is texted to the number (sms false: it could not be, customer service gives it); then resetPassword with it. */
+  askResetCode: (phone: string) => Promise<{ error: string | null; sms: boolean }>;
   resetPassword: (phone: string, code: string, password: string) => Promise<string | null>;
   logout: () => void;
 
@@ -164,12 +164,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [completeBackendLogin]
   );
 
-  const askResetCode = useCallback(async (phoneNumber: string): Promise<string | null> => {
+  const askResetCode = useCallback(async (phoneNumber: string) => {
     try {
-      await askPasswordResetCode(phoneNumber);
-      return null;
+      const r = await askPasswordResetCode(phoneNumber);
+      return { error: null, sms: r.sms !== false };
     } catch (err) {
-      return err instanceof Error ? err.message : 'Could not send your request.';
+      return { error: err instanceof Error ? err.message : 'Could not send the code.', sms: false };
     }
   }, []);
 

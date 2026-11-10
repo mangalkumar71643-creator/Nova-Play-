@@ -22,6 +22,9 @@ model PasswordResetRequest {
   /// The code made for this request (shown to the admin only; 15 minutes).
   code          String?
   codeExpiresAt DateTime?
+  /// When the code was last texted to the player, and how many times (a resend limit).
+  smsSentAt DateTime?
+  smsCount  Int       @default(0)
 
   @@index([handledAt, createdAt])
   @@index([userId])
