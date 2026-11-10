@@ -10,6 +10,22 @@ datasource db {
 // A one-time SMS login code for a phone number. Not linked to User by FK
 // since a brand-new phone number won't have a User row yet — request/
 // verify/complete-profile all key off the raw phone string instead.
+/// Texts waiting to be sent from the admin's phone (admin-app, SIM card): the server puts one here, the app
+/// fetches and sends it and reports back. The text holds a one-time code, so it is blanked once sent.
+model SmsOutbox {
+  id        String    @id @default(uuid())
+  phone     String
+  body      String
+  createdAt DateTime  @default(now())
+  /// Handed to the phone at this time (lent for a short while; given again if the phone never confirms).
+  claimedAt DateTime?
+  attempts  Int       @default(0)
+  sentAt    DateTime?
+  error     String?
+
+  @@index([sentAt, createdAt])
+}
+
 /// A player who forgot the password asking customer service for a reset code (shown in the
 /// admin panel's Players page until the admin gives a code). Not linked to User by FK.
 model PasswordResetRequest {

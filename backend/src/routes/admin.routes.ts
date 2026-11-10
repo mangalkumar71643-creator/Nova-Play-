@@ -25,6 +25,7 @@ import {
 import { getAutoPayoutSettings, MAX_AUTO_PAYOUT_MAX, setAutoPayoutSettings } from "../services/autoPayoutService";
 import { getPromotionConfig, MAX_TASKS, setPromotionConfig, TASK_CATEGORIES, TILE_CATALOG, type TileKey } from "../services/promotionService";
 import { adminSetPlayerPassword, adminIssueResetCode, listPasswordResetRequests } from "../services/authService";
+import { claimSmsForGateway, reportSmsResult, smsGatewayStatus } from "../services/smsGatewayService";
 import { notifyBonus, notifyDeposit, notifyWithdrawalRefund, sendBroadcast, sendToPlayer, sentMessages } from "../services/playerNotificationService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
@@ -33,7 +34,6 @@ import { countSubscriptions, getVapidPublicKey, notifyAdmins, recentAlerts, remo
 import { PROVIDER as STOCKPAY_PROVIDER, STOCKPAY_PROVIDERS } from "../services/stockpayService";
 import * as rupayex from "../services/rupayexService";
 import { LOTTERY_RTP } from "../services/lotteryHouse";
-import { FAST2SMS_ROUTES, fast2SmsFromEnv } from "../services/smsService";
 import { INTEGRATION_FIELDS, integration, integrationView, saveIntegrationSettings } from "../services/integrationSettings";
 import { assertCanTransact, assertWithinDepositLimits } from "../services/responsibleGamblingService";
 import { gameCatalog, getGameBets, getGameReport, getGamesOverview } from "../services/gameReportService";
@@ -810,7 +810,7 @@ router.post(
   })
 );
 
-// --- SMS keys entered in the panel (integrationSettings.ts) ---
+// --- API keys entered in the panel (integrationSettings.ts) ---
 
 router.get("/integrations", (_req, res) => {
   res.json(integrationView());
@@ -823,49 +823,34 @@ router.put(
   "/integrations",
   asyncHandler(async (req, res) => {
     const patch = integrationSchema.parse(req.body);
-    for (const k of ["smsRoute", "smsFallbackRoute"] as const) {
-      const v = patch[k]?.trim();
-      if (v && !(FAST2SMS_ROUTES as string[]).includes(v)) throw new ApiError(400, `${k} must be one of ${FAST2SMS_ROUTES.join(", ")}.`);
-    }
     res.json(await saveIntegrationSettings(patch));
   })
 );
 
-// --- SMS / OTP: what is configured, and a test send to the admin's own phone ---
+// --- SMS from the admin's phone (admin-app): the app fetches texts and sends them with its SIM card ---
 
-router.get("/sms/status", (_req, res) => {
-  const keySet = Boolean(integration("smsApiKey"));
-  let route: string | null = null;
-  let error: string | null = null;
-  try {
-    const p = fast2SmsFromEnv();
-    route = p ? ({ q: "Quick SMS (q)", otp: "OTP route (otp)", dlt: "DLT template (dlt)", whatsapp: "WhatsApp OTP (whatsapp)" } as const)[p.route] : null;
-    const fb = integration("smsFallbackRoute");
-    if (route && fb && fb !== p!.route) route += ` → fallback ${fb}`;
-  } catch (err) {
-    error = (err as Error).message;
-  }
-  res.json({ mode: env.smsProviderMode, keySet, route, senderId: integration("smsSenderId") || null, error });
-});
+router.get(
+  "/sms-gateway/status",
+  asyncHandler(async (_req, res) => {
+    res.json(await smsGatewayStatus());
+  })
+);
 
-const smsTestSchema = z.object({
-  phone: z.string().trim().regex(/^[6-9]\d{9}$/, "Enter a 10-digit Indian mobile number."),
-  route: z.enum(FAST2SMS_ROUTES as [string, ...string[]]).optional(),
-});
+/** The phone asks for texts to send (also its heartbeat). */
+router.get(
+  "/sms-gateway/next",
+  asyncHandler(async (_req, res) => {
+    res.json({ messages: await claimSmsForGateway() });
+  })
+);
+
+const smsResultSchema = z.object({ ok: z.boolean(), error: z.string().max(200).optional() });
 router.post(
-  "/sms/test",
+  "/sms-gateway/:id/result",
   asyncHandler(async (req, res) => {
-    const { phone, route } = smsTestSchema.parse(req.body);
-    let provider: ReturnType<typeof fast2SmsFromEnv>;
-    try {
-      provider = fast2SmsFromEnv(route as (typeof FAST2SMS_ROUTES)[number] | undefined);
-    } catch (err) {
-      throw new ApiError(400, (err as Error).message);
-    }
-    if (!provider) throw new ApiError(400, "No Fast2SMS API key is set yet — add it in Admin → Payment & SMS keys.");
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    await provider.sendOtp(`+91${phone}`, code);
-    res.json({ sent: true, code, route: provider.route });
+    const { ok, error } = smsResultSchema.parse(req.body);
+    await reportSmsResult(String(req.params.id), ok, error);
+    res.json({ ok: true });
   })
 );
 

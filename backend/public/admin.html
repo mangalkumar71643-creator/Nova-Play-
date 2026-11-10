@@ -402,7 +402,7 @@
         </div>
         <div class="card" style="max-width:520px;">
           <div class="card-head"><h2>Password reset requests</h2><button class="btn secondary" id="pwReqRefresh" style="flex:0 0 auto;">Refresh</button></div>
-          <div class="item-meta" style="margin:-6px 0 12px;">A player who forgot the password taps Forgot password → Send code in the app. A 6-digit code is made and <b>texted to their own number</b>; it is shown here and in the alert on your phone too, so you can read it out if the SMS does not arrive (check it is really them first: their number, last deposit or withdrawal). It works once, for 15 minutes. They enter it in the app with a new password and are logged in. <b>New code</b> makes a fresh one if it ran out.</div>
+          <div class="item-meta" style="margin:-6px 0 12px;">A player who forgot the password taps Forgot password → Send code in the app. A 6-digit code is made and <b>texted to their own number</b> by your SMS phone (Settings → SMS from this phone); it is shown here and in the alert on your phone too, so you can read it out if no SMS phone is connected or the SMS does not arrive (check it is really them first: their number, last deposit or withdrawal). It works once, for 15 minutes. They enter it in the app with a new password and are logged in. <b>New code</b> makes a fresh one if it ran out.</div>
           <div id="pwReqList" class="item-meta">Loading…</div>
           <div class="form-row" style="margin-top:12px;">
             <input id="pwCodeUid" inputmode="numeric" placeholder="Or a player UID" />
@@ -986,39 +986,14 @@
           <div id="alertsRecent" class="item-meta">—</div>
         </div>
         <div class="card" style="max-width:420px;">
-          <div class="card-head"><h2>SMS / OTP</h2></div>
-          <div class="item-meta" id="smsStatus" style="margin:-6px 0 12px;">Loading…</div>
-          <div class="form-row">
-            <input id="smsTestPhone" inputmode="numeric" maxlength="10" placeholder="Your 10-digit mobile number" />
-            <select id="smsTestRoute" style="flex:0 0 auto;">
-              <option value="">Route in use</option>
-              <option value="whatsapp">WhatsApp OTP (whatsapp)</option>
-              <option value="otp">OTP route (otp)</option>
-              <option value="q">Quick SMS (q)</option>
-              <option value="dlt">DLT template (dlt)</option>
-            </select>
-            <button class="btn" id="smsTestBtn" style="flex:0 0 auto;">Send test SMS</button>
-          </div>
-          <div class="item-meta" id="smsTestResult"></div>
+          <div class="card-head"><h2>SMS from this phone</h2><button class="btn secondary" id="smsGwRefresh" style="flex:0 0 auto;">Refresh</button></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Password reset codes are texted to players by an Android phone with a SIM card, using the NovaPlay Admin app. No SMS company is used; the texts come out of that SIM's SMS plan. Keep that phone switched on, with internet, and the app open or in the background.</div>
+          <div class="item-meta" id="smsGwStatus">Loading…</div>
+          <div id="smsGwControls" style="margin-top:12px;"></div>
         </div>
         <div class="card" style="max-width:420px;">
-          <div class="card-head"><h2>SMS keys</h2></div>
+          <div class="card-head"><h2>Payment keys</h2></div>
           <div class="item-meta" style="margin:-6px 0 12px;">Paste a key and press Save — it works straight away, no Vercel or redeploy. Saved keys are kept encrypted and never shown again (only the last 4 characters). Leave a box empty to keep what is saved; type <b>-</b> to remove it.</div>
-          <div class="item-title" style="margin:14px 0 6px;">Fast2SMS (OTP)</div>
-          <div id="intStatus_smsApiKey" class="item-meta"></div>
-          <div class="form-row"><input id="int_smsApiKey" type="password" autocomplete="off" placeholder="Fast2SMS API key" /></div>
-          <div id="intStatus_smsRoute" class="item-meta"></div>
-          <div class="form-row"><input id="int_smsRoute" placeholder="Route: q, otp, dlt or whatsapp" /></div>
-          <div id="intStatus_smsFallbackRoute" class="item-meta"></div>
-          <div class="form-row"><input id="int_smsFallbackRoute" placeholder="Fallback route if the first fails (optional)" /></div>
-          <div id="intStatus_smsSenderId" class="item-meta"></div>
-          <div class="form-row"><input id="int_smsSenderId" placeholder="DLT Sender ID (dlt route only)" /></div>
-          <div id="intStatus_smsTemplateId" class="item-meta"></div>
-          <div class="form-row"><input id="int_smsTemplateId" placeholder="DLT Template ID (dlt route only)" /></div>
-          <div id="intStatus_smsWaMessageId" class="item-meta"></div>
-          <div class="form-row"><input id="int_smsWaMessageId" placeholder="WhatsApp Message ID (whatsapp route only)" /></div>
-          <div id="intStatus_smsWaPhoneNumberId" class="item-meta"></div>
-          <div class="form-row"><input id="int_smsWaPhoneNumberId" placeholder="WhatsApp Phone Number ID (whatsapp route only)" /></div>
           <div class="item-title" style="margin:14px 0 6px;">RupayEx (UPI deposits &amp; bank payouts)</div>
           <div id="intStatus_rupayexToken" class="item-meta"></div>
           <div class="form-row"><input id="int_rupayexToken" type="password" autocomplete="off" placeholder="RupayEx API token" /></div>
@@ -1382,7 +1357,7 @@
       reportsTicking = true;
       activeGamePollInterval = setInterval(reportsTick, 1000);
     },
-    settings: function () { loadSettings(); loadSmsStatus(); loadIntegrations(); },
+    settings: function () { loadSettings(); loadSmsGateway(); loadIntegrations(); },
     'game-all': function () {
       // A game picked from the menu shows its bets first, above the overview.
       var betsCard = document.getElementById('allGamesBetsCard');
@@ -4014,32 +3989,29 @@
       .finally(function () { btn.disabled = false; });
   });
 
-  function loadSmsStatus() {
-    api('/admin/sms/status').then(function (st) {
-      var lines = [];
-      lines.push('Mode: <b>' + (st.mode === 'live' ? 'LIVE — OTPs go by SMS' : 'TEST — OTP shown in the app, no SMS sent') + '</b>');
-      lines.push('Fast2SMS key: <b>' + (st.keySet ? 'set' : 'not set') + '</b>' + (st.keySet ? ' · route <b>' + escapeHtml(st.route || '') + '</b>' + (st.senderId ? ' · sender ' + escapeHtml(st.senderId) : '') : ''));
-      if (st.error) lines.push('<span style="color:#ff8a8a;">' + escapeHtml(st.error) + '</span>');
-      document.getElementById('smsStatus').innerHTML = lines.join('<br/>');
-    }).catch(function (err) { if (err.authError) doLogout(); else document.getElementById('smsStatus').textContent = err.message; });
+  // ---------- SMS from this phone (the Android admin app sends them with its SIM card) ----------
+  function loadSmsGateway() {
+    var box = document.getElementById('smsGwStatus');
+    var ctl = document.getElementById('smsGwControls');
+    var native = window.NovaSms && typeof window.NovaSms.isOn === 'function' ? window.NovaSms : null;
+    api('/admin/sms-gateway/status').then(function (st) {
+      box.innerHTML = 'SMS phone: <b style="color:' + (st.online ? '#7dffb0' : '#ff8a8a') + ';">' + (st.online ? 'CONNECTED' : 'NOT CONNECTED') + '</b>' +
+        (st.lastSeenAt ? ' · last seen ' + new Date(st.lastSeenAt).toLocaleTimeString() : ' · never seen') + ' · texts waiting: ' + st.waiting +
+        (st.online ? '' : '<br/>With no phone connected, the code is not texted: you give it by hand (Players → Password reset requests).');
+    }).catch(function (err) { if (err.authError) doLogout(); else box.textContent = err.message; });
+    if (!native) { ctl.innerHTML = '<div class="item-meta">To use a phone for this, open this panel in the <b>NovaPlay Admin app</b> on the phone with the SIM card and turn it on here.</div>'; return; }
+    var on = false;
+    try { on = !!native.isOn(); } catch (e) {}
+    ctl.innerHTML = '<button class="btn" id="smsGwToggle">' + (on ? 'Turn OFF sending SMS from this phone' : 'Turn ON sending SMS from this phone') + '</button>' +
+      '<div class="item-meta" style="margin-top:8px;">' + (on ? 'This phone is sending the reset codes.' : 'The app will ask for permission to send SMS.') + '</div>';
+    document.getElementById('smsGwToggle').addEventListener('click', function () {
+      try { if (on) native.stop(); else native.start(getToken() || ''); } catch (e) { box.textContent = e.message; }
+      setTimeout(loadSmsGateway, 1500);
+    });
   }
-  document.getElementById('smsTestBtn').addEventListener('click', function () {
-    var btn = this;
-    var phone = document.getElementById('smsTestPhone').value.trim();
-    var out = document.getElementById('smsTestResult');
-    if (!/^[6-9]\d{9}$/.test(phone)) { out.textContent = 'Enter a 10-digit Indian mobile number.'; return; }
-    btn.disabled = true;
-    out.textContent = 'Sending…';
-    var route = document.getElementById('smsTestRoute').value;
-    var body = { phone: phone };
-    if (route) body.route = route;
-    api('/admin/sms/test', { method: 'POST', body: JSON.stringify(body) })
-      .then(function (r) { out.innerHTML = '<span style="color:#7dffb0;">Sent via <b>' + escapeHtml(r.route) + '</b> route. Check your phone for code <b>' + escapeHtml(r.code) + '</b>, then check your Fast2SMS wallet to see what it cost.</span>'; })
-      .catch(function (err) { if (err.authError) doLogout(); else out.innerHTML = '<span style="color:#ff8a8a;">' + escapeHtml(err.message) + '</span>'; })
-      .finally(function () { btn.disabled = false; });
-  });
+  document.getElementById('smsGwRefresh').addEventListener('click', loadSmsGateway);
 
-  var INT_FIELDS = ['smsApiKey', 'smsRoute', 'smsFallbackRoute', 'smsSenderId', 'smsTemplateId', 'smsWaMessageId', 'smsWaPhoneNumberId', 'rupayexToken'];
+  var INT_FIELDS = ['rupayexToken'];
   function showIntegrations(view) {
     INT_FIELDS.forEach(function (name) {
       var f = view[name] || {};
@@ -4065,7 +4037,7 @@
     btn.disabled = true;
     out.textContent = 'Saving…';
     api('/admin/integrations', { method: 'PUT', body: JSON.stringify(body) })
-      .then(function (view) { showIntegrations(view); out.innerHTML = '<span style="color:#7dffb0;">Saved — working now.' + '</span>'; loadSmsStatus(); })
+      .then(function (view) { showIntegrations(view); out.innerHTML = '<span style="color:#7dffb0;">Saved — working now.' + '</span>'; })
       .catch(function (err) { if (err.authError) doLogout(); else out.innerHTML = '<span style="color:#ff8a8a;">' + escapeHtml(err.message) + '</span>'; })
       .finally(function () { btn.disabled = false; });
   });

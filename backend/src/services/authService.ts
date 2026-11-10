@@ -7,7 +7,7 @@ import { signToken } from "../utils/jwt";
 import { toIndianE164 } from "../utils/phone";
 import { alertAdmins } from "./adminAlertService";
 import { consumeOtp, issueAdminCode, verifyOtp as verifyOtpCode } from "./otpService";
-import { getSmsProvider } from "./smsService";
+import { enqueueSms, purgeOldSms } from "./smsGatewayService";
 import { findInviter, linkInvitee } from "./agentService";
 
 function randomFiveDigitUid(): number {
@@ -235,13 +235,14 @@ export async function loginWithPhonePassword(phoneInput: string, password: strin
 const RESET_REQUESTS_PER_DAY = 6; // codes made per number a day (the admin's own count too): a stranger can't keep asking for fresh codes to guess at
 const RESET_REQUESTS_PER_IP_PER_DAY = 10;
 const RESET_SMS_PER_CODE = 3; // texts of one code (asking again while it still works texts it again)
-const RESET_SMS_PER_IP_PER_DAY = 20; // texts caused by one IP: SMS costs money
+const RESET_SMS_PER_IP_PER_DAY = 20; // texts caused by one IP: they use the admin's SMS plan
 const RESET_SMS_GAP_MS = 30 * 1000;
 
 /**
  * Forgot password, step 1: the player taps Send code. A one-time code (15 minutes, 5 tries) is made and texted
- * to the player's own number, so only the owner of the number gets it. The admin gets it too (an alert on the
- * admin's phone and Players → "Password reset requests") to give by hand when the SMS doesn't arrive. Asking
+ * to the player's own number by the admin's phone (smsGatewayService), so only the owner of the number gets it.
+ * The admin gets it too (an alert on the admin's phone and Players → "Password reset requests") to give by hand
+ * when no phone is connected or the SMS doesn't arrive. Asking
  * again while the code still works texts the same code again (30 s apart, 3 times); after it runs out a fresh
  * one is made. Only for existing player accounts, so made-up numbers cost no SMS.
  */
@@ -260,10 +261,10 @@ export async function askAdminForResetCode(phoneInput: string, ip: string | null
       if ((sent._sum.smsCount ?? 0) >= RESET_SMS_PER_IP_PER_DAY) return false;
     }
     try {
-      await getSmsProvider().sendOtp(phone, code);
-      return true;
+      purgeOldSms().catch(() => {});
+      return await enqueueSms(phone, `Your NovaPlay password reset code is ${code}. It is valid for 15 minutes. Do not share it with anyone.`);
     } catch (err) {
-      console.error("[reset] SMS failed:", (err as Error).message);
+      console.error("[reset] could not queue the SMS:", (err as Error).message);
       return false;
     }
   };
@@ -289,7 +290,7 @@ export async function askAdminForResetCode(phoneInput: string, ip: string | null
   else await prisma.passwordResetRequest.create({ data: { userId: user.id, phone, ...data } });
   await alertAdmins({
     title: "Password reset asked",
-    body: `UID ${user.uid ?? "—"} · ${phone}\nCode: ${code} (15 min). ${sms ? "Texted to the player." : "The SMS did not go: give them this code."}`,
+    body: `UID ${user.uid ?? "—"} · ${phone}\nCode: ${code} (15 min). ${sms ? "Being texted to the player." : "No SMS phone is connected: give them this code."}`,
     tag: `pwreset-${user.id}`,
     page: "users",
   });
