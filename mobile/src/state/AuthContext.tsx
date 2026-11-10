@@ -6,6 +6,8 @@ import {
   fetchBackendMe,
   registerWithPassword,
   loginWithPhonePassword,
+  requestPasswordCode,
+  resetPasswordWithCode,
   selfExcludeBackend,
   setBackendDepositLimits,
   submitBackendKyc,
@@ -26,6 +28,9 @@ type AuthState = {
   /** Mobile number + password. Each returns null on success, else a message ("PASSWORD_NOT_SET" for an old account with no password yet). */
   passwordLogin: (phone: string, password: string) => Promise<string | null>;
   passwordRegister: (phone: string, password: string, inviteCode?: string) => Promise<string | null>;
+  /** Forgot password: the SMS code (devCode only in the server's test mode), then the new password. */
+  sendPasswordCode: (phone: string) => Promise<{ error: string | null; devCode: string | null }>;
+  resetPassword: (phone: string, code: string, password: string) => Promise<string | null>;
   logout: () => void;
 
   backendUser: BackendUser | null;
@@ -159,6 +164,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [completeBackendLogin]
   );
 
+  const sendPasswordCode = useCallback(async (phoneNumber: string) => {
+    try {
+      const r = await requestPasswordCode(phoneNumber);
+      return { error: null, devCode: r.devCode ?? null };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Could not send the code.', devCode: null };
+    }
+  }, []);
+
+  const resetPassword = useCallback(
+    async (phoneNumber: string, code: string, password: string): Promise<string | null> => {
+      try {
+        await completeBackendLogin(phoneNumber, await resetPasswordWithCode(phoneNumber, code, password));
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : 'Could not reset the password. Please try again.';
+      }
+    },
+    [completeBackendLogin]
+  );
+
   const setAvatarId = useCallback(
     (id: number) => {
       setAvatarIdState(id);
@@ -234,6 +260,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAvatarId,
     passwordLogin,
     passwordRegister,
+    sendPasswordCode,
+    resetPassword,
     logout,
     backendUser,
     refreshBackendUser,

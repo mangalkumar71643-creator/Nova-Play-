@@ -28,13 +28,21 @@ export function fetchBackendMe() {
   return apiFetch<BackendUser>('/auth/me');
 }
 
-// --- Mobile number + password (there is no SMS code anywhere) ---
+// --- Mobile number + password (an SMS code is used only to reset a forgotten password) ---
 
 export function registerWithPassword(phone: string, password: string, inviteCode?: string) {
   return apiFetch<AuthResult>('/auth/phone/register', { method: 'POST', body: JSON.stringify({ phone, password, ...(inviteCode ? { inviteCode } : {}) }) });
 }
 export function loginWithPhonePassword(phone: string, password: string) {
   return apiFetch<AuthResult>('/auth/phone/login', { method: 'POST', body: JSON.stringify({ phone, password }) });
+}
+/** Forgot password, step 1: an SMS code to the number (the only place a code is used). devCode is set only in the server's test mode. */
+export function requestPasswordCode(phone: string) {
+  return apiFetch<{ devCode: string | null }>('/auth/password/send-code', { method: 'POST', body: JSON.stringify({ phone }) });
+}
+/** Forgot password, step 2: the code and the new password; signs the player in. */
+export function resetPasswordWithCode(phone: string, code: string, password: string) {
+  return apiFetch<AuthResult>('/auth/password/reset', { method: 'POST', body: JSON.stringify({ phone, code, password }) });
 }
 /** A signed-in player changes their own password (the current one is needed). */
 export function changePassword(currentPassword: string, newPassword: string) {

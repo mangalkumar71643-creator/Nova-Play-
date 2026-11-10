@@ -9,7 +9,7 @@ import { showAlert } from '../components/AppAlert';
 import { useAuth } from '../state/AuthContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'reset';
 
 const LAST_PHONE_KEY = 'novaplay:lastPhone:v1';
 const MIN_PASSWORD = 6;
@@ -17,12 +17,12 @@ const digitsOf = (s: string) => s.replace(/\D/g, '').slice(-10);
 const validPhone = (d: string) => /^[6-9]\d{9}$/.test(d);
 
 /**
- * Log in / register with a mobile number and a password. There is no SMS
- * code anywhere (owner's choice): a forgotten password, or an old account
- * that has none yet, is set by customer service.
+ * Log in / register with a mobile number and a password, no SMS code. The
+ * code is used only to reset a forgotten password (Forgot password); if it
+ * doesn't arrive, customer service sets the password.
  */
 export default function LoginScreen() {
-  const { passwordLogin, passwordRegister } = useAuth();
+  const { passwordLogin, passwordRegister, sendPasswordCode, resetPassword } = useAuth();
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>('login');
   const [phone, setPhone] = useState('');
@@ -32,6 +32,9 @@ export default function LoginScreen() {
   const [show, setShow] = useState(false);
   const [agree, setAgree] = useState(true);
   const [remember, setRemember] = useState(true);
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
@@ -42,11 +45,20 @@ export default function LoginScreen() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
   const switchTo = (m: Mode, message: string | null = null) => {
     setMode(m);
     setNote(message);
     setPassword('');
     setConfirm('');
+    setCode('');
+    setCodeSent(false);
+    setCooldown(0);
   };
 
   function checkPhone(): string | null {
@@ -110,6 +122,34 @@ export default function LoginScreen() {
     showAlert('Could not register', err);
   }
 
+  async function onSendCode() {
+    const d = checkPhone();
+    if (!d) return;
+    setBusy(true);
+    const r = await sendPasswordCode(d);
+    setBusy(false);
+    if (r.error) return showAlert('Could not send the code', r.error);
+    setCodeSent(true);
+    setCooldown(30);
+    if (r.devCode) setCode(r.devCode);
+    else showAlert('Code sent', `A 6-digit code was sent by SMS to +91 ${d}.`, undefined, { kind: 'info' });
+  }
+
+  async function onReset() {
+    const d = checkPhone();
+    if (!d) return;
+    if (!checkNewPassword()) return;
+    if (!/^\d{6}$/.test(code)) return showAlert('Verification code', 'Enter the 6-digit code from the SMS.');
+    setBusy(true);
+    const err = await resetPassword(d, code, password);
+    setBusy(false);
+    if (!err) {
+      AsyncStorage.setItem(LAST_PHONE_KEY, d).catch(() => {});
+      return;
+    }
+    showAlert('Could not reset the password', err);
+  }
+
   // Players who can't log in (forgot the password, or an old account with none) ask customer service.
   async function contactSupport(message: string) {
     let url: string | null = null;
@@ -132,8 +172,13 @@ export default function LoginScreen() {
     </Pressable>
   );
 
-  const title = mode === 'login' ? 'Log in' : 'Register';
-  const sub = mode === 'login' ? 'Log in with your mobile number and password.\nForgot your password? Contact customer service.' : 'Register with your mobile number.';
+  const title = mode === 'login' ? 'Log in' : mode === 'register' ? 'Register' : 'Reset password';
+  const sub =
+    mode === 'login'
+      ? 'Log in with your mobile number and password.\nForgot your password? Tap Forgot password.'
+      : mode === 'register'
+        ? 'Register with your mobile number.'
+        : 'Reset your password with the code we SMS to your mobile number.\nNo code? Contact customer service.';
 
   return (
     <LinearGradient colors={gradients.background} style={styles.fill}>
@@ -143,13 +188,15 @@ export default function LoginScreen() {
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.sub}>{sub}</Text>
 
-          <View style={styles.tabs}>
+          {mode !== 'reset' ? (
+            <View style={styles.tabs}>
               {(['login', 'register'] as const).map((m) => (
                 <Pressable key={m} style={[styles.tab, mode === m && styles.tabOn]} onPress={() => switchTo(m)}>
                   <Text style={[styles.tabText, mode === m && styles.tabTextOn]}>{m === 'login' ? 'Log in' : 'Register'}</Text>
                 </Pressable>
-            ))}
-          </View>
+              ))}
+            </View>
+          ) : null}
 
           {note ? <Text style={styles.note}>{note}</Text> : null}
 
@@ -169,7 +216,7 @@ export default function LoginScreen() {
             />
           </View>
 
-          <Text style={styles.label}>{mode === 'login' ? 'Password' : 'Set password'}</Text>
+          <Text style={styles.label}>{mode === 'login' ? 'Password' : mode === 'register' ? 'Set password' : 'New password'}</Text>
           <View style={[styles.input, styles.withIcon]}>
             <TextInput
               style={styles.inner}
@@ -203,6 +250,29 @@ export default function LoginScreen() {
             </>
           ) : null}
 
+          {mode === 'reset' ? (
+            <>
+              <Text style={styles.label}>Verification code</Text>
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  value={code}
+                  onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Enter the verification code"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+                <Pressable style={[styles.codeBtn, (cooldown > 0 || busy) && { opacity: 0.5 }]} onPress={onSendCode} disabled={cooldown > 0 || busy}>
+                  <Text style={styles.codeBtnText}>{cooldown > 0 ? `${cooldown}s` : codeSent ? 'Resend' : 'Send'}</Text>
+                </Pressable>
+              </View>
+              <Pressable onPress={() => contactSupport('Did not receive the code? Customer service will set a new password for you after checking it is your account.')} hitSlop={8}>
+                <Text style={styles.link}>Did not receive the code? Contact customer service</Text>
+              </Pressable>
+            </>
+          ) : null}
+
           {mode === 'register' ? (
             <>
               <Text style={styles.label}>Invite code (optional)</Text>
@@ -227,20 +297,20 @@ export default function LoginScreen() {
                 <MaterialCommunityIcons name={remember ? 'check-circle' : 'checkbox-blank-circle-outline'} size={22} color={remember ? colors.gold : colors.textMuted} />
                 <Text style={styles.checkText}>Remember number</Text>
               </Pressable>
-              <Pressable onPress={() => contactSupport('Please contact customer service and they will set a new password for you.')} hitSlop={8}>
+              <Pressable onPress={() => switchTo('reset')} hitSlop={8}>
                 <Text style={styles.link}>Forgot password</Text>
               </Pressable>
             </View>
           ) : null}
 
-          <Pressable onPress={mode === 'login' ? onLogin : onRegister} disabled={busy} style={{ marginTop: spacing.lg }}>
+          <Pressable onPress={mode === 'login' ? onLogin : mode === 'register' ? onRegister : onReset} disabled={busy} style={{ marginTop: spacing.lg }}>
             <LinearGradient colors={gradients.goldButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.primary, busy && { opacity: 0.6 }]}>
-              {busy ? <ActivityIndicator color="#2A1300" /> : <Text style={styles.primaryText}>{mode === 'login' ? 'Log in' : 'Register'}</Text>}
+              {busy ? <ActivityIndicator color="#2A1300" /> : <Text style={styles.primaryText}>{mode === 'login' ? 'Log in' : mode === 'register' ? 'Register' : 'Reset'}</Text>}
             </LinearGradient>
           </Pressable>
 
           <Pressable style={styles.secondary} onPress={() => switchTo(mode === 'login' ? 'register' : 'login')}>
-            <Text style={styles.secondaryText}>{mode === 'login' ? 'New here? Register' : 'I have an account  Log in'}</Text>
+            <Text style={styles.secondaryText}>{mode === 'login' ? 'New here? Register' : mode === 'register' ? 'I have an account  Log in' : 'Back to log in'}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -276,6 +346,8 @@ const styles = StyleSheet.create({
   },
   withIcon: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   inner: { flex: 1, color: colors.textPrimary, fontSize: typography.md, height: 48 },
+  codeBtn: { height: 50, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.gold, justifyContent: 'center' },
+  codeBtnText: { color: colors.gold, fontWeight: '800', fontSize: typography.sm },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
   checkText: { color: colors.textSecondary, fontSize: typography.sm },
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

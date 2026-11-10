@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, ApiError } from "../middleware/errorHandler";
-import { changePlayerPassword, loginUser, registerUser } from "../services/authService";
+import { changePlayerPassword, loginUser, registerUser, resetPasswordWithCode, sendPasswordResetCode } from "../services/authService";
 import { getSupportTelegramUrl } from "../services/settingsService";
 import { requireAuth } from "../middleware/auth";
 import { prisma } from "../db/prismaClient";
@@ -95,6 +95,29 @@ router.post(
     res.json(await loginWithPhonePassword(phone, password));
   })
 );
+const sendCodeSchema = z.object({ phone: z.string().min(10).max(20) });
+/** Forgot password, step 1: an SMS code to the number of an existing account. */
+router.post(
+  "/password/send-code",
+  asyncHandler(async (req, res) => {
+    const { phone } = sendCodeSchema.parse(req.body);
+    // Vercel puts the caller's address first in X-Forwarded-For.
+    const forwarded = req.headers["x-forwarded-for"];
+    const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() || req.socket.remoteAddress || null;
+    res.json(await sendPasswordResetCode(phone, ip));
+  })
+);
+
+const resetPasswordSchema = z.object({ phone: z.string().min(10).max(20), code: z.string().length(6), password: z.string().min(1).max(100) });
+/** Forgot password, step 2: the code and the new password; signs the player in. */
+router.post(
+  "/password/reset",
+  asyncHandler(async (req, res) => {
+    const { phone, code, password } = resetPasswordSchema.parse(req.body);
+    res.json(await resetPasswordWithCode(phone, code, password));
+  })
+);
+
 const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(100), newPassword: z.string().min(1).max(100) });
 /** A signed-in player changes their own password. */
 router.post(

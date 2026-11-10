@@ -402,7 +402,7 @@
         </div>
         <div class="card" style="max-width:520px;">
           <div class="card-head"><h2>Set a player's password</h2></div>
-          <div class="item-meta" style="margin:-6px 0 12px;">Players log in with their mobile number and password. For a player who forgot it, or an old account made before passwords: set a new one here and tell them.</div>
+          <div class="item-meta" style="margin:-6px 0 12px;">Players log in with their mobile number and password. For a player who forgot it and can't get the SMS code, or an old account made before passwords: set a new one here and tell them.</div>
           <div class="form-row">
             <input id="pwUid" inputmode="numeric" placeholder="Player UID" />
             <input id="pwNew" placeholder="New password (6+ characters)" maxlength="72" />
@@ -976,8 +976,39 @@
           <div id="alertsRecent" class="item-meta">—</div>
         </div>
         <div class="card" style="max-width:420px;">
-          <div class="card-head"><h2>Payment keys</h2></div>
+          <div class="card-head"><h2>SMS / OTP</h2></div>
+          <div class="item-meta" id="smsStatus" style="margin:-6px 0 12px;">Loading…</div>
+          <div class="form-row">
+            <input id="smsTestPhone" inputmode="numeric" maxlength="10" placeholder="Your 10-digit mobile number" />
+            <select id="smsTestRoute" style="flex:0 0 auto;">
+              <option value="">Route in use</option>
+              <option value="whatsapp">WhatsApp OTP (whatsapp)</option>
+              <option value="otp">OTP route (otp)</option>
+              <option value="q">Quick SMS (q)</option>
+              <option value="dlt">DLT template (dlt)</option>
+            </select>
+            <button class="btn" id="smsTestBtn" style="flex:0 0 auto;">Send test SMS</button>
+          </div>
+          <div class="item-meta" id="smsTestResult"></div>
+        </div>
+        <div class="card" style="max-width:420px;">
+          <div class="card-head"><h2>SMS keys</h2></div>
           <div class="item-meta" style="margin:-6px 0 12px;">Paste a key and press Save — it works straight away, no Vercel or redeploy. Saved keys are kept encrypted and never shown again (only the last 4 characters). Leave a box empty to keep what is saved; type <b>-</b> to remove it.</div>
+          <div class="item-title" style="margin:14px 0 6px;">Fast2SMS (OTP)</div>
+          <div id="intStatus_smsApiKey" class="item-meta"></div>
+          <div class="form-row"><input id="int_smsApiKey" type="password" autocomplete="off" placeholder="Fast2SMS API key" /></div>
+          <div id="intStatus_smsRoute" class="item-meta"></div>
+          <div class="form-row"><input id="int_smsRoute" placeholder="Route: q, otp, dlt or whatsapp" /></div>
+          <div id="intStatus_smsFallbackRoute" class="item-meta"></div>
+          <div class="form-row"><input id="int_smsFallbackRoute" placeholder="Fallback route if the first fails (optional)" /></div>
+          <div id="intStatus_smsSenderId" class="item-meta"></div>
+          <div class="form-row"><input id="int_smsSenderId" placeholder="DLT Sender ID (dlt route only)" /></div>
+          <div id="intStatus_smsTemplateId" class="item-meta"></div>
+          <div class="form-row"><input id="int_smsTemplateId" placeholder="DLT Template ID (dlt route only)" /></div>
+          <div id="intStatus_smsWaMessageId" class="item-meta"></div>
+          <div class="form-row"><input id="int_smsWaMessageId" placeholder="WhatsApp Message ID (whatsapp route only)" /></div>
+          <div id="intStatus_smsWaPhoneNumberId" class="item-meta"></div>
+          <div class="form-row"><input id="int_smsWaPhoneNumberId" placeholder="WhatsApp Phone Number ID (whatsapp route only)" /></div>
           <div class="item-title" style="margin:14px 0 6px;">RupayEx (UPI deposits &amp; bank payouts)</div>
           <div id="intStatus_rupayexToken" class="item-meta"></div>
           <div class="form-row"><input id="int_rupayexToken" type="password" autocomplete="off" placeholder="RupayEx API token" /></div>
@@ -1341,7 +1372,7 @@
       reportsTicking = true;
       activeGamePollInterval = setInterval(reportsTick, 1000);
     },
-    settings: function () { loadSettings(); loadIntegrations(); },
+    settings: function () { loadSettings(); loadSmsStatus(); loadIntegrations(); },
     'game-all': function () {
       // A game picked from the menu shows its bets first, above the overview.
       var betsCard = document.getElementById('allGamesBetsCard');
@@ -3932,7 +3963,32 @@
       .finally(function () { btn.disabled = false; });
   });
 
-  var INT_FIELDS = ['rupayexToken'];
+  function loadSmsStatus() {
+    api('/admin/sms/status').then(function (st) {
+      var lines = [];
+      lines.push('Mode: <b>' + (st.mode === 'live' ? 'LIVE — OTPs go by SMS' : 'TEST — OTP shown in the app, no SMS sent') + '</b>');
+      lines.push('Fast2SMS key: <b>' + (st.keySet ? 'set' : 'not set') + '</b>' + (st.keySet ? ' · route <b>' + escapeHtml(st.route || '') + '</b>' + (st.senderId ? ' · sender ' + escapeHtml(st.senderId) : '') : ''));
+      if (st.error) lines.push('<span style="color:#ff8a8a;">' + escapeHtml(st.error) + '</span>');
+      document.getElementById('smsStatus').innerHTML = lines.join('<br/>');
+    }).catch(function (err) { if (err.authError) doLogout(); else document.getElementById('smsStatus').textContent = err.message; });
+  }
+  document.getElementById('smsTestBtn').addEventListener('click', function () {
+    var btn = this;
+    var phone = document.getElementById('smsTestPhone').value.trim();
+    var out = document.getElementById('smsTestResult');
+    if (!/^[6-9]\d{9}$/.test(phone)) { out.textContent = 'Enter a 10-digit Indian mobile number.'; return; }
+    btn.disabled = true;
+    out.textContent = 'Sending…';
+    var route = document.getElementById('smsTestRoute').value;
+    var body = { phone: phone };
+    if (route) body.route = route;
+    api('/admin/sms/test', { method: 'POST', body: JSON.stringify(body) })
+      .then(function (r) { out.innerHTML = '<span style="color:#7dffb0;">Sent via <b>' + escapeHtml(r.route) + '</b> route. Check your phone for code <b>' + escapeHtml(r.code) + '</b>, then check your Fast2SMS wallet to see what it cost.</span>'; })
+      .catch(function (err) { if (err.authError) doLogout(); else out.innerHTML = '<span style="color:#ff8a8a;">' + escapeHtml(err.message) + '</span>'; })
+      .finally(function () { btn.disabled = false; });
+  });
+
+  var INT_FIELDS = ['smsApiKey', 'smsRoute', 'smsFallbackRoute', 'smsSenderId', 'smsTemplateId', 'smsWaMessageId', 'smsWaPhoneNumberId', 'rupayexToken'];
   function showIntegrations(view) {
     INT_FIELDS.forEach(function (name) {
       var f = view[name] || {};
@@ -3958,7 +4014,7 @@
     btn.disabled = true;
     out.textContent = 'Saving…';
     api('/admin/integrations', { method: 'PUT', body: JSON.stringify(body) })
-      .then(function (view) { showIntegrations(view); out.innerHTML = '<span style="color:#7dffb0;">Saved — working now.' + '</span>'; })
+      .then(function (view) { showIntegrations(view); out.innerHTML = '<span style="color:#7dffb0;">Saved — working now.' + '</span>'; loadSmsStatus(); })
       .catch(function (err) { if (err.authError) doLogout(); else out.innerHTML = '<span style="color:#ff8a8a;">' + escapeHtml(err.message) + '</span>'; })
       .finally(function () { btn.disabled = false; });
   });

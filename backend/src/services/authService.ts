@@ -5,6 +5,8 @@ import { ApiError } from "../middleware/errorHandler";
 import { comparePassword, hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { toIndianE164 } from "../utils/phone";
+import { env } from "../config/env";
+import { consumeOtp, requestOtp as requestOtpCode, verifyOtp as verifyOtpCode } from "./otpService";
 import { findInviter, linkInvitee } from "./agentService";
 
 function randomFiveDigitUid(): number {
@@ -227,6 +229,38 @@ export async function loginWithPhonePassword(phoneInput: string, password: strin
   if (user.failedLogins || user.loginLockedUntil) await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, loginLockedUntil: null } });
   await markSignedIn(user.id);
   return { user: sanitizeUser(user), token: signToken({ userId: user.id, role: user.role }), isNewUser: false };
+}
+
+/**
+ * Forgot password (the only place an SMS code is used): a code goes to the number of an existing
+ * player account. Not to unknown numbers (no SMS cost for made-up ones) and never to an admin
+ * account. otpService limits it to one code per 30 s, 5 per number and 10 per IP a day.
+ */
+export async function sendPasswordResetCode(phoneInput: string, ip: string | null = null) {
+  // With the mock SMS mode the app would show the code and anyone could reset any account.
+  if (env.smsProviderMode !== "live" && process.env.VERCEL_ENV === "production") {
+    throw new ApiError(503, "Password reset by SMS is unavailable right now. Please contact customer service.");
+  }
+  const phone = toE164(phoneInput);
+  const user = await prisma.user.findUnique({ where: { phone }, select: { role: true } });
+  if (!user) throw new ApiError(404, "No account with this number. Please register.");
+  if (user.role !== "USER") throw new ApiError(403, "This account can't be reset here.");
+  return requestOtpCode(phone, ip);
+}
+
+/** Checks the SMS code, sets the new password and signs the player in. */
+export async function resetPasswordWithCode(phoneInput: string, code: string, password: string) {
+  const phone = toE164(phoneInput);
+  assertPasswordOk(password);
+  const user = await prisma.user.findUnique({ where: { phone } });
+  if (!user) throw new ApiError(404, "No account with this number. Please register.");
+  if (user.role !== "USER") throw new ApiError(403, "This account can't be reset here.");
+  await verifyOtpCode(phone, code);
+  assertNotBanned(user);
+  await consumeOtp(phone);
+  const updated = await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password), failedLogins: 0, loginLockedUntil: null } });
+  await markSignedIn(user.id);
+  return { user: sanitizeUser(updated), token: signToken({ userId: user.id, role: user.role }), isNewUser: false };
 }
 
 /** A signed-in player changes their own password; the current one is needed. */
