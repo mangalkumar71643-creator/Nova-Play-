@@ -8,8 +8,14 @@ export interface JwtPayload {
   iat?: number;
 }
 
+/**
+ * A player's session never expires (owner's choice, 2026-11-10): they log out only by
+ * choosing to, or when an admin bans them (checked on every request, middleware/auth.ts).
+ * The admin panel's session still ends after JWT_EXPIRES_IN (7 days by default).
+ */
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn as any });
+  if (payload.role === "ADMIN") return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn as any });
+  return jwt.sign(payload, env.jwtSecret);
 }
 
 /** A full session token. A scoped token (the live chat's) is refused: it must not open the account. */
