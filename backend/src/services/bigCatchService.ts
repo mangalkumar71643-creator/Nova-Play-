@@ -48,9 +48,20 @@ function cappedPayout(amount: number, multiplier: number): number {
   return Math.min(round2(amount * multiplier), env.games.maxPayout);
 }
 
-/** The part of a bet still riding: all of it, or half once a Half Reel was taken. */
+/** Half of a stake for a half cash-out, to the paisa below; the other half is the rest (so 1.03 = 0.51 + 0.52, never 0.52 + 0.52). */
+function halfStake(amount: number): number {
+  return Math.floor(amount * 50) / 100;
+}
+
+/** The rest of a bet paid at `multiplier`, capped so the whole bet (half + rest) never passes the max win. */
+function cappedRest(rest: number, multiplier: number, alreadyPaid: number): number {
+  return Math.max(0, Math.min(round2(rest * multiplier), round2(env.games.maxPayout - alreadyPaid)));
+}
+
+/** The part of a bet still riding: all of it, or the other half once a Half Reel was taken. */
 function remainingStake(bet: { amount: unknown; halfCashoutMultiplier: unknown }): number {
-  return bet.halfCashoutMultiplier !== null ? round2(Number(bet.amount) / 2) : Number(bet.amount);
+  const amount = Number(bet.amount);
+  return bet.halfCashoutMultiplier !== null ? round2(amount - halfStake(amount)) : amount;
 }
 
 /** IST (UTC+5:30) has no DST — a fixed offset is exact. Used only to make
@@ -149,7 +160,7 @@ async function resolvePendingBets(roundId: string) {
       const auto = b.autoCashoutAt !== null ? Number(b.autoCashoutAt) : null;
       const won = auto !== null && auto <= crashMultiplier;
       // A half already reeled in was paid at the time; only the rest rides to here.
-      const rest = won ? cappedPayout(remainingStake(b), auto!) : 0;
+      const rest = won ? cappedRest(remainingStake(b), auto!, Number(b.halfPayout)) : 0;
       const payout = round2(Number(b.halfPayout) + rest);
 
       const done = await prisma.$transaction(async (tx) => {
@@ -350,7 +361,7 @@ export async function cashOutBigCatchBet(userId: string, betId: string, half = f
 
   if (half && !autoReached) {
     if (bet.halfCashoutMultiplier !== null) throw new ApiError(400, "You have already reeled in half of this bet.");
-    const halfPayout = cappedPayout(round2(Number(bet.amount) / 2), multiplier);
+    const halfPayout = cappedPayout(halfStake(Number(bet.amount)), multiplier);
     await prisma.$transaction(async (tx) => {
       // Claimed only while still PENDING with no half taken: a double tap
       // or a settle racing it can't pay the half twice.
@@ -365,7 +376,7 @@ export async function cashOutBigCatchBet(userId: string, betId: string, half = f
     return { multiplier, payout: halfPayout, half: true };
   }
 
-  const rest = cappedPayout(remainingStake(bet), multiplier);
+  const rest = cappedRest(remainingStake(bet), multiplier, Number(bet.halfPayout));
   const payout = round2(Number(bet.halfPayout) + rest);
   await prisma.$transaction(async (tx) => {
     // Claimed only while still PENDING (and in the same half state as read
@@ -406,6 +417,9 @@ export async function getHistory(limit = 30) {
 }
 
 export async function getMyBets(userId: string, limit = 50) {
+  // Rounds settle when someone asks for the game; a player checking their bets settles a finished one too,
+  // so a win (an auto cash-out) shows even when nobody else has the game open.
+  await ensureCurrentRound().catch(() => {});
   const bets = await prisma.bigCatchBet.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },

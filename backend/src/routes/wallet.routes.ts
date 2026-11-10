@@ -209,7 +209,8 @@ router.post(
     const { amount } = amountSchema.parse(req.body);
     const userId = req.user!.userId;
 
-    await assertCanTransact(userId);
+    // No assertCanTransact here: self-exclusion stops betting and deposits,
+    // never a player taking their own money out (a ban is refused by requireAuth).
 
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: userId },

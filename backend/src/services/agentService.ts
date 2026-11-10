@@ -144,7 +144,7 @@ async function settleDay(key: string) {
       const deposits = await tx.$queryRaw<{ a: string; amount: number; n: number }[]>`
         SELECT l."ancestorId" AS a, SUM(t.amount)::float8 AS amount, COUNT(DISTINCT t."userId")::int AS n
         FROM "AgentLink" l JOIN "Transaction" t ON t."userId" = l."descendantId"
-        WHERE l.depth = 1 AND t.type = 'DEPOSIT' AND t.status = 'COMPLETED' AND t.provider IS DISTINCT FROM ${TEST_PROVIDER}
+        WHERE l.depth = 1 AND t.type = 'DEPOSIT' AND t.status = 'COMPLETED' AND t."reversedAt" IS NULL AND t.provider IS DISTINCT FROM ${TEST_PROVIDER}
           AND t."createdAt" >= ${start} AND t."createdAt" < ${end} AND ${notTestMoney(Prisma.sql`t."userId"`)}
         GROUP BY 1`;
       const agents = [...new Set([...bets.map((b) => b.a), ...deposits.map((d) => d.a)])];
@@ -176,7 +176,7 @@ async function qualifyInvites() {
   const candidates = await prisma.$queryRaw<{ id: string; referrerId: string }[]>`
     SELECT u.id, u."referrerId" FROM "User" u
     WHERE u."referrerId" IS NOT NULL AND u."referralQualifiedAt" IS NULL AND ${notTestMoney(Prisma.sql`u.id`)}
-      AND (SELECT COALESCE(SUM(amount), 0) FROM "Transaction" WHERE "userId" = u.id AND type = 'DEPOSIT' AND status = 'COMPLETED') >= ${minDeposit}
+      AND (SELECT COALESCE(SUM(amount), 0) FROM "Transaction" WHERE "userId" = u.id AND type = 'DEPOSIT' AND status = 'COMPLETED' AND "reversedAt" IS NULL) >= ${minDeposit}
       AND (SELECT COALESCE(SUM(amount), 0) FROM "Transaction" WHERE "userId" = u.id AND type IN ${STAKE_TYPES} AND status = 'COMPLETED') >= ${minDeposit * wagerMultiple}
     ORDER BY u."createdAt" LIMIT 500`;
   const today = dayStart(dayKeyOf(new Date()));

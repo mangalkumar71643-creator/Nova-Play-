@@ -148,9 +148,9 @@ router.get(
     ] = await Promise.all([
         prisma.user.count(),
         prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
-        prisma.transaction.aggregate({ where: { type: "DEPOSIT", status: "COMPLETED" }, _sum: { amount: true } }),
+        prisma.transaction.aggregate({ where: { type: "DEPOSIT", status: "COMPLETED", reversedAt: null }, _sum: { amount: true } }),
         prisma.transaction.aggregate({
-          where: { type: "DEPOSIT", status: "COMPLETED", createdAt: { gte: weekAgo } },
+          where: { type: "DEPOSIT", status: "COMPLETED", reversedAt: null, createdAt: { gte: weekAgo } },
           _sum: { amount: true },
         }),
         prisma.transaction.aggregate({ where: { type: "WITHDRAWAL", status: "COMPLETED" }, _sum: { amount: true } }),
@@ -293,7 +293,8 @@ router.get(
         const depositBonus = sum(["DEPOSIT_BONUS"]);
         const otherBonus = r2(sum(["BONUS"]) - testCredit - giftCodes - vip);
         const bonuses = r2(giftCodes + vip + depositBonus + otherBonus);
-        const deposits = sum(["DEPOSIT"]);
+        // Money taken back from a reversed deposit was never really paid in.
+        const deposits = r2(sum(["DEPOSIT"]) - sum(["DEPOSIT_REVERSAL"]));
         const withdrawals = sum(["WITHDRAWAL"]);
         return [
           period,
@@ -444,6 +445,19 @@ async function assertReferenceUnused(type: "DEPOSIT" | "WITHDRAWAL", reference: 
     select: { createdAt: true, user: { select: { uid: true } } },
   });
   if (used) throw new ApiError(409, `Reference ${reference} was already recorded (UID ${used.user.uid}, ${used.createdAt.toISOString().slice(0, 10)}).`);
+  if (type === "DEPOSIT") {
+    // The same bank payment already credited through the payment company (its UTR, or its order number).
+    const paid = await prisma.transaction.findFirst({
+      where: {
+        type: "DEPOSIT",
+        status: "COMPLETED",
+        reversedAt: null,
+        OR: [{ paymentUtr: { equals: reference, mode: "insensitive" } }, { providerReferenceId: { equals: reference, mode: "insensitive" } }],
+      },
+      select: { createdAt: true, provider: true, user: { select: { uid: true } } },
+    });
+    if (paid) throw new ApiError(409, `This payment (${reference}) was already credited through ${paid.provider ?? "a deposit"} (UID ${paid.user.uid}, ${paid.createdAt.toISOString().slice(0, 10)}).`);
+  }
 }
 
 router.post(

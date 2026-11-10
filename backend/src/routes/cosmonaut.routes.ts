@@ -37,8 +37,8 @@ router.get(
 
 const betSchema = z.object({
   amount: z.number().positive(),
-  autoCashoutAt: z.number().min(1.01).optional(),
-  autoHalfAt: z.number().min(1.01).optional(),
+  autoCashoutAt: z.number().min(1.01).max(1_000_000).optional(),
+  autoHalfAt: z.number().min(1.01).max(1_000_000).optional(),
 });
 
 router.post(

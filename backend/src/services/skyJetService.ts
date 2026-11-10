@@ -182,7 +182,9 @@ async function drawJackpots(roundId: string) {
       // Lock the pool so two winners can't both take the same money.
       const rows = await tx.$queryRaw<{ amount: unknown }[]>`SELECT amount FROM "SkyJetJackpot" WHERE id = ${JACKPOT_ID} FOR UPDATE`;
       const pool = rows.length ? Number(rows[0].amount) : 0;
-      const prize = round2(Math.min(pool, env.games.maxPayout));
+      // The max win is per bet: the jackpot tops up what the bet itself paid, never past the cap.
+      const paid = await tx.skyJetBet.findUniqueOrThrow({ where: { id: bet.id }, select: { payout: true } });
+      const prize = round2(Math.min(pool, Math.max(0, env.games.maxPayout - Number(paid.payout ?? 0))));
       if (prize <= 0) return;
       await tx.skyJetJackpot.update({ where: { id: JACKPOT_ID }, data: { amount: { decrement: prize } } });
       await tx.skyJetBet.update({ where: { id: bet.id }, data: { jackpotPayout: prize } });
@@ -416,6 +418,9 @@ export async function getHistory(limit = 30) {
 }
 
 export async function getMyBets(userId: string, limit = 50) {
+  // Rounds settle when someone asks for the game; a player checking their bets settles a finished one too,
+  // so a win (an auto cash-out) shows even when nobody else has the game open.
+  await ensureCurrentRound().catch(() => {});
   const bets = await prisma.skyJetBet.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },

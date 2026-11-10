@@ -165,6 +165,8 @@ export async function resolveStuckDeposit(id: string) {
   if (check.status !== "PENDING") return { id, status: check.status, result: check.note };
   if (!check.live.answered) return { id, status: "PENDING", result: "RupayEx did not answer — try again in a minute." };
   if (check.live.notFound) return close("RupayEx has no such order: the player never paid. Closed.");
+  // Paid at RupayEx but not credited (e.g. a different amount): money did arrive, so never close it as unpaid.
+  if (check.live.state === "SUCCESS") return { id, status: "PENDING", result: `Needs your check: ${check.note} Left open.` };
   return close(`RupayEx says ${check.live.state ?? "not paid"}: the player did not pay. Closed (if they pay late it is still credited).`);
 }
 

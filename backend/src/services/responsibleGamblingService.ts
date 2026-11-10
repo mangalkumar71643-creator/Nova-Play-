@@ -48,21 +48,23 @@ export async function assertWithinDepositLimits(userId: string, amount: number) 
   }
 }
 
+// Periods in India time, like the rest of the app (the server's clock is UTC).
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function startOfDay(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const ist = new Date(Date.now() + IST_OFFSET_MS);
+  return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()) - IST_OFFSET_MS);
 }
 
+/** Monday 00:00 India time. */
 function startOfWeek(): Date {
-  const d = startOfDay();
-  const day = d.getDay();
-  d.setDate(d.getDate() - day);
-  return d;
+  const day = startOfDay();
+  const weekday = new Date(day.getTime() + IST_OFFSET_MS).getUTCDay(); // 0 = Sunday
+  return new Date(day.getTime() - ((weekday + 6) % 7) * DAY_MS);
 }
 
 function startOfMonth(): Date {
-  const d = startOfDay();
-  d.setDate(1);
-  return d;
+  const ist = new Date(Date.now() + IST_OFFSET_MS);
+  return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 1) - IST_OFFSET_MS);
 }

@@ -62,7 +62,19 @@ export async function completeDeposit(
     // Lock the wallet so two deposits at once can't both count as the
     // first (or second) and both take that bonus.
     await tx.$queryRaw`SELECT id FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
-    const previousDeposits = await tx.transaction.count({ where: { userId, type: "DEPOSIT", status: "COMPLETED" } });
+    // A bank payment the admin already credited by hand (its UTR recorded as
+    // the manual deposit's reference) is not credited a second time.
+    if (opts.paymentUtr && provider !== "admin-manual") {
+      const byHand = await tx.transaction.findFirst({
+        where: { type: "DEPOSIT", status: "COMPLETED", provider: "admin-manual", providerReferenceId: { equals: opts.paymentUtr, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (byHand) {
+        console.error(`[deposit] UTR ${opts.paymentUtr} was already credited by hand (${byHand.id}); not crediting ${pendingTransactionId ?? providerReferenceId} again.`);
+        return { depositId: pendingTransactionId ?? "", bonus: 0, alreadyCompleted: false, refused: true };
+      }
+    }
+    const previousDeposits = await tx.transaction.count({ where: { userId, type: "DEPOSIT", status: "COMPLETED", reversedAt: null } });
     // The admin's bonus slabs (depositBonusService.ts), else the env percent
     // on the first and second deposits: credited into balance (immediately
     // playable) and locked from withdrawal until wageringMultiplier x the
@@ -120,9 +132,13 @@ export async function completeDeposit(
  */
 export async function reverseDeposit(depositId: string) {
   return prisma.$transaction(async (tx) => {
-    const dep = await tx.transaction.findUnique({ where: { id: depositId } });
-    if (!dep || dep.type !== "DEPOSIT") throw new ApiError(404, "No such deposit.");
-    await tx.$queryRaw`SELECT id FROM "Wallet" WHERE "userId" = ${dep.userId} FOR UPDATE`;
+    const found = await tx.transaction.findUnique({ where: { id: depositId }, select: { userId: true, type: true } });
+    if (!found || found.type !== "DEPOSIT") throw new ApiError(404, "No such deposit.");
+    await tx.$queryRaw`SELECT id FROM "Wallet" WHERE "userId" = ${found.userId} FOR UPDATE`;
+    // Read again under the lock: a credit (completeDeposit, which takes the
+    // same lock) may have landed between the first read and the lock, and
+    // the decision below must be made on the row as it is now.
+    const dep = await tx.transaction.findUniqueOrThrow({ where: { id: depositId } });
     const marked = await tx.transaction.updateMany({ where: { id: dep.id, reversedAt: null }, data: { reversedAt: new Date() } });
     if (marked.count === 0) throw new ApiError(400, "This deposit was already reversed.");
     if (dep.status !== "COMPLETED") {

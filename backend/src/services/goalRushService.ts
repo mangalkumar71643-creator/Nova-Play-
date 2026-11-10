@@ -364,6 +364,9 @@ export async function getHistory(limit = 30) {
 }
 
 export async function getMyBets(userId: string, limit = 50) {
+  // Rounds settle when someone asks for the game; a player checking their bets settles a finished one too,
+  // so a win (an auto cash-out) shows even when nobody else has the game open.
+  await ensureCurrentRound().catch(() => {});
   const bets = await prisma.goalRushBet.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },

@@ -49,6 +49,16 @@ function cappedPayout(amount: number, multiplier: number): number {
   return Math.min(round2(amount * multiplier), env.games.maxPayout);
 }
 
+/** Half of a stake for a half cash-out, to the paisa below; the other half is the rest (so 1.03 = 0.51 + 0.52, never 0.52 + 0.52). */
+function halfStake(amount: number): number {
+  return Math.floor(amount * 50) / 100;
+}
+
+/** The rest of a bet paid at `multiplier`, capped so the whole bet (half + rest) never passes the max win. */
+function cappedRest(rest: number, multiplier: number, alreadyPaid: number): number {
+  return Math.max(0, Math.min(round2(rest * multiplier), round2(env.games.maxPayout - alreadyPaid)));
+}
+
 type HalfState = { amount: unknown; halfCashoutMultiplier: unknown; halfPayout: unknown; autoHalfAt: unknown };
 
 /**
@@ -60,11 +70,11 @@ type HalfState = { amount: unknown; halfCashoutMultiplier: unknown; halfPayout: 
 function halfAt(bet: HalfState, mult: number) {
   const amount = Number(bet.amount);
   if (bet.halfCashoutMultiplier !== null) {
-    return { taken: true, newly: false, at: Number(bet.halfCashoutMultiplier), paid: Number(bet.halfPayout), rest: round2(amount / 2) };
+    return { taken: true, newly: false, at: Number(bet.halfCashoutMultiplier), paid: Number(bet.halfPayout), rest: round2(amount - halfStake(amount)) };
   }
   const autoHalf = bet.autoHalfAt !== null ? Number(bet.autoHalfAt) : null;
   if (autoHalf !== null && mult >= autoHalf) {
-    return { taken: true, newly: true, at: autoHalf, paid: cappedPayout(round2(amount / 2), autoHalf), rest: round2(amount / 2) };
+    return { taken: true, newly: true, at: autoHalf, paid: cappedPayout(halfStake(amount), autoHalf), rest: round2(amount - halfStake(amount)) };
   }
   return { taken: false, newly: false, at: null, paid: 0, rest: amount };
 }
@@ -167,7 +177,7 @@ async function resolvePendingBets(roundId: string) {
       // The half (if any) is judged where the flight ended for this bet:
       // at its auto cash-out if it got there, else at the crash.
       const half = halfAt(b, won ? auto! : crashMultiplier);
-      const rest = won ? cappedPayout(half.rest, auto!) : 0;
+      const rest = won ? cappedRest(half.rest, auto!, half.paid) : 0;
       const credit = round2((half.newly ? half.paid : 0) + rest);
       const payout = round2(half.paid + rest);
 
@@ -384,7 +394,7 @@ export async function cashOutCosmonautBet(userId: string, betId: string, half = 
   if (half && !autoReached) {
     if (state.taken && !state.newly) throw new ApiError(400, "You have already taken half of this bet.");
     const at = state.newly ? state.at! : multiplier;
-    const halfPayout = state.newly ? state.paid : cappedPayout(round2(Number(bet.amount) / 2), multiplier);
+    const halfPayout = state.newly ? state.paid : cappedPayout(halfStake(Number(bet.amount)), multiplier);
     await prisma.$transaction(async (tx) => {
       // Claimed only while still PENDING with no half taken: a double tap
       // or a settle racing it can't pay the half twice.
@@ -399,7 +409,7 @@ export async function cashOutCosmonautBet(userId: string, betId: string, half = 
     return { multiplier: at, payout: halfPayout, half: true };
   }
 
-  const rest = cappedPayout(state.rest, multiplier);
+  const rest = cappedRest(state.rest, multiplier, state.paid);
   const credit = round2((state.newly ? state.paid : 0) + rest);
   const payout = round2(state.paid + rest);
   await prisma.$transaction(async (tx) => {
@@ -446,6 +456,9 @@ export async function getHistory(limit = 30) {
 }
 
 export async function getMyBets(userId: string, limit = 50) {
+  // Rounds settle when someone asks for the game; a player checking their bets settles a finished one too,
+  // so a win (an auto cash-out) shows even when nobody else has the game open.
+  await ensureCurrentRound().catch(() => {});
   const bets = await prisma.cosmonautBet.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },

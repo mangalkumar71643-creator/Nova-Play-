@@ -27,7 +27,11 @@ export const env = {
 
   games: {
     minStake: Number(process.env.GAME_MIN_STAKE ?? 1),
-    maxStake: Number(process.env.GAME_MAX_STAKE ?? 100_000),
+    // Never above the max win: a stake larger than the most a bet can pay
+    // back would lose money even when it "wins" (every game checks this).
+    get maxStake(): number {
+      return Math.min(Number(process.env.GAME_MAX_STAKE ?? 100_000), this.maxPayout);
+    },
     // Return-to-player: long-run share of total stakes paid back as winnings
     // (0.75 = a 25% house edge on Dice, Limbo, Plinko, Keno, Hi-Lo, Mines,
     // Chicken Road, Dragon Tower, Pump and Coin Flip; the crash games use

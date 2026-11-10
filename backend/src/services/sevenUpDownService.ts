@@ -384,10 +384,13 @@ export async function getSevenUpDownHistory(limit = 100) {
 }
 
 export async function getMySevenUpDownBets(userId: string, limit = 50) {
-  return prisma.sevenUpDownBet.findMany({
+  const bets = await prisma.sevenUpDownBet.findMany({
     where: { userId, status: { not: "VOID" } },
     orderBy: { createdAt: "desc" },
     take: limit,
     include: { round: { select: { periodNumber: true, dice1: true, dice2: true, settled: true } } },
   });
+  // The dice are drawn when the round is made: never shown before it is settled,
+  // or a player could read the result while betting is still open.
+  return bets.map((b) => ({ ...b, round: b.round.settled ? b.round : { ...b.round, dice1: null, dice2: null } }));
 }

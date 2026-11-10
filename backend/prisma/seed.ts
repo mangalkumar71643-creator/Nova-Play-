@@ -150,7 +150,7 @@ async function ensureManualReferenceIndex() {
 /**
  * Keeps Wallet."unplayedDeposit" in step with the money flowing in and out,
  * inside the same database transaction as each write: deposits, admin
- * credits, gift codes, VIP bonuses and agent rewards add to it when they complete, stakes use it up first. Recreated on
+ * credits, gift codes, VIP bonuses, agent rewards and betting-task rewards add to it when they complete, stakes use it up first. Recreated on
  * every deploy, so changes here take effect with the next build.
  */
 async function ensureUnplayedDepositTrigger() {
@@ -158,11 +158,20 @@ async function ensureUnplayedDepositTrigger() {
     CREATE OR REPLACE FUNCTION novaplay_track_unplayed_deposit() RETURNS trigger AS $$
     BEGIN
       IF NEW.status = 'COMPLETED'
-         AND (NEW.type = 'DEPOSIT' OR (NEW.type = 'BONUS' AND NEW.provider IN ('admin-credit', 'gift-code', 'vip-upgrade', 'vip-weekly', 'agent-reward')))
+         AND (NEW.type = 'DEPOSIT' OR (NEW.type = 'BONUS' AND NEW.provider IN ('admin-credit', 'gift-code', 'vip-upgrade', 'vip-weekly', 'agent-reward', 'betting-task', 'daily-bonus')))
          AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'COMPLETED') THEN
         UPDATE "Wallet" SET "unplayedDeposit" = "unplayedDeposit" + NEW.amount WHERE "userId" = NEW."userId";
-      ELSIF TG_OP = 'INSERT' AND NEW.type IN ('GAME_STAKE', 'BET_STAKE', 'DEPOSIT_REVERSAL') THEN
+      ELSIF TG_OP = 'INSERT' AND NEW.type IN ('GAME_STAKE', 'BET_STAKE') THEN
         UPDATE "Wallet" SET "unplayedDeposit" = GREATEST(0, "unplayedDeposit" - NEW.amount) WHERE "userId" = NEW."userId";
+      ELSIF TG_OP = 'INSERT' AND NEW.type = 'BET_REFUND' THEN
+        -- A cancelled / voided bet gives its stake back, so it gives back the
+        -- "still to be played" part it used up too (never more than the balance).
+        UPDATE "Wallet" SET "unplayedDeposit" = LEAST("unplayedDeposit" + NEW.amount, GREATEST(0, balance)) WHERE "userId" = NEW."userId";
+      ELSIF TG_OP = 'INSERT' AND NEW.type = 'DEPOSIT_REVERSAL' THEN
+        -- Money taken back: the unplayed part can't be more than what is left
+        -- (the balance is already reduced), but taking back an old, played
+        -- deposit must not free a newer deposit that hasn't been played yet.
+        UPDATE "Wallet" SET "unplayedDeposit" = LEAST("unplayedDeposit", GREATEST(0, balance)) WHERE "userId" = NEW."userId";
       END IF;
       RETURN NEW;
     END

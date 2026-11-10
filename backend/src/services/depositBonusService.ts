@@ -136,7 +136,7 @@ const NO_CAP = 1_000_000_000;
 export async function playerDepositBonus(userId: string) {
   const [config, previousDeposits, amounts, offer] = await Promise.all([
     getDepositBonusConfig(),
-    prisma.transaction.count({ where: { userId, type: "DEPOSIT", status: "COMPLETED" } }),
+    prisma.transaction.count({ where: { userId, type: "DEPOSIT", status: "COMPLETED", reversedAt: null } }),
     getDepositAmounts(),
     getDepositOffer(),
   ]);
@@ -231,7 +231,7 @@ export function offerTiersFor(offer: DepositOffer | null, previousDeposits: numb
 export async function playerDepositOffer(userId: string) {
   const [offer, deposits] = await Promise.all([
     getDepositOffer(),
-    prisma.transaction.findMany({ where: { userId, type: "DEPOSIT", status: "COMPLETED" }, orderBy: { createdAt: "asc" }, select: { amount: true }, take: MAX_OFFER_STAGES }),
+    prisma.transaction.findMany({ where: { userId, type: "DEPOSIT", status: "COMPLETED", reversedAt: null }, orderBy: { createdAt: "asc" }, select: { amount: true }, take: MAX_OFFER_STAGES }),
   ]);
   const made = deposits.length;
   return {
