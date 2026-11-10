@@ -96,3 +96,12 @@ export async function isRecentlyVerified(phone: string): Promise<boolean> {
 export async function consumeOtp(phone: string): Promise<void> {
   await prisma.phoneOtp.deleteMany({ where: { phone } });
 }
+
+/** A code made by the admin (not sent by SMS) for `phone`: the admin tells it to the player, who enters it in the app's
+ * Reset password screen. One try-limit and expiry like any code; the newest unverified code is the one that counts. */
+export async function issueAdminCode(phone: string, ttlMs = 15 * 60 * 1000): Promise<{ code: string; expiresAt: Date }> {
+  const code = generateCode();
+  const expiresAt = new Date(Date.now() + ttlMs);
+  await prisma.phoneOtp.create({ data: { phone, ip: null, codeHash: hashCode(code), expiresAt } });
+  return { code, expiresAt };
+}

@@ -6,7 +6,7 @@ import {
   fetchBackendMe,
   registerWithPassword,
   loginWithPhonePassword,
-  requestPasswordCode,
+  askPasswordResetCode,
   resetPasswordWithCode,
   selfExcludeBackend,
   setBackendDepositLimits,
@@ -28,8 +28,8 @@ type AuthState = {
   /** Mobile number + password. Each returns null on success, else a message ("PASSWORD_NOT_SET" for an old account with no password yet). */
   passwordLogin: (phone: string, password: string) => Promise<string | null>;
   passwordRegister: (phone: string, password: string, inviteCode?: string) => Promise<string | null>;
-  /** Forgot password: the SMS code (devCode only in the server's test mode), then the new password. */
-  sendPasswordCode: (phone: string) => Promise<{ error: string | null; devCode: string | null }>;
+  /** Forgot password: asks customer service for a code (returns an error message, or null); then resetPassword with it. */
+  askResetCode: (phone: string) => Promise<string | null>;
   resetPassword: (phone: string, code: string, password: string) => Promise<string | null>;
   logout: () => void;
 
@@ -164,12 +164,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [completeBackendLogin]
   );
 
-  const sendPasswordCode = useCallback(async (phoneNumber: string) => {
+  const askResetCode = useCallback(async (phoneNumber: string): Promise<string | null> => {
     try {
-      const r = await requestPasswordCode(phoneNumber);
-      return { error: null, devCode: r.devCode ?? null };
+      await askPasswordResetCode(phoneNumber);
+      return null;
     } catch (err) {
-      return { error: err instanceof Error ? err.message : 'Could not send the code.', devCode: null };
+      return err instanceof Error ? err.message : 'Could not send your request.';
     }
   }, []);
 
@@ -260,7 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAvatarId,
     passwordLogin,
     passwordRegister,
-    sendPasswordCode,
+    askResetCode,
     resetPassword,
     logout,
     backendUser,

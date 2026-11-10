@@ -5,8 +5,8 @@ import { ApiError } from "../middleware/errorHandler";
 import { comparePassword, hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { toIndianE164 } from "../utils/phone";
-import { env } from "../config/env";
-import { consumeOtp, requestOtp as requestOtpCode, verifyOtp as verifyOtpCode } from "./otpService";
+import { alertAdmins } from "./adminAlertService";
+import { consumeOtp, issueAdminCode, verifyOtp as verifyOtpCode } from "./otpService";
 import { findInviter, linkInvitee } from "./agentService";
 
 function randomFiveDigitUid(): number {
@@ -232,23 +232,48 @@ export async function loginWithPhonePassword(phoneInput: string, password: strin
 }
 
 /**
- * Forgot password (the only place an SMS code is used): a code goes to the number of an existing
- * player account. Not to unknown numbers (no SMS cost for made-up ones) and never to an admin
- * account. otpService limits it to one code per 30 s, 5 per number and 10 per IP a day.
+ * Forgot password, step 1: the player asks customer service for a code. The request shows in the admin
+ * panel (Players → "Password reset requests") with an alert on the admin's phone; the admin checks it is
+ * the owner and gives them a code (adminIssueResetCode). No SMS is sent. Asking again while a request is
+ * still open changes nothing, and one IP can make only a few requests a day.
  */
-export async function sendPasswordResetCode(phoneInput: string, ip: string | null = null) {
-  // With the mock SMS mode the app would show the code and anyone could reset any account.
-  if (env.smsProviderMode !== "live" && process.env.VERCEL_ENV === "production") {
-    throw new ApiError(503, "Password reset by SMS is unavailable right now. Please contact customer service.");
-  }
+export async function askAdminForResetCode(phoneInput: string, ip: string | null = null) {
   const phone = toE164(phoneInput);
-  const user = await prisma.user.findUnique({ where: { phone }, select: { role: true } });
+  const user = await prisma.user.findUnique({ where: { phone }, select: { id: true, uid: true, role: true } });
   if (!user) throw new ApiError(404, "No account with this number. Please register.");
   if (user.role !== "USER") throw new ApiError(403, "This account can't be reset here.");
-  return requestOtpCode(phone, ip);
+  const open = await prisma.passwordResetRequest.findFirst({ where: { userId: user.id, handledAt: null, createdAt: { gte: new Date(Date.now() - 24 * 3600 * 1000) } } });
+  if (open) return { ok: true as const };
+  if (ip) {
+    const today = await prisma.passwordResetRequest.count({ where: { ip, createdAt: { gte: new Date(Date.now() - 24 * 3600 * 1000) } } });
+    if (today >= 10) throw new ApiError(429, "Too many requests today. Please try again tomorrow.");
+  }
+  await prisma.passwordResetRequest.create({ data: { userId: user.id, phone, ip } });
+  await alertAdmins({ title: "Password reset asked", body: `UID ${user.uid ?? "—"} · ${phone}. Open Players to give the code.`, tag: `pwreset-${user.id}`, page: "users" });
+  return { ok: true as const };
 }
 
-/** Checks the SMS code, sets the new password and signs the player in. */
+/** Admin: the player's open reset requests (newest first). */
+export async function listPasswordResetRequests() {
+  const rows = await prisma.passwordResetRequest.findMany({ where: { handledAt: null, createdAt: { gte: new Date(Date.now() - 3 * 24 * 3600 * 1000) } }, orderBy: { createdAt: "desc" }, take: 50 });
+  const users = await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.userId) } }, select: { id: true, uid: true, firstName: true, lastName: true } });
+  return rows.map((r) => {
+    const u = users.find((x) => x.id === r.userId);
+    return { id: r.id, uid: u?.uid ?? null, name: u ? `${u.firstName} ${u.lastName}`.trim() : null, phone: r.phone, createdAt: r.createdAt };
+  });
+}
+
+/** Admin: makes a one-time code (15 minutes, 5 tries) for a player and closes their open requests. The admin tells it to the player. */
+export async function adminIssueResetCode(uid: number) {
+  const user = await prisma.user.findUnique({ where: { uid }, select: { id: true, phone: true, role: true } });
+  if (!user || user.role !== "USER") throw new ApiError(404, "No player with that UID.");
+  if (!user.phone) throw new ApiError(400, "This player has no mobile number.");
+  const { code, expiresAt } = await issueAdminCode(user.phone);
+  await prisma.passwordResetRequest.updateMany({ where: { userId: user.id, handledAt: null }, data: { handledAt: new Date() } });
+  return { code, phone: user.phone, expiresAt };
+}
+
+/** Checks the code the admin gave, sets the new password and signs the player in. */
 export async function resetPasswordWithCode(phoneInput: string, code: string, password: string) {
   const phone = toE164(phoneInput);
   assertPasswordOk(password);

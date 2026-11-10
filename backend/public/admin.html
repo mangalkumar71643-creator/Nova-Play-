@@ -401,6 +401,16 @@
           <div class="item-meta" id="creditStatus"></div>
         </div>
         <div class="card" style="max-width:520px;">
+          <div class="card-head"><h2>Password reset requests</h2><button class="btn secondary" id="pwReqRefresh" style="flex:0 0 auto;">Refresh</button></div>
+          <div class="item-meta" style="margin:-6px 0 12px;">A player who forgot the password taps Forgot password in the app and is listed here. Check it is really them (their number, last deposit or withdrawal), press <b>Give code</b> and tell them the 6-digit code (Telegram, WhatsApp or a call to their number). It works once, for 15 minutes. They enter it in the app with a new password and are logged in.</div>
+          <div id="pwReqList" class="item-meta">Loading…</div>
+          <div class="form-row" style="margin-top:12px;">
+            <input id="pwCodeUid" inputmode="numeric" placeholder="Or a player UID" />
+            <button class="btn" id="pwCodeBtn" style="flex:0 0 auto;">Give code</button>
+          </div>
+          <div id="pwCodeOut" class="detail-box" style="display:none;margin-top:12px;"></div>
+        </div>
+        <div class="card" style="max-width:520px;">
           <div class="card-head"><h2>Set a player's password</h2></div>
           <div class="item-meta" style="margin:-6px 0 12px;">Players log in with their mobile number and password. For a player who forgot it and can't get the SMS code, or an old account made before passwords: set a new one here and tell them.</div>
           <div class="form-row">
@@ -1349,7 +1359,7 @@
 
   var loaders = {
     dashboard: loadDashboard,
-    users: function () { loadUsers(1); loadMoneyRecent(); },
+    users: function () { loadUsers(1); loadMoneyRecent(); loadResetRequests(); },
     transactions: loadWithdrawals,
     deposits: loadUpiDeposits,
     problems: function () { loadProblems(); },
@@ -2446,6 +2456,45 @@
       })
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
+  });
+
+  // ---------- Password reset requests: the admin gives a one-time code ----------
+  function giveResetCode(uid) {
+    var out = document.getElementById('pwCodeOut');
+    out.style.display = '';
+    out.textContent = 'Making the code…';
+    return api('/admin/users/by-uid/' + encodeURIComponent(uid) + '/reset-code', { method: 'POST' })
+      .then(function (r) {
+        out.innerHTML = 'Code for UID <b>' + escapeHtml(String(uid)) + '</b> (' + escapeHtml(r.phone) + '):' +
+          '<div style="font-size:32px;font-weight:800;letter-spacing:6px;margin:8px 0;">' + escapeHtml(r.code) + '</div>' +
+          '<div class="item-meta">Tell the player this code. It works once, until ' + new Date(r.expiresAt).toLocaleTimeString() + '. They enter it in the app (Forgot password) with a new password.</div>';
+        loadResetRequests();
+      })
+      .catch(function (err) { if (err.authError) doLogout(); else out.textContent = err.message; });
+  }
+  function loadResetRequests() {
+    var box = document.getElementById('pwReqList');
+    return api('/admin/password-resets').then(function (r) {
+      if (!r.requests.length) { box.textContent = 'No open requests.'; return; }
+      box.innerHTML = r.requests.map(function (q) {
+        return '<div class="item item-top" style="align-items:center;">' +
+          '<div><div class="item-title">UID ' + escapeHtml(String(q.uid == null ? '—' : q.uid)) + (q.name ? ' · ' + escapeHtml(q.name) : '') + '</div>' +
+          '<div class="item-meta">' + escapeHtml(q.phone) + ' · ' + new Date(q.createdAt).toLocaleString() + '</div></div>' +
+          '<button class="btn" data-pwreq="' + escapeHtml(String(q.uid)) + '" style="flex:0 0 auto;">Give code</button></div>';
+      }).join('');
+      Array.prototype.forEach.call(box.querySelectorAll('[data-pwreq]'), function (b) {
+        b.addEventListener('click', function () { b.disabled = true; giveResetCode(b.getAttribute('data-pwreq')); });
+      });
+    }).catch(function (err) { if (err.authError) doLogout(); else box.textContent = err.message; });
+  }
+  document.getElementById('pwReqRefresh').addEventListener('click', loadResetRequests);
+  document.getElementById('pwCodeBtn').addEventListener('click', function () {
+    var uid = document.getElementById('pwCodeUid').value.trim();
+    var out = document.getElementById('pwCodeOut');
+    if (!/^\d+$/.test(uid)) { out.style.display = ''; out.textContent = 'Enter the player UID.'; return; }
+    var btn = this;
+    btn.disabled = true;
+    giveResetCode(uid).then(function () { btn.disabled = false; });
   });
 
   // ---------- A player's login password ----------

@@ -17,12 +17,13 @@ const digitsOf = (s: string) => s.replace(/\D/g, '').slice(-10);
 const validPhone = (d: string) => /^[6-9]\d{9}$/.test(d);
 
 /**
- * Log in / register with a mobile number and a password, no SMS code. The
- * code is used only to reset a forgotten password (Forgot password); if it
- * doesn't arrive, customer service sets the password.
+ * Log in / register with a mobile number and a password, no SMS code.
+ * Forgot password: the player asks customer service (the admin panel) for
+ * a code, the admin checks it is them and tells them the code, and they
+ * enter it here with a new password.
  */
 export default function LoginScreen() {
-  const { passwordLogin, passwordRegister, sendPasswordCode, resetPassword } = useAuth();
+  const { passwordLogin, passwordRegister, askResetCode, resetPassword } = useAuth();
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>('login');
   const [phone, setPhone] = useState('');
@@ -122,24 +123,23 @@ export default function LoginScreen() {
     showAlert('Could not register', err);
   }
 
-  async function onSendCode() {
+  async function onAskCode() {
     const d = checkPhone();
     if (!d) return;
     setBusy(true);
-    const r = await sendPasswordCode(d);
+    const err = await askResetCode(d);
     setBusy(false);
-    if (r.error) return showAlert('Could not send the code', r.error);
+    if (err) return showAlert('Could not send the request', err);
     setCodeSent(true);
     setCooldown(30);
-    if (r.devCode) setCode(r.devCode);
-    else showAlert('Code sent', `A 6-digit code was sent by SMS to +91 ${d}.`, undefined, { kind: 'info' });
+    showAlert('Request sent', `Customer service will check it is you and give you a 6-digit code (by Telegram, WhatsApp or a call to +91 ${d}). Enter it here with your new password.`, undefined, { kind: 'info' });
   }
 
   async function onReset() {
     const d = checkPhone();
     if (!d) return;
     if (!checkNewPassword()) return;
-    if (!/^\d{6}$/.test(code)) return showAlert('Verification code', 'Enter the 6-digit code from the SMS.');
+    if (!/^\d{6}$/.test(code)) return showAlert('Verification code', 'Enter the 6-digit code customer service gave you.');
     setBusy(true);
     const err = await resetPassword(d, code, password);
     setBusy(false);
@@ -178,7 +178,7 @@ export default function LoginScreen() {
       ? 'Log in with your mobile number and password.\nForgot your password? Tap Forgot password.'
       : mode === 'register'
         ? 'Register with your mobile number.'
-        : 'Reset your password with the code we SMS to your mobile number.\nNo code? Contact customer service.';
+        : 'Ask customer service for a code, then enter it here with a new password.';
 
   return (
     <LinearGradient colors={gradients.background} style={styles.fill}>
@@ -258,17 +258,17 @@ export default function LoginScreen() {
                   style={[styles.input, { flex: 1 }]}
                   value={code}
                   onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="Enter the verification code"
+                  placeholder="Code from customer service"
                   placeholderTextColor={colors.textMuted}
                   keyboardType="number-pad"
                   maxLength={6}
                 />
-                <Pressable style={[styles.codeBtn, (cooldown > 0 || busy) && { opacity: 0.5 }]} onPress={onSendCode} disabled={cooldown > 0 || busy}>
-                  <Text style={styles.codeBtnText}>{cooldown > 0 ? `${cooldown}s` : codeSent ? 'Resend' : 'Send'}</Text>
+                <Pressable style={[styles.codeBtn, (cooldown > 0 || busy) && { opacity: 0.5 }]} onPress={onAskCode} disabled={cooldown > 0 || busy}>
+                  <Text style={styles.codeBtnText}>{cooldown > 0 ? `${cooldown}s` : codeSent ? 'Ask again' : 'Ask code'}</Text>
                 </Pressable>
               </View>
-              <Pressable onPress={() => contactSupport('Did not receive the code? Customer service will set a new password for you after checking it is your account.')} hitSlop={8}>
-                <Text style={styles.link}>Did not receive the code? Contact customer service</Text>
+              <Pressable onPress={() => contactSupport('Tap Ask code, then contact customer service on Telegram or WhatsApp so they can check it is you and give you the code.')} hitSlop={8}>
+                <Text style={styles.link}>Contact customer service for your code</Text>
               </Pressable>
             </>
           ) : null}

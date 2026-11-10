@@ -10,6 +10,21 @@ datasource db {
 // A one-time SMS login code for a phone number. Not linked to User by FK
 // since a brand-new phone number won't have a User row yet — request/
 // verify/complete-profile all key off the raw phone string instead.
+/// A player who forgot the password asking customer service for a reset code (shown in the
+/// admin panel's Players page until the admin gives a code). Not linked to User by FK.
+model PasswordResetRequest {
+  id        String    @id @default(uuid())
+  userId    String
+  phone     String
+  ip        String?
+  createdAt DateTime  @default(now())
+  handledAt DateTime?
+
+  @@index([handledAt, createdAt])
+  @@index([userId])
+  @@index([ip, createdAt])
+}
+
 model PhoneOtp {
   id         String    @id @default(uuid())
   phone      String

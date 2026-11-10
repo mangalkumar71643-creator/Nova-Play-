@@ -24,7 +24,7 @@ import {
 } from "../services/depositBonusService";
 import { getAutoPayoutSettings, MAX_AUTO_PAYOUT_MAX, setAutoPayoutSettings } from "../services/autoPayoutService";
 import { getPromotionConfig, MAX_TASKS, setPromotionConfig, TASK_CATEGORIES, TILE_CATALOG, type TileKey } from "../services/promotionService";
-import { adminSetPlayerPassword } from "../services/authService";
+import { adminSetPlayerPassword, adminIssueResetCode, listPasswordResetRequests } from "../services/authService";
 import { notifyBonus, notifyDeposit, notifyWithdrawalRefund, sendBroadcast, sendToPlayer, sentMessages } from "../services/playerNotificationService";
 import { adminAgentDetail, adminAgentOverview } from "../services/agentService";
 import { balanceMismatches, fixBalanceToLedger, getProblems, resolveStuckDeposit } from "../services/problemsService";
@@ -411,6 +411,24 @@ router.post(
     const uid = Number(req.params.uid);
     if (!isUid(uid)) throw new ApiError(400, "Enter a valid UID.");
     res.json(await adminSetPlayerPassword(uid, playerPasswordSchema.parse(req.body).password));
+  })
+);
+
+/** Players who tapped Forgot password and asked for a code (Players page). */
+router.get(
+  "/password-resets",
+  asyncHandler(async (_req, res) => {
+    res.json({ requests: await listPasswordResetRequests() });
+  })
+);
+
+/** A one-time reset code for a player (15 minutes): the admin checks it is the owner, then tells them the code. */
+router.post(
+  "/users/by-uid/:uid/reset-code",
+  asyncHandler(async (req, res) => {
+    const uid = Number(req.params.uid);
+    if (!isUid(uid)) throw new ApiError(400, "Enter a valid UID.");
+    res.json(await adminIssueResetCode(uid));
   })
 );
 
