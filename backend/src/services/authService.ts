@@ -231,45 +231,60 @@ export async function loginWithPhonePassword(phoneInput: string, password: strin
   return { user: sanitizeUser(user), token: signToken({ userId: user.id, role: user.role }), isNewUser: false };
 }
 
+const RESET_REQUESTS_PER_DAY = 6; // codes made per number a day (the admin's own count too): a stranger can't keep asking for fresh codes to guess at
+const RESET_REQUESTS_PER_IP_PER_DAY = 10;
+
 /**
- * Forgot password, step 1: the player asks customer service for a code. The request shows in the admin
- * panel (Players → "Password reset requests") with an alert on the admin's phone; the admin checks it is
- * the owner and gives them a code (adminIssueResetCode). No SMS is sent. Asking again while a request is
- * still open changes nothing, and one IP can make only a few requests a day.
+ * Forgot password, step 1: the player taps Ask code. A one-time code (15 minutes, 5 tries) is made at once and
+ * shown to the admin only: in an alert on the admin's phone and in Players → "Password reset requests".
+ * The admin checks it is the owner and tells them the code; no SMS is sent and the asker never sees it.
+ * Asking again while the code still works changes nothing; after it runs out a fresh one is made.
  */
 export async function askAdminForResetCode(phoneInput: string, ip: string | null = null) {
   const phone = toE164(phoneInput);
   const user = await prisma.user.findUnique({ where: { phone }, select: { id: true, uid: true, role: true } });
   if (!user) throw new ApiError(404, "No account with this number. Please register.");
   if (user.role !== "USER") throw new ApiError(403, "This account can't be reset here.");
-  const open = await prisma.passwordResetRequest.findFirst({ where: { userId: user.id, handledAt: null, createdAt: { gte: new Date(Date.now() - 24 * 3600 * 1000) } } });
-  if (open) return { ok: true as const };
-  if (ip) {
-    const today = await prisma.passwordResetRequest.count({ where: { ip, createdAt: { gte: new Date(Date.now() - 24 * 3600 * 1000) } } });
-    if (today >= 10) throw new ApiError(429, "Too many requests today. Please try again tomorrow.");
-  }
-  await prisma.passwordResetRequest.create({ data: { userId: user.id, phone, ip } });
-  await alertAdmins({ title: "Password reset asked", body: `UID ${user.uid ?? "—"} · ${phone}. Open Players to give the code.`, tag: `pwreset-${user.id}`, page: "users" });
+  const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 3600 * 1000);
+  const open = await prisma.passwordResetRequest.findFirst({ where: { userId: user.id, handledAt: null, createdAt: { gte: dayAgo } }, orderBy: { createdAt: "desc" } });
+  if (open?.codeExpiresAt && open.codeExpiresAt > now) return { ok: true as const };
+  const [byUser, byIp] = await Promise.all([
+    prisma.phoneOtp.count({ where: { phone, createdAt: { gte: dayAgo } } }),
+    ip ? prisma.passwordResetRequest.count({ where: { ip, createdAt: { gte: dayAgo } } }) : Promise.resolve(0),
+  ]);
+  if (byUser >= RESET_REQUESTS_PER_DAY || byIp >= RESET_REQUESTS_PER_IP_PER_DAY) throw new ApiError(429, "Too many requests today. Please try again tomorrow.");
+  const { code, expiresAt } = await issueAdminCode(phone);
+  if (open) await prisma.passwordResetRequest.update({ where: { id: open.id }, data: { code, codeExpiresAt: expiresAt, ip } });
+  else await prisma.passwordResetRequest.create({ data: { userId: user.id, phone, ip, code, codeExpiresAt: expiresAt } });
+  await alertAdmins({
+    title: "Password reset asked",
+    body: `UID ${user.uid ?? "—"} · ${phone}\nCode: ${code} (15 min). Check it is them, then tell them the code.`,
+    tag: `pwreset-${user.id}`,
+    page: "users",
+  });
   return { ok: true as const };
 }
 
-/** Admin: the player's open reset requests (newest first). */
+/** Admin: the player's open reset requests with the code that works now (newest first). */
 export async function listPasswordResetRequests() {
-  const rows = await prisma.passwordResetRequest.findMany({ where: { handledAt: null, createdAt: { gte: new Date(Date.now() - 3 * 24 * 3600 * 1000) } }, orderBy: { createdAt: "desc" }, take: 50 });
+  const now = new Date();
+  const rows = await prisma.passwordResetRequest.findMany({ where: { handledAt: null, createdAt: { gte: new Date(now.getTime() - 3 * 24 * 3600 * 1000) } }, orderBy: { createdAt: "desc" }, take: 50 });
   const users = await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.userId) } }, select: { id: true, uid: true, firstName: true, lastName: true } });
   return rows.map((r) => {
     const u = users.find((x) => x.id === r.userId);
-    return { id: r.id, uid: u?.uid ?? null, name: u ? `${u.firstName} ${u.lastName}`.trim() : null, phone: r.phone, createdAt: r.createdAt };
+    const live = r.code && r.codeExpiresAt && r.codeExpiresAt > now;
+    return { id: r.id, uid: u?.uid ?? null, name: u ? `${u.firstName} ${u.lastName}`.trim() : null, phone: r.phone, createdAt: r.createdAt, code: live ? r.code : null, codeExpiresAt: live ? r.codeExpiresAt : null };
   });
 }
 
-/** Admin: makes a one-time code (15 minutes, 5 tries) for a player and closes their open requests. The admin tells it to the player. */
+/** Admin: a fresh one-time code for a player (15 minutes, 5 tries); an open request of theirs shows it too. */
 export async function adminIssueResetCode(uid: number) {
   const user = await prisma.user.findUnique({ where: { uid }, select: { id: true, phone: true, role: true } });
   if (!user || user.role !== "USER") throw new ApiError(404, "No player with that UID.");
   if (!user.phone) throw new ApiError(400, "This player has no mobile number.");
   const { code, expiresAt } = await issueAdminCode(user.phone);
-  await prisma.passwordResetRequest.updateMany({ where: { userId: user.id, handledAt: null }, data: { handledAt: new Date() } });
+  await prisma.passwordResetRequest.updateMany({ where: { userId: user.id, handledAt: null }, data: { code, codeExpiresAt: expiresAt } });
   return { code, phone: user.phone, expiresAt };
 }
 
@@ -283,6 +298,7 @@ export async function resetPasswordWithCode(phoneInput: string, code: string, pa
   await verifyOtpCode(phone, code);
   assertNotBanned(user);
   await consumeOtp(phone);
+  await prisma.passwordResetRequest.updateMany({ where: { userId: user.id, handledAt: null }, data: { handledAt: new Date() } });
   const updated = await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password), failedLogins: 0, loginLockedUntil: null } });
   await markSignedIn(user.id);
   return { user: sanitizeUser(updated), token: signToken({ userId: user.id, role: user.role }), isNewUser: false };

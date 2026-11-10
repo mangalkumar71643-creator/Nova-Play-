@@ -19,6 +19,9 @@ model PasswordResetRequest {
   ip        String?
   createdAt DateTime  @default(now())
   handledAt DateTime?
+  /// The code made for this request (shown to the admin only; 15 minutes).
+  code          String?
+  codeExpiresAt DateTime?
 
   @@index([handledAt, createdAt])
   @@index([userId])

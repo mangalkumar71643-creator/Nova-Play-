@@ -402,11 +402,11 @@
         </div>
         <div class="card" style="max-width:520px;">
           <div class="card-head"><h2>Password reset requests</h2><button class="btn secondary" id="pwReqRefresh" style="flex:0 0 auto;">Refresh</button></div>
-          <div class="item-meta" style="margin:-6px 0 12px;">A player who forgot the password taps Forgot password in the app and is listed here. Check it is really them (their number, last deposit or withdrawal), press <b>Give code</b> and tell them the 6-digit code (Telegram, WhatsApp or a call to their number). It works once, for 15 minutes. They enter it in the app with a new password and are logged in.</div>
+          <div class="item-meta" style="margin:-6px 0 12px;">A player who forgot the password taps Forgot password → Ask code in the app. A 6-digit code is made at once and shown here and in the alert on your phone; the player does not see it. Check it is really them (their number, last deposit or withdrawal), then tell them the code (Telegram, WhatsApp or a call to their number). It works once, for 15 minutes. They enter it in the app with a new password and are logged in. <b>New code</b> makes a fresh one if it ran out.</div>
           <div id="pwReqList" class="item-meta">Loading…</div>
           <div class="form-row" style="margin-top:12px;">
             <input id="pwCodeUid" inputmode="numeric" placeholder="Or a player UID" />
-            <button class="btn" id="pwCodeBtn" style="flex:0 0 auto;">Give code</button>
+            <button class="btn" id="pwCodeBtn" style="flex:0 0 auto;">Make code</button>
           </div>
           <div id="pwCodeOut" class="detail-box" style="display:none;margin-top:12px;"></div>
         </div>
@@ -2477,10 +2477,12 @@
     return api('/admin/password-resets').then(function (r) {
       if (!r.requests.length) { box.textContent = 'No open requests.'; return; }
       box.innerHTML = r.requests.map(function (q) {
-        return '<div class="item item-top" style="align-items:center;">' +
-          '<div><div class="item-title">UID ' + escapeHtml(String(q.uid == null ? '—' : q.uid)) + (q.name ? ' · ' + escapeHtml(q.name) : '') + '</div>' +
-          '<div class="item-meta">' + escapeHtml(q.phone) + ' · ' + new Date(q.createdAt).toLocaleString() + '</div></div>' +
-          '<button class="btn" data-pwreq="' + escapeHtml(String(q.uid)) + '" style="flex:0 0 auto;">Give code</button></div>';
+        var codeHtml = q.code
+          ? '<div style="font-size:26px;font-weight:800;letter-spacing:5px;margin-top:6px;">' + escapeHtml(q.code) + '</div><div class="item-meta">Code works until ' + new Date(q.codeExpiresAt).toLocaleTimeString() + '. Tell it to the player once you are sure it is them.</div>'
+          : '<div class="item-meta" style="margin-top:6px;">The code has run out. Press New code.</div>';
+        return '<div class="item"><div class="item-top" style="align-items:center;"><div><div class="item-title">UID ' + escapeHtml(String(q.uid == null ? '—' : q.uid)) + (q.name ? ' · ' + escapeHtml(q.name) : '') + '</div>' +
+          '<div class="item-meta">' + escapeHtml(q.phone) + ' · asked ' + new Date(q.createdAt).toLocaleString() + '</div></div>' +
+          '<button class="btn secondary" data-pwreq="' + escapeHtml(String(q.uid)) + '" style="flex:0 0 auto;">New code</button></div>' + codeHtml + '</div>';
       }).join('');
       Array.prototype.forEach.call(box.querySelectorAll('[data-pwreq]'), function (b) {
         b.addEventListener('click', function () { b.disabled = true; giveResetCode(b.getAttribute('data-pwreq')); });
