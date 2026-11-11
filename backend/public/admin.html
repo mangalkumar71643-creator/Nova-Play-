@@ -2434,6 +2434,16 @@
   });
 
   // ---------- Password reset requests: the admin gives a one-time code ----------
+  // Buttons that open the phone's SMS app or WhatsApp with the player's number and the code filled in; the admin only presses Send.
+  function resetLinks(phone, code) {
+    var digits = String(phone || '').replace(/\D/g, '').slice(-10);
+    if (digits.length !== 10 || !code) return '';
+    var text = 'Your NovaPlay password reset code is ' + code + '. It is valid for 15 minutes. Do not share it with anyone.';
+    var enc = encodeURIComponent(text);
+    return '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
+      '<a class="btn" style="text-decoration:none;" href="sms:+91' + digits + '?body=' + enc + '">Send SMS</a>' +
+      '<a class="btn secondary" style="text-decoration:none;" target="_blank" rel="noopener" href="https://wa.me/91' + digits + '?text=' + enc + '">Send on WhatsApp</a></div>';
+  }
   function giveResetCode(uid) {
     var out = document.getElementById('pwCodeOut');
     out.style.display = '';
@@ -2442,7 +2452,7 @@
       .then(function (r) {
         out.innerHTML = 'Code for UID <b>' + escapeHtml(String(uid)) + '</b> (' + escapeHtml(r.phone) + '):' +
           '<div style="font-size:32px;font-weight:800;letter-spacing:6px;margin:8px 0;">' + escapeHtml(r.code) + '</div>' +
-          '<div class="item-meta">Tell the player this code. It works once, until ' + new Date(r.expiresAt).toLocaleTimeString() + '. They enter it in the app (Forgot password) with a new password.</div>';
+          '<div class="item-meta">Tell the player this code. It works once, until ' + new Date(r.expiresAt).toLocaleTimeString() + '. They enter it in the app (Forgot password) with a new password.</div>' + resetLinks(r.phone, r.code);
         loadResetRequests();
       })
       .catch(function (err) { if (err.authError) doLogout(); else out.textContent = err.message; });
@@ -2453,7 +2463,7 @@
       if (!r.requests.length) { box.textContent = 'No open requests.'; return; }
       box.innerHTML = r.requests.map(function (q) {
         var codeHtml = q.code
-          ? '<div style="font-size:26px;font-weight:800;letter-spacing:5px;margin-top:6px;">' + escapeHtml(q.code) + '</div><div class="item-meta">Code works until ' + new Date(q.codeExpiresAt).toLocaleTimeString() + '. Texted to the player; give it by hand only if the SMS did not arrive and you are sure it is them.</div>'
+          ? '<div style="font-size:26px;font-weight:800;letter-spacing:5px;margin-top:6px;">' + escapeHtml(q.code) + '</div><div class="item-meta">Code works until ' + new Date(q.codeExpiresAt).toLocaleTimeString() + '. If the SMS phone did not text it, send it with the buttons below once you are sure it is them.</div>' + resetLinks(q.phone, q.code)
           : '<div class="item-meta" style="margin-top:6px;">The code has run out. Press New code.</div>';
         return '<div class="item"><div class="item-top" style="align-items:center;"><div><div class="item-title">UID ' + escapeHtml(String(q.uid == null ? '—' : q.uid)) + (q.name ? ' · ' + escapeHtml(q.name) : '') + '</div>' +
           '<div class="item-meta">' + escapeHtml(q.phone) + ' · asked ' + new Date(q.createdAt).toLocaleString() + '</div></div>' +
