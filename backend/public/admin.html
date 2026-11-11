@@ -4000,14 +4000,45 @@
         (st.online ? '' : '<br/>With no phone connected, the code is not texted: you give it by hand (Players → Password reset requests).');
     }).catch(function (err) { if (err.authError) doLogout(); else box.textContent = err.message; });
     if (!native) { ctl.innerHTML = '<div class="item-meta">To use a phone for this, open this panel in the <b>NovaPlay Admin app</b> on the phone with the SIM card and turn it on here.</div>'; return; }
+    var st = null;
+    try { st = JSON.parse(native.status()); } catch (e) { st = null; }
     var on = false;
     try { on = !!native.isOn(); } catch (e) {}
+    function yn(v) { return v ? '<span style="color:#7dffb0;">yes</span>' : '<span style="color:#ff8a8a;">NO</span>'; }
+    var lines = '';
+    if (st) {
+      lines = '<div class="item-meta" style="margin-top:10px;line-height:1.7;">' +
+        'Admin app version: <b>' + escapeHtml(String(st.version || 'old (no diagnostics)')) + '</b><br/>' +
+        'SMS permission allowed: ' + yn(st.smsPermission) + '<br/>' +
+        'Sending is turned on: ' + yn(st.on) + '<br/>' +
+        'Notifications allowed: ' + yn(st.notificationsAllowed) + '<br/>' +
+        'Battery not restricted: ' + yn(st.batteryUnrestricted) + '<br/>' +
+        'Last talk to the server: ' + (st.lastPollAt ? new Date(st.lastPollAt).toLocaleTimeString() + ' (answer ' + st.lastPollCode + ')' : 'never') +
+        (st.lastError ? '<br/><b style="color:#ff8a8a;">Problem: ' + escapeHtml(st.lastError) + '</b>' : '') +
+        (st.testResult ? '<br/>Test SMS: ' + escapeHtml(st.testResult) : '') + '</div>';
+    } else {
+      lines = '<div class="item-meta" style="margin-top:10px;color:#ff8a8a;">This is an old version of the admin app (no diagnostics). Uninstall it and install the latest from /download/NovaPlayAdmin.apk.</div>';
+    }
     ctl.innerHTML = '<button class="btn" id="smsGwToggle">' + (on ? 'Turn OFF sending SMS from this phone' : 'Turn ON sending SMS from this phone') + '</button>' +
-      '<div class="item-meta" style="margin-top:8px;">' + (on ? 'This phone is sending the reset codes.' : 'The app will ask for permission to send SMS.') + '</div>';
+      '<div class="item-meta" id="smsGwSay" style="margin-top:8px;"></div>' + lines +
+      '<div class="form-row" style="margin-top:12px;"><input id="smsGwTestPhone" inputmode="numeric" maxlength="10" placeholder="10-digit number for a test SMS" />' +
+      '<button class="btn secondary" id="smsGwTest" style="flex:0 0 auto;">Send test SMS</button></div>' +
+      '<div style="margin-top:8px;"><button class="btn secondary" id="smsGwSettings">Open this app\'s phone settings</button></div>';
+    var say = document.getElementById('smsGwSay');
     document.getElementById('smsGwToggle').addEventListener('click', function () {
-      try { if (on) native.stop(); else native.start(getToken() || ''); } catch (e) { box.textContent = e.message; }
-      setTimeout(loadSmsGateway, 1500);
+      var answer = '';
+      try { if (on) { native.stop(); answer = 'Turned off.'; } else { answer = native.start(getToken() || ''); } } catch (e) { answer = 'Error: ' + e.message; }
+      say.textContent = String(answer || '');
+      setTimeout(loadSmsGateway, 2500);
     });
+    document.getElementById('smsGwTest').addEventListener('click', function () {
+      var ph = document.getElementById('smsGwTestPhone').value.trim();
+      var answer = '';
+      try { answer = native.sendTest(ph); } catch (e) { answer = 'Error: ' + e.message; }
+      say.textContent = String(answer || '');
+      setTimeout(loadSmsGateway, 4000);
+    });
+    document.getElementById('smsGwSettings').addEventListener('click', function () { try { native.openSettings(); } catch (e) {} });
   }
   document.getElementById('smsGwRefresh').addEventListener('click', loadSmsGateway);
 

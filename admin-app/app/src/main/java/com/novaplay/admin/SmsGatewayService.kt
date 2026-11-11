@@ -44,7 +44,14 @@ class SmsGatewayService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        showForeground("Waiting for password reset codes to text")
+        try {
+            showForeground("Waiting for password reset codes to text")
+        } catch (e: Throwable) {
+            Prefs.setLastError(this, "Could not start the notification service: ${e.javaClass.simpleName} ${e.message ?: ""}")
+            Prefs.setOn(this, false)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (!running) {
             running = true
             registerResultReceiver()
@@ -86,13 +93,16 @@ class SmsGatewayService : Service() {
                 val token = Prefs.token(this)
                 if (token.isNullOrBlank()) { Prefs.setOn(this, false); stopSelf(); return }
                 val res = call("GET", "/api/admin/sms-gateway/next", token, null)
+                Prefs.setLastPoll(this, res.code)
                 if (res.code == 401 || res.code == 403) {
                     // The session ended: turn it on again from the panel.
+                    Prefs.setLastError(this, "The server refused the login (code ${res.code}). Log out of the panel, log in again and turn it ON again.")
                     Prefs.setOn(this, false)
                     stopSelf()
                     return
                 }
                 if (res.code == 200) {
+                    Prefs.setLastError(this, null)
                     val arr = JSONObject(res.body).getJSONArray("messages")
                     for (i in 0 until arr.length()) {
                         val m = arr.getJSONObject(i)
@@ -101,8 +111,9 @@ class SmsGatewayService : Service() {
                 }
             } catch (_: InterruptedException) {
                 return
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // No internet or a server hiccup: try again on the next round.
+                Prefs.setLastError(this, "Could not reach the server: ${e.javaClass.simpleName} ${e.message ?: ""}")
             }
             try { Thread.sleep(POLL_MS) } catch (_: InterruptedException) { return }
         }
@@ -124,6 +135,7 @@ class SmsGatewayService : Service() {
                 sms.sendTextMessage(phone, null, body, sent, null)
             }
         } catch (e: Exception) {
+            Prefs.setLastError(this, "SMS could not be sent: ${e.javaClass.simpleName} ${e.message ?: ""}")
             report(id, false, e.message ?: "Could not send")
         }
     }
@@ -134,6 +146,7 @@ class SmsGatewayService : Service() {
             override fun onReceive(context: Context, intent: Intent) {
                 val id = intent.getStringExtra("id") ?: return
                 val ok = resultCode == Activity.RESULT_OK
+                if (!ok) Prefs.setLastError(context, "The phone could not send an SMS (error $resultCode): no SMS balance, no signal or SMS blocked.")
                 Thread { report(id, ok, if (ok) null else "SMS error $resultCode") }.start()
             }
         }

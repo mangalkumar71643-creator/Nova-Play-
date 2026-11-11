@@ -2,6 +2,7 @@ package com.novaplay.admin
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -40,20 +41,38 @@ class MainActivity : AppCompatActivity() {
         pendingFileCallback = null
     }
 
-    // "Send SMS from this phone": asks for the SMS permission, then starts SmsGatewayService (see NovaSms below).
+    // "Send SMS from this phone": asks for the SMS permission, then starts SmsGatewayService (see NovaSmsBridge below).
     private val askSmsPermission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
         if (granted[Manifest.permission.SEND_SMS] == true || hasPermission(Manifest.permission.SEND_SMS)) {
-            Prefs.setOn(this, true)
-            SmsGatewayService.start(this)
-            askToStayAlive()
-            Toast.makeText(this, "This phone now sends the password reset SMS.", Toast.LENGTH_LONG).show()
+            beginSending()
         } else {
             Prefs.setOn(this, false)
-            Toast.makeText(this, "Allow SMS to use this phone for password reset codes.", Toast.LENGTH_LONG).show()
+            Prefs.setLastError(this, "SMS permission is NOT allowed. Phone Settings > Apps > NovaPlay Admin > (three dots) Allow restricted settings, then Permissions > SMS > Allow.")
+            openAppSettings()
         }
     }
 
     private fun hasPermission(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
+
+    private fun openAppSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun beginSending() {
+        Prefs.setLastError(this, null)
+        Prefs.setOn(this, true)
+        try {
+            SmsGatewayService.start(this)
+        } catch (e: Throwable) {
+            Prefs.setOn(this, false)
+            Prefs.setLastError(this, "Could not start the sending service: ${e.javaClass.simpleName} ${e.message ?: ""}")
+            return
+        }
+        askToStayAlive()
+    }
 
     // Android may stop a background app to save battery; ask to be left alone so codes are still sent with the screen off.
     private fun askToStayAlive() {
@@ -66,27 +85,92 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** What the admin panel page calls (window.NovaSms) to turn the SMS phone on or off. */
+    // The result of the test text (did it leave the phone?), kept for the panel.
+    private val testSent = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            Prefs.setTestResult(
+                context,
+                if (resultCode == android.app.Activity.RESULT_OK) "Test SMS was sent by the phone. If it does not reach the number, the SIM has no SMS balance or the network blocked it."
+                else "The phone could NOT send the test SMS (error $resultCode): no SIM / no signal / no SMS balance / SMS blocked.",
+            )
+        }
+    }
+
+    /** What the admin panel page calls (window.NovaSms) to turn the SMS phone on or off and to see what is wrong. */
     inner class NovaSmsBridge {
         @JavascriptInterface
         fun isOn(): Boolean = Prefs.isOn(this@MainActivity) && hasPermission(Manifest.permission.SEND_SMS)
 
+        /** Answers at once, in words, what it is doing (the panel shows it). */
         @JavascriptInterface
-        fun start(token: String) {
-            if (token.isBlank()) return
-            Prefs.setToken(this@MainActivity, token)
-            runOnUiThread {
-                val wanted = ArrayList<String>().apply {
-                    add(Manifest.permission.SEND_SMS)
-                    if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
-                }
-                askSmsPermission.launch(wanted.toTypedArray())
+        fun start(token: String): String {
+            if (token.isBlank()) {
+                Prefs.setLastError(this@MainActivity, "No login found in the panel. Log out, log in again, then turn it ON.")
+                return "No login found in the panel. Log out, log in again, then try again."
             }
+            Prefs.setToken(this@MainActivity, token)
+            Prefs.setLastError(this@MainActivity, null)
+            runOnUiThread {
+                if (hasPermission(Manifest.permission.SEND_SMS)) {
+                    beginSending()
+                } else {
+                    val wanted = ArrayList<String>().apply {
+                        add(Manifest.permission.SEND_SMS)
+                        if (Build.VERSION.SDK_INT >= 33 && !hasPermission(Manifest.permission.POST_NOTIFICATIONS)) add(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    askSmsPermission.launch(wanted.toTypedArray())
+                }
+            }
+            return if (hasPermission(Manifest.permission.SEND_SMS)) "Starting…" else "Asking for the SMS permission…"
         }
 
         @JavascriptInterface
         fun stop() {
             runOnUiThread { SmsGatewayService.stop(this@MainActivity) }
+        }
+
+        /** Sends one text now with this phone's SIM, no server involved: tells if the phone can send SMS at all. */
+        @JavascriptInterface
+        fun sendTest(phone: String): String {
+            if (!hasPermission(Manifest.permission.SEND_SMS)) return "SMS permission is not allowed yet."
+            val digits = phone.filter { it.isDigit() }.takeLast(10)
+            if (digits.length != 10) return "Enter a 10-digit number."
+            return try {
+                Prefs.setTestResult(this@MainActivity, "Test SMS handed to the phone…")
+                val sms = if (Build.VERSION.SDK_INT >= 31) getSystemService(android.telephony.SmsManager::class.java) else @Suppress("DEPRECATION") android.telephony.SmsManager.getDefault()
+                val sent = android.app.PendingIntent.getBroadcast(
+                    this@MainActivity, 7, Intent("com.novaplay.admin.TEST_SENT").setPackage(packageName),
+                    android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+                sms.sendTextMessage("+91$digits", null, "NovaPlay test SMS: your SMS phone works.", sent, null)
+                "Test SMS handed to the phone. See the result below in a few seconds."
+            } catch (e: Throwable) {
+                "Could not send: ${e.javaClass.simpleName} ${e.message ?: ""}"
+            }
+        }
+
+        /** JSON the panel shows: permission, service, last contact with the server, last error. */
+        @JavascriptInterface
+        fun status(): String {
+            val c = this@MainActivity
+            val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val pm = getSystemService(POWER_SERVICE) as PowerManager
+            return org.json.JSONObject()
+                .put("on", Prefs.isOn(c))
+                .put("smsPermission", hasPermission(Manifest.permission.SEND_SMS))
+                .put("notificationsAllowed", Build.VERSION.SDK_INT < 33 || hasPermission(Manifest.permission.POST_NOTIFICATIONS))
+                .put("batteryUnrestricted", pm.isIgnoringBatteryOptimizations(packageName))
+                .put("lastPollAt", Prefs.lastPollAt(c))
+                .put("lastPollCode", Prefs.lastPollCode(c))
+                .put("lastError", Prefs.lastError(c) ?: "")
+                .put("testResult", Prefs.testResult(c) ?: "")
+                .put("version", "1.3")
+                .toString()
+        }
+
+        @JavascriptInterface
+        fun openSettings() {
+            runOnUiThread { openAppSettings() }
         }
     }
 
@@ -96,6 +180,7 @@ class MainActivity : AppCompatActivity() {
         hideSystemStatusBar()
         setContentView(R.layout.activity_main)
 
+        ContextCompat.registerReceiver(this, testSent, android.content.IntentFilter("com.novaplay.admin.TEST_SENT"), ContextCompat.RECEIVER_NOT_EXPORTED)
         webView = findViewById(R.id.webView)
         swipeRefresh = findViewById(R.id.swipeRefresh)
 
