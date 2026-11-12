@@ -19,6 +19,7 @@ export const NO_PAYOUT_LIMIT = 9_999_999_999;
 export const env = {
   port: Number(process.env.PORT ?? 4000),
   databaseUrl: required("DATABASE_URL"),
+  smsProviderMode: (process.env.SMS_PROVIDER_MODE ?? "mock") as "mock" | "live",
   jwtSecret: required("JWT_SECRET"),
   kycProviderMode: (process.env.KYC_PROVIDER_MODE ?? "mock") as "mock" | "live",
   paymentProviderMode: (process.env.PAYMENT_PROVIDER_MODE ?? "mock") as "mock" | "live",

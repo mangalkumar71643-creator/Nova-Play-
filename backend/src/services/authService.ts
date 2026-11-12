@@ -5,9 +5,11 @@ import { ApiError } from "../middleware/errorHandler";
 import { comparePassword, hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { toIndianE164 } from "../utils/phone";
+import { env } from "../config/env";
 import { alertAdmins } from "./adminAlertService";
 import { consumeOtp, issueAdminCode, verifyOtp as verifyOtpCode } from "./otpService";
 import { enqueueSms, purgeOldSms } from "./smsGatewayService";
+import { getSmsProvider } from "./smsService";
 import { findInviter, linkInvitee } from "./agentService";
 
 function randomFiveDigitUid(): number {
@@ -235,14 +237,14 @@ export async function loginWithPhonePassword(phoneInput: string, password: strin
 const RESET_REQUESTS_PER_DAY = 6; // codes made per number a day (the admin's own count too): a stranger can't keep asking for fresh codes to guess at
 const RESET_REQUESTS_PER_IP_PER_DAY = 10;
 const RESET_SMS_PER_CODE = 3; // texts of one code (asking again while it still works texts it again)
-const RESET_SMS_PER_IP_PER_DAY = 20; // texts caused by one IP: they use the admin's SMS plan
+const RESET_SMS_PER_IP_PER_DAY = 20; // texts caused by one IP: each one costs money
 const RESET_SMS_GAP_MS = 30 * 1000;
 
 /**
  * Forgot password, step 1: the player taps Send code. A one-time code (15 minutes, 5 tries) is made and texted
- * to the player's own number by the admin's phone (smsGatewayService), so only the owner of the number gets it.
+ * to the player's own number (by Fast2SMS, else by the admin's phone), so only the owner of the number gets it.
  * The admin gets it too (an alert on the admin's phone and Players → "Password reset requests") to give by hand
- * when no phone is connected or the SMS doesn't arrive. Asking
+ * when no SMS could be sent or it doesn't arrive. Only for resetting a password: sign-up and login use no code. Asking
  * again while the code still works texts the same code again (30 s apart, 3 times); after it runs out a fresh
  * one is made. Only for existing player accounts, so made-up numbers cost no SMS.
  */
@@ -255,10 +257,20 @@ export async function askAdminForResetCode(phoneInput: string, ip: string | null
   const dayAgo = new Date(now.getTime() - 24 * 3600 * 1000);
   const open = await prisma.passwordResetRequest.findFirst({ where: { userId: user.id, handledAt: null, createdAt: { gte: dayAgo } }, orderBy: { createdAt: "desc" } });
 
+  // How the code reaches the player: Fast2SMS first (the SMS company), else the admin's SIM phone (smsGatewayService),
+  // else nothing is sent and the admin gives the code by hand. False when no SMS went.
   const text = async (code: string) => {
     if (ip) {
       const sent = await prisma.passwordResetRequest.aggregate({ _sum: { smsCount: true }, where: { ip, createdAt: { gte: dayAgo } } });
       if ((sent._sum.smsCount ?? 0) >= RESET_SMS_PER_IP_PER_DAY) return false;
+    }
+    try {
+      // In test mode (SMS_PROVIDER_MODE not live) nothing real is sent, so on the live server that is not a send.
+      if (env.smsProviderMode !== "live" && process.env.VERCEL_ENV === "production") throw new Error("SMS_PROVIDER_MODE is not live");
+      await getSmsProvider().sendOtp(phone, code);
+      return true;
+    } catch (err) {
+      console.error("[reset] Fast2SMS did not send:", (err as Error).message);
     }
     try {
       purgeOldSms().catch(() => {});
@@ -290,7 +302,7 @@ export async function askAdminForResetCode(phoneInput: string, ip: string | null
   else await prisma.passwordResetRequest.create({ data: { userId: user.id, phone, ...data } });
   await alertAdmins({
     title: "Password reset asked",
-    body: `UID ${user.uid ?? "—"} · ${phone}\nCode: ${code} (15 min). ${sms ? "Being texted to the player." : "No SMS phone is connected: give them this code."}`,
+    body: `UID ${user.uid ?? "—"} · ${phone}\nCode: ${code} (15 min). ${sms ? "Being texted to the player." : "No SMS could be sent: give them this code."}`,
     tag: `pwreset-${user.id}`,
     page: "users",
   });
