@@ -12,6 +12,8 @@ import { colors, gradients, radius, spacing, typography } from '../theme';
 type Mode = 'login' | 'register' | 'reset';
 
 const LAST_PHONE_KEY = 'novaplay:lastPhone:v1';
+// Written by AuthContext after every successful login or sign-up on this phone (never cleared by Logout).
+const UID_MAP_KEY = 'novaplay:auth:uids:v1';
 const MIN_PASSWORD = 6;
 const digitsOf = (s: string) => s.replace(/\D/g, '').slice(-10);
 const validPhone = (d: string) => /^[6-9]\d{9}$/.test(d);
@@ -25,7 +27,9 @@ const validPhone = (d: string) => /^[6-9]\d{9}$/.test(d);
 export default function LoginScreen() {
   const { passwordLogin, passwordRegister, askResetCode, resetPassword } = useAuth();
   const insets = useSafeAreaInsets();
-  const [mode, setMode] = useState<Mode>('login');
+  // A new install opens on Register; a phone that has logged in or signed up before opens on Log in.
+  const [mode, setMode] = useState<Mode>('register');
+  const [ready, setReady] = useState(false);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -41,9 +45,25 @@ export default function LoginScreen() {
 
   // The number used last time, so a returning player only types the password.
   useEffect(() => {
-    AsyncStorage.getItem(LAST_PHONE_KEY)
-      .then((p) => p && setPhone(p))
-      .catch(() => {});
+    let cancelled = false;
+    AsyncStorage.multiGet([LAST_PHONE_KEY, UID_MAP_KEY])
+      .then(([last, uids]) => {
+        if (cancelled) return;
+        const lastPhone = last?.[1] ?? null;
+        let known = false;
+        try {
+          known = Object.keys(JSON.parse(uids?.[1] ?? '{}')).length > 0;
+        } catch {
+          known = false;
+        }
+        if (lastPhone) setPhone(lastPhone);
+        setMode(lastPhone || known ? 'login' : 'register');
+      })
+      .catch(() => {})
+      .finally(() => !cancelled && setReady(true));
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -186,6 +206,9 @@ export default function LoginScreen() {
       : mode === 'register'
         ? 'Register with your mobile number.'
         : 'We text a code to your number. Enter it here with a new password.\nNo SMS? Contact customer service.';
+
+  // Until the saved state is read, only the background (no flash of the wrong screen).
+  if (!ready) return <LinearGradient colors={gradients.background} style={styles.fill} />;
 
   return (
     <LinearGradient colors={gradients.background} style={styles.fill}>
