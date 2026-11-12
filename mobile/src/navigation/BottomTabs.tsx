@@ -1,31 +1,29 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BottomTabBarHeightCallbackContext, BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useContext, useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Defs, Ellipse, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
+import { CrownIcon, EarnIcon, GiftIcon, HomeIcon, IconGlow, TrophyIcon } from '../components/TabIcons';
 import HomeScreen from '../screens/HomeScreen';
 import RankingScreen from '../screens/RankingScreen';
 import EarnScreen from '../screens/EarnScreen';
 import VipScreen from '../screens/VipScreen';
 import WalletScreen from '../screens/WalletScreen';
 import PromotionScreen from '../screens/PromotionScreen';
-import { colors, fonts, tabBar } from '../theme';
+import { fonts, tabBar } from '../theme';
 import { BottomTabParamList } from './types';
-import { IconName } from '../data/models';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
 type TabName = keyof BottomTabParamList;
+type SideName = 'Home' | 'Ranking' | 'Vip' | 'Earn';
 
-const TAB_ICONS: Record<TabName, IconName> = {
-  Home: 'home-variant',
-  Ranking: 'trophy',
-  Earn: 'hand-coin',
-  Promotion: 'gift',
-  Wallet: 'wallet',
-  Vip: 'crown',
+/** The gold icons of the four side tabs (components/TabIcons). */
+const SIDE_ICONS: Record<SideName, (p: { size: number; active?: boolean }) => React.JSX.Element> = {
+  Home: HomeIcon,
+  Ranking: TrophyIcon,
+  Vip: CrownIcon,
+  Earn: EarnIcon,
 };
 const TAB_LABELS: Record<TabName, string> = {
   Home: 'HOME',
@@ -35,19 +33,20 @@ const TAB_LABELS: Record<TabName, string> = {
   Wallet: 'WALLET',
   Vip: 'VIP',
 };
-/** The tab drawn as the raised round button in the middle of the bar. */
+/** The tab drawn as the raised gift box in the middle of the bar. */
 const CENTER: TabName = 'Promotion';
 
 /** Height of the bar's flat part (icons and labels), above the phone's own buttons. */
 const BAR_HEIGHT = tabBar.height;
-/** How far the middle of the bar rises above its flat part, around the round button. */
+/** How far the middle of the bar rises above its flat part, around the gift box. */
 const HUMP = tabBar.hump;
 const HUMP_HALF_WIDTH = 60;
-const CENTER_SIZE = 62;
+const SIDE_ICON = 38;
+const GIFT_SIZE = 62;
 
 /**
- * The bar's shape: a dark red panel whose top edge rises in the middle around the round Promotion button,
- * with a gold line along that edge.
+ * The bar's shape: a dark red panel whose top edge rises in the middle around the Promotion gift box,
+ * with a gold line along that edge and a soft shadow where the box stands.
  */
 function BarShape({ width, height }: { width: number; height: number }) {
   const cx = width / 2;
@@ -71,14 +70,17 @@ function BarShape({ width, height }: { width: number; height: number }) {
       </Defs>
       <Path d={`${edge} L${width} ${height} L0 ${height} Z`} fill="url(#barFill)" />
       <Path d={edge} stroke="url(#barEdge)" strokeWidth={1.5} fill="none" />
+      <Ellipse cx={cx} cy={HUMP + BAR_HEIGHT - 26} rx={30} ry={5} fill="#000000" fillOpacity={0.35} />
     </Svg>
   );
 }
 
-function SideTab({ name, focused, onPress, onLongPress }: { name: TabName; focused: boolean; onPress: () => void; onLongPress: () => void }) {
+function SideTab({ name, focused, onPress, onLongPress }: { name: SideName; focused: boolean; onPress: () => void; onLongPress: () => void }) {
+  const Icon = SIDE_ICONS[name];
+  // A selected tab's icon grows, rises and lights up.
   const lift = useRef(new Animated.Value(focused ? 1 : 0)).current;
   useEffect(() => {
-    Animated.timing(lift, { toValue: focused ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+    Animated.timing(lift, { toValue: focused ? 1 : 0, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
   }, [focused, lift]);
   return (
     <Pressable
@@ -92,11 +94,16 @@ function SideTab({ name, focused, onPress, onLongPress }: { name: TabName; focus
       <Animated.View
         style={[
           styles.iconWrap,
-          focused && styles.iconWrapOn,
-          { transform: [{ translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) }, { scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }] },
+          { transform: [{ translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }, { scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) }] },
         ]}
       >
-        <MaterialCommunityIcons name={TAB_ICONS[name]} size={25} color={focused ? colors.goldLight : '#C79A7C'} />
+        <Animated.View style={[styles.glow, { opacity: lift }]} pointerEvents="none">
+          <IconGlow size={SIDE_ICON + 30} />
+        </Animated.View>
+        {/* In its own view, so it is always drawn over the light behind it. */}
+        <View>
+          <Icon size={SIDE_ICON} active={focused} />
+        </View>
       </Animated.View>
       <Text style={[styles.label, focused && styles.labelOn]} numberOfLines={1}>
         {TAB_LABELS[name]}
@@ -106,7 +113,7 @@ function SideTab({ name, focused, onPress, onLongPress }: { name: TabName; focus
 }
 
 function CenterTab({ focused, onPress, onLongPress }: { focused: boolean; onPress: () => void; onLongPress: () => void }) {
-  // A slow glow behind the button, so it reads as the bar's main action.
+  // A slow breathing light behind the box, so it reads as the bar's main action.
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -129,19 +136,18 @@ function CenterTab({ focused, onPress, onLongPress }: { focused: boolean; onPres
     >
       {({ pressed }) => (
         <>
-          <View style={[styles.centerButton, { transform: [{ scale: pressed ? 0.94 : 1 }] }]}>
+          <View style={[styles.gift, { transform: [{ scale: pressed ? 0.93 : focused ? 1.06 : 1 }] }]}>
             <Animated.View
               pointerEvents="none"
-              style={[styles.centerGlow, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.7] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] }) }] }]}
-            />
-            <LinearGradient colors={['#FFF3C4', '#F0B93D', '#8A5A0E']} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={styles.centerRing}>
-              <LinearGradient colors={focused ? ['#FF7D8A', '#E3243B', '#8A0E1E'] : ['#FF5E6E', '#C4172C', '#6E0B18']} style={styles.centerFace}>
-                <View style={styles.centerShine} pointerEvents="none" />
-                <MaterialCommunityIcons name={TAB_ICONS[CENTER]} size={30} color="#FFF3C4" />
-              </LinearGradient>
-            </LinearGradient>
+              style={[styles.giftGlow, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.12] }) }] }]}
+            >
+              <IconGlow size={GIFT_SIZE + 44} />
+            </Animated.View>
+            <View>
+              <GiftIcon size={GIFT_SIZE} />
+            </View>
           </View>
-          <Text style={[styles.label, styles.centerLabel, focused && styles.labelOn]} numberOfLines={1}>
+          <Text style={[styles.label, styles.centerLabel]} numberOfLines={1}>
             {TAB_LABELS[CENTER]}
           </Text>
         </>
@@ -150,14 +156,14 @@ function CenterTab({ focused, onPress, onLongPress }: { focused: boolean; onPres
   );
 }
 
-/** The app's own tab bar: Home, Ranking, the raised Promotion button, VIP, Earn. */
+/** The app's own tab bar: Home, Ranking, the raised Promotion gift box, VIP, Earn. */
 function PremiumTabBar({ state, navigation }: BottomTabBarProps) {
   const bottomInset = useSafeAreaInsets().bottom;
   const { width } = useWindowDimensions();
   const reportHeight = useContext(BottomTabBarHeightCallbackContext);
   const height = BAR_HEIGHT + bottomInset;
 
-  const tab = (name: TabName) => {
+  const tab = (name: SideName | typeof CENTER) => {
     const index = state.routes.findIndex((r) => r.name === name);
     const route = state.routes[index];
     const focused = state.index === index;
@@ -169,7 +175,7 @@ function PremiumTabBar({ state, navigation }: BottomTabBarProps) {
     return name === CENTER ? (
       <CenterTab key={name} focused={focused} onPress={onPress} onLongPress={onLongPress} />
     ) : (
-      <SideTab key={name} name={name} focused={focused} onPress={onPress} onLongPress={onLongPress} />
+      <SideTab key={name} name={name as SideName} focused={focused} onPress={onPress} onLongPress={onLongPress} />
     );
   };
 
@@ -207,15 +213,12 @@ export default function BottomTabs() {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-end' },
   sideTab: { flex: 1, height: BAR_HEIGHT, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 7 },
-  iconWrap: { width: 46, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  iconWrapOn: { backgroundColor: 'rgba(240,185,61,0.14)', borderWidth: 1, borderColor: 'rgba(255,222,140,0.4)' },
-  label: { fontFamily: fonts.bold, fontSize: 9.5, letterSpacing: 0.6, color: '#C79A7C', marginTop: 3 },
-  labelOn: { color: colors.goldLight },
-  centerTab: { width: CENTER_SIZE + 26, height: BAR_HEIGHT + HUMP, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 7 },
-  centerButton: { width: CENTER_SIZE, height: CENTER_SIZE, alignItems: 'center', justifyContent: 'center', marginBottom: -1 },
-  centerGlow: { position: 'absolute', width: CENTER_SIZE + 10, height: CENTER_SIZE + 10, borderRadius: (CENTER_SIZE + 10) / 2, backgroundColor: 'rgba(240,185,61,0.35)' },
-  centerRing: { width: CENTER_SIZE, height: CENTER_SIZE, borderRadius: CENTER_SIZE / 2, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
-  centerFace: { width: CENTER_SIZE - 7, height: CENTER_SIZE - 7, borderRadius: (CENTER_SIZE - 7) / 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  centerShine: { position: 'absolute', top: -CENTER_SIZE * 0.42, width: CENTER_SIZE, height: CENTER_SIZE * 0.8, borderRadius: CENTER_SIZE / 2, backgroundColor: 'rgba(255,255,255,0.16)' },
-  centerLabel: { marginTop: 2 },
+  iconWrap: { width: SIDE_ICON, height: SIDE_ICON, alignItems: 'center', justifyContent: 'center' },
+  glow: { position: 'absolute', left: -15, top: -15 },
+  label: { fontFamily: fonts.semi, fontSize: 10, letterSpacing: 0.6, color: '#F1E0CF', marginTop: 3 },
+  labelOn: { fontFamily: fonts.bold, color: '#FFD766' },
+  centerTab: { width: GIFT_SIZE + 30, height: BAR_HEIGHT + HUMP, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 7 },
+  gift: { width: GIFT_SIZE, height: GIFT_SIZE, alignItems: 'center', justifyContent: 'center', marginBottom: -3 },
+  giftGlow: { position: 'absolute', left: -22, top: -22 },
+  centerLabel: { fontFamily: fonts.italic, fontSize: 10.5, color: '#FFD766', letterSpacing: 0.4 },
 });

@@ -97,4 +97,4 @@ export const fonts = {
 } as const;
 
 /** The bottom tab bar (navigation/BottomTabs): its flat height, and how far its raised middle reaches up over the screen. */
-export const tabBar = { height: 62, hump: 20 } as const;
+export const tabBar = { height: 68, hump: 20 } as const;
