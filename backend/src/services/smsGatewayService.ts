@@ -28,7 +28,16 @@ export async function smsGatewayStatus() {
   const seenAt = row ? Number(row.value) : null;
   const online = seenAt != null && Date.now() - seenAt < ONLINE_WITHIN_MS;
   const waiting = await prisma.smsOutbox.count({ where: { sentAt: null, error: null, createdAt: { gte: new Date(Date.now() - QUEUE_LIFETIME_MS) } } });
-  return { online, lastSeenAt: seenAt ? new Date(seenAt).toISOString() : null, waiting };
+  // The last few texts and what became of them, to see where one got stuck (the code in a text is blanked once handled).
+  const rows = await prisma.smsOutbox.findMany({ orderBy: { createdAt: "desc" }, take: 6 });
+  const recent = rows.map((r) => ({
+    at: r.createdAt.toISOString(),
+    to: `…${r.phone.slice(-4)}`,
+    state: r.sentAt ? "sent" : r.error ? "failed" : r.attempts > 0 ? "handed to the phone, no answer yet" : "waiting",
+    attempts: r.attempts,
+    error: r.error,
+  }));
+  return { online, lastSeenAt: seenAt ? new Date(seenAt).toISOString() : null, waiting, recent };
 }
 
 /** Puts a text in the queue. False (nothing queued) when no phone is connected, so the caller can say so. */

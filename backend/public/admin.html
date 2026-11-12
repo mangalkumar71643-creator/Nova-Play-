@@ -4007,7 +4007,11 @@
     api('/admin/sms-gateway/status').then(function (st) {
       box.innerHTML = 'SMS phone: <b style="color:' + (st.online ? '#7dffb0' : '#ff8a8a') + ';">' + (st.online ? 'CONNECTED' : 'NOT CONNECTED') + '</b>' +
         (st.lastSeenAt ? ' · last seen ' + new Date(st.lastSeenAt).toLocaleTimeString() : ' · never seen') + ' · texts waiting: ' + st.waiting +
-        (st.online ? '' : '<br/>With no phone connected, the code is not texted: you give it by hand (Players → Password reset requests).');
+        (st.online ? '' : '<br/>With no phone connected, the code is not texted: you give it by hand (Players → Password reset requests).') +
+        '<div style="margin-top:8px;"><b>Last texts</b>' + ((st.recent && st.recent.length) ? st.recent.map(function (r) {
+          var color = r.state === 'sent' ? '#7dffb0' : (r.state === 'failed' ? '#ff8a8a' : '#ffd479');
+          return '<div>' + new Date(r.at).toLocaleTimeString() + ' · to ' + escapeHtml(r.to) + ' · <span style="color:' + color + ';">' + escapeHtml(r.state) + '</span>' + (r.error ? ' (' + escapeHtml(r.error) + ')' : '') + '</div>';
+        }).join('') : '<div>none yet</div>') + '</div>';
     }).catch(function (err) { if (err.authError) doLogout(); else box.textContent = err.message; });
     if (!native) { ctl.innerHTML = '<div class="item-meta">To use a phone for this, open this panel in the <b>NovaPlay Admin app</b> on the phone with the SIM card and turn it on here.</div>'; return; }
     var st = null;
