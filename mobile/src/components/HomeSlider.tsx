@@ -2,6 +2,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Easing, Image, ImageBackground, Linking, PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import { API_BASE_URL } from '../api/client';
+import { fonts } from '../theme';
 import { GAME_CATEGORIES } from './GameTile';
 
 type Slide = {
@@ -246,8 +247,8 @@ export default function HomeSlider({ width, height, maxImageWidth, panel, button
               numberOfLines={1}
               style={{
                 color: '#FFFFFF',
-                fontSize: buttonHeight * 0.4,
-                fontWeight: '900',
+                fontSize: buttonHeight * 0.38,
+                fontFamily: fonts.extra,
                 letterSpacing: 0.5,
                 marginTop: -buttonHeight * 0.06,
                 paddingHorizontal: buttonWidth * 0.1,

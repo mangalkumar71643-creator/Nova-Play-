@@ -82,3 +82,19 @@ export const shadow = {
     elevation: 8,
   },
 };
+
+/**
+ * The app's own typeface (Montserrat, bundled in assets/fonts and loaded in App.tsx), so the main screens look
+ * the same on every phone instead of taking the phone's system font. Each weight is its own family: use
+ * `fontFamily: fonts.bold` and leave `fontWeight` out (Android would fake a second bold on top).
+ */
+export const fonts = {
+  semi: 'Montserrat-SemiBold',
+  bold: 'Montserrat-Bold',
+  extra: 'Montserrat-ExtraBold',
+  black: 'Montserrat-Black',
+  italic: 'Montserrat-ExtraBoldItalic',
+} as const;
+
+/** The bottom tab bar (navigation/BottomTabs): its flat height, and how far its raised middle reaches up over the screen. */
+export const tabBar = { height: 62, hump: 20 } as const;

@@ -3786,15 +3786,23 @@ export function claimVipBonus(kind: 'upgrade' | 'weekly', level: number) {
   return apiFetch<{ amount: number; balance: number }>('/players/vip/claim', { method: 'POST', body: JSON.stringify({ kind, level }) });
 }
 
+export type RankingPeriod = 'day' | 'week' | 'month';
+
 export type Ranking = {
+  period: RankingPeriod | null;
   periodDays: number;
+  /** When this period's list starts again. */
+  endsAt: string | null;
+  /** What all players together won in the period. */
+  totalWon: number;
   top: { rank: number; name: string; won: number; isMe: boolean }[];
   me: { rank: number | null; won: number };
   players: number;
 };
 
-export function fetchRanking() {
-  return apiFetch<Ranking>('/players/ranking');
+/** Players ranked by what they won in games today, this week or this month (India time). */
+export function fetchRanking(period: RankingPeriod) {
+  return apiFetch<Ranking>(`/players/ranking?period=${period}`);
 }
 
 // --- Agent program (EARN): invites, team commission, Agent Jackpot ---

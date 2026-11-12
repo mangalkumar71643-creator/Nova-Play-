@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "../middleware/auth";
 import { asyncHandler } from "../middleware/errorHandler";
 import { getHotGames } from "../services/gameReportService";
-import { getRanking } from "../services/rankingService";
+import { getRanking, RANKING_PERIODS } from "../services/rankingService";
 import { claimVipBonus, getVipStatus } from "../services/vipService";
 
 const router = Router();
@@ -39,7 +39,10 @@ router.get(
   "/ranking",
   requireAuth,
   asyncHandler(async (req, res) => {
-    res.json(await getRanking(req.user!.userId));
+    // ?period=day|week|month (the app's tabs); none is the older "last 7 days" list.
+    const asked = String(req.query.period ?? "");
+    const period = RANKING_PERIODS.find((p) => p === asked);
+    res.json(await getRanking(req.user!.userId, period));
   })
 );
 

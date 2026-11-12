@@ -6,7 +6,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AVATARS } from '../data/avatars';
 import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../state/AuthContext';
-import { colors, radius, spacing, typography } from '../theme';
+import { colors, fonts, radius, spacing, typography } from '../theme';
 import CoinPill from './CoinPill';
 
 type Props = {
@@ -80,8 +80,8 @@ const styles = StyleSheet.create({
   center: { flex: 1.4, alignItems: 'center' },
   right: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
   brand: { flexDirection: 'row', alignItems: 'center' },
-  brandText: { color: colors.textPrimary, fontWeight: '800', fontSize: typography.md, marginLeft: spacing.xs },
-  title: { color: colors.textPrimary, fontWeight: '800', fontSize: typography.lg },
+  brandText: { color: colors.textPrimary, fontFamily: fonts.extra, fontSize: typography.md, marginLeft: spacing.xs },
+  title: { color: colors.textPrimary, fontFamily: fonts.extra, fontSize: typography.lg },
   iconButton: {
     width: 36,
     height: 36,

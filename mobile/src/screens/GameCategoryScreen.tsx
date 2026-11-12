@@ -26,6 +26,7 @@ import { API_BASE_URL } from '../api/client';
 import { GAME_CATEGORIES, GameId, GameTile } from '../components/GameTile';
 import { RootStackParamList } from '../navigation/types';
 import { useGameState } from '../state/GameStateContext';
+import { fonts } from '../theme';
 
 const SIDE = 12;
 const TILE_GAP = 10;
@@ -412,7 +413,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: '#120204' },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: SIDE, paddingBottom: 8, backgroundColor: 'rgba(21,17,18,0.96)' },
   back: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,4,6,0.85)', borderWidth: 1.2, borderColor: 'rgba(255,214,107,0.6)' },
-  topTitle: { flex: 1, color: '#FFF4DC', fontSize: 18, fontWeight: '900', letterSpacing: 3 },
+  topTitle: { flex: 1, color: '#FFF4DC', fontSize: 17, fontFamily: fonts.black, letterSpacing: 3 },
   balance: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -424,22 +425,22 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     borderColor: 'rgba(255,214,107,0.55)',
   },
-  balanceText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  balanceText: { color: '#FFFFFF', fontSize: 13.5, fontFamily: fonts.extra },
   bannerFrame: { borderRadius: 16, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,214,107,0.45)', backgroundColor: '#2A0408' },
   bannerButton: { position: 'absolute', right: 10, bottom: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, borderWidth: 1.5, borderColor: '#FFE0A0' },
-  bannerButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
+  bannerButtonText: { color: '#FFFFFF', fontSize: 12, fontFamily: fonts.extra, letterSpacing: 0.5 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: 7 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)' },
   dotActive: { width: 18, backgroundColor: RED },
   tabsWrap: { height: TABS_HEIGHT, justifyContent: 'center', backgroundColor: 'rgba(18,2,4,0.94)' },
   tab: { height: 42, paddingHorizontal: 18, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.2, borderColor: 'rgba(255,255,255,0.08)' },
   tabOn: { borderColor: '#FF9AA6' },
-  tabText: { color: '#C88A90', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
+  tabText: { color: '#C88A90', fontSize: 13.5, fontFamily: fonts.extra, letterSpacing: 0.4 },
   tabTextOn: { color: '#FFF4DC', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
   section: { paddingTop: 14 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: SIDE + 4, marginBottom: 10 },
   tabHot: { flexDirection: 'row', gap: 6, borderColor: 'rgba(255,160,90,0.45)' },
-  hotSub: { color: '#FF9A5C', fontSize: 13, fontWeight: '700' },
+  hotSub: { color: '#FF9A5C', fontSize: 11.5, fontFamily: fonts.semi },
   rankBadge: {
     position: 'absolute',
     top: 4,
@@ -453,10 +454,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,248,220,0.85)',
   },
-  rankText: { color: '#FFF3C4', fontSize: 10, fontWeight: '900', letterSpacing: 0.3 },
+  rankText: { color: '#FFF3C4', fontSize: 9, fontFamily: fonts.black, letterSpacing: 0.3 },
   diamond: { width: 11, height: 11, backgroundColor: RED, transform: [{ rotate: '45deg' }], borderRadius: 2 },
-  sectionTitle: { flex: 1, color: '#FFE8EA', fontSize: 19, fontWeight: '700', letterSpacing: 0.5 },
+  sectionTitle: { flex: 1, color: '#FFE8EA', fontSize: 17, fontFamily: fonts.bold, letterSpacing: 0.3 },
   allBtn: { flexDirection: 'row', alignItems: 'center' },
-  allText: { color: GOLD, fontSize: 17, fontWeight: '900', fontFamily: 'serif' },
+  allText: { color: GOLD, fontSize: 14, fontFamily: fonts.extra },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: TILE_GAP },
 });

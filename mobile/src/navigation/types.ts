@@ -94,5 +94,5 @@ export type RootStackParamList = {
   ThreeCardPoker: undefined;
   CandyBlast: undefined;
   Neon777: undefined;
-  GameCategory: { categoryId: string };
+  GameCategory: { categoryId?: string } | undefined;
 };

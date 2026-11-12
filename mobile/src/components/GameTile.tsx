@@ -50,6 +50,8 @@ import { Image, ImageSourcePropType, Pressable, Text, View } from 'react-native'
 
 /** Size of a game tile, the same on the home grid and the category pages. */
 export const GAME_ICON_SIZE = 150;
+/** An icon tile's height for its width: the taller pictures fill it, the square ones sit in its middle. */
+const ICON_BOX_ASPECT = 1.08;
 
 export type GameId =
   | 'WinGo'
@@ -112,23 +114,22 @@ export type GameId =
 export type GameCategory = {
   id: string;
   title: string;
+  /** A short line under the title on the Home card. */
+  tagline: string;
   games: GameId[];
-  banner: ImageSourcePropType;
-  /** The banner image's width / height, so it keeps its shape at any width. */
-  bannerAspect: number;
 };
 
 export const GAME_CATEGORIES: GameCategory[] = [
-  { id: 'card-table', title: 'Card & Table', games: ['AndarBahar', 'TeenPatti', 'DragonTiger', 'Baccarat', 'Blackjack', 'Roulette', 'Hilo', 'VideoPoker', 'CasinoHoldem', 'ThreeCardPoker'], banner: require('../../assets/banners/card-table.webp'), bannerAspect: 763 / 155 },
-  { id: 'dice-instant', title: 'Dice & Instant', games: ['Dice', 'Limbo', 'Plinko', 'SevenUpDown', 'Diamonds', 'Keno', 'LuckyWheel', 'ScratchCard', 'DiceDuel', 'ColorBall'], banner: require('../../assets/banners/dice-instant.webp'), bannerAspect: 763 / 143 },
-  { id: 'lottery', title: 'Lottery', games: ['WinGo', 'K3Lottery', 'FiveDLottery', 'TrxWin', 'JhandiMunda', 'FortuneSix'], banner: require('../../assets/banners/lottery.webp'), bannerAspect: 763 / 143 },
-  { id: 'mines-cashout', title: 'Mines & Cash-out', games: ['Mines', 'ChickenRoad', 'DragonTower', 'Pump', 'CoinFlip', 'PenaltyHero', 'LuckyCups', 'BombSquad', 'VaultHeist', 'TreasureDig'], banner: require('../../assets/banners/mines-cashout.webp'), bannerAspect: 763 / 139 },
-  { id: 'slots', title: 'Slots', games: ['Slot', 'Aces', 'CandyBlast', 'Neon777', 'MoneyComing', 'FruitMachine', 'FishermansCatch', 'BookOfPharaoh', 'GatesOfZeus', 'WolfMoon'], banner: require('../../assets/banners/slots.webp'), bannerAspect: 763 / 131 },
-  { id: 'crash', title: 'Crash', games: ['Aviator', 'CricketX', 'Vortex', 'Rocket', 'GoalRush', 'BigCatch', 'Cosmonaut', 'SkyJet', 'NightRacer', 'Airship'], banner: require('../../assets/banners/crash.webp'), bannerAspect: 763 / 141 },
+  { id: 'card-table', title: 'Card & Table', tagline: 'Teen Patti · Blackjack', games: ['AndarBahar', 'TeenPatti', 'DragonTiger', 'Baccarat', 'Blackjack', 'Roulette', 'Hilo', 'VideoPoker', 'CasinoHoldem', 'ThreeCardPoker'] },
+  { id: 'dice-instant', title: 'Dice & Instant', tagline: 'Roll · Win · Instant', games: ['Dice', 'Limbo', 'Plinko', 'SevenUpDown', 'Diamonds', 'Keno', 'LuckyWheel', 'ScratchCard', 'DiceDuel', 'ColorBall'] },
+  { id: 'lottery', title: 'Lottery', tagline: 'Win Go · K3 · 5D', games: ['WinGo', 'K3Lottery', 'FiveDLottery', 'TrxWin', 'JhandiMunda', 'FortuneSix'] },
+  { id: 'mines-cashout', title: 'Mines & Cash-out', tagline: 'Pick · Climb · Cash out', games: ['Mines', 'ChickenRoad', 'DragonTower', 'Pump', 'CoinFlip', 'PenaltyHero', 'LuckyCups', 'BombSquad', 'VaultHeist', 'TreasureDig'] },
+  { id: 'slots', title: 'Slots', tagline: 'Spin · Win · Jackpot', games: ['Slot', 'Aces', 'CandyBlast', 'Neon777', 'MoneyComing', 'FruitMachine', 'FishermansCatch', 'BookOfPharaoh', 'GatesOfZeus', 'WolfMoon'] },
+  { id: 'crash', title: 'Crash', tagline: 'Fly · Multiply · Cash out', games: ['Aviator', 'CricketX', 'Vortex', 'Rocket', 'GoalRush', 'BigCatch', 'Cosmonaut', 'SkyJet', 'NightRacer', 'Airship'] },
 ];
 
 /** Games drawn with a supplied icon image instead of their built-in tile art. */
-const ICONS: Partial<Record<GameId, ImageSourcePropType>> = {
+export const GAME_ICONS: Partial<Record<GameId, ImageSourcePropType>> = {
   Aviator: require('../../assets/icons/aviator.webp'),
   Vortex: require('../../assets/icons/vortex.webp'),
   ChickenRoad: require('../../assets/icons/chicken-road.webp'),
@@ -190,10 +191,17 @@ const ICONS: Partial<Record<GameId, ImageSourcePropType>> = {
 /** One game's tile at `size` points square; tapping it opens the game. */
 export function GameTile({ id, size = GAME_ICON_SIZE }: { id: GameId; size?: number }) {
   const navigation = useNavigation();
-  const icon = ICONS[id];
+  const icon = GAME_ICONS[id];
   if (icon) {
+    // The icon pictures are not all the same shape (some are a little taller than wide): each is drawn at the
+    // tile's full width in a slightly taller box, so a row of tiles lines up edge to edge.
     return (
-      <Pressable onPress={() => (navigation as any).navigate(id)} style={{ width: size, height: size }} accessibilityRole="button">
+      <Pressable
+        onPress={() => (navigation as any).navigate(id)}
+        style={({ pressed }) => ({ width: size, height: Math.round(size * ICON_BOX_ASPECT), transform: [{ scale: pressed ? 0.95 : 1 }] })}
+        accessibilityRole="button"
+        accessibilityLabel={id}
+      >
         <Image source={icon} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
       </Pressable>
     );

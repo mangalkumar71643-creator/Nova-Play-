@@ -1,7 +1,9 @@
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import CategoryCard from '../components/CategoryCard';
 import HomePopups from '../components/HomePopups';
 import DepositOfferPopup from '../components/DepositOfferPopup';
 import HomeSlider from '../components/HomeSlider';
@@ -11,6 +13,7 @@ import { AVATARS } from '../data/avatars';
 import { BottomTabParamList } from '../navigation/types';
 import { useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
+import { fonts } from '../theme';
 
 const TOP_BAR_HEIGHT = 69;
 
@@ -45,8 +48,8 @@ const PANEL_HEIGHT = 408;
 // row — reused here so our row sits the same distance below our own panel.
 const GAME_GRID_GAP_BELOW_PANEL = 250;
 
-// Category banners below the control panel: full width less this margin on
-// each side, each at its own image's shape, with this gap between them.
+// Category cards below the control panel: full width less this margin on
+// each side, with this gap between them.
 const BANNER_SIDE = 12;
 const BANNER_GAP = 10;
 
@@ -64,7 +67,7 @@ export default function HomeScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const navigation = useNavigation<BottomTabNavigationProp<BottomTabParamList>>();
   const { avatarId } = useAuth();
-  const { coins } = useGameState();
+  const { coins, vipLevel } = useGameState();
   const panelHeight = screenHeight * (PANEL_HEIGHT / REFERENCE_HEIGHT);
   const panelWidth = panelHeight * CONTROL_PANEL_ASPECT;
   const panelTop = screenHeight * (PANEL_TOP / REFERENCE_HEIGHT);
@@ -128,7 +131,7 @@ export default function HomeScreen() {
               lineHeight: WALLET_BALANCE_HEIGHT,
               color: '#FFFFFF',
               fontSize: 13,
-              fontWeight: '800',
+              fontFamily: fonts.extra,
             }}
           >
             {coins.toLocaleString('en-IN')}
@@ -160,15 +163,31 @@ export default function HomeScreen() {
         >
           <Image
             source={AVATARS[avatarId - 1]}
-            style={{ width: PROFILE_ICON_SIZE, height: PROFILE_ICON_SIZE, borderRadius: PROFILE_ICON_SIZE / 2 }}
+            style={{ width: PROFILE_ICON_SIZE, height: PROFILE_ICON_SIZE, borderRadius: PROFILE_ICON_SIZE / 2, borderWidth: 1.5, borderColor: '#F0B93D' }}
             resizeMode="cover"
           />
+          {vipLevel > 0 ? (
+            <LinearGradient
+              colors={['#FFE9A8', '#F0B93D', '#9A6A14']}
+              style={{ position: 'absolute', alignSelf: 'center', bottom: -5, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 7, borderWidth: 1, borderColor: '#3A2204' }}
+            >
+              <Text style={{ fontFamily: fonts.black, fontSize: 8, color: '#3A2204', letterSpacing: 0.3 }}>VIP {vipLevel}</Text>
+            </LinearGradient>
+          ) : null}
         </Pressable>
+        {/* A gold line under the bar. */}
+        <LinearGradient
+          colors={['rgba(240,185,61,0)', 'rgba(255,233,168,0.9)', 'rgba(240,185,61,0)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 1.2 }}
+          pointerEvents="none"
+        />
       </View>
       {/* Everything under the top bar scrolls together: the control panel, then the banners. */}
       <ScrollView nestedScrollEnabled
         style={{ position: 'absolute', top: TOP_BAR_HEIGHT, left: 0, right: 0, bottom: 0 }}
-        contentContainerStyle={{ paddingHorizontal: BANNER_SIDE, paddingBottom: BANNER_GAP * 2, gap: BANNER_GAP }}
+        contentContainerStyle={{ paddingHorizontal: BANNER_SIDE, paddingBottom: BANNER_GAP * 3, gap: BANNER_GAP }}
         showsVerticalScrollIndicator={false}
       >
         {/* The empty space above the stage and the stage itself; the slider stands on the stage. */}
@@ -193,15 +212,12 @@ export default function HomeScreen() {
           />
         </View>
         {GAME_CATEGORIES.map((category) => (
-          <Pressable
+          <CategoryCard
             key={category.id}
+            category={category}
+            width={bannerWidth}
             onPress={() => (navigation as any).navigate('GameCategory', { categoryId: category.id })}
-            style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}
-            accessibilityRole="button"
-            accessibilityLabel={category.title}
-          >
-            <Image source={category.banner} style={{ width: bannerWidth, height: bannerWidth / category.bannerAspect }} resizeMode="contain" />
-          </Pressable>
+          />
         ))}
       </ScrollView>
       <HomePopups />
