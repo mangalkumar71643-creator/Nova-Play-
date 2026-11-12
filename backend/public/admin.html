@@ -4035,10 +4035,31 @@
     }
     ctl.innerHTML = '<button class="btn" id="smsGwToggle">' + (on ? 'Turn OFF sending SMS from this phone' : 'Turn ON sending SMS from this phone') + '</button>' +
       '<div class="item-meta" id="smsGwSay" style="margin-top:8px;"></div>' + lines +
+      '<div id="smsGwSim" style="margin-top:12px;"></div>' +
       '<div class="form-row" style="margin-top:12px;"><input id="smsGwTestPhone" inputmode="numeric" maxlength="10" placeholder="10-digit number for a test SMS" />' +
       '<button class="btn secondary" id="smsGwTest" style="flex:0 0 auto;">Send test SMS</button></div>' +
       '<div style="margin-top:8px;"><button class="btn secondary" id="smsGwSettings">Open this app\'s phone settings</button></div>';
     var say = document.getElementById('smsGwSay');
+    // Which SIM sends the texts (when the phone's default SIM can't send SMS).
+    (function () {
+      var box = document.getElementById('smsGwSim');
+      if (!box || typeof native.sims !== 'function') { if (box) box.innerHTML = '<div class="item-meta">To choose the SIM, update the admin app to the latest version.</div>'; return; }
+      var info = null;
+      try { info = JSON.parse(native.sims()); } catch (e) { info = null; }
+      if (!info) return;
+      if (!info.permission) {
+        box.innerHTML = '<button class="btn secondary" id="smsGwSimAsk">Choose which SIM sends the texts (asks permission)</button>';
+        document.getElementById('smsGwSimAsk').addEventListener('click', function () { try { native.askSimPermission(); } catch (e) {} setTimeout(loadSmsGateway, 3000); });
+        return;
+      }
+      var opts = '<option value="-1">Phone default SIM</option>' + info.sims.map(function (x) {
+        return '<option value="' + x.subId + '"' + (x.subId === info.chosen ? ' selected' : '') + '>SIM ' + x.slot + (x.name ? ' · ' + escapeHtml(x.name) : '') + '</option>';
+      }).join('');
+      box.innerHTML = '<label style="font-size:12px;opacity:.8;">SIM that sends the texts</label><select id="smsGwSimSel" style="width:100%;margin-top:4px;">' + opts + '</select>';
+      document.getElementById('smsGwSimSel').addEventListener('change', function () {
+        try { native.chooseSim(parseInt(this.value, 10)); say.textContent = 'Saved. Use Send test SMS to try it.'; } catch (e) { say.textContent = 'Error: ' + e.message; }
+      });
+    })();
     document.getElementById('smsGwToggle').addEventListener('click', function () {
       var answer = '';
       try { if (on) { native.stop(); answer = 'Turned off.'; } else { answer = native.start(getToken() || ''); } } catch (e) { answer = 'Error: ' + e.message; }

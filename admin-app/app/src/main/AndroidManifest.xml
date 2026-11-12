@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Texting the players' password reset codes from this phone's SIM card (SmsGatewayService). -->
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <!-- To list the SIM cards so the admin can choose which one sends the texts. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

@@ -121,7 +121,7 @@ class SmsGatewayService : Service() {
 
     private fun sendText(id: String, phone: String, body: String, token: String) {
         try {
-            val sms = if (Build.VERSION.SDK_INT >= 31) getSystemService(SmsManager::class.java) else @Suppress("DEPRECATION") SmsManager.getDefault()
+            val sms = SimHelper.smsManager(this)
             val sent = PendingIntent.getBroadcast(
                 this, id.hashCode(),
                 Intent(ACTION_SENT).setPackage(packageName).putExtra("id", id),

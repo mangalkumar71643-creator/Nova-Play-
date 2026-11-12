@@ -52,6 +52,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Reading the SIM list, so the admin can choose the SIM that sends the texts.
+    private val askPhoneState = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     private fun hasPermission(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
 
     private fun openAppSettings() {
@@ -137,7 +140,7 @@ class MainActivity : AppCompatActivity() {
             if (digits.length != 10) return "Enter a 10-digit number."
             return try {
                 Prefs.setTestResult(this@MainActivity, "Test SMS handed to the phone…")
-                val sms = if (Build.VERSION.SDK_INT >= 31) getSystemService(android.telephony.SmsManager::class.java) else @Suppress("DEPRECATION") android.telephony.SmsManager.getDefault()
+                val sms = SimHelper.smsManager(this@MainActivity)
                 val sent = android.app.PendingIntent.getBroadcast(
                     this@MainActivity, 7, Intent("com.novaplay.admin.TEST_SENT").setPackage(packageName),
                     android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
@@ -164,8 +167,35 @@ class MainActivity : AppCompatActivity() {
                 .put("lastPollCode", Prefs.lastPollCode(c))
                 .put("lastError", Prefs.lastError(c) ?: "")
                 .put("testResult", Prefs.testResult(c) ?: "")
-                .put("version", "1.3")
+                .put("version", "1.4")
                 .toString()
+        }
+
+        /** The SIM cards and the chosen one, for the panel's "SMS SIM" list. */
+        @JavascriptInterface
+        fun sims(): String {
+            val c = this@MainActivity
+            val arr = org.json.JSONArray()
+            SimHelper.active(c).forEach {
+                arr.put(
+                    org.json.JSONObject()
+                        .put("subId", it.subscriptionId)
+                        .put("slot", it.simSlotIndex + 1)
+                        .put("name", (it.carrierName ?: it.displayName ?: "").toString()),
+                )
+            }
+            return org.json.JSONObject().put("permission", SimHelper.canList(c)).put("chosen", Prefs.smsSubId(c)).put("sims", arr).toString()
+        }
+
+        @JavascriptInterface
+        fun askSimPermission() {
+            runOnUiThread { askPhoneState.launch(Manifest.permission.READ_PHONE_STATE) }
+        }
+
+        /** subId of the SIM that should send the texts; -1 = the phone's default. */
+        @JavascriptInterface
+        fun chooseSim(subId: Int) {
+            Prefs.setSmsSubId(this@MainActivity, subId)
         }
 
         @JavascriptInterface
