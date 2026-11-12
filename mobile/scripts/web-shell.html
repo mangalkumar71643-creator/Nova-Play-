@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NovaPlay</title>
+<link rel="icon" href="/favicon.ico" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#170709" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(ellipse at 50% 35%, #4a0f1a 0%, #240a0f 45%, #0d0305 100%);
+    color: #f3e3d3; font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+    display: flex; align-items: center; justify-content: center; gap: 72px; overflow: hidden;
+  }
+  .brand { max-width: 380px; }
+  .brand img { width: 86px; height: 86px; border-radius: 22px; box-shadow: 0 8px 30px rgba(0,0,0,.5), 0 0 0 1.5px rgba(240,185,61,.6); }
+  h1 { margin: 18px 0 6px; font-size: 44px; font-weight: 900; letter-spacing: .5px;
+       background: linear-gradient(#fff6cf, #ffd75e 50%, #e08a12); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tag { font-size: 17px; line-height: 1.5; color: #e8cdb8; margin: 0 0 22px; }
+  ul { list-style: none; padding: 0; margin: 0 0 26px; display: grid; gap: 10px; }
+  li { font-size: 14px; color: #f0d8c4; padding-left: 26px; position: relative; }
+  li::before { content: ""; position: absolute; left: 0; top: 3px; width: 12px; height: 12px; background: linear-gradient(#ffe38a, #e0961a); transform: rotate(45deg); border-radius: 2px; }
+  .btns { display: flex; gap: 12px; flex-wrap: wrap; }
+  a.btn, button.btn { border: 0; cursor: pointer; text-decoration: none; font: inherit; font-size: 14px; font-weight: 800; letter-spacing: .4px; padding: 13px 22px; border-radius: 999px; }
+  a.gold { background: linear-gradient(#ffe9a8, #f0b93d 55%, #b8862a); color: #3a2204; box-shadow: 0 6px 20px rgba(240,185,61,.28); }
+  button.ghost { background: transparent; color: #ffd766; box-shadow: inset 0 0 0 1.5px rgba(240,185,61,.7); }
+  .small { margin-top: 26px; font-size: 11.5px; color: #a98b80; }
+  .phone { flex: none; background: #120405; border-radius: 40px; padding: 10px; position: relative;
+           box-shadow: 0 0 0 2px #b8862a, 0 0 0 5px #1b0b0d, 0 40px 90px rgba(0,0,0,.65), 0 0 130px rgba(255,59,79,.14);
+           transition: width .35s ease, height .35s ease; }
+  .phone iframe { width: 100%; height: 100%; border: 0; border-radius: 30px; background: #170709; display: block; }
+  /* The page's old parts (the app's empty root and so on) can still be parsed in after this page replaced it. */
+  body > :not(.brand):not(.phone):not(script) { display: none !important; }
+  body.land { gap: 0; }
+  body.land .brand { display: none; }
+  @media (max-width: 1050px) { .brand { display: none; } body { gap: 0; } }
+</style>
+</head>
+<body>
+<div class="brand">
+  <img src="/web-icons/icon-192.png" alt="NovaPlay" />
+  <h1>NovaPlay</h1>
+  <p class="tag">All your favourite games in one place, right in your browser. Fast, smooth and ready to play.</p>
+  <ul>
+    <li>50+ games: Aviator, Mines, Teen Patti, Slots and more</li>
+    <li>Instant deposits and withdrawals</li>
+    <li>Daily bonuses, VIP rewards and leaderboards</li>
+  </ul>
+  <div class="btns">
+    <a class="btn gold" href="/download/NovaPlay.apk">Download Android app</a>
+    <button class="btn ghost" id="install" style="display:none">Install on this computer</button>
+  </div>
+  <p class="small">18+ only. Play responsibly.</p>
+</div>
+<div class="phone" id="phone"><iframe id="game" src="/?game=1" allow="fullscreen; autoplay; clipboard-write" title="NovaPlay"></iframe></div>
+<script>
+  (function () {
+    var phone = document.getElementById('phone');
+    var mode = 'portrait';
+    function size() {
+      var vw = window.innerWidth, vh = window.innerHeight;
+      var w, h;
+      if (mode === 'landscape') { h = Math.min(vh - 32, 450); w = Math.min(vw - 32, Math.round(h * 2.15)); }
+      else { h = Math.min(vh - 32, 940); w = Math.min(Math.round((h - 20) * 0.462) + 20, vw - 32); }
+      phone.style.width = w + 'px';
+      phone.style.height = h + 'px';
+      document.body.className = mode === 'landscape' ? 'land' : '';
+    }
+    window.addEventListener('resize', size);
+    window.addEventListener('message', function (e) {
+      if (e.origin !== location.origin || !e.data || e.data.novaplay !== 'orientation') return;
+      mode = e.data.mode === 'landscape' ? 'landscape' : 'portrait';
+      size();
+    });
+    var deferred = null, btn = document.getElementById('install');
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; btn.style.display = ''; });
+    btn.addEventListener('click', function () { if (deferred) { deferred.prompt(); deferred = null; btn.style.display = 'none'; } });
+    size();
+  })();
+</script>
+</body>
+</html>

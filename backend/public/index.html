@@ -1,3 +1,63 @@
-<!doctype html>
-<title>NovaPlay API</title>
-<p>This is the NovaPlay backend API — there's no web page here. Try <a href="/health">/health</a>.</p>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    
+    <title>NovaPlay</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#170709" />
+    <meta name="description" content="NovaPlay: all your favourite games in one place." />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="NovaPlay" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/web-icons/apple-touch-icon.png" />
+    <style>
+      html, body { background: #170709; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+      body { height: 100dvh; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+      input, textarea { -webkit-user-select: text; user-select: text; }
+      * { scrollbar-width: none; }
+      *::-webkit-scrollbar { display: none; }
+    </style>
+    <script>
+      (function () {
+        // A computer (wide window, not already inside the phone frame): show the page with the phone frame.
+        if (window.self !== window.top || window.innerWidth <= 700 || /[?&]plain=1/.test(location.search)) return;
+        document.open();
+        document.write("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n<title>NovaPlay<\/title>\n<link rel=\"icon\" href=\"/favicon.ico\" />\n<link rel=\"manifest\" href=\"/manifest.webmanifest\" />\n<meta name=\"theme-color\" content=\"#170709\" />\n<style>\n  * { box-sizing: border-box; }\n  html, body { height: 100%; margin: 0; }\n  body {\n    background: radial-gradient(ellipse at 50% 35%, #4a0f1a 0%, #240a0f 45%, #0d0305 100%);\n    color: #f3e3d3; font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;\n    display: flex; align-items: center; justify-content: center; gap: 72px; overflow: hidden;\n  }\n  .brand { max-width: 380px; }\n  .brand img { width: 86px; height: 86px; border-radius: 22px; box-shadow: 0 8px 30px rgba(0,0,0,.5), 0 0 0 1.5px rgba(240,185,61,.6); }\n  h1 { margin: 18px 0 6px; font-size: 44px; font-weight: 900; letter-spacing: .5px;\n       background: linear-gradient(#fff6cf, #ffd75e 50%, #e08a12); -webkit-background-clip: text; background-clip: text; color: transparent; }\n  .tag { font-size: 17px; line-height: 1.5; color: #e8cdb8; margin: 0 0 22px; }\n  ul { list-style: none; padding: 0; margin: 0 0 26px; display: grid; gap: 10px; }\n  li { font-size: 14px; color: #f0d8c4; padding-left: 26px; position: relative; }\n  li::before { content: \"\"; position: absolute; left: 0; top: 3px; width: 12px; height: 12px; background: linear-gradient(#ffe38a, #e0961a); transform: rotate(45deg); border-radius: 2px; }\n  .btns { display: flex; gap: 12px; flex-wrap: wrap; }\n  a.btn, button.btn { border: 0; cursor: pointer; text-decoration: none; font: inherit; font-size: 14px; font-weight: 800; letter-spacing: .4px; padding: 13px 22px; border-radius: 999px; }\n  a.gold { background: linear-gradient(#ffe9a8, #f0b93d 55%, #b8862a); color: #3a2204; box-shadow: 0 6px 20px rgba(240,185,61,.28); }\n  button.ghost { background: transparent; color: #ffd766; box-shadow: inset 0 0 0 1.5px rgba(240,185,61,.7); }\n  .small { margin-top: 26px; font-size: 11.5px; color: #a98b80; }\n  .phone { flex: none; background: #120405; border-radius: 40px; padding: 10px; position: relative;\n           box-shadow: 0 0 0 2px #b8862a, 0 0 0 5px #1b0b0d, 0 40px 90px rgba(0,0,0,.65), 0 0 130px rgba(255,59,79,.14);\n           transition: width .35s ease, height .35s ease; }\n  .phone iframe { width: 100%; height: 100%; border: 0; border-radius: 30px; background: #170709; display: block; }\n  /* The page's old parts (the app's empty root and so on) can still be parsed in after this page replaced it. */\n  body > :not(.brand):not(.phone):not(script) { display: none !important; }\n  body.land { gap: 0; }\n  body.land .brand { display: none; }\n  @media (max-width: 1050px) { .brand { display: none; } body { gap: 0; } }\n<\/style>\n<\/head>\n<body>\n<div class=\"brand\">\n  <img src=\"/web-icons/icon-192.png\" alt=\"NovaPlay\" />\n  <h1>NovaPlay<\/h1>\n  <p class=\"tag\">All your favourite games in one place, right in your browser. Fast, smooth and ready to play.<\/p>\n  <ul>\n    <li>50+ games: Aviator, Mines, Teen Patti, Slots and more<\/li>\n    <li>Instant deposits and withdrawals<\/li>\n    <li>Daily bonuses, VIP rewards and leaderboards<\/li>\n  <\/ul>\n  <div class=\"btns\">\n    <a class=\"btn gold\" href=\"/download/NovaPlay.apk\">Download Android app<\/a>\n    <button class=\"btn ghost\" id=\"install\" style=\"display:none\">Install on this computer<\/button>\n  <\/div>\n  <p class=\"small\">18+ only. Play responsibly.<\/p>\n<\/div>\n<div class=\"phone\" id=\"phone\"><iframe id=\"game\" src=\"/?game=1\" allow=\"fullscreen; autoplay; clipboard-write\" title=\"NovaPlay\"><\/iframe><\/div>\n<script>\n  (function () {\n    var phone = document.getElementById('phone');\n    var mode = 'portrait';\n    function size() {\n      var vw = window.innerWidth, vh = window.innerHeight;\n      var w, h;\n      if (mode === 'landscape') { h = Math.min(vh - 32, 450); w = Math.min(vw - 32, Math.round(h * 2.15)); }\n      else { h = Math.min(vh - 32, 940); w = Math.min(Math.round((h - 20) * 0.462) + 20, vw - 32); }\n      phone.style.width = w + 'px';\n      phone.style.height = h + 'px';\n      document.body.className = mode === 'landscape' ? 'land' : '';\n    }\n    window.addEventListener('resize', size);\n    window.addEventListener('message', function (e) {\n      if (e.origin !== location.origin || !e.data || e.data.novaplay !== 'orientation') return;\n      mode = e.data.mode === 'landscape' ? 'landscape' : 'portrait';\n      size();\n    });\n    var deferred = null, btn = document.getElementById('install');\n    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; btn.style.display = ''; });\n    btn.addEventListener('click', function () { if (deferred) { deferred.prompt(); deferred = null; btn.style.display = 'none'; } });\n    size();\n  })();\n<\/script>\n<\/body>\n<\/html>\n");
+        document.close();
+      })();
+    </script>
+
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  <link rel="icon" href="/favicon.ico"/></head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  <script>(function(){if(window.self===window.top&&window.innerWidth>700&&!/[?&]plain=1/.test(location.search))return;var s=document.createElement('script');s.src='/_expo/static/js/web/index-37affb8cffc2e461ff7da47eb1e9853d.js';s.defer=true;document.body.appendChild(s);})();</script>
+</body>
+</html>

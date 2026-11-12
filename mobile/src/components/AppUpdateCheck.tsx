@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useEffect, useState } from 'react';
-import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { API_BASE_URL } from '../api/client';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 
@@ -29,6 +29,8 @@ export default function AppUpdateCheck() {
   const [update, setUpdate] = useState<{ latestVersion: string; downloadUrl: string | null } | null>(null);
 
   useEffect(() => {
+    // The website is always the latest version: no "update the app" reminder there.
+    if (Platform.OS === 'web') return;
     (async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/popups/app-version`);
