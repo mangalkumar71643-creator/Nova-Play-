@@ -10,6 +10,10 @@ object Prefs {
     fun token(c: Context): String? = p(c).getString("token", null)
     fun setToken(c: Context, t: String) = p(c).edit().putString("token", t).apply()
 
+    // Which SIM card sends the texts (a subscription id); -1 = the phone's default SMS SIM.
+    fun smsSubId(c: Context): Int = p(c).getInt("smsSubId", -1)
+    fun setSmsSubId(c: Context, id: Int) = p(c).edit().putInt("smsSubId", id).apply()
+
     // What the panel shows under "SMS from this phone" so a problem can be seen instead of guessed.
     fun lastError(c: Context): String? = p(c).getString("lastError", null)
     fun setLastError(c: Context, e: String?) = p(c).edit().putString("lastError", e).apply()
