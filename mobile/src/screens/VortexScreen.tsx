@@ -1,307 +1,307 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import Svg, { Circle, Defs, G, Line, Path, RadialGradient, Stop, Text as SvgText } from 'react-native-svg';
+import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RootStackParamList } from '../navigation/types';
 import { ApiClientError } from '../api/client';
 import {
   VortexConfig,
   VortexElement,
-  VortexOutcome,
   VortexRound,
   VortexSpinResult,
-  cashOutVortexRound,
+  VortexSymbol,
+  cashOutVortex,
   fetchVortexConfig,
   fetchVortexCurrent,
   fetchVortexHistory,
-  spinVortexRound,
-  startVortexRound,
+  partPayoutVortex,
+  spinVortex,
 } from '../api/backend';
+import {
+  BoardBase,
+  BoardFlash,
+  BoardRings,
+  ELEMENT_LOOK,
+  FILL_KEY,
+  SYMBOL_NAME,
+  SectionFlash,
+  SpinGlyph,
+  SymbolOrb,
+  VortexBackdrop,
+  VortexFill,
+  VortexLogo,
+  WELL,
+  WellGlow,
+  WellShade,
+  sectionLabel,
+} from '../components/VortexArt';
+import { RootStackParamList } from '../navigation/types';
 import { useGameState } from '../state/GameStateContext';
+import { fonts } from '../theme';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 
-// Same wheel and rings as the server (vortexService.ts); the server's own
-// config replaces this as soon as it loads.
+// Same rings as the server (vortexService.ts); the server's own settings
+// replace this as soon as they load.
 const FALLBACK_CONFIG: VortexConfig = {
   minStake: 1,
   maxStake: 100000,
   maxPayout: NO_LIMIT,
-  rtpPercent: 75,
-  wheel: ['WATER', 'EARTH', 'WATER', 'CRASH', 'WATER', 'FIRE', 'WATER', 'EARTH', 'CRASH', 'WATER', 'EARTH', 'WATER', 'CRASH', 'WATER', 'EARTH', 'CRASH', 'FIRE', 'WATER', 'EARTH', 'CRASH'],
-  elements: [
-    { element: 'WATER', factor: 1.2, sections: 10, chancePercent: 40, ladder: [1, 1.2, 1.44, 1.72, 2.07, 2.48, 2.98, 3.58, 4.29, 5.15, 6.19] },
-    { element: 'EARTH', factor: 1.4, sections: 8, chancePercent: 25, ladder: [1, 1.4, 1.96, 2.74, 3.84, 5.37, 7.52, 10.54, 14.75] },
-    { element: 'FIRE', factor: 1.7, sections: 5, chancePercent: 10, ladder: [1, 1.7, 2.89, 4.91, 8.35, 14.19] },
+  rtpPercent: 85,
+  maxSpins: 1000,
+  skullChancePercent: 8,
+  firePremiums: [100, 200, 300, 400, 500],
+  rings: [
+    { element: 'WATER', ladder: [1.55, 4.85, 10], bonus: 7, chances: [26.05, 15.99, 12.97, 11.65] },
+    { element: 'EARTH', ladder: [2.5, 7.7, 16, 27.5, 44], bonus: 20.5, chances: [11.05, 9.16, 8.34, 8.18, 7.25, 7.79] },
+    { element: 'FIRE', ladder: [3.9, 12.5, 28, 52, 85, 133, 200], bonus: 0, chances: [4.36, 5.6, 5.54, 5.88, 6.33, 5.85, 5.99, 1.84] },
   ],
-  crashChancePercent: 25,
 };
 
-type Look = { name: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; colors: [string, string]; glow: string };
-const LOOK: Record<VortexOutcome, Look> = {
-  WATER: { name: 'Water', icon: 'water', colors: ['#3FA2FF', '#0B3FA8'], glow: '#4DB2FF' },
-  EARTH: { name: 'Earth', icon: 'leaf', colors: ['#39D67A', '#0B6B33'], glow: '#4BEA8C' },
-  FIRE: { name: 'Fire', icon: 'fire', colors: ['#FF8A2A', '#B51E08'], glow: '#FF7A2A' },
-  CRASH: { name: 'Vortex', icon: 'weather-hurricane', colors: ['#3A1260', '#0C0218'], glow: '#B45CFF' },
-};
-const ELEMENT_ART: Record<VortexElement, number> = {
-  WATER: require('../../assets/vortex/water.webp'),
-  EARTH: require('../../assets/vortex/earth.webp'),
-  FIRE: require('../../assets/vortex/fire.webp'),
-};
-
-/** Element badge art, or the vortex glyph for the losing segment. */
-function ElementIcon({ kind, size }: { kind: VortexOutcome; size: number }) {
-  if (kind === 'CRASH') return <MaterialCommunityIcons name={LOOK.CRASH.icon} size={size * 0.9} color="#D9A6FF" />;
-  return <Image source={ELEMENT_ART[kind]} style={{ width: size, height: size }} />;
-}
-
-// Rings from the outside in.
-const RING_ORDER: VortexElement[] = ['FIRE', 'EARTH', 'WATER'];
-const FILL_KEY: Record<VortexElement, 'water' | 'earth' | 'fire'> = { WATER: 'water', EARTH: 'earth', FIRE: 'fire' };
-
-const STAKE_STEPS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
-const QUICK_STAKES = [10, 50, 100, 500];
+const ELEMENTS: VortexElement[] = ['WATER', 'EARTH', 'FIRE'];
+const EMPTY: VortexFill = { water: 0, earth: 0, fire: 0 };
+const STAKE_STEPS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
 const DEFAULT_STAKE = 10;
-const WIN_CARD_MS = 3000;
-const TOAST_MS = 1800;
 const GOLD = '#FFD66B';
+const DANGER = '#FF2D55';
+const SOUND_KEY = 'novaplay:vortex:sound:v1';
+const FAST_KEY = 'novaplay:vortex:fast:v1';
+const WIN_CARD_MS = 2600;
+const TOAST_MS = 2000;
+/** The opening card stays at least this long, and at most SPLASH_MAX_MS while the game loads. */
+const SPLASH_MIN_MS = 1100;
+const SPLASH_MAX_MS = 4000;
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function money(n: number): string {
+  return `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function errorMessage(err: unknown): string {
   return err instanceof ApiClientError ? err.message : 'Network error — please try again.';
 }
 
-function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
-  const a = ((deg - 90) * Math.PI) / 180;
-  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+function fillOf(round: Pick<VortexRound, 'water' | 'earth' | 'fire'> | null): VortexFill {
+  return round ? { water: round.water, earth: round.earth, fire: round.fire } : EMPTY;
 }
 
-/** Annulus wedge between radii r0 < r1, from angle a0 to a1 (degrees,
- * clockwise from 12 o'clock). */
-function wedge(cx: number, cy: number, r0: number, r1: number, a0: number, a1: number): string {
-  const [x0, y0] = polar(cx, cy, r1, a0);
-  const [x1, y1] = polar(cx, cy, r1, a1);
-  const [x2, y2] = polar(cx, cy, r0, a1);
-  const [x3, y3] = polar(cx, cy, r0, a0);
-  const large = a1 - a0 > 180 ? 1 : 0;
-  return `M ${x0} ${y0} A ${r1} ${r1} 0 ${large} 1 ${x1} ${y1} L ${x2} ${y2} A ${r0} ${r0} 0 ${large} 0 ${x3} ${y3} Z`;
+/** What the board is worth (x the bet): each ring's last filled section. */
+function boardMultiplier(config: VortexConfig, fill: VortexFill): number {
+  return config.rings.reduce((sum, ring) => {
+    const level = Math.min(fill[FILL_KEY[ring.element]], ring.ladder.length);
+    return sum + (level > 0 ? ring.ladder[level - 1] : 0);
+  }, 0);
 }
 
-function arc(cx: number, cy: number, r: number, a0: number, a1: number): string {
-  const [x0, y0] = polar(cx, cy, r, a0);
-  const [x1, y1] = polar(cx, cy, r, a1);
-  return `M ${x0} ${y0} A ${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`;
+/** What PART PAYOUT pays (x the bet): the last step of every ring with two or more sections. */
+function partMultiplier(config: VortexConfig, fill: VortexFill): number {
+  return config.rings.reduce((sum, ring) => {
+    const level = Math.min(fill[FILL_KEY[ring.element]], ring.ladder.length);
+    return sum + (level >= 2 ? ring.ladder[level - 1] - ring.ladder[level - 2] : 0);
+  }, 0);
 }
 
-// ---------- art ----------
+function filledSections(config: VortexConfig, fill: VortexFill): SectionFlash[] {
+  return config.rings.flatMap((ring) =>
+    Array.from({ length: Math.min(fill[FILL_KEY[ring.element]], ring.ladder.length) }, (_, index) => ({ element: ring.element, index }))
+  );
+}
 
-/** The spinning outer wheel: one coloured wedge per segment with its icon. */
-const Wheel = memo(function Wheel({ size, wheel }: { size: number; wheel: VortexOutcome[] }) {
-  const c = size / 2;
-  const seg = 360 / wheel.length;
-  const r1 = size * 0.485;
-  const r0 = size * 0.4;
-  const iconR = (r0 + r1) / 2;
-  const iconSize = size * 0.068;
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ---------- the symbols in the well ----------
+
+type ReelHandle = {
+  /** Symbols run through the well until `land`. */
+  start: () => void;
+  /** Slows down onto `symbol`. */
+  land: (symbol: VortexSymbol, ms: number) => Promise<void>;
+};
+
+const LOOP: VortexSymbol[] = ['WATER', 'WIND', 'EARTH', 'SKULL', 'FIRE'];
+const LOOP_STRIP: VortexSymbol[] = [...LOOP, ...LOOP, ...LOOP, ...LOOP];
+
+/** A strip of symbols falling through the well; the one in the middle is the spin's result. */
+const Reel = forwardRef<ReelHandle, { size: number }>(function Reel({ size }, ref) {
+  const d = WELL * 2 * size;
+  const pitch = size * 0.312;
+  const orb = size * 0.25;
+  const [strip, setStrip] = useState<VortexSymbol[]>(['FIRE', 'WATER', 'EARTH']);
+  // Which item of the strip is in the middle of the well.
+  const pos = useRef(new Animated.Value(1)).current;
+  const loop = useRef<Animated.CompositeAnimation | null>(null);
+  // Runs once the strip it was set with is on screen.
+  const afterRender = useRef<(() => void) | null>(null);
+
+  useLayoutEffect(() => {
+    const run = afterRender.current;
+    afterRender.current = null;
+    run?.();
+  }, [strip]);
+
+  useEffect(() => () => loop.current?.stop(), []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      start: () => {
+        afterRender.current = () => {
+          pos.setValue(12);
+          loop.current = Animated.loop(Animated.timing(pos, { toValue: 7, duration: 340, easing: Easing.linear, useNativeDriver: true }));
+          loop.current.start();
+        };
+        setStrip([...LOOP_STRIP]);
+      },
+      land: (symbol, ms) =>
+        new Promise<void>((resolve) => {
+          loop.current?.stop();
+          loop.current = null;
+          const others = LOOP.filter((s) => s !== symbol);
+          const pick = () => others[Math.floor(Math.random() * others.length)];
+          afterRender.current = () => {
+            pos.setValue(4);
+            Animated.timing(pos, { toValue: 1, duration: ms, easing: Easing.out(Easing.back(1.3)), useNativeDriver: true }).start(() => resolve());
+          };
+          setStrip([pick(), symbol, pick(), pick(), pick(), pick()]);
+        }),
+    }),
+    [pos]
+  );
+
+  const translateY = pos.interpolate({ inputRange: [0, 20], outputRange: [d / 2 - 0.5 * pitch, d / 2 - 20.5 * pitch] });
   return (
-    <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size}>
-        <Defs>
-          {(Object.keys(LOOK) as VortexOutcome[]).map((k) => (
-            <RadialGradient key={k} id={`w${k}`} cx="50%" cy="50%" r="50%">
-              <Stop offset={String(r0 / r1 - 0.05)} stopColor={LOOK[k].colors[1]} />
-              <Stop offset="1" stopColor={LOOK[k].colors[0]} />
-            </RadialGradient>
-          ))}
-        </Defs>
-        <Circle cx={c} cy={c} r={r1 + size * 0.012} fill="#1A0630" stroke="#E6B450" strokeWidth={size * 0.012} />
-        {wheel.map((k, i) => (
-          <Path key={i} d={wedge(c, c, r0, r1, i * seg, (i + 1) * seg)} fill={`url(#w${k})`} stroke="#E6B450" strokeOpacity={0.75} strokeWidth={1.2} />
-        ))}
-        <Circle cx={c} cy={c} r={r0} fill="none" stroke="#E6B450" strokeWidth={size * 0.008} />
-      </Svg>
-      {wheel.map((k, i) => {
-        const deg = i * seg + seg / 2;
-        const [x, y] = polar(c, c, iconR, deg);
-        return (
-          <View key={i} style={{ position: 'absolute', left: x - iconSize / 2, top: y - iconSize / 2, transform: [{ rotate: `${deg}deg` }] }}>
-            <ElementIcon kind={k} size={iconSize} />
+    <View style={{ width: d, height: d, borderRadius: d / 2, overflow: 'hidden' }}>
+      <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: d, transform: [{ translateY }] }}>
+        {strip.map((symbol, i) => (
+          <View key={i} style={{ height: pitch, alignItems: 'center', justifyContent: 'center' }}>
+            <SymbolOrb symbol={symbol} size={orb} />
           </View>
-        );
-      })}
-    </View>
-  );
-});
-
-/** Rim bulbs that twinkle in two alternating sets. */
-function RimLights({ size, count }: { size: number; count: number }) {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 450, useNativeDriver: true }),
-        Animated.timing(t, { toValue: 0, duration: 450, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
-  const c = size / 2;
-  const r = size * 0.497;
-  const dots = (odd: boolean) => (
-    <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-      {Array.from({ length: count }, (_, i) => i)
-        .filter((i) => i % 2 === (odd ? 1 : 0))
-        .map((i) => {
-          const [x, y] = polar(c, c, r, (i * 360) / count);
-          return <Circle key={i} cx={x} cy={y} r={size * 0.011} fill="#FFF3C4" />;
-        })}
-    </Svg>
-  );
-  return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { width: size, height: size }]}>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: t }]}>{dots(false)}</Animated.View>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: t.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }]}>{dots(true)}</Animated.View>
-    </View>
-  );
-}
-
-/** One element's ring: its badge at 12 o'clock, then one slot per section
- * labelled with what the ring is worth once that section is filled. Lit
- * slots take the element's colour; `pulse` flashes them when one is added. */
-function ElementRing({ size, rIn, rOut, element, ladder, filled, pulse }: { size: number; rIn: number; rOut: number; element: VortexElement; ladder: number[]; filled: number; pulse: Animated.Value }) {
-  const c = size / 2;
-  const sections = ladder.length - 1;
-  const slots = sections + 1;
-  const step = 360 / slots;
-  const band = rOut - rIn;
-  const rMid = (rIn + rOut) / 2;
-  const fs = Math.min(band * 0.42, (2 * Math.PI * rMid) / slots / 3.2);
-  const look = LOOK[element];
-  const lit = (j: number) => j >= 1 && j <= filled;
-  const slotPath = (j: number) => wedge(c, c, rIn + 2, rOut - 2, (j - 0.5) * step + 1, (j + 0.5) * step - 1);
-  const badge = band * 0.95;
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <Circle cx={c} cy={c} r={rMid} stroke="#1C1E24" strokeWidth={band} fill="none" />
-        <Circle cx={c} cy={c} r={rOut} stroke="#3A3D47" strokeWidth={1.5} fill="none" />
-        <Circle cx={c} cy={c} r={rIn} stroke="#0C0D10" strokeWidth={2} fill="none" />
-        {Array.from({ length: sections }, (_, i) => i + 1)
-          .filter(lit)
-          .map((j) => (
-            <Path key={`f${j}`} d={slotPath(j)} fill={look.colors[0]} fillOpacity={0.78} />
-          ))}
-        {Array.from({ length: slots }, (_, j) => {
-          const a = (j + 0.5) * step;
-          const [x0, y0] = polar(c, c, rMid - band * 0.18, a);
-          const [x1, y1] = polar(c, c, rMid + band * 0.18, a);
-          return <Line key={`t${j}`} x1={x0} y1={y0} x2={x1} y2={y1} stroke="#5A5E69" strokeWidth={1.5} strokeLinecap="round" />;
-        })}
-        {Array.from({ length: sections }, (_, i) => i + 1).map((j) => {
-          const a = j * step;
-          const [x, y] = polar(c, c, rMid, a);
-          const rot = a > 90 && a < 270 ? a - 180 : a;
-          return (
-            <SvgText
-              key={`l${j}`}
-              x={x}
-              y={y + fs * 0.36}
-              fontSize={fs}
-              fontWeight="900"
-              fontFamily="sans-serif"
-              textAnchor="middle"
-              fill={lit(j) ? '#FFFFFF' : '#7C808C'}
-              rotation={rot}
-              origin={`${x}, ${y}`}
-            >
-              {`${ladder[j]}X`}
-            </SvgText>
-          );
-        })}
-        <Circle cx={c} cy={c - rMid} r={badge / 2 + 2} fill="#15171B" stroke="#3A3D47" strokeWidth={1.5} />
-      </Svg>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: pulse }]}>
-        <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-          {Array.from({ length: sections }, (_, i) => i + 1)
-            .filter(lit)
-            .map((j) => (
-              <Path key={j} d={slotPath(j)} fill={look.glow} fillOpacity={0.6} />
-            ))}
-        </Svg>
+        ))}
       </Animated.View>
-      <View style={{ position: 'absolute', left: c - badge / 2, top: c - rMid - badge / 2 }}>
-        <ElementIcon kind={element} size={badge} />
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <WellShade size={size} />
       </View>
     </View>
   );
-}
-
-/** The swirling vortex in the middle: spiral arms, always turning. */
-const Swirl = memo(function Swirl({ size }: { size: number }) {
-  const c = size / 2;
-  const arms = useMemo(
-    () =>
-      Array.from({ length: 4 }, (_, a) => {
-        const pts: string[] = [];
-        for (let i = 0; i <= 40; i++) {
-          const t = i / 40;
-          const ang = a * 90 + t * 300;
-          const [x, y] = polar(c, c, size * 0.48 * t, ang);
-          pts.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
-        }
-        return pts.join(' ');
-      }),
-    [c, size]
-  );
-  return (
-    <Svg width={size} height={size}>
-      <Defs>
-        <RadialGradient id="swirlCore" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor="#F4D8FF" stopOpacity={0.95} />
-          <Stop offset="0.35" stopColor="#9B3DFF" stopOpacity={0.75} />
-          <Stop offset="1" stopColor="#1A0033" stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Circle cx={c} cy={c} r={c} fill="url(#swirlCore)" />
-      <G>
-        {arms.map((d, i) => (
-          <Path key={i} d={d} stroke={i % 2 ? '#62E0FF' : '#D08CFF'} strokeOpacity={0.8} strokeWidth={size * 0.035} strokeLinecap="round" fill="none" />
-        ))}
-      </G>
-    </Svg>
-  );
 });
 
-function WinCard({ amount, multiplier, title, onClose }: { amount: number; multiplier: number; title: string; onClose: () => void }) {
+// ---------- cards over the board ----------
+
+type WinInfo = { title: string; amount: number; note?: string };
+
+function WinCard({ win, onClose }: { win: WinInfo; onClose: () => void }) {
   const pop = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.spring(pop, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }).start();
+    Animated.spring(pop, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }).start();
   }, [pop]);
   return (
     <Animated.View style={[styles.winWrap, { opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] }]}>
-      <LinearGradient colors={['#3B0F63', '#16042A']} style={styles.winCard}>
-        <Text style={styles.winTitle}>{title}</Text>
-        <Text style={styles.winAmount}>₹{amount.toFixed(2)}</Text>
-        <Text style={styles.winMult}>x{multiplier.toFixed(2)}</Text>
-      </LinearGradient>
-      <Pressable onPress={onClose} style={styles.winClose} hitSlop={10}>
-        <MaterialCommunityIcons name="close" size={20} color={GOLD} />
+      <Pressable onPress={onClose}>
+        <LinearGradient colors={['#FFE9A8', '#C8922A', '#7A4E0E']} style={styles.winEdge}>
+          <LinearGradient colors={['#2B2F3B', '#15171D']} style={styles.winCard}>
+            <Text style={styles.winTitle}>{win.title}</Text>
+            <Text style={styles.winAmount}>{money(win.amount)}</Text>
+            {!!win.note && <Text style={styles.winNote}>{win.note}</Text>}
+          </LinearGradient>
+        </LinearGradient>
       </Pressable>
     </Animated.View>
   );
 }
 
+type BonusInfo = { premium: number; base: number; amount: number; premiums: number[] };
+
+/** The Fire bonus: a light runs over the premiums and stops on the one the spin picked. */
+function BonusCard({ bonus, fast, onDone }: { bonus: BonusInfo; fast: boolean; onDone: () => void }) {
+  const [at, setAt] = useState(0);
+  const [picked, setPicked] = useState(false);
+  const pop = useRef(new Animated.Value(0)).current;
+  const done = useRef(onDone);
+  done.current = onDone;
+
+  useEffect(() => {
+    Animated.spring(pop, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }).start();
+    const target = bonus.premiums.indexOf(bonus.premium);
+    // Two times round, then on to the pick.
+    const steps = bonus.premiums.length * (fast ? 1 : 2) + target;
+    let step = 0;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const tick = () => {
+      setAt(step % bonus.premiums.length);
+      if (step >= steps) {
+        setPicked(true);
+        timers.push(setTimeout(() => done.current(), fast ? 1400 : 2600));
+        return;
+      }
+      step += 1;
+      // Slower towards the end.
+      timers.push(setTimeout(tick, 70 + (step / steps) ** 3 * 260));
+    };
+    timers.push(setTimeout(tick, 350));
+    return () => timers.forEach(clearTimeout);
+  }, [bonus, fast, pop]);
+
+  return (
+    <Animated.View style={[styles.bonusWrap, { opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }] }]}>
+      <Pressable onPress={() => picked && onDone()}>
+        <LinearGradient colors={['#FFCB73', '#FF6A1F', '#8A1505']} style={styles.winEdge}>
+          <LinearGradient colors={['#33170F', '#150A07']} style={styles.bonusCard}>
+            <View style={styles.bonusHead}>
+              <SymbolOrb symbol="FIRE" size={30} />
+              <Text style={styles.bonusTitle}>FIRE BONUS</Text>
+            </View>
+            <View style={styles.bonusRow}>
+              {bonus.premiums.map((p, i) => (
+                <View key={p} style={[styles.bonusChip, i === at && styles.bonusChipOn, picked && i === at && styles.bonusChipPicked]}>
+                  <Text style={[styles.bonusChipText, i === at && styles.bonusChipTextOn]}>x{p}</Text>
+                </View>
+              ))}
+            </View>
+            {picked ? (
+              <>
+                <Text style={styles.bonusSum}>
+                  x{bonus.base} + x{bonus.premium} = x{bonus.base + bonus.premium}
+                </Text>
+                <Text style={styles.winAmount}>{money(bonus.amount)}</Text>
+              </>
+            ) : (
+              <Text style={styles.bonusSum}>x{bonus.base} + ?</Text>
+            )}
+          </LinearGradient>
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/** The date and time under the game. */
+const Clock = memo(function Clock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const date = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const time = now.toLocaleTimeString('en-GB', { hour12: false });
+  return (
+    <Text style={styles.footText}>
+      {date} | {time}
+    </Text>
+  );
+});
+
 // ---------- screen ----------
 
-type WinInfo = { amount: number; multiplier: number; title: string };
+type Flash = { sections: SectionFlash[]; color: string };
+type Queued = 'cashout' | 'part' | null;
 
 export default function VortexScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -310,34 +310,82 @@ export default function VortexScreen() {
   const { coins, refreshWallet } = useGameState();
 
   const [config, setConfig] = useState<VortexConfig>(FALLBACK_CONFIG);
+  /** The round in play: the board has sections on it. */
   const [round, setRound] = useState<VortexRound | null>(null);
+  /** The board as drawn (it follows the round once a spin's symbol has landed). */
+  const [shown, setShown] = useState<VortexFill>(EMPTY);
   const [stake, setStake] = useState(DEFAULT_STAKE);
+  const [balance, setBalance] = useState(coins);
   const [busy, setBusy] = useState(false);
-  const [crashed, setCrashed] = useState(false);
+  const [auto, setAuto] = useState(false);
+  const [fast, setFast] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const [flash, setFlash] = useState<Flash | null>(null);
+  const [glow, setGlow] = useState('#FFFFFF');
+  const [floater, setFloater] = useState<string | null>(null);
+  const [last, setLast] = useState<VortexSymbol | null>(null);
   const [win, setWin] = useState<WinInfo | null>(null);
+  const [bonus, setBonus] = useState<BonusInfo | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [sheet, setSheet] = useState<null | 'rules' | 'history'>(null);
   const [history, setHistory] = useState<VortexRound[]>([]);
+  const [splash, setSplash] = useState(true);
 
-  const rot = useRef(new Animated.Value(0)).current;
-  const rotValue = useRef(0);
-  const swirlSpin = useRef(new Animated.Value(0)).current;
-  const crashAnim = useRef(new Animated.Value(0)).current;
-  const multPop = useRef(new Animated.Value(1)).current;
-  const pulses = useRef<Record<VortexElement, Animated.Value>>({
-    WATER: new Animated.Value(0),
-    EARTH: new Animated.Value(0),
-    FIRE: new Animated.Value(0),
-  }).current;
+  // The latest of each, for a spin that runs on from the one before (auto).
+  const configRef = useRef(config);
+  configRef.current = config;
+  const roundRef = useRef(round);
+  const stakeRef = useRef(stake);
+  stakeRef.current = stake;
+  const balanceRef = useRef(balance);
+  const shownRef = useRef(shown);
+  const busyRef = useRef(false);
+  const autoRef = useRef(false);
+  const fastRef = useRef(fast);
+  fastRef.current = fast;
+  const soundRef = useRef(soundOn);
+  soundRef.current = soundOn;
   const mountedRef = useRef(true);
+  const queued = useRef<Queued>(null);
+  const reel = useRef<ReelHandle>(null);
+  const players = useRef<{ tick: AudioPlayer; land: AudioPlayer; win: AudioPlayer } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const crashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const swirlLoop = useRef<Animated.CompositeAnimation | null>(null);
+  const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const splashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bonusDone = useRef<(() => void) | null>(null);
+  const splashFade = useRef(new Animated.Value(1)).current;
 
-  const wheel = config.wheel;
-  const segDeg = 360 / wheel.length;
-  const elements = useMemo(() => Object.fromEntries(config.elements.map((e) => [e.element, e])) as Record<VortexElement, VortexConfig['elements'][number]>, [config]);
-  const playing = round?.status === 'PENDING';
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
+  const shake = useRef(new Animated.Value(0)).current;
+  const pop = useRef(new Animated.Value(1)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const turn = useRef(new Animated.Value(0)).current;
+
+  const putRound = useCallback((next: VortexRound | null) => {
+    roundRef.current = next;
+    setRound(next);
+  }, []);
+  const putShown = useCallback((next: VortexFill) => {
+    shownRef.current = next;
+    setShown(next);
+  }, []);
+  const putBalance = useCallback((next: number) => {
+    balanceRef.current = next;
+    setBalance(next);
+  }, []);
+  const putBusy = useCallback((next: boolean) => {
+    busyRef.current = next;
+    setBusy(next);
+  }, []);
+  const putAuto = useCallback((next: boolean) => {
+    autoRef.current = next;
+    setAuto(next);
+    if (!next && autoTimer.current) {
+      clearTimeout(autoTimer.current);
+      autoTimer.current = null;
+    }
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -345,60 +393,95 @@ export default function VortexScreen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  // Wheel angle so segment i sits under the pointer at 12 o'clock.
-  const restAngleFor = useCallback((segment: number) => -(segment * segDeg + segDeg / 2), [segDeg]);
+  const play = useCallback((name: 'tick' | 'land' | 'win') => {
+    if (!soundRef.current) return;
+    try {
+      const player = players.current?.[name];
+      player?.seekTo(0);
+      player?.play();
+    } catch {
+      // A missed sound effect is harmless.
+    }
+  }, []);
 
-  /** Ends the vortex scene at once (new spin / leaving the screen). */
-  const stopCrashScene = useCallback(() => {
-    if (crashTimer.current) clearTimeout(crashTimer.current);
-    crashTimer.current = null;
-    swirlLoop.current?.stop();
-    swirlLoop.current = null;
-    crashAnim.stopAnimation();
-  }, [crashAnim]);
+  const loadHistory = useCallback(() => {
+    fetchVortexHistory(30)
+      .then((h) => mountedRef.current && setHistory(h))
+      .catch(() => {});
+  }, []);
 
-  /** The vortex swallows the rings, spins for 3 s, then fades away and the
-   * board resets for the next round. */
-  const playCrashScene = useCallback(() => {
-    stopCrashScene();
-    setCrashed(true);
-    crashAnim.setValue(0);
-    swirlSpin.setValue(0);
-    swirlLoop.current = Animated.loop(Animated.timing(swirlSpin, { toValue: 1, duration: 1600, easing: Easing.linear, useNativeDriver: true }));
-    swirlLoop.current.start();
-    Animated.timing(crashAnim, { toValue: 1, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    crashTimer.current = setTimeout(() => {
-      crashTimer.current = null;
-      Animated.timing(crashAnim, { toValue: 0, duration: 600, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(({ finished }) => {
-        if (!finished) return;
-        swirlLoop.current?.stop();
-        swirlLoop.current = null;
-        if (mountedRef.current) setCrashed(false);
-      });
-    }, 3000);
-  }, [crashAnim, swirlSpin, stopCrashScene]);
+  /** Puts the screen back on what the server has (after a request failed). */
+  const resync = useCallback(() => {
+    fetchVortexCurrent()
+      .then((res) => {
+        if (!mountedRef.current) return;
+        putRound(res.round);
+        putShown(fillOf(res.round));
+      })
+      .catch(() => {});
+    refreshWallet().catch(() => {});
+  }, [putRound, putShown, refreshWallet]);
+
+  // The wallet as the rest of the app knows it, whenever no spin is running here.
+  useEffect(() => {
+    if (!busyRef.current) putBalance(coins);
+  }, [coins, putBalance]);
 
   useEffect(() => {
     mountedRef.current = true;
-    const id = rot.addListener(({ value }) => {
-      rotValue.current = value;
-    });
-    fetchVortexConfig()
-      .then((c) => mountedRef.current && setConfig(c))
-      .catch(() => {});
-    fetchVortexCurrent()
-      .then((r) => {
-        if (!mountedRef.current || !r) return;
-        setRound(r);
-        const last = r.segments[r.segments.length - 1];
-        if (last !== undefined) rot.setValue(restAngleFor(last));
+    const openedAt = Date.now();
+    const configLoad = fetchVortexConfig()
+      .then((c) => {
+        if (mountedRef.current) setConfig(c);
       })
       .catch(() => {});
+    const currentLoad = fetchVortexCurrent()
+      .then((res) => {
+        if (!mountedRef.current) return;
+        putRound(res.round);
+        putShown(fillOf(res.round));
+        if (res.round) setStake(Number(res.round.stake));
+        if (res.legacyPayout > 0) {
+          showToast(`Your earlier round was cashed out: ${money(res.legacyPayout)}`);
+          refreshWallet().catch(() => {});
+        }
+      })
+      .catch(() => {});
+    // The opening card goes once the settings and the player's board are in.
+    Promise.race([Promise.all([configLoad, currentLoad]), wait(SPLASH_MAX_MS)]).then(() => {
+      splashTimer.current = setTimeout(() => {
+        if (!mountedRef.current) return;
+        Animated.timing(splashFade, { toValue: 0, duration: 380, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() => {
+          if (mountedRef.current) setSplash(false);
+        });
+      }, Math.max(0, SPLASH_MIN_MS - (Date.now() - openedAt)));
+    });
+    AsyncStorage.multiGet([SOUND_KEY, FAST_KEY])
+      .then(([[, snd], [, fst]]) => {
+        if (!mountedRef.current) return;
+        if (snd === 'off') setSoundOn(false);
+        if (fst === 'on') setFast(true);
+      })
+      .catch(() => {});
+    try {
+      setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
+      players.current = {
+        tick: createAudioPlayer(require('../../assets/sounds/plinko-tick.wav')),
+        land: createAudioPlayer(require('../../assets/sounds/plinko-land.wav')),
+        win: createAudioPlayer(require('../../assets/sounds/plinko-win.wav')),
+      };
+    } catch {
+      players.current = null;
+    }
     return () => {
       mountedRef.current = false;
-      rot.removeListener(id);
-      stopCrashScene();
+      autoRef.current = false;
       if (toastTimer.current) clearTimeout(toastTimer.current);
+      if (autoTimer.current) clearTimeout(autoTimer.current);
+      if (splashTimer.current) clearTimeout(splashTimer.current);
+      const p = players.current;
+      players.current = null;
+      if (p) Object.values(p).forEach((pl) => pl.remove());
     };
     // Mount only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -410,341 +493,506 @@ export default function VortexScreen() {
     return () => clearTimeout(id);
   }, [win]);
 
-  const loadHistory = useCallback(() => {
-    fetchVortexHistory(30)
-      .then((h) => mountedRef.current && setHistory(h))
-      .catch(() => {});
-  }, []);
+  // The spin button's spiral turns while a spin runs.
+  useEffect(() => {
+    if (!busy && !auto) return;
+    const loop = Animated.loop(Animated.timing(turn, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true }));
+    loop.start();
+    return () => {
+      loop.stop();
+      turn.setValue(0);
+    };
+  }, [busy, auto, turn]);
 
-  // Free spin while the server answers; `landOn` then eases it onto the
-  // segment the server landed.
-  const freeSpin = useCallback(() => {
-    Animated.timing(rot, { toValue: rotValue.current + 3600, duration: 3600, easing: Easing.linear, useNativeDriver: true }).start();
-  }, [rot]);
+  // ---- effects on the board ----
 
-  const landOn = useCallback(
-    (segment: number) =>
-      new Promise<void>((resolve) => {
-        rot.stopAnimation((v) => {
-          const rest = restAngleFor(segment) + (Math.random() - 0.5) * segDeg * 0.6;
-          // Next angle ≥ v + 2 turns that has the wheel at rest on `segment`.
-          const base = v + 720;
-          const k = Math.ceil((base - rest) / 360);
-          const target = rest + k * 360;
-          Animated.timing(rot, { toValue: target, duration: 1900, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => resolve());
-        });
-      }),
-    [rot, restAngleFor, segDeg]
-  );
-
-  const stopSpinSoftly = useCallback(() => {
-    rot.stopAnimation((v) => {
-      Animated.timing(rot, { toValue: v + 120, duration: 500, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
-    });
-  }, [rot]);
-
-  const popMultiplier = useCallback(() => {
-    multPop.setValue(1.35);
-    Animated.spring(multPop, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }).start();
-  }, [multPop]);
-
-  const applyResult = useCallback(
-    (res: VortexSpinResult) => {
-      setRound(res.round);
-      if (res.outcome === 'CRASH') {
-        playCrashScene();
-        loadHistory();
-        return;
-      }
-      const el = res.outcome as VortexElement;
-      pulses[el].setValue(1);
-      Animated.timing(pulses[el], { toValue: 0, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
-      popMultiplier();
-      if (res.round.status === 'WON') {
-        const reason = res.round.endReason ?? '';
-        const title = reason.startsWith('FULL_') ? `${LOOK[reason.slice(5) as VortexElement]?.name.toUpperCase() ?? ''} RING FULL!` : 'MAX WIN!';
-        setWin({ amount: Number(res.round.payout), multiplier: Number(res.round.multiplier), title });
-        refreshWallet();
-        loadHistory();
-      }
+  const flashNow = useCallback(
+    (sections: SectionFlash[], color: string, ms = 700) => {
+      if (sections.length === 0) return;
+      setFlash({ sections, color });
+      flashOpacity.setValue(1);
+      Animated.timing(flashOpacity, { toValue: 0, duration: ms, easing: Easing.in(Easing.quad), useNativeDriver: true }).start();
     },
-    [playCrashScene, pulses, popMultiplier, refreshWallet, loadHistory]
+    [flashOpacity]
   );
 
-  const spin = async () => {
-    if (busy) return;
-    const current = round;
-    const continuing = current?.status === 'PENDING';
-    if (!continuing) {
-      if (stake < config.minStake || stake > config.maxStake) return showToast(`Bet must be ₹${config.minStake}–₹${config.maxStake}`);
-      if (stake > coins) return showToast('Insufficient balance');
-    }
-    setBusy(true);
-    setWin(null);
-    if (!continuing) {
-      stopCrashScene();
-      setCrashed(false);
-      crashAnim.setValue(0);
-    }
-    freeSpin();
-    try {
-      const res = continuing ? await spinVortexRound(current!.id) : await startVortexRound(stake);
-      if (!continuing) refreshWallet();
-      if (!mountedRef.current) return;
-      await landOn(res.segment);
-      if (mountedRef.current) applyResult(res);
-    } catch (err) {
-      stopSpinSoftly();
-      if (mountedRef.current) {
-        showToast(errorMessage(err));
-        fetchVortexCurrent()
-          .then((r) => mountedRef.current && r && setRound(r))
-          .catch(() => {});
-      }
-    } finally {
-      if (mountedRef.current) setBusy(false);
-    }
-  };
+  const glowNow = useCallback(
+    (color: string) => {
+      setGlow(color);
+      glowOpacity.setValue(0.9);
+      Animated.timing(glowOpacity, { toValue: 0, duration: 650, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+      pop.setValue(1.12);
+      Animated.spring(pop, { toValue: 1, friction: 5, tension: 140, useNativeDriver: true }).start();
+    },
+    [glowOpacity, pop]
+  );
 
-  const cashOut = async () => {
-    if (busy || !round || round.status !== 'PENDING') return;
-    setBusy(true);
+  const shakeNow = useCallback(() => {
+    shake.setValue(0);
+    Animated.sequence(
+      [7, -7, 5, -5, 3, 0].map((x) => Animated.timing(shake, { toValue: x, duration: 55, easing: Easing.linear, useNativeDriver: true }))
+    ).start();
+  }, [shake]);
+
+  const floatNow = useCallback(
+    (text: string) => {
+      setFloater(text);
+      floatAnim.setValue(0);
+      Animated.timing(floatAnim, { toValue: 1, duration: 1300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(({ finished }) => {
+        if (finished && mountedRef.current) setFloater(null);
+      });
+    },
+    [floatAnim]
+  );
+
+  /** What a spin's symbol does, once it has landed in the well. */
+  const showResult = useCallback(
+    async (res: VortexSpinResult, quick: boolean) => {
+      const cfg = configRef.current;
+      const ended = res.round.status !== 'PENDING';
+      const next = ended ? EMPTY : fillOf(res.round);
+      const symbol = res.symbol;
+      setLast(symbol);
+      putBalance(res.balance);
+
+      if (symbol === 'WIND') {
+        await wait(quick ? 60 : 200);
+      } else if (symbol === 'SKULL') {
+        // Every ring loses the section it stood on.
+        const lost = ELEMENTS.filter((el) => res.before[FILL_KEY[el]] > 0).map((el) => ({ element: el, index: res.before[FILL_KEY[el]] - 1 }));
+        glowNow(DANGER);
+        shakeNow();
+        flashNow(lost, DANGER, 800);
+        putShown(next);
+        play('tick');
+        await wait(quick ? 220 : 520);
+      } else {
+        const ring = cfg.rings.find((r) => r.element === symbol);
+        const full = ring ? ring.ladder.length : 0;
+        const was = res.before[FILL_KEY[symbol]];
+        glowNow(ELEMENT_LOOK[symbol].color);
+        if (was < full) {
+          putShown(next);
+          flashNow([{ element: symbol, index: was }], ELEMENT_LOOK[symbol].bright);
+          play('land');
+          await wait(quick ? 180 : 420);
+        } else if (res.premium == null) {
+          // A hit on a full ring: its bonus is paid at once.
+          flashNow([{ element: symbol, index: full }], GOLD, 900);
+          if (res.instant > 0) floatNow(`+${money(res.instant)}`);
+          play('win');
+          await wait(quick ? 420 : 900);
+        } else {
+          flashNow([{ element: symbol, index: full }], GOLD, 900);
+          play('win');
+          putAuto(false);
+          const picked = res.premium;
+          await new Promise<void>((resolve) => {
+            bonusDone.current = resolve;
+            setBonus({ premium: picked, base: ring ? ring.ladder[full - 1] : 0, amount: res.instant, premiums: cfg.firePremiums });
+          });
+          if (!mountedRef.current) return;
+          setBonus(null);
+          putShown(next);
+        }
+      }
+
+      if (res.cashedOut > 0) {
+        flashNow(filledSections(cfg, shownRef.current), GOLD, 900);
+        play('win');
+        setWin({
+          title: res.round.endReason === 'MAX_PAYOUT' ? 'MAX WIN' : 'CASHED OUT',
+          amount: res.cashedOut,
+          note: res.round.endReason === 'SPIN_LIMIT' ? `${cfg.maxSpins} spins: the round was closed` : undefined,
+        });
+      }
+      putShown(next);
+      putRound(ended ? null : res.round);
+      if (ended) loadHistory();
+    },
+    [flashNow, floatNow, glowNow, loadHistory, play, putAuto, putBalance, putRound, putShown, shakeNow]
+  );
+
+  // ---- actions ----
+
+  const cashOutRef = useRef<() => void>(() => {});
+  const partRef = useRef<() => void>(() => {});
+  const spinRef = useRef<() => void>(() => {});
+
+  const spin = useCallback(async () => {
+    if (busyRef.current) return;
+    const cfg = configRef.current;
+    const current = roundRef.current;
+    const bet = current ? Number(current.stake) : stakeRef.current;
+    if (!current && (bet < cfg.minStake || bet > cfg.maxStake)) {
+      putAuto(false);
+      return showToast(`Bet must be ₹${cfg.minStake} – ₹${cfg.maxStake}`);
+    }
+    if (bet > balanceRef.current + 1e-9) {
+      putAuto(false);
+      return showToast('Not enough money');
+    }
+    putBusy(true);
+    setWin(null);
+    const before = balanceRef.current;
+    putBalance(round2(before - bet));
+    reel.current?.start();
+    play('tick');
+    const started = Date.now();
     try {
-      const r = await cashOutVortexRound(round.id);
+      const res = await spinVortex(bet);
       if (!mountedRef.current) return;
-      setRound(r);
-      setWin({ amount: Number(r.payout), multiplier: Number(r.multiplier), title: 'YOU WIN' });
-      refreshWallet();
+      const quick = fastRef.current;
+      await wait(Math.max(0, (quick ? 180 : 520) - (Date.now() - started)));
+      if (!mountedRef.current) return;
+      await reel.current?.land(res.symbol, quick ? 300 : 600);
+      if (!mountedRef.current) return;
+      await showResult(res, quick);
+    } catch (err) {
+      if (!mountedRef.current) return;
+      putAuto(false);
+      queued.current = null;
+      putBalance(before);
+      await reel.current?.land('WIND', 250);
+      showToast(errorMessage(err));
+      resync();
+    } finally {
+      if (mountedRef.current) {
+        putBusy(false);
+        const then = queued.current;
+        queued.current = null;
+        if (then === 'cashout') cashOutRef.current();
+        else if (then === 'part') partRef.current();
+        else if (autoRef.current) autoTimer.current = setTimeout(() => spinRef.current(), fastRef.current ? 140 : 380);
+        else refreshWallet().catch(() => {});
+      }
+    }
+  }, [play, putAuto, putBalance, putBusy, refreshWallet, resync, showResult, showToast]);
+  spinRef.current = spin;
+
+  const cashOut = useCallback(async () => {
+    const current = roundRef.current;
+    if (!current) return;
+    putAuto(false);
+    if (busyRef.current) {
+      // Taken as soon as the spin that is running has landed.
+      queued.current = 'cashout';
+      return;
+    }
+    putBusy(true);
+    try {
+      const cfg = configRef.current;
+      const multiplier = boardMultiplier(cfg, shownRef.current);
+      const res = await cashOutVortex(current.id);
+      if (!mountedRef.current) return;
+      flashNow(filledSections(cfg, shownRef.current), GOLD, 900);
+      play('win');
+      putBalance(res.balance);
+      putShown(EMPTY);
+      putRound(null);
+      setWin({ title: 'CASH OUT', amount: res.paid, note: `x${round2(multiplier)}` });
       loadHistory();
     } catch (err) {
-      if (mountedRef.current) showToast(errorMessage(err));
+      if (mountedRef.current) {
+        showToast(errorMessage(err));
+        resync();
+      }
     } finally {
-      if (mountedRef.current) setBusy(false);
+      if (mountedRef.current) {
+        putBusy(false);
+        refreshWallet().catch(() => {});
+      }
     }
+  }, [flashNow, loadHistory, play, putAuto, putBalance, putBusy, putRound, putShown, refreshWallet, resync, showToast]);
+  cashOutRef.current = cashOut;
+
+  const takePart = useCallback(async () => {
+    const current = roundRef.current;
+    if (!current) return;
+    if (partMultiplier(configRef.current, shownRef.current) <= 0) return showToast('Part payout needs two sections on a ring');
+    putAuto(false);
+    if (busyRef.current) {
+      queued.current = 'part';
+      return;
+    }
+    putBusy(true);
+    try {
+      const cfg = configRef.current;
+      const was = shownRef.current;
+      const res = await partPayoutVortex(current.id);
+      if (!mountedRef.current) return;
+      const taken = cfg.rings
+        .filter((ring) => was[FILL_KEY[ring.element]] >= 2)
+        .map((ring) => ({ element: ring.element, index: Math.min(was[FILL_KEY[ring.element]], ring.ladder.length) - 1 }));
+      flashNow(taken, GOLD, 900);
+      floatNow(`+${money(res.paid)}`);
+      play('win');
+      putBalance(res.balance);
+      const live = res.round.status === 'PENDING';
+      putShown(live ? fillOf(res.round) : EMPTY);
+      putRound(live ? res.round : null);
+    } catch (err) {
+      if (mountedRef.current) {
+        showToast(errorMessage(err));
+        resync();
+      }
+    } finally {
+      if (mountedRef.current) {
+        putBusy(false);
+        refreshWallet().catch(() => {});
+      }
+    }
+  }, [flashNow, floatNow, play, putAuto, putBalance, putBusy, putRound, putShown, refreshWallet, resync, showToast]);
+  partRef.current = takePart;
+
+  const toggleAuto = () => {
+    if (autoRef.current) return putAuto(false);
+    putAuto(true);
+    if (!busyRef.current) spin();
   };
 
   const stepStake = (dir: 1 | -1) => {
-    const idx = STAKE_STEPS.findIndex((s) => s >= stake);
-    const i = idx === -1 ? STAKE_STEPS.length - 1 : idx;
-    const next = STAKE_STEPS[Math.max(0, Math.min(STAKE_STEPS.length - 1, dir === 1 && STAKE_STEPS[i] === stake ? i + 1 : dir === 1 ? i : i - 1))];
+    if (round || busy) return showToast('Bet can be changed when the board is clear');
+    const up = STAKE_STEPS.find((s) => s > stake);
+    const down = [...STAKE_STEPS].reverse().find((s) => s < stake);
+    const next = dir === 1 ? up ?? stake : down ?? stake;
     setStake(Math.max(config.minStake, Math.min(config.maxStake, next)));
   };
 
+  const toggleSound = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    AsyncStorage.setItem(SOUND_KEY, next ? 'on' : 'off').catch(() => {});
+  };
+
+  const toggleFast = () => {
+    const next = !fast;
+    setFast(next);
+    showToast(next ? 'Fast spins on' : 'Fast spins off');
+    AsyncStorage.setItem(FAST_KEY, next ? 'on' : 'off').catch(() => {});
+  };
+
   // ---- sizes ----
-  const topH = 50;
-  const bottomH = 176 + insets.bottom;
-  const avail = H - insets.top - topH - 64 - 34 - bottomH;
-  const S = Math.max(220, Math.min(W - 28, avail));
-  const c = S / 2;
-  const ringBand: Record<VortexElement, [number, number]> = { FIRE: [S * 0.322, S * 0.392], EARTH: [S * 0.252, S * 0.322], WATER: [S * 0.182, S * 0.252] };
-  const swirlSize = S * 0.36;
+  const short = H < 720;
+  const topH = 46;
+  const infoH = 40;
+  const spinSize = Math.max(88, Math.min(118, W * 0.27));
+  const sideSize = spinSize * 0.66;
+  const controlsH = spinSize + (short ? 92 : 104);
+  const footH = 22;
+  const minLogoH = short ? 40 : 56;
+  const avail = H - insets.top - insets.bottom - topH - infoH - minLogoH - controlsH - footH - 10;
+  const S = Math.max(210, Math.min(W - 18, avail, 520));
+  // On a tall screen the logo takes some of the room the board leaves.
+  const logoH = minLogoH + Math.max(0, Math.min(36, (avail - S) * 0.4));
+  const wellSize = WELL * 2 * S;
 
-  const multiplier = round ? Number(round.multiplier) : 0;
-  const roundStake = round ? Number(round.stake) : stake;
-  const potential = round2(roundStake * multiplier);
-  const landed = round?.segments ?? [];
-  const showFills = !!round && (playing || crashed || round.status === 'WON');
-
-  const centreLabel = crashed ? 'VORTEX!' : playing || round?.status === 'WON' ? `x${multiplier.toFixed(2)}` : 'SPIN';
+  const bet = round ? Number(round.stake) : stake;
+  const payout = round2(bet * boardMultiplier(config, shown));
+  const part = round2(bet * partMultiplier(config, shown));
+  const canCash = !!round && payout > 0;
+  const canPart = !!round && part > 0;
 
   return (
     <View style={styles.root}>
-      <LinearGradient colors={['#1B0038', '#0A0016', '#05000C']} style={StyleSheet.absoluteFill} />
-      <Stars w={W} h={H} />
+      <LinearGradient colors={['#262933', '#191B22', '#101116']} style={StyleSheet.absoluteFill} />
+      <VortexBackdrop width={W} height={H} />
 
       {/* Top bar */}
-      <View style={[styles.topBar, { marginTop: insets.top, height: topH }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color="#E9D8FF" />
-          <Text style={styles.title}>VORTEX</Text>
-        </Pressable>
-        <View style={styles.topRight}>
-          <View style={styles.balancePill}>
-            <MaterialCommunityIcons name="wallet" size={15} color={GOLD} />
-            <Text style={styles.balanceText}>₹{coins.toFixed(2)}</Text>
-          </View>
-          <Pressable onPress={() => setSheet('rules')} style={styles.iconBtn} hitSlop={6}>
-            <Text style={styles.iconBtnText}>?</Text>
+      <LinearGradient colors={['#3B1119', '#22090E']} style={{ paddingTop: insets.top }}>
+        <View style={[styles.topBar, { height: topH }]}>
+          <Pressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+            <MaterialCommunityIcons name="chevron-left" size={30} color="#F0B93D" />
+            <Text style={styles.brand}>NOVAPLAY</Text>
+          </Pressable>
+          <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.deposit} accessibilityRole="button" accessibilityLabel="Deposit">
+            <MaterialCommunityIcons name="wallet-plus" size={18} color={GOLD} />
+            <Text style={styles.depositText}>Deposit</Text>
+          </Pressable>
+        </View>
+      </LinearGradient>
+
+      {/* Balance and switches */}
+      <View style={[styles.info, { height: infoH }]}>
+        <View style={styles.balance}>
+          <MaterialCommunityIcons name="wallet-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.balanceText} numberOfLines={1} testID="vortex-balance">
+            {money(balance)}
+          </Text>
+        </View>
+        <View style={styles.switches}>
+          <Pressable onPress={() => setSheet('rules')} hitSlop={8} accessibilityRole="button" accessibilityLabel="How to play">
+            <MaterialCommunityIcons name="help-circle-outline" size={25} color="#FFFFFF" />
+          </Pressable>
+          <Pressable onPress={toggleFast} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fast spins">
+            <MaterialCommunityIcons name={fast ? 'lightning-bolt' : 'lightning-bolt-outline'} size={25} color={fast ? GOLD : '#FFFFFF'} />
+          </Pressable>
+          <Pressable onPress={toggleSound} hitSlop={8} accessibilityRole="button" accessibilityLabel="Sound">
+            <MaterialCommunityIcons name={soundOn ? 'volume-high' : 'volume-off'} size={25} color="#FFFFFF" />
           </Pressable>
           <Pressable
             onPress={() => {
               loadHistory();
               setSheet('history');
             }}
-            style={styles.iconBtn}
-            hitSlop={6}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="My bets"
           >
-            <MaterialCommunityIcons name="history" size={18} color="#FFFFFF" />
+            <MaterialCommunityIcons name="history" size={25} color="#FFFFFF" />
           </Pressable>
         </View>
       </View>
 
-      {/* Element meters */}
-      <View style={styles.meters}>
-        {(['WATER', 'EARTH', 'FIRE'] as VortexElement[]).map((el) => {
-          const e = elements[el];
-          const filled = showFills && round ? round[FILL_KEY[el]] : 0;
-          return (
-            <LinearGradient key={el} colors={[LOOK[el].colors[1], '#12002A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.meter}>
-              <ElementIcon kind={el} size={30} />
-              <View style={{ marginLeft: 6 }}>
-                <Text style={styles.meterMult}>x{(e?.ladder[filled] ?? 1).toFixed(2)}</Text>
-                <Text style={styles.meterSub}>
-                  {filled}/{e?.sections ?? 0} · x{e?.factor}
-                </Text>
-              </View>
-            </LinearGradient>
-          );
-        })}
+      <View style={{ height: logoH, alignItems: 'center', justifyContent: 'center' }}>
+        <VortexLogo height={logoH} />
       </View>
 
-      {/* Wheel */}
-      <View style={styles.wheelArea}>
-        <View style={{ width: S, height: S }}>
-          <View pointerEvents="none" style={[styles.wheelGlow, { width: S * 1.08, height: S * 1.08, borderRadius: S * 0.54, left: -S * 0.04, top: -S * 0.04 }]} />
-          <Animated.View style={{ width: S, height: S, transform: [{ rotate: rot.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'] }) }] }}>
-            <Wheel size={S} wheel={wheel} />
+      {/* The board */}
+      <View style={styles.boardArea}>
+        <Animated.View style={{ width: S, height: S, transform: [{ translateX: shake }] }}>
+          <View pointerEvents="none" style={[styles.boardShadow, { width: S, height: S, borderRadius: S / 2 }]} />
+          <BoardBase size={S} rings={config.rings} />
+          <BoardRings size={S} rings={config.rings} fill={shown} />
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: flashOpacity }]}>
+            {flash && <BoardFlash size={S} rings={config.rings} sections={flash.sections} color={flash.color} />}
           </Animated.View>
-          <RimLights size={S} count={wheel.length} />
 
-          {/* Inner disc: rings + vortex */}
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-            <Svg width={S} height={S} style={StyleSheet.absoluteFill}>
-              <Defs>
-                <RadialGradient id="disc" cx="50%" cy="50%" r="50%">
-                  <Stop offset="0" stopColor="#1A1C22" />
-                  <Stop offset="1" stopColor="#2A2D35" />
-                </RadialGradient>
-              </Defs>
-              <Circle cx={c} cy={c} r={S * 0.398} fill="url(#disc)" />
-              <Circle cx={c} cy={c} r={S * 0.176} fill="#17181D" stroke="#34373F" strokeWidth={2} />
-            </Svg>
-            <Animated.View style={[StyleSheet.absoluteFill, { opacity: crashAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.25] }) }]}>
-              {RING_ORDER.map((el) => (
-                <ElementRing
-                  key={el}
-                  size={S}
-                  rIn={ringBand[el][0]}
-                  rOut={ringBand[el][1]}
-                  element={el}
-                  ladder={elements[el]?.ladder ?? [1]}
-                  filled={showFills && round ? round[FILL_KEY[el]] : 0}
-                  pulse={pulses[el]}
-                />
-              ))}
+          <View style={[styles.well, { left: S / 2 - wellSize / 2, top: S / 2 - wellSize / 2, width: wellSize, height: wellSize }]}>
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: glowOpacity }]}>
+              <WellGlow size={S} color={glow} />
             </Animated.View>
+            <Animated.View style={{ transform: [{ scale: pop }] }}>
+              <Reel ref={reel} size={S} />
+            </Animated.View>
+          </View>
+
+          {floater && (
             <Animated.View
-              style={{
-                position: 'absolute',
-                // Hidden until the vortex hits, then it swallows the rings.
-                opacity: crashAnim.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.95, 0.9] }),
-                transform: [
-                  { rotate: swirlSpin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] }) },
-                  { scale: crashAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 2.1] }) },
-                ],
-              }}
+              pointerEvents="none"
+              style={[
+                styles.floater,
+                {
+                  top: S * 0.3,
+                  opacity: floatAnim.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] }),
+                  transform: [{ translateY: floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -S * 0.2] }) }],
+                },
+              ]}
             >
-              <Swirl size={swirlSize} />
+              <Text style={[styles.floaterText, { fontSize: S * 0.085 }]}>{floater}</Text>
             </Animated.View>
-            <Animated.View style={{ alignItems: 'center', transform: [{ scale: multPop }] }}>
-              <Text style={[styles.centreText, { fontSize: S * (centreLabel.length > 6 ? 0.075 : 0.09) }, crashed && styles.centreCrash]}>{centreLabel}</Text>
-              {(playing || round?.status === 'WON') && !crashed && <Text style={[styles.centreSub, { fontSize: S * 0.045 }]}>₹{potential.toFixed(2)}</Text>}
-            </Animated.View>
-          </View>
-
-          {/* Pointer */}
-          <View pointerEvents="none" style={[styles.pointer, { left: c - S * 0.045, top: -S * 0.02 }]}>
-            <Svg width={S * 0.09} height={S * 0.1}>
-              <Path d={`M 0 0 L ${S * 0.09} 0 L ${S * 0.045} ${S * 0.1} Z`} fill={GOLD} stroke="#7A4A00" strokeWidth={2} />
-            </Svg>
-          </View>
-
-          {/* Crash flash */}
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.crashFlash,
-              { width: S, height: S, borderRadius: S / 2, opacity: crashAnim.interpolate({ inputRange: [0, 0.25, 1], outputRange: [0, 0.55, 0.18] }) },
-            ]}
-          />
-        </View>
-      </View>
-
-      {/* This round's spins */}
-      <View style={styles.trail}>
-        {landed.length === 0 ? (
-          <Text style={styles.trailHint}>
-            Water x{elements.WATER?.factor} · Earth x{elements.EARTH?.factor} · Fire x{elements.FIRE?.factor} · Vortex loses
-          </Text>
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trailRow}>
-            {landed.map((seg, i) => {
-              const k = wheel[seg];
-              return (
-                <View key={i} style={styles.trailChip}>
-                  <ElementIcon kind={k} size={24} />
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
+          )}
+          {bonus && <BonusCard bonus={bonus} fast={fast} onDone={() => bonusDone.current?.()} />}
+          {win && !bonus && <WinCard win={win} onClose={() => setWin(null)} />}
+        </Animated.View>
       </View>
 
       {/* Controls */}
-      <View style={[styles.panel, { paddingBottom: insets.bottom + 10 }]}>
-        <View style={styles.stakeRow}>
-          <Pressable onPress={() => stepStake(-1)} disabled={playing || busy} style={[styles.roundBtn, (playing || busy) && styles.dim]}>
-            <MaterialCommunityIcons name="minus" size={20} color="#FFFFFF" />
-          </Pressable>
-          <View style={styles.stakeBox}>
-            <Text style={styles.stakeLabel}>BET</Text>
-            <Text style={styles.stakeValue}>₹{(playing ? roundStake : stake).toFixed(2)}</Text>
+      <View style={[styles.controls, { height: controlsH }]}>
+        {toast && (
+          <View style={styles.toastWrap} pointerEvents="none">
+            <View style={styles.toast}>
+              <MaterialCommunityIcons name="information" size={16} color="#FFFFFF" />
+              <Text style={styles.toastText}>{toast}</Text>
+            </View>
+            <View style={styles.toastTip} />
           </View>
-          <Pressable onPress={() => stepStake(1)} disabled={playing || busy} style={[styles.roundBtn, (playing || busy) && styles.dim]}>
-            <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
-          </Pressable>
-          <View style={styles.quickRow}>
-            {QUICK_STAKES.map((q) => (
-              <Pressable
-                key={q}
-                disabled={playing || busy || q > config.maxStake}
-                onPress={() => setStake(q)}
-                style={[styles.quick, stake === q && !playing && styles.quickActive, (playing || busy || q > config.maxStake) && styles.dim]}
-              >
-                <Text style={styles.quickText}>{q}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-        <View style={styles.actionRow}>
-          <Pressable onPress={spin} disabled={busy} style={({ pressed }) => [styles.actionWrap, pressed && styles.pressed, busy && styles.dim]}>
-            <LinearGradient colors={['#B24DFF', '#6A12D8']} style={styles.actionBtn}>
-              <MaterialCommunityIcons name="rotate-right" size={24} color="#FFFFFF" />
-              <View style={{ marginLeft: 6 }}>
-                <Text style={styles.actionText}>{busy ? 'SPINNING…' : 'SPIN'}</Text>
-                {!playing && <Text style={styles.actionSub}>₹{stake.toFixed(2)}</Text>}
-              </View>
+        )}
+        <Pressable onPress={() => setSheet('rules')} style={styles.betLabelRow} hitSlop={6}>
+          <Text style={styles.betLabel}>Bet Amount</Text>
+          <MaterialCommunityIcons name="information" size={14} color="#7C8296" />
+        </Pressable>
+        <View style={styles.betRow}>
+          <Pressable onPress={() => stepStake(-1)} style={({ pressed }) => [styles.stepBtn, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Lower bet">
+            <LinearGradient colors={['#30333F', '#1A1C23']} style={styles.stepFace}>
+              <MaterialCommunityIcons name="minus" size={22} color={round ? '#555A69' : '#C9CEDB'} />
             </LinearGradient>
           </Pressable>
-          {playing && (
-            <Pressable onPress={cashOut} disabled={busy} style={({ pressed }) => [styles.actionWrap, pressed && styles.pressed, busy && styles.dim]}>
-              <LinearGradient colors={['#FFD66B', '#E0901A']} style={styles.actionBtn}>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={[styles.actionText, { color: '#3A1E00' }]}>CASH OUT</Text>
-                  <Text style={[styles.actionSub, { color: '#3A1E00' }]}>₹{potential.toFixed(2)}</Text>
-                </View>
+          <Text style={styles.betValue} numberOfLines={1} adjustsFontSizeToFit testID="vortex-bet">
+            ₹{bet.toLocaleString('en-IN')}
+          </Text>
+          <Pressable onPress={() => stepStake(1)} style={({ pressed }) => [styles.stepBtn, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Raise bet">
+            <LinearGradient colors={['#30333F', '#1A1C23']} style={styles.stepFace}>
+              <MaterialCommunityIcons name="plus" size={22} color={round ? '#555A69' : '#C9CEDB'} />
+            </LinearGradient>
+          </Pressable>
+        </View>
+
+        <View style={styles.actionRow}>
+          <View style={styles.sideCol}>
+            <Pressable onPress={cashOut} disabled={!canCash} style={({ pressed }) => [pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Cash out">
+              <LinearGradient
+                colors={canCash ? ['#FFE9A8', '#E3A92E', '#8F5A0C'] : ['#30333F', '#1A1C23']}
+                style={[styles.sideBtn, { width: sideSize, height: sideSize, borderRadius: sideSize / 2 }]}
+              >
+                <LinearGradient
+                  colors={canCash ? ['#3A2F12', '#1C1608'] : ['#262933', '#17191F']}
+                  style={[styles.sideFace, { borderRadius: sideSize / 2 }]}
+                >
+                  <Text style={[styles.cashText, { fontSize: sideSize * 0.2, lineHeight: sideSize * 0.23 }, canCash && styles.cashTextOn]}>{'CASH\nOUT'}</Text>
+                </LinearGradient>
               </LinearGradient>
             </Pressable>
-          )}
+            <Text style={styles.sideLabel}>Payout</Text>
+            <Text style={[styles.sideValue, canCash && { color: GOLD }]} numberOfLines={1} adjustsFontSizeToFit testID="vortex-payout">
+              {money(payout)}
+            </Text>
+          </View>
+
+          <Pressable onPress={spin} disabled={busy || auto} style={({ pressed }) => [pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Spin" testID="vortex-spin">
+            <LinearGradient colors={['#3A3D4A', '#14151A']} style={{ width: spinSize, height: spinSize, borderRadius: spinSize / 2, padding: spinSize * 0.055 }}>
+              <LinearGradient colors={['#B46BFF', '#7A1FF2', '#4A0DB5']} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[styles.spinFace, { borderRadius: spinSize / 2 }]}>
+                <Animated.View style={{ transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
+                  <SpinGlyph size={spinSize * 0.74} />
+                </Animated.View>
+              </LinearGradient>
+            </LinearGradient>
+          </Pressable>
+
+          <View style={styles.sideCol}>
+            <Pressable onPress={toggleAuto} style={({ pressed }) => [pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Auto spin" accessibilityState={{ selected: auto }}>
+              <LinearGradient
+                colors={auto ? ['#D9BEFF', '#8A3CFF', '#4A0DB5'] : ['#30333F', '#1A1C23']}
+                style={[styles.sideBtn, { width: sideSize, height: sideSize, borderRadius: sideSize / 2 }]}
+              >
+                <LinearGradient colors={auto ? ['#3B1A75', '#1D0B40'] : ['#262933', '#17191F']} style={[styles.sideFace, { borderRadius: sideSize / 2 }]}>
+                  <MaterialCommunityIcons name={auto ? 'stop' : 'autorenew'} size={sideSize * 0.4} color={auto ? '#FFFFFF' : '#6E7486'} />
+                  <Text style={[styles.autoText, auto && { color: '#FFFFFF' }]}>{auto ? 'STOP' : 'AUTO'}</Text>
+                </LinearGradient>
+              </LinearGradient>
+            </Pressable>
+            <Text style={styles.sideLabel}>Part Payout</Text>
+            <Pressable onPress={takePart} disabled={!canPart} hitSlop={6} accessibilityRole="button" accessibilityLabel="Part payout">
+              <View style={[styles.partPill, canPart && styles.partPillOn]}>
+                <Text style={[styles.sideValue, canPart && { color: '#1B1405' }]} numberOfLines={1} adjustsFontSizeToFit testID="vortex-part">
+                  {canPart ? money(part) : '-'}
+                </Text>
+              </View>
+            </Pressable>
+          </View>
         </View>
       </View>
 
-      {win && <WinCard amount={win.amount} multiplier={win.multiplier} title={win.title} onClose={() => setWin(null)} />}
+      <View style={[styles.foot, { height: footH, marginBottom: insets.bottom }]}>
+        <Text style={styles.footText}>NovaPlay · Vortex{last ? ` · ${SYMBOL_NAME[last]}` : ''}</Text>
+        <Clock />
+      </View>
 
-      {toast && (
-        <View style={styles.toast} pointerEvents="none">
-          <Text style={styles.toastText}>{toast}</Text>
-        </View>
+      {splash && (
+        <Animated.View style={[StyleSheet.absoluteFill, styles.splash, { opacity: splashFade }]}>
+          <Image source={require('../../assets/novaplay-badge.webp')} style={{ width: Math.min(132, W * 0.32), height: Math.min(132, W * 0.32) }} />
+          <Text style={styles.splashBrand}>NOVAPLAY GAMES</Text>
+          <View style={styles.splashBadgeWrap}>
+            <View style={styles.splashBadgeShadow} />
+            <View style={styles.splashBadge}>
+              <VortexLogo height={34} />
+              <Text style={styles.splashBadgeText}>Official Game</Text>
+              <MaterialCommunityIcons name="shield-check-outline" size={24} color={DANGER} />
+            </View>
+          </View>
+          <Text style={styles.splashNote}>Provably fair · {config.rtpPercent}% RTP</Text>
+          <ActivityIndicator color="#B46BFF" style={{ marginTop: 26 }} />
+        </Animated.View>
       )}
 
       <Modal visible={sheet !== null} transparent animationType="fade" onRequestClose={() => setSheet(null)}>
@@ -754,81 +1002,31 @@ export default function VortexScreen() {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{sheet === 'history' ? 'MY BETS' : 'HOW TO PLAY'}</Text>
-              <Pressable onPress={() => setSheet(null)} hitSlop={10}>
+              <Pressable onPress={() => setSheet(null)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>
             <ScrollView nestedScrollEnabled contentContainerStyle={styles.sheetBody}>
-              {sheet === 'rules' && (
-                <>
-                  {[
-                    'Choose your bet and tap SPIN. Your bet is taken on the first spin.',
-                    `The wheel has ${wheel.length} segments: ${wheel.filter((w) => w === 'WATER').length} Water, ${wheel.filter((w) => w === 'EARTH').length} Earth, ${wheel.filter((w) => w === 'FIRE').length} Fire and ${wheel.filter((w) => w === 'CRASH').length} Vortex.`,
-                    'Every element you land fills one section of its ring and multiplies your win by that element’s factor.',
-                    'Land on the Vortex and the round is lost.',
-                    'Tap CASH OUT any time after the first spin to take your win.',
-                    'Fill a whole ring and it cashes out for you automatically.',
-                  ].map((line, i) => (
-                    <View key={i} style={styles.ruleLine}>
-                      <Text style={styles.ruleNum}>{i + 1}</Text>
-                      <Text style={styles.ruleText}>{line}</Text>
-                    </View>
-                  ))}
-                  <Text style={styles.sheetSection}>ELEMENTS</Text>
-                  {config.elements.map((e) => (
-                    <View key={e.element} style={styles.elementRow}>
-                      <ElementIcon kind={e.element} size={22} />
-                      <Text style={styles.elementName}>{LOOK[e.element].name}</Text>
-                      <Text style={styles.elementInfo}>
-                        x{e.factor} per hit · {e.sections} sections · full ring x{e.ladder[e.sections]}
-                      </Text>
-                    </View>
-                  ))}
-                  <View style={styles.elementRow}>
-                    <ElementIcon kind="CRASH" size={22} />
-                    <Text style={styles.elementName}>Vortex</Text>
-                    <Text style={styles.elementInfo}>round lost</Text>
-                  </View>
-                  <Text style={styles.sheetSection}>GAME LIMITS</Text>
-                  {[
-                    ['Minimum bet', `₹${config.minStake}`],
-                    ['Maximum bet', `₹${config.maxStake}`],
-                    ['Maximum win per round', `${winLimit(config.maxPayout)}`],
-                    ['Return to player', `${config.rtpPercent}%`],
-                  ].map(([k, v]) => (
-                    <View key={k} style={styles.limitRow}>
-                      <Text style={styles.limitKey}>{k}</Text>
-                      <Text style={styles.limitVal}>{v}</Text>
-                    </View>
-                  ))}
-                  <Text style={styles.sheetSection}>PROVABLY FAIR</Text>
-                  <Text style={styles.ruleText}>
-                    Every spin comes from your server seed (shown as a hash before you play), your client seed and the round nonce, so each result can be checked after you rotate your seed.
-                  </Text>
-                  {round && <Text style={styles.hash}>Seed hash: {round.serverSeedHash}</Text>}
-                </>
-              )}
+              {sheet === 'rules' && <Rules config={config} seedHash={round?.serverSeedHash} />}
               {sheet === 'history' &&
                 (history.length === 0 ? (
                   <Text style={styles.ruleText}>No rounds yet.</Text>
                 ) : (
                   history.map((h) => {
-                    const won = h.status === 'WON';
+                    const staked = Number(h.totalStake);
+                    const paid = Number(h.payout);
+                    const up = paid >= staked;
                     return (
                       <View key={h.id} style={styles.histRow}>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.histTime}>{new Date(h.createdAt).toLocaleString()}</Text>
-                          <View style={styles.histSegs}>
-                            {h.segments.map((s, i) => (
-                              <ElementIcon key={i} kind={wheel[s] ?? 'CRASH'} size={15} />
-                            ))}
-                          </View>
+                          <Text style={styles.histInfo}>
+                            {h.spins} {h.spins === 1 ? 'spin' : 'spins'} × ₹{Number(h.stake).toLocaleString('en-IN')}
+                          </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={styles.histStake}>₹{Number(h.stake).toFixed(2)}</Text>
-                          <Text style={[styles.histResult, { color: won ? '#7EE2A3' : '#FF7A8A' }]}>
-                            {won ? `x${Number(h.multiplier).toFixed(2)} · +₹${Number(h.payout).toFixed(2)}` : 'Vortex'}
-                          </Text>
+                          <Text style={styles.histStake}>Bet {money(staked)}</Text>
+                          <Text style={[styles.histResult, { color: up ? '#7EE2A3' : paid > 0 ? GOLD : '#FF7A8A' }]}>Won {money(paid)}</Text>
                         </View>
                       </View>
                     );
@@ -842,100 +1040,167 @@ export default function VortexScreen() {
   );
 }
 
-/** A fixed field of faint stars behind everything. */
-const Stars = memo(function Stars({ w, h }: { w: number; h: number }) {
-  const stars = useMemo(() => {
-    let seed = 7;
-    const rnd = () => {
-      seed = (seed * 9301 + 49297) % 233280;
-      return seed / 233280;
-    };
-    return Array.from({ length: 60 }, () => ({ x: rnd() * w, y: rnd() * h, r: 0.5 + rnd() * 1.3, o: 0.2 + rnd() * 0.6 }));
-  }, [w, h]);
+const Rules = memo(function Rules({ config, seedHash }: { config: VortexConfig; seedHash?: string }) {
+  const ring = (el: VortexElement) => config.rings.find((r) => r.element === el);
+  const water = ring('WATER');
+  const earth = ring('EARTH');
+  const fire = ring('FIRE');
+  const top = (r?: { ladder: number[] }) => (r ? r.ladder[r.ladder.length - 1] : 0);
+  const maxPremium = Math.max(...config.firePremiums);
+  const lines = [
+    'Choose your bet and tap the purple button. Every spin costs your bet and lands one symbol in the middle.',
+    'Water, Earth and Fire each fill the next section of their own ring. Wind does nothing. A Skull takes one section off every ring.',
+    'A ring is worth the number on its last filled section × your bet. CASH OUT pays all three rings together and clears the board.',
+    'PART PAYOUT needs two or more sections on a ring. It pays the step between the last two sections of each such ring and moves it back one section — you keep playing.',
+    `Land Water on a full Water ring and +${water?.bonus ?? 7}x is paid at once; Earth on a full Earth ring pays +${earth?.bonus ?? 20.5}x. The ring stays full.`,
+    `Land Fire on a full Fire ring for the BONUS: x${top(fire)} plus ${config.firePremiums.map((p) => `x${p}`).join(', ')} — up to x${top(fire) + maxPremium}. The Fire ring then starts again.`,
+    'The bet can be changed only when the board is clear. If you leave, your board is kept for when you come back.',
+  ];
   return (
-    <Svg width={w} height={h} style={StyleSheet.absoluteFill} pointerEvents="none">
-      {stars.map((s, i) => (
-        <Circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#FFFFFF" opacity={s.o} />
+    <>
+      {lines.map((line, i) => (
+        <View key={i} style={styles.ruleLine}>
+          <Text style={styles.ruleNum}>{i + 1}</Text>
+          <Text style={styles.ruleText}>{line}</Text>
+        </View>
       ))}
-    </Svg>
+      <Text style={styles.sheetSection}>RINGS</Text>
+      {config.rings.map((r) => (
+        <View key={r.element} style={styles.ringRow}>
+          <SymbolOrb symbol={r.element} size={26} />
+          <Text style={styles.ringInfo}>{Array.from({ length: r.ladder.length + 1 }, (_, i) => sectionLabel(r, i).toLowerCase()).join(' · ')}</Text>
+        </View>
+      ))}
+      <View style={styles.ringRow}>
+        <SymbolOrb symbol="WIND" size={26} />
+        <Text style={styles.ringInfo}>Wind — nothing changes</Text>
+      </View>
+      <View style={styles.ringRow}>
+        <SymbolOrb symbol="SKULL" size={26} />
+        <Text style={styles.ringInfo}>Skull — every ring goes back one section ({config.skullChancePercent}% of spins)</Text>
+      </View>
+      <Text style={styles.sheetSection}>CHANCES</Text>
+      <Text style={styles.ruleText}>
+        An element's chance depends on how full its ring is (empty ring first, full ring last). Every spin returns {config.rtpPercent}% of the bet on average, however you play.
+      </Text>
+      {config.rings.map((r) => (
+        <View key={r.element} style={styles.limitRow}>
+          <Text style={styles.limitKey}>{ELEMENT_LOOK[r.element].name}</Text>
+          <Text style={[styles.limitVal, { flex: 1, textAlign: 'right' }]}>{r.chances.map((c) => `${c}%`).join(' · ')}</Text>
+        </View>
+      ))}
+      <Text style={styles.sheetSection}>GAME LIMITS</Text>
+      {[
+        ['Minimum bet', `₹${config.minStake}`],
+        ['Maximum bet', `₹${config.maxStake.toLocaleString('en-IN')}`],
+        ['Maximum win per round', winLimit(config.maxPayout)],
+        ['Spins in one round', `${config.maxSpins} (then it is cashed out for you)`],
+        ['Return to player', `${config.rtpPercent}%`],
+      ].map(([k, v]) => (
+        <View key={k} style={styles.limitRow}>
+          <Text style={styles.limitKey}>{k}</Text>
+          <Text style={styles.limitVal}>{v}</Text>
+        </View>
+      ))}
+      <Text style={styles.sheetSection}>PROVABLY FAIR</Text>
+      <Text style={styles.ruleText}>
+        Every spin comes from your server seed (shown as a hash before you play), your client seed and the round's number, so each result can be checked after you change your seed.
+      </Text>
+      {!!seedHash && <Text style={styles.hash}>Seed hash: {seedHash}</Text>}
+    </>
   );
 });
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#05000C' },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
-  backBtn: { flexDirection: 'row', alignItems: 'center' },
-  title: { color: '#E9D8FF', fontSize: 20, fontWeight: '900', letterSpacing: 4, textShadowColor: '#9B3DFF', textShadowRadius: 10 },
-  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  balancePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,214,107,0.4)' },
-  balanceText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  iconBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)' },
-  iconBtnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '900' },
+  root: { flex: 1, backgroundColor: '#101116' },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 4, paddingRight: 10, borderBottomWidth: 1, borderBottomColor: '#5A1A24' },
+  back: { flexDirection: 'row', alignItems: 'center' },
+  brand: { fontFamily: fonts.italic, fontSize: 16, color: '#D9DCE5', letterSpacing: 1 },
+  deposit: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.35)', borderWidth: 1, borderColor: 'rgba(240,185,61,0.45)' },
+  depositText: { fontFamily: fonts.bold, fontSize: 13, color: GOLD },
 
-  meters: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, marginTop: 6, height: 54 },
-  meter: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
-  meterMult: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
-  meterSub: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700' },
+  info: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
+  balance: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
+  balanceText: { fontFamily: fonts.extra, fontSize: 17, color: '#FFFFFF' },
+  switches: { flexDirection: 'row', alignItems: 'center', gap: 16 },
 
-  wheelArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  wheelGlow: { position: 'absolute', backgroundColor: 'rgba(155,61,255,0.18)', shadowColor: '#9B3DFF', shadowOpacity: 0.9, shadowRadius: 30, shadowOffset: { width: 0, height: 0 } },
-  pointer: { position: 'absolute' },
-  centreText: { color: '#FFFFFF', fontWeight: '900', textShadowColor: '#2A0050', textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 } },
-  centreCrash: { color: '#FFFFFF', textShadowColor: '#FF1F6A', textShadowRadius: 14, backgroundColor: 'rgba(10,0,20,0.7)', paddingHorizontal: 12, borderRadius: 14, overflow: 'hidden' },
-  centreSub: { color: GOLD, fontWeight: '900', marginTop: -2, textShadowColor: '#000000', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
-  crashFlash: { position: 'absolute', left: 0, top: 0, backgroundColor: '#FF1F6A' },
+  boardArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  boardShadow: { position: 'absolute', backgroundColor: '#0B0C10', shadowColor: '#000000', shadowOpacity: 0.7, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
+  well: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  floater: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
+  floaterText: { fontFamily: fonts.black, color: GOLD, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
 
-  trail: { height: 34, justifyContent: 'center', paddingHorizontal: 12 },
-  trailHint: { color: 'rgba(233,216,255,0.6)', fontSize: 12, textAlign: 'center', fontWeight: '700' },
-  trailRow: { gap: 5, alignItems: 'center' },
-  trailChip: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1C1E24', overflow: 'hidden' },
+  controls: { alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 4 },
+  toastWrap: { position: 'absolute', top: -40, alignSelf: 'center', alignItems: 'center', zIndex: 5 },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 32, borderRadius: 10, backgroundColor: '#4A4F60' },
+  toastTip: { width: 10, height: 10, marginTop: -5, backgroundColor: '#4A4F60', transform: [{ rotate: '45deg' }] },
+  toastText: { fontFamily: fonts.semi, fontSize: 13, color: '#FFFFFF' },
+  betLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  betLabel: { fontFamily: fonts.bold, fontSize: 13, color: '#7C8296' },
+  betRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 2, marginBottom: 4 },
+  stepBtn: { width: 42, height: 42, borderRadius: 21 },
+  stepFace: { flex: 1, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#0D0E12' },
+  betValue: { width: 112, textAlign: 'center', fontFamily: fonts.extra, fontSize: 19, color: '#FFFFFF' },
+  actionRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 14 },
+  sideCol: { width: 104, alignItems: 'center', paddingTop: 12 },
+  sideBtn: { padding: 2 },
+  sideFace: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  cashText: { fontFamily: fonts.black, color: '#565B6B', textAlign: 'center', letterSpacing: 0.5 },
+  cashTextOn: { color: GOLD },
+  autoText: { fontFamily: fonts.bold, fontSize: 9, color: '#6E7486', letterSpacing: 1, marginTop: -2 },
+  sideLabel: { fontFamily: fonts.semi, fontSize: 12, color: '#7C8296', marginTop: 6 },
+  sideValue: { fontFamily: fonts.extra, fontSize: 14, color: '#FFFFFF', maxWidth: 100 },
+  partPill: { minWidth: 44, height: 22, paddingHorizontal: 8, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  partPillOn: { backgroundColor: GOLD },
+  spinFace: { flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(217,190,255,0.55)' },
+  pressed: { transform: [{ scale: 0.95 }] },
 
-  panel: { paddingHorizontal: 12, paddingTop: 10, backgroundColor: 'rgba(20,4,40,0.92)', borderTopLeftRadius: 22, borderTopRightRadius: 22, borderTopWidth: 1, borderColor: 'rgba(178,77,255,0.35)', gap: 10 },
-  stakeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  roundBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
-  stakeBox: { minWidth: 86, alignItems: 'center', paddingVertical: 3, paddingHorizontal: 6, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.35)' },
-  stakeLabel: { color: 'rgba(233,216,255,0.6)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  stakeValue: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
-  quickRow: { flex: 1, flexDirection: 'row', gap: 4, justifyContent: 'flex-end' },
-  quick: { minWidth: 0, flexShrink: 1, paddingHorizontal: 7, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  quickActive: { borderColor: GOLD, backgroundColor: 'rgba(255,214,107,0.15)' },
-  quickText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  actionRow: { flexDirection: 'row', gap: 10 },
-  actionWrap: { flex: 1 },
-  actionBtn: { height: 58, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  actionText: { color: '#FFFFFF', fontSize: 18, fontWeight: '900', letterSpacing: 1.5 },
-  actionSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '800' },
-  pressed: { transform: [{ scale: 0.97 }] },
-  dim: { opacity: 0.45 },
+  foot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
+  footText: { fontFamily: fonts.semi, fontSize: 11, color: '#6E7486' },
 
-  winWrap: { position: 'absolute', top: '30%', alignSelf: 'center', alignItems: 'center' },
-  winCard: { alignItems: 'center', paddingHorizontal: 34, paddingVertical: 14, borderRadius: 18, borderWidth: 2, borderColor: GOLD },
-  winTitle: { color: GOLD, fontSize: 15, fontWeight: '900', letterSpacing: 2 },
-  winAmount: { color: '#FFFFFF', fontSize: 30, fontWeight: '900', marginTop: 2 },
-  winMult: { color: '#D9B8FF', fontSize: 14, fontWeight: '800' },
-  winClose: { marginTop: 8, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#16042A', borderWidth: 2, borderColor: GOLD },
-  toast: { position: 'absolute', alignSelf: 'center', top: '45%', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.85)', borderWidth: 1, borderColor: '#9B3DFF' },
-  toastText: { color: '#F2E6FF', fontSize: 14, fontWeight: '700' },
+  splash: { backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center', zIndex: 20 },
+  splashBrand: { fontFamily: fonts.italic, fontSize: 22, color: '#FFFFFF', letterSpacing: 2, marginTop: 10 },
+  splashBadgeWrap: { marginTop: 26 },
+  splashBadgeShadow: { position: 'absolute', left: 6, top: 6, right: -6, bottom: -6, borderRadius: 6, backgroundColor: DANGER },
+  splashBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, height: 54, borderRadius: 6, borderWidth: 2, borderColor: DANGER, backgroundColor: '#0B0B0E' },
+  splashBadgeText: { fontFamily: fonts.extra, fontSize: 17, color: '#FFFFFF' },
+  splashNote: { fontFamily: fonts.semi, fontSize: 13, color: '#C9CEDB', marginTop: 18 },
+  winWrap: { position: 'absolute', left: 0, right: 0, top: '32%', alignItems: 'center' },
+  winEdge: { borderRadius: 18, padding: 2 },
+  winCard: { alignItems: 'center', paddingHorizontal: 30, paddingVertical: 14, borderRadius: 16 },
+  winTitle: { fontFamily: fonts.black, fontSize: 14, color: GOLD, letterSpacing: 2 },
+  winAmount: { fontFamily: fonts.black, fontSize: 28, color: '#FFFFFF', marginTop: 2 },
+  winNote: { fontFamily: fonts.bold, fontSize: 13, color: '#B9BFCE', marginTop: 1 },
+  bonusWrap: { position: 'absolute', left: 0, right: 0, top: '24%', alignItems: 'center' },
+  bonusCard: { alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16 },
+  bonusHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  bonusTitle: { fontFamily: fonts.black, fontSize: 18, color: '#FFCB73', letterSpacing: 2 },
+  bonusRow: { flexDirection: 'row', gap: 6, marginTop: 12 },
+  bonusChip: { paddingHorizontal: 8, height: 34, minWidth: 50, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1.5, borderColor: 'rgba(255,203,115,0.25)' },
+  bonusChipOn: { backgroundColor: 'rgba(255,106,31,0.5)', borderColor: '#FFCB73' },
+  bonusChipPicked: { backgroundColor: '#FFCB73' },
+  bonusChipText: { fontFamily: fonts.extra, fontSize: 13, color: 'rgba(255,255,255,0.6)' },
+  bonusChipTextOn: { color: '#FFFFFF' },
+  bonusSum: { fontFamily: fonts.bold, fontSize: 14, color: '#FFE2B0', marginTop: 12 },
 
-  sheetRoot: { flex: 1, justifyContent: 'center', padding: 18, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet: { maxHeight: '82%', borderRadius: 20, backgroundColor: '#1A0A2E', borderWidth: 1, borderColor: 'rgba(178,77,255,0.4)', overflow: 'hidden' },
+  sheetRoot: { flex: 1, justifyContent: 'center', padding: 18, backgroundColor: 'rgba(0,0,0,0.65)' },
+  sheet: { maxHeight: '84%', borderRadius: 20, backgroundColor: '#1D2029', borderWidth: 1, borderColor: 'rgba(138,60,255,0.45)', overflow: 'hidden' },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
-  sheetTitle: { color: GOLD, fontSize: 16, fontWeight: '900', letterSpacing: 2 },
+  sheetTitle: { fontFamily: fonts.black, fontSize: 15, color: GOLD, letterSpacing: 2 },
   sheetBody: { padding: 16, gap: 10 },
-  sheetSection: { color: '#D9B8FF', fontSize: 13, fontWeight: '900', letterSpacing: 1.5, marginTop: 8 },
+  sheetSection: { fontFamily: fonts.black, fontSize: 12, color: '#C9A2FF', letterSpacing: 1.5, marginTop: 8 },
   ruleLine: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  ruleNum: { width: 22, height: 22, borderRadius: 11, textAlign: 'center', lineHeight: 22, color: '#1A0A2E', backgroundColor: GOLD, fontWeight: '900', fontSize: 12, overflow: 'hidden' },
-  ruleText: { flex: 1, color: '#E9D8FF', fontSize: 13, lineHeight: 19 },
-  elementRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  elementName: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', width: 52 },
-  elementInfo: { flex: 1, color: 'rgba(233,216,255,0.75)', fontSize: 12 },
-  limitRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  limitKey: { color: 'rgba(233,216,255,0.75)', fontSize: 13 },
-  limitVal: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  hash: { color: 'rgba(233,216,255,0.5)', fontSize: 10 },
+  ruleNum: { width: 22, height: 22, borderRadius: 11, textAlign: 'center', lineHeight: 22, color: '#1D2029', backgroundColor: GOLD, fontFamily: fonts.black, fontSize: 12, overflow: 'hidden' },
+  ruleText: { flex: 1, color: '#D5D9E4', fontSize: 13, lineHeight: 19 },
+  ringRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ringInfo: { flex: 1, color: '#D5D9E4', fontSize: 13, lineHeight: 18 },
+  limitRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  limitKey: { color: '#9EA4B5', fontSize: 13 },
+  limitVal: { color: '#FFFFFF', fontSize: 13, fontFamily: fonts.bold },
+  hash: { color: '#7C8296', fontSize: 10 },
   histRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  histTime: { color: 'rgba(233,216,255,0.6)', fontSize: 11 },
-  histSegs: { flexDirection: 'row', flexWrap: 'wrap', gap: 2, marginTop: 3 },
-  histStake: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  histResult: { fontSize: 12, fontWeight: '800' },
+  histTime: { color: '#9EA4B5', fontSize: 11 },
+  histInfo: { color: '#D5D9E4', fontSize: 12, marginTop: 2 },
+  histStake: { color: '#FFFFFF', fontSize: 12, fontFamily: fonts.bold },
+  histResult: { fontSize: 13, fontFamily: fonts.extra },
 });

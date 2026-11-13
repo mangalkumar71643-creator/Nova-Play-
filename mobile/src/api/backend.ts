@@ -1225,14 +1225,16 @@ export function fetchDragonTigerMyRound(periodNumber?: string) {
 }
 
 export type VortexElement = 'WATER' | 'EARTH' | 'FIRE';
-export type VortexOutcome = VortexElement | 'CRASH';
+export type VortexSymbol = VortexElement | 'WIND' | 'SKULL';
 
-export interface VortexElementConfig {
+export interface VortexRingConfig {
   element: VortexElement;
-  factor: number;
-  sections: number;
-  chancePercent: number;
+  /** What each section is worth (x the bet), first to last. */
   ladder: number[];
+  /** Paid at once (x the bet) for a hit on the full ring; 0 for Fire, whose full ring opens the bonus. */
+  bonus: number;
+  /** Chance (%) of this element by how many of its sections are filled. */
+  chances: number[];
 }
 
 export interface VortexConfig {
@@ -1240,21 +1242,25 @@ export interface VortexConfig {
   maxStake: number;
   maxPayout: number;
   rtpPercent: number;
-  wheel: VortexOutcome[];
-  elements: VortexElementConfig[];
-  crashChancePercent: number;
+  maxSpins: number;
+  skullChancePercent: number;
+  firePremiums: number[];
+  rings: VortexRingConfig[];
 }
 
 export interface VortexRound {
   id: string;
   userId: string;
+  /** The bet taken on every spin. */
   stake: string;
+  totalStake: string;
   water: number;
   earth: number;
   fire: number;
   spins: number;
-  segments: number[];
+  /** What the board is worth now (x the bet). */
   multiplier: string;
+  /** Paid so far in this round. */
   payout: string;
   status: 'PENDING' | 'WON' | 'LOST' | 'VOID';
   endReason: string | null;
@@ -1267,32 +1273,47 @@ export interface VortexRound {
 
 export interface VortexSpinResult {
   round: VortexRound;
-  segment: number;
-  outcome: VortexOutcome;
+  symbol: VortexSymbol;
+  before: { water: number; earth: number; fire: number };
+  /** Paid at once by this spin (a full ring's bonus). */
+  instant: number;
+  /** The Fire bonus's pick, when this spin opened it. */
+  premium: number | null;
+  /** Paid because the round ended by itself with sections on the board. */
+  cashedOut: number;
+  /** The wallet after this spin. */
+  balance: number;
+}
+
+export interface VortexPayoutResult {
+  round: VortexRound;
+  paid: number;
+  balance: number;
 }
 
 export function fetchVortexConfig() {
-  return apiFetch<VortexConfig>('/vortex/config');
+  return apiFetch<VortexConfig>('/vortex/v2/config');
 }
 
 export function fetchVortexCurrent() {
-  return apiFetch<VortexRound | null>('/vortex/current');
+  return apiFetch<{ round: VortexRound | null; legacyPayout: number }>('/vortex/v2/current');
 }
 
 export function fetchVortexHistory(limit = 30) {
-  return apiFetch<VortexRound[]>(`/vortex/my-history?limit=${limit}`);
+  return apiFetch<VortexRound[]>(`/vortex/v2/history?limit=${limit}`);
 }
 
-export function startVortexRound(stake: number) {
-  return apiFetch<VortexSpinResult>('/vortex/start', { method: 'POST', body: JSON.stringify({ stake }) });
+/** One spin at `stake`; a round in play keeps the bet it started with. */
+export function spinVortex(stake: number) {
+  return apiFetch<VortexSpinResult>('/vortex/v2/spin', { method: 'POST', body: JSON.stringify({ stake }) });
 }
 
-export function spinVortexRound(roundId: string) {
-  return apiFetch<VortexSpinResult>('/vortex/spin', { method: 'POST', body: JSON.stringify({ roundId }) });
+export function cashOutVortex(roundId: string) {
+  return apiFetch<VortexPayoutResult>('/vortex/v2/cashout', { method: 'POST', body: JSON.stringify({ roundId }) });
 }
 
-export function cashOutVortexRound(roundId: string) {
-  return apiFetch<VortexRound>('/vortex/cashout', { method: 'POST', body: JSON.stringify({ roundId }) });
+export function partPayoutVortex(roundId: string) {
+  return apiFetch<VortexPayoutResult>('/vortex/v2/part-payout', { method: 'POST', body: JSON.stringify({ roundId }) });
 }
 
 export type AndarBaharArea = 'ANDAR' | 'BAHAR' | 'C1_5' | 'C6_10' | 'C11_15' | 'C16_25' | 'C26_35' | 'C36_49';

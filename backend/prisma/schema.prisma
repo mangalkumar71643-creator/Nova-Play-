@@ -763,7 +763,14 @@ model VortexRound {
   id             String    @id @default(uuid())
   userId         String
   user           User      @relation(fields: [userId], references: [id])
+  // 1: the wheel game (until app 1.0.77) — one stake per round, `segments`
+  // are wheel segments, `multiplier` multiplies the stake. 2: the rings game
+  // (vortexService.ts) — `stake` is taken on every spin (`totalStake` so
+  // far), `segments` are event codes, `multiplier` is what the board is
+  // worth and `payout` what the round has paid so far.
+  version        Int       @default(1)
   stake          Decimal   @db.Decimal(12, 2)
+  totalStake     Decimal   @default(0) @db.Decimal(14, 2)
   water          Int       @default(0)
   earth          Int       @default(0)
   fire           Int       @default(0)

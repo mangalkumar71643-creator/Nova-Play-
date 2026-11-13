@@ -32,7 +32,8 @@ export const SOURCES: Source[] = [
   // Crash
   { key: "Aviator", name: "Aviator", category: "Crash", table: "AviatorBet", stake: "amount", paid: "payout", where: NOT_VOID },
   { key: "CricketX", name: "Cricket X", category: "Crash", table: "CricketXBet", stake: "amount", paid: "payout", where: NOT_VOID },
-  { key: "Vortex", name: "Vortex", category: "Crash", table: "VortexRound", stake: "stake", paid: "payout", where: NOT_VOID },
+  // The rings game takes its stake on every spin (totalStake); rounds of the old wheel game have none.
+  { key: "Vortex", name: "Vortex", category: "Crash", table: "VortexRound", stake: `GREATEST("totalStake", stake)`, paid: "payout", where: NOT_VOID },
   { key: "Rocket", name: "Rocket", category: "Crash", table: "RocketBet", stake: "amount", paid: "payout", where: NOT_VOID },
   { key: "GoalRush", name: "Goal Rush", category: "Crash", table: "GoalRushBet", stake: "amount", paid: "payout", where: NOT_VOID },
   { key: "BigCatch", name: "Big Catch", category: "Crash", table: "BigCatchBet", stake: "amount", paid: "payout", where: NOT_VOID },
