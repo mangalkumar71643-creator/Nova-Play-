@@ -40,9 +40,9 @@ const CENTER: TabName = 'Promotion';
 const BAR_HEIGHT = tabBar.height;
 /** How far the middle of the bar rises above its flat part, around the gift box. */
 const HUMP = tabBar.hump;
-const HUMP_HALF_WIDTH = 60;
-const SIDE_ICON = 38;
-const GIFT_SIZE = 62;
+const HUMP_HALF_WIDTH = 50;
+const SIDE_ICON = 30;
+const GIFT_SIZE = 50;
 
 /**
  * The bar's shape: a dark red panel whose top edge rises in the middle around the Promotion gift box,
@@ -70,7 +70,7 @@ function BarShape({ width, height }: { width: number; height: number }) {
       </Defs>
       <Path d={`${edge} L${width} ${height} L0 ${height} Z`} fill="url(#barFill)" />
       <Path d={edge} stroke="url(#barEdge)" strokeWidth={1.5} fill="none" />
-      <Ellipse cx={cx} cy={HUMP + BAR_HEIGHT - 26} rx={30} ry={5} fill="#000000" fillOpacity={0.35} />
+      <Ellipse cx={cx} cy={HUMP + BAR_HEIGHT - 23} rx={24} ry={4} fill="#000000" fillOpacity={0.35} />
     </Svg>
   );
 }
@@ -94,11 +94,11 @@ function SideTab({ name, focused, onPress, onLongPress }: { name: SideName; focu
       <Animated.View
         style={[
           styles.iconWrap,
-          { transform: [{ translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }, { scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) }] },
+          { transform: [{ translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }, { scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] }) }] },
         ]}
       >
         <Animated.View style={[styles.glow, { opacity: lift }]} pointerEvents="none">
-          <IconGlow size={SIDE_ICON + 30} />
+          <IconGlow size={SIDE_ICON + 24} />
         </Animated.View>
         {/* In its own view, so it is always drawn over the light behind it. */}
         <View>
@@ -141,7 +141,7 @@ function CenterTab({ focused, onPress, onLongPress }: { focused: boolean; onPres
               pointerEvents="none"
               style={[styles.giftGlow, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.12] }) }] }]}
             >
-              <IconGlow size={GIFT_SIZE + 44} />
+              <IconGlow size={GIFT_SIZE + 36} />
             </Animated.View>
             <View>
               <GiftIcon size={GIFT_SIZE} />
@@ -212,13 +212,13 @@ export default function BottomTabs() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-end' },
-  sideTab: { flex: 1, height: BAR_HEIGHT, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 7 },
+  sideTab: { flex: 1, height: BAR_HEIGHT, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 5 },
   iconWrap: { width: SIDE_ICON, height: SIDE_ICON, alignItems: 'center', justifyContent: 'center' },
-  glow: { position: 'absolute', left: -15, top: -15 },
-  label: { fontFamily: fonts.semi, fontSize: 10, letterSpacing: 0.6, color: '#F1E0CF', marginTop: 3 },
+  glow: { position: 'absolute', left: -12, top: -12 },
+  label: { fontFamily: fonts.semi, fontSize: 9, letterSpacing: 0.5, color: '#F1E0CF', marginTop: 2 },
   labelOn: { fontFamily: fonts.bold, color: '#FFD766' },
-  centerTab: { width: GIFT_SIZE + 30, height: BAR_HEIGHT + HUMP, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 7 },
+  centerTab: { width: GIFT_SIZE + 24, height: BAR_HEIGHT + HUMP, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 5 },
   gift: { width: GIFT_SIZE, height: GIFT_SIZE, alignItems: 'center', justifyContent: 'center', marginBottom: -3 },
-  giftGlow: { position: 'absolute', left: -22, top: -22 },
-  centerLabel: { fontFamily: fonts.italic, fontSize: 10.5, color: '#FFD766', letterSpacing: 0.4 },
+  giftGlow: { position: 'absolute', left: -18, top: -18 },
+  centerLabel: { fontFamily: fonts.italic, fontSize: 9.5, color: '#FFD766', letterSpacing: 0.3 },
 });
