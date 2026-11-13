@@ -2,10 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchSupportContact } from '../api/backend';
 import { showAlert } from '../components/AppAlert';
+import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
 import { useAuth } from '../state/AuthContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 
@@ -212,8 +213,8 @@ export default function LoginScreen() {
 
   return (
     <LinearGradient colors={gradients.background} style={styles.fill}>
-      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl }]} keyboardShouldPersistTaps="handled">
+      <View style={styles.fill}>
+        <KeyboardAwareScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl }]} keyboardShouldPersistTaps="handled">
           <Image source={require('../../assets/novaplay-badge.webp')} style={styles.logo} resizeMode="contain" />
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.sub}>{sub}</Text>
@@ -342,8 +343,8 @@ export default function LoginScreen() {
           <Pressable style={styles.secondary} onPress={() => switchTo(mode === 'login' ? 'register' : 'login')}>
             <Text style={styles.secondaryText}>{mode === 'login' ? 'New here? Register' : mode === 'register' ? 'I have an account  Log in' : 'Back to log in'}</Text>
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </View>
     </LinearGradient>
   );
 }

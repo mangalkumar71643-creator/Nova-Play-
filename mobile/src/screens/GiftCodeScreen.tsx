@@ -2,9 +2,10 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Keyboard, Pressable, Text, TextInput, View } from 'react-native';
 import { redeemGiftCode } from '../api/backend';
 import { ApiClientError } from '../api/client';
+import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
 import ScreenContainer from '../components/ScreenContainer';
 import { useGameState } from '../state/GameStateContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
@@ -55,7 +56,7 @@ export default function GiftCodeScreen() {
         <View style={styles.headerButton} />
       </View>
 
-      <ScrollView nestedScrollEnabled contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView nestedScrollEnabled contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <LinearGradient colors={['#4A0E18', '#25070C', '#120305']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
           <Image source={require('../../assets/gift-icon.webp')} style={styles.heroIcon} resizeMode="contain" />
           <View style={{ flex: 1 }}>
@@ -103,7 +104,7 @@ export default function GiftCodeScreen() {
             </Text>
           ))}
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </ScreenContainer>
   );
 }

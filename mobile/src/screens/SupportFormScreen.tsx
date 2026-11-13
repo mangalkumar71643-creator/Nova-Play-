@@ -4,7 +4,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   createSupportRequest,
   DepositVerifyResult,
@@ -15,6 +15,7 @@ import {
 import { ApiClientError } from '../api/client';
 import { showAlert } from '../components/AppAlert';
 import AppHeader from '../components/AppHeader';
+import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
 import ScreenContainer from '../components/ScreenContainer';
 import { RootStackParamList, SupportFormKind } from '../navigation/types';
 import * as walletService from '../services/walletService';
@@ -141,7 +142,7 @@ export default function SupportFormScreen() {
   return (
     <ScreenContainer scroll={false} contentStyle={{ paddingHorizontal: 0 }}>
       <AppHeader showBack title={TITLES[kind]} showCoins={false} showNotifications={false} showProfile={false} />
-      <ScrollView nestedScrollEnabled contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView nestedScrollEnabled contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.intro}>{INTROS[kind]}</Text>
 
         {needsBank ? (
@@ -255,7 +256,7 @@ export default function SupportFormScreen() {
             </LinearGradient>
           </Pressable>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </ScreenContainer>
   );
 }

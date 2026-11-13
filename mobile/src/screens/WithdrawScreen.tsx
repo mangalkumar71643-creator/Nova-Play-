@@ -4,8 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { showAlert } from '../components/AppAlert';
+import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
 import ScreenContainer from '../components/ScreenContainer';
 import { withdrawalFeeFor, withdrawalFeeLabel } from '../api/backend';
 import { ApiClientError } from '../api/client';
@@ -156,7 +157,7 @@ export default function WithdrawScreen() {
         </View>
       </View>
 
-      <ScrollView nestedScrollEnabled contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView nestedScrollEnabled contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.cardsRow}>
           <LinearGradient colors={gradients.goldButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
             <MaterialCommunityIcons
@@ -329,7 +330,7 @@ export default function WithdrawScreen() {
             </Text>
           ) : null}
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <View style={[styles.payBar, { paddingBottom: spacing.lg + bottomInset }]}>
         <Pressable

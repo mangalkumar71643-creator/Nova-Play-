@@ -71,7 +71,7 @@ html = (TMP / "index.html").read_text()
 shell = (MOBILE / "scripts" / "web-shell.html").read_text()
 shell_js = json.dumps(shell).replace("</", "<\\/")
 head_extra = f"""
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="{THEME}" />
     <meta name="description" content="NovaPlay: all your favourite games in one place." />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -84,6 +84,12 @@ head_extra = f"""
       html, body {{ background: {THEME}; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }}
       body {{ height: 100dvh; -webkit-user-select: none; user-select: none; touch-action: manipulation; }}
       input, textarea {{ -webkit-user-select: text; user-select: text; }}
+      /* No box around or line under a box being typed in (the browser's focus ring); the app draws its own. */
+      input, textarea, select {{ outline: none !important; box-shadow: none !important; caret-color: #F0B93D; }}
+      input:focus, textarea:focus {{ outline: none !important; box-shadow: none !important; }}
+      /* Chrome's saved-password colouring would turn the box blue/yellow. */
+      input:-webkit-autofill, input:-webkit-autofill:focus {{ -webkit-text-fill-color: #FFFFFF; -webkit-box-shadow: 0 0 0 1000px #2A0F14 inset !important; transition: background-color 9999s; }}
+      input::-ms-reveal, input::-ms-clear {{ display: none; }}
       * {{ scrollbar-width: none; }}
       *::-webkit-scrollbar {{ display: none; }}
     </style>

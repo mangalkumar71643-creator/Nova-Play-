@@ -2,6 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import KeyboardAvoidingOverlay from './KeyboardAvoidingOverlay';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
 
 type Props = {
@@ -36,7 +37,7 @@ export default function AmountInputModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingOverlay style={styles.overlay}>
         <View style={styles.card}>
           <LinearGradient colors={gradients.vipCard} style={styles.cardInner}>
             <MaterialCommunityIcons name="close" size={20} color={colors.textMuted} style={styles.close} onPress={onClose} />
@@ -60,7 +61,7 @@ export default function AmountInputModal({
             </Pressable>
           </LinearGradient>
         </View>
-      </View>
+      </KeyboardAvoidingOverlay>
     </Modal>
   );
 }

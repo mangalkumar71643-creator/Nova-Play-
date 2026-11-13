@@ -4,8 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, AppState, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Animated, AppState, Linking, Pressable, Text, TextInput, View } from 'react-native';
 import { showAlert } from '../components/AppAlert';
+import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
 import ScreenContainer from '../components/ScreenContainer';
 import { ApiClientError } from '../api/client';
 import { DepositBonusInfo, UpiDepositStatus, confirmUpiDeposits, fetchDepositBonus, fetchUpiDepositStatus, startUpiCheckout } from '../api/backend';
@@ -167,7 +168,7 @@ export default function DepositScreen() {
         </View>
       </View>
 
-      <ScrollView nestedScrollEnabled contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView nestedScrollEnabled contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.cardsRow}>
           <LinearGradient colors={gradients.goldButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
             <MaterialCommunityIcons
@@ -288,7 +289,7 @@ export default function DepositScreen() {
             details for multiple payments.
           </Text>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <View style={[styles.payBar, { paddingBottom: spacing.lg + bottomInset }]}>
         {upi?.enabled ? (

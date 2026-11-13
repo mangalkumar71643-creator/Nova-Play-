@@ -2,8 +2,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import React, { useContext } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ImageSourcePropType, ImageBackground, ScrollView, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { ImageSourcePropType, ImageBackground, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { gradients } from '../theme';
+import KeyboardAwareScrollView from './KeyboardAwareScrollView';
 
 type Props = {
   children?: React.ReactNode;
@@ -21,10 +22,10 @@ export default function ScreenContainer({ children, scroll = true, contentStyle,
   // A spacer after the content, so a screen's own contentStyle padding stays as it is.
   const spacer = bottom > 0 ? <View style={{ height: bottom }} /> : null;
   const content = scroll ? (
-    <ScrollView contentContainerStyle={[styles.scrollContent, contentStyle]} showsVerticalScrollIndicator={false}>
+    <KeyboardAwareScrollView contentContainerStyle={[styles.scrollContent, contentStyle]} showsVerticalScrollIndicator={false}>
       {children}
       {spacer}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   ) : (
     <View style={[styles.fill, contentStyle]}>
       {children}

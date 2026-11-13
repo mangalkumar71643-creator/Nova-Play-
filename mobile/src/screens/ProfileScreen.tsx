@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { changePassword } from '../api/backend';
 import { showAlert } from '../components/AppAlert';
+import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
 import ScreenContainer from '../components/ScreenContainer';
 import { AVATARS } from '../data/avatars';
 import { RootStackParamList } from '../navigation/types';
@@ -218,7 +219,7 @@ export default function ProfileScreen() {
           setPasswordModalVisible(false);
         }}
       >
-        <View style={styles.caretModalOverlay}>
+        <KeyboardAwareScrollView style={styles.caretModalScroll} contentContainerStyle={styles.caretModalScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.caretModalWrap}>
             <View style={styles.caretModalCaret} />
             <View style={styles.caretModalCard}>
@@ -300,7 +301,7 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAwareScrollView>
       </Modal>
     </ScreenContainer>
   );
@@ -515,6 +516,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: '28%',
   },
+  // The Change Password pop-up: the same backdrop, scrolling above the on-screen keyboard.
+  caretModalScroll: { flex: 1, backgroundColor: colors.overlay },
+  caretModalScrollContent: { flexGrow: 1, alignItems: 'center', paddingTop: '28%', paddingBottom: spacing.xl },
   caretModalWrap: { width: '88%' },
   caretModalCaret: {
     alignSelf: 'center',

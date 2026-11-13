@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import KeyboardAvoidingOverlay from './KeyboardAvoidingOverlay';
 
 /**
  * The lottery games' bet sheet (Win Go, TRX Win, K3, 5D): tap the Quantity
@@ -43,7 +44,7 @@ export default function QuantityInputModal({ visible, value, unit, mult, maxTota
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
+      <KeyboardAvoidingOverlay style={styles.fill}>
         <Pressable style={styles.overlay} onPress={onClose}>
           <Pressable style={styles.card} onPress={() => {}}>
             <Text style={styles.title}>Quantity</Text>
@@ -75,7 +76,7 @@ export default function QuantityInputModal({ visible, value, unit, mult, maxTota
             </View>
           </Pressable>
         </Pressable>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingOverlay>
     </Modal>
   );
 }
