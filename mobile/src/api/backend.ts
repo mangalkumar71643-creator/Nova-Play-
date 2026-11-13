@@ -1243,6 +1243,9 @@ export interface VortexConfig {
   maxPayout: number;
   rtpPercent: number;
   maxSpins: number;
+  /** Chances (%) on the first spin of a round, the one that takes the bet. */
+  startChances: Record<VortexSymbol, number>;
+  windChancePercent: number;
   skullChancePercent: number;
   firePremiums: number[];
   rings: VortexRingConfig[];
@@ -1251,7 +1254,7 @@ export interface VortexConfig {
 export interface VortexRound {
   id: string;
   userId: string;
-  /** The bet taken on every spin. */
+  /** The bet, taken on the round's first spin (the spins after it are free). */
   stake: string;
   totalStake: string;
   water: number;
@@ -1269,6 +1272,8 @@ export interface VortexRound {
   nonce: number;
   createdAt: string;
   settledAt: string | null;
+  /** Chances (%) of the next spin: on this board, or a new round's once this one ended. */
+  nextChances?: Record<VortexSymbol, number>;
 }
 
 export interface VortexSpinResult {

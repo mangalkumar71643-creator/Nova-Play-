@@ -52,14 +52,17 @@ const FALLBACK_CONFIG: VortexConfig = {
   maxPayout: NO_LIMIT,
   rtpPercent: 85,
   maxSpins: 1000,
-  skullChancePercent: 8,
+  startChances: { WATER: 17.02, EARTH: 7.94, FIRE: 3.4, SKULL: 41.64, WIND: 30 },
+  windChancePercent: 30,
+  skullChancePercent: 41.64,
   firePremiums: [100, 200, 300, 400, 500],
   rings: [
-    { element: 'WATER', ladder: [1.55, 4.85, 10], bonus: 7, chances: [26.05, 15.99, 12.97, 11.65] },
-    { element: 'EARTH', ladder: [2.5, 7.7, 16, 27.5, 44], bonus: 20.5, chances: [11.05, 9.16, 8.34, 8.18, 7.25, 7.79] },
-    { element: 'FIRE', ladder: [3.9, 12.5, 28, 52, 85, 133, 200], bonus: 0, chances: [4.36, 5.6, 5.54, 5.88, 6.33, 5.85, 5.99, 1.84] },
+    { element: 'WATER', ladder: [1.55, 4.85, 10], bonus: 7, chances: [17.02, 17.02, 17.02, 17.02] },
+    { element: 'EARTH', ladder: [2.5, 7.7, 16, 27.5, 44], bonus: 20.5, chances: [7.94, 7.94, 7.94, 7.94, 7.94, 7.94] },
+    { element: 'FIRE', ladder: [3.9, 12.5, 28, 52, 85, 133, 200], bonus: 0, chances: [3.4, 3.4, 3.4, 3.4, 3.4, 3.4, 3.4, 3.4] },
   ],
 };
+const SYMBOLS: VortexSymbol[] = ['WATER', 'EARTH', 'FIRE', 'SKULL', 'WIND'];
 
 const ELEMENTS: VortexElement[] = ['WATER', 'EARTH', 'FIRE'];
 const EMPTY: VortexFill = { water: 0, earth: 0, fire: 0 };
@@ -195,7 +198,8 @@ const Reel = forwardRef<ReelHandle, { size: number }>(function Reel({ size }, re
 
 // ---------- cards over the board ----------
 
-type WinInfo = { title: string; amount: number; note?: string };
+/** A card over the board: a win (gold, with the amount) or a lost round (red, with `headline`). */
+type WinInfo = { title: string; amount: number; note?: string; loss?: boolean; headline?: string };
 
 function WinCard({ win, onClose }: { win: WinInfo; onClose: () => void }) {
   const pop = useRef(new Animated.Value(0)).current;
@@ -205,10 +209,10 @@ function WinCard({ win, onClose }: { win: WinInfo; onClose: () => void }) {
   return (
     <Animated.View style={[styles.winWrap, { opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] }]}>
       <Pressable onPress={onClose}>
-        <LinearGradient colors={['#FFE9A8', '#C8922A', '#7A4E0E']} style={styles.winEdge}>
-          <LinearGradient colors={['#2B2F3B', '#15171D']} style={styles.winCard}>
-            <Text style={styles.winTitle}>{win.title}</Text>
-            <Text style={styles.winAmount}>{money(win.amount)}</Text>
+        <LinearGradient colors={win.loss ? ['#FF9AAE', '#E0355F', '#6E0A22'] : ['#FFE9A8', '#C8922A', '#7A4E0E']} style={styles.winEdge}>
+          <LinearGradient colors={win.loss ? ['#3A1520', '#1A070D'] : ['#2B2F3B', '#15171D']} style={styles.winCard}>
+            <Text style={[styles.winTitle, win.loss && { color: '#FF6F8C' }]}>{win.title}</Text>
+            <Text style={styles.winAmount}>{win.headline ?? money(win.amount)}</Text>
             {!!win.note && <Text style={styles.winNote}>{win.note}</Text>}
           </LinearGradient>
         </LinearGradient>
@@ -606,6 +610,13 @@ export default function VortexScreen() {
           note: res.round.endReason === 'SPIN_LIMIT' ? `${cfg.maxSpins} spins: the round was closed` : undefined,
         });
       }
+      if (ended) {
+        // Auto plays out one round: it stops once the round is over.
+        putAuto(false);
+        if (res.round.endReason === 'CRASH') {
+          setWin({ loss: true, title: 'CRASHED', headline: 'Round over', amount: 0, note: `Next spin takes a new ${money(Number(res.round.stake))} bet` });
+        }
+      }
       putShown(next);
       putRound(ended ? null : res.round);
       if (ended) loadHistory();
@@ -624,18 +635,20 @@ export default function VortexScreen() {
     const cfg = configRef.current;
     const current = roundRef.current;
     const bet = current ? Number(current.stake) : stakeRef.current;
-    if (!current && (bet < cfg.minStake || bet > cfg.maxStake)) {
+    // Only a new round's first spin takes the bet; the spins after it are free.
+    const paid = !current;
+    if (paid && (bet < cfg.minStake || bet > cfg.maxStake)) {
       putAuto(false);
       return showToast(`Bet must be ₹${cfg.minStake} – ₹${cfg.maxStake}`);
     }
-    if (bet > balanceRef.current + 1e-9) {
+    if (paid && bet > balanceRef.current + 1e-9) {
       putAuto(false);
       return showToast('Not enough money');
     }
     putBusy(true);
     setWin(null);
     const before = balanceRef.current;
-    putBalance(round2(before - bet));
+    if (paid) putBalance(round2(before - bet));
     reel.current?.start();
     play('tick');
     const started = Date.now();
@@ -752,7 +765,7 @@ export default function VortexScreen() {
   };
 
   const stepStake = (dir: 1 | -1) => {
-    if (round || busy) return showToast('Bet can be changed when the board is clear');
+    if (round || busy) return showToast('Bet can be changed after this round ends');
     const up = STAKE_STEPS.find((s) => s > stake);
     const down = [...STAKE_STEPS].reverse().find((s) => s < stake);
     const next = dir === 1 ? up ?? stake : down ?? stake;
@@ -899,7 +912,7 @@ export default function VortexScreen() {
           </View>
         )}
         <Pressable onPress={() => setSheet('rules')} style={styles.betLabelRow} hitSlop={6}>
-          <Text style={styles.betLabel}>Bet Amount</Text>
+          <Text style={[styles.betLabel, !!round && { color: '#7EE2A3' }]}>{round ? 'Bet paid · spins are free' : 'Bet Amount'}</Text>
           <MaterialCommunityIcons name="information" size={14} color="#7C8296" />
         </Pressable>
         <View style={styles.betRow}>
@@ -947,6 +960,14 @@ export default function VortexScreen() {
                 </Animated.View>
               </LinearGradient>
             </LinearGradient>
+            {/* In a round the bet is already paid: spins are free until it ends. */}
+            {!!round && (
+              <View pointerEvents="none" style={styles.freeWrap}>
+                <View style={styles.freePill}>
+                  <Text style={styles.freeText} testID="vortex-free">FREE SPIN</Text>
+                </View>
+              </View>
+            )}
           </Pressable>
 
           <View style={styles.sideCol}>
@@ -1007,7 +1028,7 @@ export default function VortexScreen() {
               </Pressable>
             </View>
             <ScrollView nestedScrollEnabled contentContainerStyle={styles.sheetBody}>
-              {sheet === 'rules' && <Rules config={config} seedHash={round?.serverSeedHash} />}
+              {sheet === 'rules' && <Rules config={config} chances={round?.nextChances ?? config.startChances ?? FALLBACK_CONFIG.startChances} inRound={!!round} seedHash={round?.serverSeedHash} />}
               {sheet === 'history' &&
                 (history.length === 0 ? (
                   <Text style={styles.ruleText}>No rounds yet.</Text>
@@ -1021,7 +1042,7 @@ export default function VortexScreen() {
                         <View style={{ flex: 1 }}>
                           <Text style={styles.histTime}>{new Date(h.createdAt).toLocaleString()}</Text>
                           <Text style={styles.histInfo}>
-                            {h.spins} {h.spins === 1 ? 'spin' : 'spins'} × ₹{Number(h.stake).toLocaleString('en-IN')}
+                            {h.spins} {h.spins === 1 ? 'spin' : 'spins'} · {h.endReason === 'CRASH' ? 'crashed' : h.endReason === 'CASHOUT' ? 'cashed out' : h.endReason === 'BONUS' ? 'Fire bonus' : 'closed'}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
@@ -1040,7 +1061,7 @@ export default function VortexScreen() {
   );
 }
 
-const Rules = memo(function Rules({ config, seedHash }: { config: VortexConfig; seedHash?: string }) {
+const Rules = memo(function Rules({ config, chances, inRound, seedHash }: { config: VortexConfig; chances: Record<VortexSymbol, number>; inRound: boolean; seedHash?: string }) {
   const ring = (el: VortexElement) => config.rings.find((r) => r.element === el);
   const water = ring('WATER');
   const earth = ring('EARTH');
@@ -1048,13 +1069,14 @@ const Rules = memo(function Rules({ config, seedHash }: { config: VortexConfig; 
   const top = (r?: { ladder: number[] }) => (r ? r.ladder[r.ladder.length - 1] : 0);
   const maxPremium = Math.max(...config.firePremiums);
   const lines = [
-    'Choose your bet and tap the purple button. Every spin costs your bet and lands one symbol in the middle.',
-    'Water, Earth and Fire each fill the next section of their own ring. Wind does nothing. A Skull takes one section off every ring.',
-    'A ring is worth the number on its last filled section × your bet. CASH OUT pays all three rings together and clears the board.',
-    'PART PAYOUT needs two or more sections on a ring. It pays the step between the last two sections of each such ring and moves it back one section — you keep playing.',
+    'Choose your bet and tap the purple button. The bet is taken only on the first spin of a round — every spin after it is FREE until the round ends.',
+    'Each spin lands one symbol in the middle. Water, Earth and Fire fill the next section of their own ring. Wind changes nothing. A Skull takes one section off every ring.',
+    'A ring is worth the number on its last filled section × your bet. CASH OUT pays all three rings together and ends the round; the next spin starts a new round and takes a new bet.',
+    'If a Skull leaves the board empty (a Skull on the first spin too), the round CRASHES: what was on the board is lost and the next spin takes a new bet.',
+    'PART PAYOUT needs two or more sections on a ring. It pays the step between the last two sections of each such ring and moves it back one section — the round and its free spins go on.',
     `Land Water on a full Water ring and +${water?.bonus ?? 7}x is paid at once; Earth on a full Earth ring pays +${earth?.bonus ?? 20.5}x. The ring stays full.`,
-    `Land Fire on a full Fire ring for the BONUS: x${top(fire)} plus ${config.firePremiums.map((p) => `x${p}`).join(', ')} — up to x${top(fire) + maxPremium}. The Fire ring then starts again.`,
-    'The bet can be changed only when the board is clear. If you leave, your board is kept for when you come back.',
+    `Land Fire on a full Fire ring for the BONUS: x${top(fire)} plus ${config.firePremiums.map((p) => `x${p}`).join(', ')} — up to x${top(fire) + maxPremium}. The Fire ring then starts again (if nothing else is on the board, the round ends there).`,
+    'The bet can be changed only between rounds. If you leave, your round is kept for when you come back.',
   ];
   return (
     <>
@@ -1073,20 +1095,23 @@ const Rules = memo(function Rules({ config, seedHash }: { config: VortexConfig; 
       ))}
       <View style={styles.ringRow}>
         <SymbolOrb symbol="WIND" size={26} />
-        <Text style={styles.ringInfo}>Wind — nothing changes</Text>
+        <Text style={styles.ringInfo}>Wind — nothing changes, spin again for free</Text>
       </View>
       <View style={styles.ringRow}>
         <SymbolOrb symbol="SKULL" size={26} />
-        <Text style={styles.ringInfo}>Skull — every ring goes back one section ({config.skullChancePercent}% of spins)</Text>
+        <Text style={styles.ringInfo}>Skull — every ring goes back one section; an empty board means CRASH</Text>
       </View>
-      <Text style={styles.sheetSection}>CHANCES</Text>
+      <Text style={styles.sheetSection}>CHANCES OF THE NEXT SPIN</Text>
       <Text style={styles.ruleText}>
-        An element's chance depends on how full its ring is (empty ring first, full ring last). Every spin returns {config.rtpPercent}% of the bet on average, however you play.
+        {inRound ? 'For your board now (free spin).' : 'First spin of a new round (it takes the bet).'} The Skull's chance changes with the board, so that a round returns {config.rtpPercent}% of the bet on average, however you play.
       </Text>
-      {config.rings.map((r) => (
-        <View key={r.element} style={styles.limitRow}>
-          <Text style={styles.limitKey}>{ELEMENT_LOOK[r.element].name}</Text>
-          <Text style={[styles.limitVal, { flex: 1, textAlign: 'right' }]}>{r.chances.map((c) => `${c}%`).join(' · ')}</Text>
+      {SYMBOLS.map((symbol) => (
+        <View key={symbol} style={styles.limitRow}>
+          <View style={styles.chanceKey}>
+            <SymbolOrb symbol={symbol} size={18} />
+            <Text style={styles.limitKey}>{SYMBOL_NAME[symbol]}</Text>
+          </View>
+          <Text style={styles.limitVal}>{chances[symbol]}%</Text>
         </View>
       ))}
       <Text style={styles.sheetSection}>GAME LIMITS</Text>
@@ -1094,7 +1119,7 @@ const Rules = memo(function Rules({ config, seedHash }: { config: VortexConfig; 
         ['Minimum bet', `₹${config.minStake}`],
         ['Maximum bet', `₹${config.maxStake.toLocaleString('en-IN')}`],
         ['Maximum win per round', winLimit(config.maxPayout)],
-        ['Spins in one round', `${config.maxSpins} (then it is cashed out for you)`],
+        ['Free spins in one round', `${config.maxSpins} (then it is cashed out for you)`],
         ['Return to player', `${config.rtpPercent}%`],
       ].map(([k, v]) => (
         <View key={k} style={styles.limitRow}>
@@ -1152,6 +1177,10 @@ const styles = StyleSheet.create({
   sideValue: { fontFamily: fonts.extra, fontSize: 14, color: '#FFFFFF', maxWidth: 100 },
   partPill: { minWidth: 44, height: 22, paddingHorizontal: 8, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   partPillOn: { backgroundColor: GOLD },
+  freeWrap: { position: 'absolute', left: 0, right: 0, bottom: -6, alignItems: 'center' },
+  freePill: { paddingHorizontal: 10, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: GOLD, borderWidth: 1.5, borderColor: '#1B1405' },
+  freeText: { fontFamily: fonts.black, fontSize: 10, color: '#1B1405', letterSpacing: 0.8 },
+  chanceKey: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   spinFace: { flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(217,190,255,0.55)' },
   pressed: { transform: [{ scale: 0.95 }] },
 

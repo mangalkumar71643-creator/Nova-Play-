@@ -10,15 +10,17 @@ export type VortexElement = "WATER" | "EARTH" | "FIRE";
 export type VortexSymbol = VortexElement | "WIND" | "SKULL";
 
 /**
- * The board: three rings, one per element. Every spin costs the bet and
- * lands one symbol —
+ * The board: three rings, one per element. The bet is taken on the first
+ * spin of a round; every spin after it is free until the round ends. Each
+ * spin lands one symbol —
  *   Water / Earth / Fire  fills the next section of its ring;
- *   Wind                  does nothing;
+ *   Wind                  does nothing (the next spin is free as well);
  *   Skull                 takes one section off every ring.
  * A ring is worth its last filled section's multiplier x the bet. CASH OUT
- * pays all three rings and clears the board; PART PAYOUT pays, for each ring
+ * pays all three rings and ends the round; PART PAYOUT pays, for each ring
  * with two or more sections, the step between its last two sections and
- * moves that ring back one.
+ * moves that ring back one (the round goes on). The round is lost (CRASH)
+ * when a Skull leaves the board empty, a Skull on the first spin included.
  *
  * `ladder` is what each section is worth. A hit on a full ring pays its
  * `bonus` x the bet at once and the ring stays full; a hit on the full Fire
@@ -32,9 +34,10 @@ export const RINGS: Record<VortexElement, { ladder: number[]; bonus: number }> =
 export const FIRE_PREMIUMS = [100, 200, 300, 400, 500];
 export const ELEMENT_ORDER: VortexElement[] = ["WATER", "EARTH", "FIRE"];
 
-const SKULL_CHANCE = 0.08;
-/** How the return to player is split between the rings. */
-const RTP_SHARE: Record<VortexElement, number> = { WATER: 0.475, EARTH: 0.325, FIRE: 0.2 };
+/** How the spins that land an element are split between the three (Water the most, Fire the least). */
+const ELEMENT_WEIGHT: Record<VortexElement, number> = { WATER: 0.6, EARTH: 0.28, FIRE: 0.12 };
+/** Share of spins that land Wind, on every board. */
+const WIND_CHANCE = 0.3;
 /** A round is cashed out by itself after this many spins (it also keeps
  * each round's spins inside its own `nonce * 1000 + spin` slice). */
 export const MAX_SPINS = 1000;
@@ -85,30 +88,66 @@ function lossOnSkull(element: VortexElement, level: number): number {
   return level > 0 ? ringValue(element, level) - ringValue(element, level - 1) : 0;
 }
 
-/**
- * The chance that a spin lands `element` while its ring has `level` sections.
- *
- * It is set so that each ring's value grows by the same expected amount on
- * every spin, whatever is on the board:
- *     chance x gainOnHit - SKULL_CHANCE x lossOnSkull = rtp x RTP_SHARE
- * The three shares add up to 1, so one spin always returns rtp x the bet on
- * average — in board value or paid at once. Cashing out only turns board
- * value into money at face value, so no way of playing (when to cash out,
- * part payouts, chasing a ring) returns more than rtp; rounding down and the
- * payout limit only lower it.
- */
-export function hitChance(element: VortexElement, level: number, returnToPlayer = rtp()): number {
-  return (returnToPlayer * RTP_SHARE[element] + SKULL_CHANCE * lossOnSkull(element, level)) / gainOnHit(element, level);
+/** What a Skull takes off this board (each ring's last step), as a multiple of the bet. */
+function skullLoss(fill: Fill): number {
+  return ELEMENT_ORDER.reduce((sum, el) => sum + lossOnSkull(el, fill[FILL_KEY[el]]), 0);
 }
+
+export type Chances = Record<VortexSymbol, number>;
+
+/**
+ * The chance of each symbol on the next spin, for this board.
+ *
+ * Elements always come in the ELEMENT_WEIGHT mix and Wind is WIND_CHANCE;
+ * the Skull takes the rest, set so that the round is worth rtp x the bet:
+ *
+ * - On an empty board (the first spin; Wind keeps it empty) an element is
+ *   worth its ring's first section and a Skull ends the round with nothing,
+ *   so the round is worth  sum(element chance x first section) / (1 - Wind).
+ *   That is set to rtp.
+ * - Once something is on the board, every free spin is a fair one: what the
+ *   elements add (a ring's next section, or a full ring's bonus) on average
+ *   equals what a Skull takes off on average —
+ *       sum(element chance x gain) = Skull chance x skullLoss(board).
+ *
+ * So the board is always worth, on average, exactly what it shows: cashing
+ * out, part payouts, stopping or going on — no way of playing returns more
+ * than rtp. Rounding down and the payout limit only lower it.
+ */
+export function spinChances(fill: Fill, returnToPlayer = rtp()): Chances {
+  const notWind = 1 - WIND_CHANCE;
+  let elements: number;
+  let skull: number;
+  if (boardMultiplier(fill) <= 0) {
+    const firstSection = ELEMENT_ORDER.reduce((sum, el) => sum + ELEMENT_WEIGHT[el] * RINGS[el].ladder[0], 0);
+    elements = (returnToPlayer * notWind) / firstSection;
+    skull = notWind - elements;
+  } else {
+    const gain = ELEMENT_ORDER.reduce((sum, el) => sum + ELEMENT_WEIGHT[el] * gainOnHit(el, fill[FILL_KEY[el]]), 0);
+    const ratio = gain / skullLoss(fill);
+    elements = notWind / (1 + ratio);
+    skull = elements * ratio;
+  }
+  return {
+    WATER: elements * ELEMENT_WEIGHT.WATER,
+    EARTH: elements * ELEMENT_WEIGHT.EARTH,
+    FIRE: elements * ELEMENT_WEIGHT.FIRE,
+    SKULL: skull,
+    WIND: WIND_CHANCE,
+  };
+}
+
+const SYMBOL_ORDER: VortexSymbol[] = ["WATER", "EARTH", "FIRE", "SKULL", "WIND"];
 
 /** The symbol a roll in [0, 1) lands on this board: Water, Earth, Fire, Skull, then Wind. */
 export function symbolFor(roll: number, fill: Fill, returnToPlayer = rtp()): VortexSymbol {
+  const chances = spinChances(fill, returnToPlayer);
   let edge = 0;
-  for (const el of ELEMENT_ORDER) {
-    edge += hitChance(el, fill[FILL_KEY[el]], returnToPlayer);
-    if (roll < edge) return el;
+  for (const symbol of SYMBOL_ORDER) {
+    edge += chances[symbol];
+    if (roll < edge) return symbol;
   }
-  return roll < edge + SKULL_CHANCE ? "SKULL" : "WIND";
+  return "WIND";
 }
 
 /** What landing `symbol` does to the board. `instant` (a multiple of the bet)
@@ -147,25 +186,30 @@ export function partPayout(fill: Fill): { fill: Fill; multiplier: number } | nul
   return multiplier > 0 ? { fill: next, multiplier } : null;
 }
 
-export function getVortexConfig() {
+const EMPTY_BOARD: Fill = { water: 0, earth: 0, fire: 0 };
+
+function percentages(chances: Chances): Chances {
   const pct = (n: number) => Math.round(n * 10000) / 100;
+  return { WATER: pct(chances.WATER), EARTH: pct(chances.EARTH), FIRE: pct(chances.FIRE), SKULL: pct(chances.SKULL), WIND: pct(chances.WIND) };
+}
+
+export function getVortexConfig() {
+  const start = percentages(spinChances(EMPTY_BOARD));
   return {
     minStake: env.games.minStake,
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     rtpPercent: Math.round(rtp() * 100),
     maxSpins: MAX_SPINS,
-    skullChancePercent: pct(SKULL_CHANCE),
+    /** The first spin of a round (the bet is taken on it). */
+    startChances: start,
+    windChancePercent: start.WIND,
+    skullChancePercent: start.SKULL,
     firePremiums: FIRE_PREMIUMS,
     rings: ELEMENT_ORDER.map((element) => {
       const { ladder, bonus } = RINGS[element];
-      return {
-        element,
-        ladder,
-        bonus,
-        // Chance of this element by how many of its sections are filled (0 … full).
-        chances: Array.from({ length: ladder.length + 1 }, (_, level) => pct(hitChance(element, level))),
-      };
+      // `chances` is for app 1.0.78, which lists one per section: the first-spin chance.
+      return { element, ladder, bonus, chances: Array.from({ length: ladder.length + 1 }, () => start[element]) };
     }),
   };
 }
@@ -178,10 +222,12 @@ const VERSION = 2;
 
 /** The serverSeed is the player's live fairness seed (revealed only when
  * they rotate it), so it never leaves the server with a round. The event
- * list stays behind too: it can be long and only the history shows it. */
+ * list stays behind too: it can be long and only the history shows it.
+ * `nextChances` is what the next spin can land (a new round's, once this one ended). */
 function toPublicRound(round: VortexRoundRow) {
   const { serverSeed: _hidden, segments: _events, ...rest } = round;
-  return rest;
+  const board = round.status === "PENDING" ? { water: round.water, earth: round.earth, fire: round.fire } : EMPTY_BOARD;
+  return { ...rest, nextChances: percentages(spinChances(board)) };
 }
 
 const ROUND_CHANGED = "This round was updated by another request. Please try again.";
@@ -241,9 +287,11 @@ function spinRoll(round: Pick<VortexRoundRow, "serverSeed" | "clientSeed" | "non
 }
 
 /**
- * One spin: takes the bet (starting a round if the board is clear), lands a
- * symbol and pays what it wins at once. The round ends by itself when the
- * board is clear again, at the payout limit, or after MAX_SPINS.
+ * One spin. With no round in play it starts one and takes the bet; in a
+ * round every spin is free. It lands a symbol and pays what it wins at once.
+ * The round ends by itself when a Skull leaves the board empty (CRASH), when
+ * the Fire bonus leaves it empty (BONUS), at the payout limit, or after
+ * MAX_SPINS (the last two pay what is on the board).
  */
 export async function spinVortex(userId: string, stake: number) {
   if (Math.abs(stake * 100 - Math.round(stake * 100)) > 1e-6) throw new ApiError(400, "Bet can have at most two decimal places.");
@@ -263,10 +311,10 @@ export async function spinVortex(userId: string, stake: number) {
       if (await tx.vortexRound.findFirst({ where: { userId, status: "PENDING" } })) {
         throw new ApiError(400, "Finish your earlier round first: reopen Vortex.");
       }
-      round = await tx.vortexRound.create({ data: { userId, stake, version: VERSION, ...seeds, segments: [] } });
+      round = await tx.vortexRound.create({ data: { userId, stake, totalStake: stake, version: VERSION, ...seeds, segments: [] } });
+      await takeStake(tx, userId, stake);
     }
     const bet = Number(round.stake);
-    await takeStake(tx, userId, bet);
 
     const before: Fill = { water: round.water, earth: round.earth, fire: round.fire };
     const symbol = symbolFor(spinRoll(round, round.spins, "vortex"), before);
@@ -281,13 +329,22 @@ export async function spinVortex(userId: string, stake: number) {
     const atLimit = instantPaid + boardValue >= room;
     // Paid by the round ending itself with sections still on the board.
     const cashedOut = atLimit || (spins >= MAX_SPINS && multiplier > 0) ? round2(Math.min(boardValue, room - instantPaid)) : 0;
-    const endReason = atLimit ? "MAX_PAYOUT" : multiplier === 0 ? "CLEAR" : spins >= MAX_SPINS ? "SPIN_LIMIT" : null;
+    // Wind on an empty board keeps the round (and its free spin) going.
+    const cleared = multiplier === 0 && symbol !== "WIND";
+    const endReason = atLimit
+      ? "MAX_PAYOUT"
+      : cleared && symbol === "SKULL"
+        ? "CRASH"
+        : cleared
+          ? "BONUS"
+          : spins >= MAX_SPINS
+            ? "SPIN_LIMIT"
+            : null;
     const payout = round2(Number(round.payout) + instantPaid + cashedOut);
 
     const updated = await claimRound(tx, round, {
       ...fill,
       spins,
-      totalStake: { increment: bet },
       segments: { push: EVENT_CODE[symbol] },
       multiplier,
       payout,
