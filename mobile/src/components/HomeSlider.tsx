@@ -1,6 +1,7 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, AppState, Easing, Image, ImageBackground, Linking, PanResponder, Platform, Pressable, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Animated, AppState, Easing, Image, Linking, PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import { API_BASE_URL } from '../api/client';
 import { fonts } from '../theme';
 import { GAME_CATEGORIES } from './GameTile';
@@ -26,7 +27,7 @@ const SHOW_DOWNLOAD_SLIDES = Platform.OS === 'web';
 // Only screens that are real games can be opened from a slide's button.
 const GAME_SCREENS = new Set<string>(GAME_CATEGORIES.flatMap((c) => c.games));
 
-const BUTTON_ASPECT = 420 / 147;
+const BUTTON_ASPECT = 2.9;
 const BUTTON_MAX_HEIGHT = 46;
 
 const SLIDE_INTERVAL_MS = 4000;
@@ -238,28 +239,42 @@ export default function HomeSlider({ width, height, maxImageWidth, panel, button
           accessibilityRole="button"
           accessibilityLabel={current.buttonText}
         >
-          <ImageBackground
-            source={require('../../assets/slider-button.webp')}
-            style={{ width: buttonWidth, height: buttonHeight, alignItems: 'center', justifyContent: 'center' }}
-            resizeMode="contain"
+          {/* Drawn here (not a picture), so its edges are smooth at any screen size. */}
+          <LinearGradient
+            colors={['#FFE9A8', '#E3A92E', '#8F5A0C']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{ width: buttonWidth, height: buttonHeight, borderRadius: buttonHeight / 2, padding: 2 }}
           >
-            <Text
-              numberOfLines={1}
-              style={{
-                color: '#FFFFFF',
-                fontSize: buttonHeight * 0.38,
-                fontFamily: fonts.extra,
-                letterSpacing: 0.5,
-                marginTop: -buttonHeight * 0.06,
-                paddingHorizontal: buttonWidth * 0.1,
-                textShadowColor: 'rgba(60,0,0,0.7)',
-                textShadowOffset: { width: 0, height: 1.5 },
-                textShadowRadius: 3,
-              }}
+            <LinearGradient
+              colors={['#FF6B6B', '#E3162C', '#A1081C', '#C4102A']}
+              locations={[0, 0.45, 0.55, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={{ flex: 1, borderRadius: buttonHeight / 2 - 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
             >
-              {current.buttonText}
-            </Text>
-          </ImageBackground>
+              {/* The light on the top half. */}
+              <View
+                pointerEvents="none"
+                style={{ position: 'absolute', left: buttonHeight * 0.3, right: buttonHeight * 0.3, top: 1.5, height: '42%', borderRadius: buttonHeight, backgroundColor: 'rgba(255,255,255,0.22)' }}
+              />
+              <Text
+                numberOfLines={1}
+                style={{
+                  color: '#FFFFFF',
+                  fontSize: buttonHeight * 0.38,
+                  fontFamily: fonts.extra,
+                  letterSpacing: 0.5,
+                  paddingHorizontal: buttonWidth * 0.1,
+                  textShadowColor: 'rgba(60,0,0,0.75)',
+                  textShadowOffset: { width: 0, height: 1.5 },
+                  textShadowRadius: 3,
+                }}
+              >
+                {current.buttonText}
+              </Text>
+            </LinearGradient>
+          </LinearGradient>
         </Pressable>
       )}
     </>
