@@ -27,6 +27,18 @@ def run(*cmd, cwd=MOBILE):
 shutil.rmtree(TMP, ignore_errors=True)
 run("npx", "expo", "export", "-p", "web", "--output-dir", str(TMP))
 
+# Vercel leaves every folder named node_modules out of a deployment, and the export puts the icon font and the
+# navigation icons under assets/node_modules/: move them to assets/vendor/ and point the bundle there.
+nm = TMP / "assets" / "node_modules"
+if nm.exists():
+    nm.rename(TMP / "assets" / "vendor")
+    for js in (TMP / "_expo").rglob("*.js"):
+        text = js.read_text()
+        if "assets/node_modules/" in text:
+            js.write_text(text.replace("assets/node_modules/", "assets/vendor/"))
+assert not any("node_modules" in str(f) for f in TMP.rglob("*")), "a node_modules path is left in the export"
+assert not any("assets/node_modules" in js.read_text() for js in (TMP / "_expo").rglob("*.js"))
+
 # Icons for the install prompt and the home screen.
 icons = TMP / "web-icons"
 icons.mkdir()
