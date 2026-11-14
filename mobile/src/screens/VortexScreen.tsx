@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
+import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
@@ -123,78 +123,150 @@ function wait(ms: number): Promise<void> {
 // ---------- the symbols in the well ----------
 
 type ReelHandle = {
-  /** Symbols run through the well until `land`. */
-  start: () => void;
-  /** Slows down onto `symbol`. */
-  land: (symbol: VortexSymbol, ms: number) => Promise<void>;
+  /** Sets the symbols falling through the well: it speeds up smoothly and keeps going until `land`. */
+  start: (fast: boolean) => void;
+  /** Runs on at the same speed and slows down onto `symbol`; resolves once it has settled. */
+  land: (symbol: VortexSymbol) => Promise<void>;
 };
 
-const LOOP: VortexSymbol[] = ['WATER', 'WIND', 'EARTH', 'SKULL', 'FIRE'];
-const LOOP_STRIP: VortexSymbol[] = [...LOOP, ...LOOP, ...LOOP, ...LOOP];
+/** The symbols on the reel, top to bottom. They fall, so the one above the middle comes next. */
+const REEL: VortexSymbol[] = ['WATER', 'WIND', 'EARTH', 'SKULL', 'FIRE'];
+const REEL_LEN = REEL.length;
+/** Spinning speed, in symbols a second. */
+const REEL_SPEED = { normal: 9, fast: 13 };
+/** How long it takes to get up to speed. */
+const REEL_ACCEL_MS = 160;
+/** How far (in symbols) it slides while slowing down, and how far it swings past the middle before settling. */
+const REEL_STOP = { normal: 1.7, fast: 1.3 };
+const REEL_BACK = 0.7;
+/** The longest a spin runs while waiting for the server. */
+const REEL_SPIN_MS = 30000;
 
-/** A strip of symbols falling through the well; the one in the middle is the spin's result. */
-const Reel = forwardRef<ReelHandle, { size: number }>(function Reel({ size }, ref) {
-  const d = WELL * 2 * size;
-  const pitch = size * 0.312;
-  const orb = size * 0.25;
-  const [strip, setStrip] = useState<VortexSymbol[]>(['FIRE', 'WATER', 'EARTH']);
-  // Which item of the strip is in the middle of the well.
-  const pos = useRef(new Animated.Value(1)).current;
-  const loop = useRef<Animated.CompositeAnimation | null>(null);
-  // Runs once the strip it was set with is on screen.
-  const afterRender = useRef<(() => void) | null>(null);
+/** Where the reel rests (mod REEL_LEN) with `symbol` in the middle of the well. */
+function restFor(symbol: VortexSymbol): number {
+  const at = Math.max(0, REEL.indexOf(symbol));
+  return (((REEL_LEN + 1 - at) % REEL_LEN) + REEL_LEN) % REEL_LEN;
+}
 
-  useLayoutEffect(() => {
-    const run = afterRender.current;
-    afterRender.current = null;
-    run?.();
-  }, [strip]);
+/** The first position at or after `atLeast` where the reel rests like `rest`. */
+function nextRest(rest: number, atLeast: number): number {
+  return rest + REEL_LEN * Math.ceil((atLeast - rest) / REEL_LEN - 1e-9);
+}
 
-  useEffect(() => () => loop.current?.stop(), []);
+/** How far the reel has gone `ms` after a spin starts from rest: speeding up evenly, then at `speed`. */
+function spinDistance(ms: number, speed: number): number {
+  if (ms <= REEL_ACCEL_MS) return (speed * ms * ms) / (2000 * REEL_ACCEL_MS);
+  return (speed * REEL_ACCEL_MS) / 2000 + (speed * (ms - REEL_ACCEL_MS)) / 1000;
+}
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      start: () => {
-        afterRender.current = () => {
-          pos.setValue(12);
-          loop.current = Animated.loop(Animated.timing(pos, { toValue: 7, duration: 340, easing: Easing.linear, useNativeDriver: true }));
-          loop.current.start();
-        };
-        setStrip([...LOOP_STRIP]);
-      },
-      land: (symbol, ms) =>
-        new Promise<void>((resolve) => {
-          loop.current?.stop();
-          loop.current = null;
-          const others = LOOP.filter((s) => s !== symbol);
-          const pick = () => others[Math.floor(Math.random() * others.length)];
-          afterRender.current = () => {
-            pos.setValue(4);
-            Animated.timing(pos, { toValue: 1, duration: ms, easing: Easing.out(Easing.back(1.3)), useNativeDriver: true }).start(() => resolve());
-          };
-          setStrip([pick(), symbol, pick(), pick(), pick(), pick()]);
-        }),
-    }),
-    [pos]
-  );
+/** Ease-out with a small swing past the end; it starts at (back + 3) x the average speed. */
+function easeOutBack(k: number, back: number): number {
+  const x = k - 1;
+  return 1 + (back + 1) * x * x * x + back * x * x;
+}
 
-  const translateY = pos.interpolate({ inputRange: [0, 20], outputRange: [d / 2 - 0.5 * pitch, d / 2 - 20.5 * pitch] });
-  return (
-    <View style={{ width: d, height: d, borderRadius: d / 2, overflow: 'hidden' }}>
-      <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: d, transform: [{ translateY }] }}>
-        {strip.map((symbol, i) => (
-          <View key={i} style={{ height: pitch, alignItems: 'center', justifyContent: 'center' }}>
-            <SymbolOrb symbol={symbol} size={orb} />
-          </View>
-        ))}
-      </Animated.View>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <WellShade size={size} />
+/**
+ * A reel of symbols falling through the well; the one in the middle is the spin's result.
+ *
+ * The reel itself never changes (it is drawn once): only its position moves, on the native animation driver.
+ * A spin speeds up evenly to a steady speed; when the result is known the reel carries on at that same speed
+ * and then slows down onto the symbol, so there is no jump or jolt anywhere.
+ */
+const Reel = memo(
+  forwardRef<ReelHandle, { size: number }>(function Reel({ size }, ref) {
+    const d = WELL * 2 * size;
+    const pitch = size * 0.312;
+    const orb = size * 0.25;
+    const start = restFor('WATER');
+    const pos = useRef(new Animated.Value(start)).current;
+    const resting = useRef(start);
+    const spinning = useRef<{ from: number; at: number; speed: number } | null>(null);
+    const anim = useRef<Animated.CompositeAnimation | null>(null);
+
+    useEffect(() => () => anim.current?.stop(), []);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        start: (fast) => {
+          anim.current?.stop();
+          const speed = fast ? REEL_SPEED.fast : REEL_SPEED.normal;
+          const from = resting.current;
+          const distance = spinDistance(REEL_SPIN_MS, speed);
+          spinning.current = { from, at: Date.now(), speed };
+          anim.current = Animated.timing(pos, {
+            toValue: from + distance,
+            duration: REEL_SPIN_MS,
+            easing: (u) => spinDistance(u * REEL_SPIN_MS, speed) / distance,
+            useNativeDriver: true,
+          });
+          anim.current.start();
+        },
+        land: (symbol) =>
+          new Promise<void>((resolve) => {
+            const run = spinning.current;
+            spinning.current = null;
+            // Where the reel is right now, worked out from the clock the spin runs on (the value the
+            // animation last drew is up to a frame old, which would make the reel hitch here).
+            pos.stopAnimation();
+            const elapsed = run ? Math.min(REEL_SPIN_MS, Date.now() - run.at) : 0;
+            const from = run ? run.from + spinDistance(elapsed, run.speed) : resting.current;
+            const top = run?.speed ?? REEL_SPEED.normal;
+            const speed = Math.max(top * 0.45, elapsed >= REEL_ACCEL_MS ? top : (top * elapsed) / REEL_ACCEL_MS);
+            const stop = top >= REEL_SPEED.fast ? REEL_STOP.fast : REEL_STOP.normal;
+            const target = nextRest(restFor(symbol), from + stop);
+            const cruise = Math.max(0, target - stop - from);
+            const cruiseMs = (cruise / speed) * 1000;
+            const stopMs = (((REEL_BACK + 3) * stop) / speed) * 1000;
+            const total = cruiseMs + stopMs;
+            const span = target - from;
+            pos.setValue(from);
+            anim.current = Animated.timing(pos, {
+              toValue: target,
+              duration: total,
+              easing: (u) => {
+                const t = u * total;
+                if (t <= cruiseMs) return (speed * t) / 1000 / span;
+                return (cruise + stop * easeOutBack((t - cruiseMs) / stopMs, REEL_BACK)) / span;
+              },
+              useNativeDriver: true,
+            });
+            anim.current.start(({ finished }) => {
+              const rest = ((target % REEL_LEN) + REEL_LEN) % REEL_LEN;
+              resting.current = rest;
+              // Same picture (the reel repeats every REEL_LEN symbols), smaller number.
+              if (finished) pos.setValue(rest);
+              resolve();
+            });
+          }),
+      }),
+      [pos]
+    );
+
+    // The reel repeats every REEL_LEN symbols, so its position is taken mod REEL_LEN. At 0 the item
+    // REEL_LEN + 1 is in the middle; the items drawn cover the ones above and below it all the way round.
+    const translateY = useMemo(() => {
+      const base = d / 2 - (REEL_LEN + 1.5) * pitch;
+      return Animated.modulo(pos, REEL_LEN).interpolate({ inputRange: [0, REEL_LEN], outputRange: [base, base + REEL_LEN * pitch] });
+    }, [pos, d, pitch]);
+    const items = useMemo(() => Array.from({ length: REEL_LEN + 3 }, (_, k) => REEL[k % REEL_LEN]), []);
+
+    return (
+      <View style={{ width: d, height: d, borderRadius: d / 2, overflow: 'hidden' }}>
+        <Animated.View testID="vortex-reel" style={{ position: 'absolute', left: 0, top: 0, width: d, transform: [{ translateY }] }}>
+          {items.map((symbol, k) => (
+            <View key={k} style={{ height: pitch, alignItems: 'center', justifyContent: 'center' }}>
+              <SymbolOrb symbol={symbol} size={orb} />
+            </View>
+          ))}
+        </Animated.View>
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <WellShade size={size} />
+        </View>
       </View>
-    </View>
-  );
-});
+    );
+  })
+);
 
 // ---------- cards over the board ----------
 
@@ -560,7 +632,7 @@ export default function VortexScreen() {
       putBalance(res.balance);
 
       if (symbol === 'WIND') {
-        await wait(quick ? 60 : 200);
+        await wait(quick ? 0 : 60);
       } else if (symbol === 'SKULL') {
         // Every ring loses the section it stood on.
         const lost = ELEMENTS.filter((el) => res.before[FILL_KEY[el]] > 0).map((el) => ({ element: el, index: res.before[FILL_KEY[el]] - 1 }));
@@ -569,7 +641,7 @@ export default function VortexScreen() {
         flashNow(lost, DANGER, 800);
         putShown(next);
         play('tick');
-        await wait(quick ? 220 : 520);
+        await wait(quick ? 160 : 320);
       } else {
         const ring = cfg.rings.find((r) => r.element === symbol);
         const full = ring ? ring.ladder.length : 0;
@@ -579,13 +651,13 @@ export default function VortexScreen() {
           putShown(next);
           flashNow([{ element: symbol, index: was }], ELEMENT_LOOK[symbol].bright);
           play('land');
-          await wait(quick ? 180 : 420);
+          await wait(quick ? 90 : 200);
         } else if (res.premium == null) {
           // A hit on a full ring: its bonus is paid at once.
           flashNow([{ element: symbol, index: full }], GOLD, 900);
           if (res.instant > 0) floatNow(`+${money(res.instant)}`);
           play('win');
-          await wait(quick ? 420 : 900);
+          await wait(quick ? 320 : 650);
         } else {
           flashNow([{ element: symbol, index: full }], GOLD, 900);
           play('win');
@@ -649,16 +721,16 @@ export default function VortexScreen() {
     setWin(null);
     const before = balanceRef.current;
     if (paid) putBalance(round2(before - bet));
-    reel.current?.start();
+    reel.current?.start(fastRef.current);
     play('tick');
     const started = Date.now();
     try {
       const res = await spinVortex(bet);
       if (!mountedRef.current) return;
       const quick = fastRef.current;
-      await wait(Math.max(0, (quick ? 180 : 520) - (Date.now() - started)));
+      await wait(Math.max(0, (quick ? 170 : 260) - (Date.now() - started)));
       if (!mountedRef.current) return;
-      await reel.current?.land(res.symbol, quick ? 300 : 600);
+      await reel.current?.land(res.symbol);
       if (!mountedRef.current) return;
       await showResult(res, quick);
     } catch (err) {
@@ -666,7 +738,7 @@ export default function VortexScreen() {
       putAuto(false);
       queued.current = null;
       putBalance(before);
-      await reel.current?.land('WIND', 250);
+      await reel.current?.land('WIND');
       showToast(errorMessage(err));
       resync();
     } finally {
@@ -676,7 +748,7 @@ export default function VortexScreen() {
         queued.current = null;
         if (then === 'cashout') cashOutRef.current();
         else if (then === 'part') partRef.current();
-        else if (autoRef.current) autoTimer.current = setTimeout(() => spinRef.current(), fastRef.current ? 140 : 380);
+        else if (autoRef.current) autoTimer.current = setTimeout(() => spinRef.current(), fastRef.current ? 60 : 200);
         else refreshWallet().catch(() => {});
       }
     }
@@ -912,7 +984,7 @@ export default function VortexScreen() {
           </View>
         )}
         <Pressable onPress={() => setSheet('rules')} style={styles.betLabelRow} hitSlop={6}>
-          <Text style={[styles.betLabel, !!round && { color: '#7EE2A3' }]}>{round ? 'Bet paid · spins are free' : 'Bet Amount'}</Text>
+          <Text style={styles.betLabel}>Bet Amount</Text>
           <MaterialCommunityIcons name="information" size={14} color="#7C8296" />
         </Pressable>
         <View style={styles.betRow}>
