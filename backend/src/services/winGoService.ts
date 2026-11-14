@@ -5,7 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound, withWinFee } from "./lotteryHouse";
-import { assertAppAtLeast, stakedByKey } from "./leastPayout";
+import { assertAppAtLeast } from "./leastPayout";
 
 /**
  * Win Go: one number 0-9 per round on fixed wall-clock tracks (one chain of
@@ -86,24 +86,24 @@ export function numberFor(serverSeed: string, periodNumber: string): number {
 }
 
 /**
- * The least-staked rule (env.games.winGoLeastStaked, shown in How to play):
- * Big or Small, whichever has less staked on it by all players, then the
- * number on that side with the least staked on it. Colour bets don't count.
+ * The least-money rule (env.games.winGoLeastStaked, shown in How to play):
+ * for each number, the money on every bet that number would make a winner —
+ * numbers, colours (Green, Red, Violet) and Big / Small all count — and the
+ * number with the least is the result. So the number, colour and size with
+ * the least money on them win; where they pull different ways, the result
+ * is the one whose winning choices have the least money on them in all.
  * Ties go to a draw from the round's seed, so every settler of the round
  * gets the same number from the same bets. Trx Win Go passes its block
  * hash as the seed.
  */
 export function leastStakedNumber(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): number {
-  const staked = stakedByKey(bets);
-  const on = (key: string) => staked.get(key) ?? 0;
-  const pick = <T>(tied: T[], nonce: number) => tied[Math.floor(fairGameFloat(serverSeed, periodNumber, "wingo-least", nonce) * tied.length)];
-
-  const big = on("BIG");
-  const small = on("SMALL");
-  const size = big === small ? pick(["BIG", "SMALL"], 0) : big < small ? "BIG" : "SMALL";
-  const side = size === "BIG" ? [5, 6, 7, 8, 9] : [0, 1, 2, 3, 4];
-  const least = Math.min(...side.map((n) => on(`NUM:${n}`)));
-  return pick(side.filter((n) => on(`NUM:${n}`) === least), 1);
+  // In paise, so equal totals compare equal.
+  const totals = Array.from({ length: 10 }, (_, n) =>
+    bets.reduce((sum, b) => sum + (payoutMultiplier(b.area, n) > 0 ? Math.round(Number(b.amount) * 100) : 0), 0)
+  );
+  const least = Math.min(...totals);
+  const tied = totals.flatMap((t, n) => (t === least ? [n] : []));
+  return tied[Math.floor(fairGameFloat(serverSeed, periodNumber, "wingo-least", 0) * tied.length)];
 }
 
 /** First app version whose How to play states the least-staked rule. */

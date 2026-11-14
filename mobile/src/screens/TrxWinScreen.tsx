@@ -380,7 +380,7 @@ function BlockPanel({
         ) : (
           <View style={{ flex: 1 }}>
             <Text style={styles.blockRule}>
-              {leastStaked ? 'Result = the side and number with the least money bet on them (the block decides ties and House)' : 'Result = last digit in the block hash'}
+              {leastStaked ? 'Result = the number, colour and Big/Small with the least money bet on them (the block decides ties and House)' : 'Result = last digit in the block hash'}
             </Text>
             {entry?.house && ballOn ? (
               <Text style={styles.blockHouse}>
@@ -1180,7 +1180,7 @@ export default function TrxWinScreen() {
                     : `The digit before the result digit (${detail.number}) is 0, so this period is a ⭐ House result.`}
                 </Text>
               )}
-              {leastStaked && <Text style={styles.detailNote}>The number is the one with the least money bet on it (least-money rule), not the hash digit.</Text>}
+              {leastStaked && <Text style={styles.detailNote}>The number is the one with the least money on the choices it makes win (least-money rule), not the hash digit.</Text>}
               <Pressable onPress={() => openBlock(detail)} style={[styles.verifyBtn, { alignSelf: 'stretch', justifyContent: 'center', marginTop: 4 }]}>
                 <MaterialCommunityIcons name="shield-check" size={15} color={LEDGER_2} />
                 <Text style={styles.verifyText}>Verify on TronScan</Text>
@@ -1202,9 +1202,9 @@ export default function TrxWinScreen() {
               {(leastStaked
                 ? [
                     `Each period (${DURATION_LABEL[duration]}) ends at a set time. Betting closes ${lockSeconds} seconds before it.`,
-                    'Result rule — least money wins (same as Win Go): when betting closes, whichever of Big or Small has less money bet on it by all players wins, and the number is the one on that side with the least money bet on it. Colour bets do not change the result.',
+                    'Result rule — least money wins (same as Win Go): when betting closes, the number, colour (Green, Red, Violet) and Big / Small with the least money bet on them by all players win. For each number 0–9, the money on every choice it would make a winner is added up, and the number with the smallest total is the result.',
                     'This means the result goes against where most players’ money is: the more money is on a choice, the less likely it is to win. The number is not the digit in the block hash.',
-                    'The TRON block (the first one at or after the period’s end) still decides ties — which side or number wins when two have the same money on them — and House. You can check the block on TronScan.',
+                    'The TRON block (the first one at or after the period’s end) still decides ties — which number wins when two have the same money on them — and House. You can check the block on TronScan.',
                     `⭐ House: one period in five (${housePercent}%) is a House result — when the second-last decimal digit in the block hash is 0 or 1. Every bet on a House period loses, whatever the number.`,
                     `Green: 1, 3, 7, 9 pay ${P.color}X; 5 pays ${P.colorMixed}X.`,
                     `Red: 2, 4, 6, 8 pay ${P.color}X; 0 pays ${P.colorMixed}X.`,

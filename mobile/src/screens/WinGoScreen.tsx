@@ -860,7 +860,7 @@ export default function WinGoScreen() {
           </View>
           {leastStaked && (
             <Text style={[styles.rulesText, { color: C_RED, marginTop: 6 }]}>
-              Result rule: the side and number with the least money bet on them win.
+              Result rule: the number, colour and Big/Small with the least money bet on them win.
             </Text>
           )}
           <View style={styles.agreeRow}>
@@ -923,7 +923,7 @@ export default function WinGoScreen() {
               {(leastStaked
                 ? [
                     `One number 0–9 is chosen every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
-                    'Result rule — least money wins: when betting closes, whichever of Big or Small has less money bet on it by all players wins. The result is then the number on that side with the least money bet on it. Ties are decided at random. Colour bets do not change the result.',
+                    'Result rule — least money wins: when betting closes, the number, colour (Green, Red, Violet) and Big / Small with the least money bet on them by all players win. For each number 0–9, the money on every choice it would make a winner is added up, and the number with the smallest total is the result. Ties are decided at random.',
                     'This means the result goes against where most players’ money is: the more money is on a choice, the less likely it is to win. The number is not a random draw.',
                   ]
                 : [
