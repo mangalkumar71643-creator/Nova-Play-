@@ -3,8 +3,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import QuantityInputModal from '../components/QuantityInputModal';
+import { Animated, Easing, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Defs, G, Line, LinearGradient as SvgLinearGradient, Path, RadialGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -23,6 +22,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import { useKeyboardOverlap } from '../utils/keyboard';
 
 // ---------- theme ----------
 
@@ -46,7 +46,9 @@ const DURATIONS: WinGoDuration[] = [60, 30, 180, 300, 600];
 /** The original Win Go's serif lettering for labels and buttons. */
 const SERIF = 'serif';
 const DURATION_LABEL: Record<WinGoDuration, string> = { 30: '30S', 60: '1Min', 180: '3Min', 300: '5Min', 600: '10Min' };
-const UNIT_VALUES = [1, 10, 50, 100];
+/** The bet sheet's title: "WinGo 1 minute". */
+const DURATION_NAME: Record<WinGoDuration, string> = { 30: '30 second', 60: '1 minute', 180: '3 minute', 300: '5 minute', 600: '10 minute' };
+const UNIT_VALUES = [1, 10, 100, 1000];
 const MULTIPLIERS = [1, 5, 10, 20, 50, 100];
 const ROWS_PER_PAGE = 10;
 const TOAST_MS = 1800;
@@ -84,6 +86,11 @@ function keyColor(key: string): string {
 function keyLabel(key: string): string {
   if (key.startsWith('NUM:')) return key.slice(4);
   return key[0] + key.slice(1).toLowerCase();
+}
+
+/** The choice as the bet sheet names it: "green", "big", "7". */
+function sheetName(key: string): string {
+  return key.startsWith('NUM:') ? key.slice(4) : key.toLowerCase();
 }
 
 /** "9%", "45%": a chance as a whole (or one-decimal) percentage. */
@@ -206,7 +213,8 @@ export default function WinGoScreen() {
   const [selection, setSelection] = useState<string | null>(null);
   const [unit, setUnit] = useState(1);
   const [qty, setQty] = useState(1);
-  const [qtyOpen, setQtyOpen] = useState(false);
+  // What is typed in the Quantity box (it can be empty while typing).
+  const [qtyText, setQtyText] = useState('1');
   const [mult, setMult] = useState(1);
   const [agree, setAgree] = useState(true);
   const [placing, setPlacing] = useState(false);
@@ -370,8 +378,33 @@ export default function WinGoScreen() {
   const sheetOpen = !!selection;
   useEffect(() => {
     Animated.timing(sheet, { toValue: sheetOpen ? 1 : 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    if (!sheetOpen) setQty(1);
+    if (!sheetOpen) {
+      setQty(1);
+      setQtyText('1');
+      Keyboard.dismiss();
+    }
   }, [sheetOpen, sheet]);
+
+  // The Quantity box: typed straight in with the number keyboard, or stepped with − and +.
+  const typeQty = (text: string) => {
+    const digits = text.replace(/[^0-9]/g, '').slice(0, 6);
+    setQtyText(digits);
+    setQty(Number(digits) || 0);
+  };
+  const fixQty = () => {
+    if (!(Number(qtyText) > 0)) {
+      setQtyText('1');
+      setQty(1);
+    }
+  };
+  const stepQty = (d: 1 | -1) => {
+    const next = Math.max(1, Math.min(999999, (qty || 0) + d));
+    setQty(next);
+    setQtyText(String(next));
+  };
+  // The sheet sits at the bottom of the screen: it is lifted above the keyboard while one is typing.
+  const sheetRef = useRef<View>(null);
+  const keyboardLift = useKeyboardOverlap(sheetRef);
 
   const choose = (key: string) => {
     if (locked) return showToast('Betting is closed for this period');
@@ -432,6 +465,8 @@ export default function WinGoScreen() {
   const myRows = myBets.slice(page * ROWS_PER_PAGE, page * ROWS_PER_PAGE + ROWS_PER_PAGE);
   const [sheetH, setSheetH] = useState(380);
   const selColor = selection ? keyColor(selection) : G1;
+  // On narrow phones the sheet's option buttons are a little smaller so the X1–X100 row fits.
+  const narrowSheet = W < 390;
   const chartW = W - pad * 2;
   const chartRowH = 42;
   const chartX0 = chartW * 0.3;
@@ -757,39 +792,39 @@ export default function WinGoScreen() {
         </View>
       </ScrollView>
 
-      <QuantityInputModal
-        visible={qtyOpen}
-        value={qty}
-        unit={unit}
-        mult={mult}
-        maxTotal={maxStake}
-        color={selColor}
-        onConfirm={(n) => {
-          setQty(n);
-          setQtyOpen(false);
-        }}
-        onClose={() => setQtyOpen(false)}
-      />
+      {/* Dims the page while the bet sheet is up; a tap outside it closes it. */}
+      <Animated.View pointerEvents={sheetOpen ? 'auto' : 'none'} style={[styles.sheetBackdrop, { opacity: sheet }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelection(null)} accessibilityLabel="Close" />
+      </Animated.View>
 
       {/* Bet sheet, tinted by the selection */}
       <Animated.View
+        ref={sheetRef}
+        collapsable={false}
         pointerEvents={sheetOpen ? 'auto' : 'none'}
         onLayout={(e) => setSheetH(e.nativeEvent.layout.height)}
-        style={[styles.sheet, { paddingBottom: insets.bottom + 6, transform: [{ translateY: sheet.interpolate({ inputRange: [0, 1], outputRange: [sheetH + 40, 0] }) }] }]}
+        style={[styles.sheet, { paddingBottom: insets.bottom + keyboardLift, transform: [{ translateY: sheet.interpolate({ inputRange: [0, 1], outputRange: [sheetH + 40, 0] }) }] }]}
       >
         <View style={[styles.sheetHead, { backgroundColor: selColor }]}>
-          <Text style={styles.sheetTitle}>Win Go {DURATION_LABEL[duration]}</Text>
+          <Text style={styles.sheetTitle}>WinGo {DURATION_NAME[duration]}</Text>
           <View style={styles.sheetSelPill}>
-            <Text style={[styles.sheetSelText, { color: selColor }]}>Select {selection ? keyLabel(selection) : ''}</Text>
+            <Text style={styles.sheetSelText}>
+              Select{'     '}
+              {selection ? sheetName(selection) : ''}
+            </Text>
           </View>
         </View>
+        {/* The header comes to a point below the choice. */}
+        <Svg width={W} height={34} style={styles.sheetPoint}>
+          <Path d={`M 0 0 H ${W} V 4 L ${W / 2} 34 L 0 4 Z`} fill={selColor} />
+        </Svg>
         <View style={styles.sheetBody}>
           <View style={styles.sheetRow}>
             <Text style={styles.sheetLabel}>Balance</Text>
             <View style={styles.sheetChoices}>
               {UNIT_VALUES.map((v) => (
-                <Pressable key={v} onPress={() => setUnit(v)} style={[styles.choice, unit === v && { backgroundColor: selColor }]}>
-                  <Text style={[styles.choiceText, unit === v && { color: '#FFFFFF' }]}>{v}</Text>
+                <Pressable key={v} onPress={() => setUnit(v)} style={[styles.choice, narrowSheet && styles.choiceNarrow, unit === v && { backgroundColor: selColor }]}>
+                  <Text style={[styles.choiceText, narrowSheet && styles.choiceTextNarrow, unit === v && { color: '#FFFFFF' }]}>{v}</Text>
                 </Pressable>
               ))}
             </View>
@@ -797,21 +832,29 @@ export default function WinGoScreen() {
           <View style={styles.sheetRow}>
             <Text style={styles.sheetLabel}>Quantity</Text>
             <View style={styles.qtyBox}>
-              <Pressable onPress={() => setQty((q) => Math.max(1, q - 1))} style={[styles.qtyBtn, { backgroundColor: selColor }]}>
-                <MaterialCommunityIcons name="minus" size={18} color="#FFFFFF" />
+              <Pressable onPress={() => stepQty(-1)} style={[styles.qtyBtn, { backgroundColor: selColor }]} accessibilityRole="button" accessibilityLabel="Less">
+                <Text style={styles.qtyBtnText}>-</Text>
               </Pressable>
-              <Pressable onPress={() => setQtyOpen(true)}>
-                <Text style={styles.qtyText}>{qty}</Text>
-              </Pressable>
-              <Pressable onPress={() => setQty((q) => Math.min(maxStake, q + 1))} style={[styles.qtyBtn, { backgroundColor: selColor }]}>
-                <MaterialCommunityIcons name="plus" size={18} color="#FFFFFF" />
+              <TextInput
+                value={qtyText}
+                onChangeText={typeQty}
+                onBlur={fixQty}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={6}
+                selectTextOnFocus
+                style={styles.qtyInput}
+                accessibilityLabel="Quantity"
+              />
+              <Pressable onPress={() => stepQty(1)} style={[styles.qtyBtn, { backgroundColor: selColor }]} accessibilityRole="button" accessibilityLabel="More">
+                <Text style={styles.qtyBtnText}>+</Text>
               </Pressable>
             </View>
           </View>
           <View style={styles.sheetMults}>
             {MULTIPLIERS.map((m) => (
-              <Pressable key={m} onPress={() => setMult(m)} style={[styles.choice, mult === m && { backgroundColor: selColor }]}>
-                <Text style={[styles.choiceText, mult === m && { color: '#FFFFFF' }]}>X{m}</Text>
+              <Pressable key={m} onPress={() => setMult(m)} style={[styles.choice, narrowSheet && styles.choiceNarrow, mult === m && { backgroundColor: selColor }]}>
+                <Text style={[styles.choiceText, narrowSheet && styles.choiceTextNarrow, mult === m && { color: '#FFFFFF' }]}>X{m}</Text>
               </Pressable>
             ))}
           </View>
@@ -820,17 +863,21 @@ export default function WinGoScreen() {
               Result rule: the side and number with the least money bet on them win.
             </Text>
           )}
-          <Pressable onPress={() => setAgree(!agree)} style={styles.agreeRow}>
-            <MaterialCommunityIcons name={agree ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'} size={18} color={agree ? selColor : MUTED} />
-            <Text style={styles.agreeText}>I agree</Text>
-            <Text style={[styles.agreeLink, { color: C_RED }]}>《Pre-sale rules》</Text>
-          </Pressable>
+          <View style={styles.agreeRow}>
+            <Pressable onPress={() => setAgree(!agree)} style={styles.agreeTick} hitSlop={8} accessibilityRole="checkbox" accessibilityState={{ checked: agree }}>
+              <MaterialCommunityIcons name={agree ? 'check-circle' : 'circle-outline'} size={30} color={agree ? selColor : MUTED} />
+              <Text style={styles.agreeText}>I agree</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowRules(true)} hitSlop={8} accessibilityRole="link">
+              <Text style={styles.agreeLink}>《Pre-sale rules》</Text>
+            </Pressable>
+          </View>
         </View>
         <View style={styles.sheetFoot}>
-          <Pressable onPress={() => setSelection(null)} style={styles.cancelBtn}>
+          <Pressable onPress={() => setSelection(null)} style={styles.cancelBtn} accessibilityRole="button">
             <Text style={styles.cancelText}>Cancel</Text>
           </Pressable>
-          <Pressable onPress={confirm} disabled={placing} style={[styles.totalBtn, { backgroundColor: selColor }]}>
+          <Pressable onPress={confirm} disabled={placing} style={[styles.totalBtn, { backgroundColor: selColor }]} accessibilityRole="button">
             <Text style={styles.totalText}>{placing ? 'Placing…' : `Total amount ₹${perBet.toFixed(2)}`}</Text>
           </Pressable>
         </View>
@@ -1014,29 +1061,35 @@ const styles = StyleSheet.create({
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 34, paddingVertical: 16 },
   pageBtn: { width: 42, height: 42, borderRadius: 8, backgroundColor: G2, alignItems: 'center', justifyContent: 'center' },
   pageText: { color: INK, fontSize: 14, fontWeight: '800' },
+  sheetBackdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)' },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', ...shadow, elevation: 20 },
-  sheetHead: { paddingTop: 14, paddingBottom: 12, alignItems: 'center', gap: 8, borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
-  sheetTitle: { fontFamily: SERIF, color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
-  sheetSelPill: { backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 4 },
-  sheetSelText: { fontSize: 14, fontWeight: '800' },
-  sheetBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, gap: 10 },
+  sheetHead: { paddingTop: 18, paddingHorizontal: 26, paddingBottom: 2, alignItems: 'center', gap: 12 },
+  sheetPoint: { marginTop: -1 },
+  sheetTitle: { fontFamily: SERIF, color: '#FFFFFF', fontSize: 22, fontWeight: '800' },
+  sheetSelPill: { alignSelf: 'stretch', height: 34, borderRadius: 4, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  sheetSelText: { fontFamily: SERIF, color: '#222222', fontSize: 17 },
+  sheetBody: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 18, gap: 18 },
   sheetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sheetLabel: { fontFamily: SERIF, color: INK, fontSize: 15, fontWeight: '800' },
+  sheetLabel: { fontFamily: SERIF, color: '#333333', fontSize: 20 },
   sheetChoices: { flexDirection: 'row', gap: 6 },
-  choice: { minWidth: 44, height: 30, paddingHorizontal: 8, borderRadius: 6, backgroundColor: '#F1F3F2', alignItems: 'center', justifyContent: 'center' },
-  choiceText: { color: INK, fontSize: 13, fontWeight: '800' },
-  qtyBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  qtyBtn: { width: 30, height: 30, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  qtyText: { minWidth: 56, textAlign: 'center', color: INK, fontSize: 15, fontWeight: '900', paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#DCE3DF' },
+  choice: { minWidth: 34, height: 40, paddingHorizontal: 10, borderRadius: 2, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
+  choiceNarrow: { paddingHorizontal: 7 },
+  choiceText: { fontFamily: SERIF, color: '#333333', fontSize: 19 },
+  choiceTextNarrow: { fontSize: 17 },
+  qtyBox: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  qtyBtn: { width: 46, height: 40, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
+  qtyBtnText: { fontFamily: SERIF, color: '#FFFFFF', fontSize: 26, lineHeight: 30 },
+  qtyInput: { width: 92, height: 40, padding: 0, borderWidth: 1, borderColor: '#CFCFCF', borderRadius: 2, textAlign: 'center', fontFamily: SERIF, fontSize: 19, color: '#333333', backgroundColor: '#FFFFFF' },
   sheetMults: { flexDirection: 'row', justifyContent: 'flex-end', gap: 6 },
-  agreeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  agreeText: { color: INK, fontSize: 13, fontWeight: '600' },
-  agreeLink: { fontSize: 13, fontWeight: '700' },
-  sheetFoot: { flexDirection: 'row', height: 52 },
-  cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF1EF' },
-  cancelText: { fontFamily: SERIF, color: MUTED, fontSize: 15, fontWeight: '800' },
+  agreeRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  agreeTick: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  agreeText: { fontFamily: SERIF, color: '#333333', fontSize: 17 },
+  agreeLink: { fontFamily: SERIF, color: '#E5484D', fontSize: 17 },
+  sheetFoot: { flexDirection: 'row', height: 58 },
+  cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#25263A' },
+  cancelText: { fontFamily: SERIF, color: '#A3A6B8', fontSize: 19 },
   totalBtn: { flex: 2, alignItems: 'center', justifyContent: 'center' },
-  totalText: { fontFamily: SERIF, color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  totalText: { fontFamily: SERIF, color: '#FFFFFF', fontSize: 19 },
   overlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', zIndex: 1000, elevation: 40 },
   winCard: { width: 296, borderRadius: 22, overflow: 'hidden', backgroundColor: '#FFFFFF' },
   winTop: { alignItems: 'center', paddingVertical: 18, gap: 6 },
