@@ -4,7 +4,7 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
-import { HOUSE_CHANCE, isHouseRound, withWinFee } from "./lotteryHouse";
+import { BET_TAX, HOUSE_CHANCE, afterBetTax, isHouseRound } from "./lotteryHouse";
 import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
@@ -33,14 +33,14 @@ export const DICE = 6;
  * 6^6 = 46656 equally likely throws: 2 -> 9375, 3 -> 2500, 4 -> 375,
  * 5 -> 30, 6 -> 1. On a round that is not House the table returns
  * (9375*3.25 + 2500*5.25 + 375*7 + 30*12 + 1*20) / 46656 = 46598.75 / 46656
- * = 99.88% — fair odds, never above 100% — so with the House rounds a bet
- * returns 79.90%, just under the 80% lottery rtp. The top pays 20x, so a
- * full box (maxStake) can never win more than maxPayout.
+ * = 99.88% — fair odds, never above 100%. The apps show these odds
+ * (FAIR_PAYTABLE); the 2% bet tax (lotteryHouse.ts BET_TAX) comes off the bet
+ * when it is placed, so a bet is paid the odds less the tax, rounded down to
+ * the cent (PAYTABLE: 3.18, 5.14, 6.86, 11.76, 19.6 at 2%). The top pays 20x,
+ * so a full box (maxStake) can never win more than maxPayout.
  */
-// Less the lottery win fee (lotteryHouse.ts): 3.18, 5.14, 6.86, 11.76, 19.6 at 2%.
-export const PAYTABLE: Record<number, number> = Object.fromEntries(
-  Object.entries({ 2: 3.25, 3: 5.25, 4: 7, 5: 12, 6: 20 }).map(([k, m]) => [k, withWinFee(m)])
-);
+export const FAIR_PAYTABLE: Record<number, number> = { 2: 3.25, 3: 5.25, 4: 7, 5: 12, 6: 20 };
+export const PAYTABLE: Record<number, number> = Object.fromEntries(Object.entries(FAIR_PAYTABLE).map(([k, m]) => [k, afterBetTax(m)]));
 const TOP_MULTIPLIER = 20;
 
 function round2(n: number): number {
@@ -293,11 +293,14 @@ export function getJhandiMundaConfig() {
     resultAtSeconds: RESULT_AT_SECONDS,
     rtpPercent: round2(rtp() * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
+    /** Tax taken from every bet when it is placed; the odds apply to the rest. */
+    taxPercent: round2(BET_TAX * 100),
     resultRule: env.games.lotteryLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
     // Chance a bet on one symbol wins, House rounds included.
     winChancePercent: round2(winChance() * 100),
     symbols: AREAS,
-    paytable: PAYTABLE,
+    // The odds the apps show; a bet is paid these less the tax (PAYTABLE).
+    paytable: FAIR_PAYTABLE,
   };
 }
 

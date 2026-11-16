@@ -1833,8 +1833,10 @@ export interface JhandiMundaConfig {
   houseChancePercent?: number;
   /** Chance a bet on one symbol wins, House rounds included. */
   winChancePercent?: number;
+  /** Tax taken from every bet when it is placed; the odds apply to the rest. */
+  taxPercent?: number;
   symbols: JhandiSymbol[];
-  /** Total return per unit staked, by how many dice show the symbol. */
+  /** The odds shown, by how many dice show the symbol; the tax comes off the bet. */
   paytable: Record<string, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
   resultRule?: 'SEED' | 'LEAST_PAYOUT';

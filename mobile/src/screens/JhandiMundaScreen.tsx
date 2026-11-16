@@ -35,9 +35,9 @@ const SYMBOL_NAME: Record<JhandiSymbol, { en: string; hi: string }> = {
 };
 /** Used until the config arrives; the server's values replace them. */
 const FALLBACK_PAYTABLE: Record<string, number> = { 2: 3.25, 3: 5.25, 4: 7, 5: 12, 6: 20 };
-const FALLBACK_RTP = 79.9;
-/** A symbol wins on 2+ dice (26.32% of throws) on the 80% of rounds that are not House. */
-const FALLBACK_WIN_CHANCE = 21.06;
+const FALLBACK_RTP = 97.75;
+/** A symbol wins on 2+ dice: 26.32% of throws. */
+const FALLBACK_WIN_CHANCE = 26.32;
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500];
 const CHIP_COLORS: Record<number, string> = {
   10: '#1E9E4A',
@@ -478,6 +478,7 @@ export default function JhandiMundaScreen() {
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 100000;
   const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP;
+  const taxPercent = config?.taxPercent ?? 2;
   const winChance = config?.winChancePercent ?? FALLBACK_WIN_CHANCE;
   const houseOn = (config?.houseChancePercent ?? 0) > 0;
   const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
@@ -919,6 +920,7 @@ export default function JhandiMundaScreen() {
           <View style={styles.myBet}>
             <Text style={styles.myBetLabel}>YOUR BET</Text>
             <Text style={styles.myBetValue}>₹{myTotal.toFixed(2)}</Text>
+            {taxPercent > 0 && myTotal > 0 ? <Text style={styles.myBetTax}>{taxPercent}% tax ₹{round2((myTotal * taxPercent) / 100).toFixed(2)}</Text> : null}
           </View>
         </View>
 
@@ -941,6 +943,7 @@ export default function JhandiMundaScreen() {
                 Bet ₹{minStake}–₹{maxStake} per symbol · max win {winLimit(config?.maxPayout)} per bet · Whether a round is House, and how ties are decided, come from a server
                 seed published after the round.
               </Text>
+              {taxPercent > 0 ? <Text style={styles.rulesText}>Tax: {taxPercent}% of every bet is deducted as tax when you place it, and the odds apply to the rest — a ₹100 chip counts as ₹{round2(100 - taxPercent)}, so 2 dice ({paytable[2] ?? FALLBACK_PAYTABLE[2]}x) pay ₹{round2((100 - taxPercent) * (paytable[2] ?? FALLBACK_PAYTABLE[2]))}.</Text> : null}
             </>
           ) : (
             <>
@@ -952,6 +955,7 @@ export default function JhandiMundaScreen() {
                 Bet ₹{minStake}–₹{maxStake} per symbol · max win {winLimit(config?.maxPayout)} per bet · Provably fair: every throw, and whether the round is House, comes
                 from a server seed published after the round.
               </Text>
+              {taxPercent > 0 ? <Text style={styles.rulesText}>Tax: {taxPercent}% of every bet is deducted as tax when you place it, and the odds apply to the rest — a ₹100 chip counts as ₹{round2(100 - taxPercent)}, so 2 dice ({paytable[2] ?? FALLBACK_PAYTABLE[2]}x) pay ₹{round2((100 - taxPercent) * (paytable[2] ?? FALLBACK_PAYTABLE[2]))}.</Text> : null}
             </>
           )}
         </View>
@@ -1068,6 +1072,7 @@ const styles = StyleSheet.create({
   myBet: { flex: 1, alignItems: 'flex-end' },
   myBetLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   myBetValue: { color: GOLD, fontSize: 18, fontWeight: '900' },
+  myBetTax: { color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700' },
   rules: { marginTop: 16, marginHorizontal: 12, padding: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' },
   rulesTitle: { color: GOLD, fontWeight: '900', fontSize: 12, letterSpacing: 2, marginBottom: 4 },
   rulesText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, lineHeight: 17, marginTop: 2 },
