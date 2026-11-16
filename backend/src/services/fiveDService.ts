@@ -4,17 +4,17 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
-import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound, withWinFee } from "./lotteryHouse";
+import { BET_TAX, HOUSE_CHANCE, afterBetTax, isHouseRound } from "./lotteryHouse";
 import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast, leastPayoutOutcome, stakedByKey } from "./leastPayout";
 
 /**
  * "5D Lottery": five digits A-E (each 0-9) every round, on the same fixed
  * wall-clock tracks as Win Go / K3 (one independent chain per duration).
  * Bets on one position (exact digit, big 5-9 / small 0-4, odd / even) or
- * on the sum of all five (big 23-45 / small 0-22, odd / even). One round in
- * ten is a ⭐ House result (lotteryHouse.ts) on which every bet loses;
- * otherwise every bet pays fair odds, floor2(1 / P(win)) — a digit 10x,
- * big/small/odd/even 2x — so each returns 80%.
+ * on the sum of all five (big 23-45 / small 0-22, odd / even). A ⭐ House round
+ * (lotteryHouse.ts, off by default) loses every bet; otherwise every bet pays
+ * fair odds, floor2(1 / P(win)) — a digit 10X, big/small/odd/even 2X — on what
+ * is left of the bet after the 2% bet tax (BET_TAX), taken when it is placed.
  */
 export const FIVED_DURATIONS = [60, 180, 300, 600] as const;
 export type FiveDDuration = (typeof FIVED_DURATIONS)[number];
@@ -76,12 +76,18 @@ export function isValidKey(key: string): boolean {
   return KEYS.includes(key);
 }
 
-/** Total return per unit staked (stake included): fair odds on a round that
- * is not House, 1 / P(win), rounded down to the cent so the return, 80% of
- * multiplier * P(win), is never more than LOTTERY_RTP. */
+/** What the apps show for a bet: the fair odds, 1 / P(win), rounded down to
+ * the cent (a digit 10X, big/small/odd/even 2X). The bet tax comes off the bet
+ * when it is placed (lotteryHouse.ts BET_TAX), not off these odds. */
+export function shownMultiplierFor(key: string): number {
+  return floor2(1 / winChance(key));
+}
+
+/** Total return per unit staked (stake included) once the bet tax is taken
+ * from it: the fair odds, 1 / P(win), less the tax and rounded down to the
+ * cent. This is what is stored on the bet and paid. */
 export function multiplierFor(key: string): number {
-  // Less the lottery win fee (lotteryHouse.ts).
-  return withWinFee(1 / winChance(key));
+  return afterBetTax(1 / winChance(key));
 }
 
 /** The five digits, fixed when the round is created from its server seed
@@ -270,10 +276,12 @@ export function getFiveDConfig() {
     maxStake: env.games.maxStake,
     maxPayout: env.games.maxPayout,
     lockSeconds: LOCK_SECONDS,
-    rtpPercent: round2(LOTTERY_RTP * 100),
+    rtpPercent: round2((1 - HOUSE_CHANCE) * (1 - BET_TAX) * 100),
+    /** Tax taken from every bet when it is placed; the odds apply to the rest. */
+    taxPercent: round2(BET_TAX * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
     resultRule: env.games.lotteryLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
-    multipliers: Object.fromEntries(KEYS.map((k) => [k, multiplierFor(k)])),
+    multipliers: Object.fromEntries(KEYS.map((k) => [k, shownMultiplierFor(k)])),
   };
 }
 

@@ -300,7 +300,8 @@ export default function K3LotteryScreen() {
   const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const lockSeconds = config?.lockSeconds ?? 5;
   const houseChance = config?.houseChancePercent ?? 0;
-  const rtpPercent = config?.rtpPercent ?? 80;
+  const rtpPercent = config?.rtpPercent ?? 98;
+  const taxPercent = config?.taxPercent ?? 2;
   const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
   const multOf = useCallback(
     (key: string) => {
@@ -1005,6 +1006,11 @@ export default function K3LotteryScreen() {
               </Pressable>
             ))}
           </View>
+          {taxPercent > 0 && (
+            <Text style={styles.sheetTax}>
+              Tax {taxPercent}%: ₹{round2((totalCost * taxPercent) / 100).toFixed(2)} is deducted from {keys.length > 1 ? 'these bets' : 'this bet'}; the odds apply to ₹{round2(totalCost - (totalCost * taxPercent) / 100).toFixed(2)}.
+            </Text>
+          )}
           <Pressable onPress={() => setAgree(!agree)} style={styles.agreeRow}>
             <MaterialCommunityIcons name={agree ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'} size={18} color={agree ? G1 : MUTED} />
             <Text style={styles.agreeText}>I agree to the pre-sale rules</Text>
@@ -1069,6 +1075,7 @@ export default function K3LotteryScreen() {
                     `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X), or any triple (${multOf('ANYTRIPLE')}X).`,
                     `Different: pick 3+ numbers for "3 different" — every group of three you picked is one bet (${multOf('DIFF3:1-2-3')}X). "2 different" wins when both numbers show (${multOf('DIFF2:1-2')}X). 3 continuous: 123, 234, 345 or 456 in any order (${multOf('STRAIGHT')}X).`,
                     `Bet ₹${minStake}–₹${maxStake} per selection, max win ${winLimit(maxPayout)} per bet. Amount = balance × quantity × multiplier.`,
+                    ...(taxPercent > 0 ? [`Tax: ${taxPercent}% of every bet is deducted as tax when you place it, and the odds apply to the rest — a ₹100 bet counts as ₹${round2(100 - taxPercent)}, so a ${multOf('BIG') || 2}X win pays ₹${round2((100 - taxPercent) * (multOf('BIG') || 2))}.`] : []),
                     'Whether a period is ⭐ House, and how ties are decided, come from a server seed whose hash is published before the period and the seed itself after it.',
                   ]
                 : [
@@ -1079,6 +1086,7 @@ export default function K3LotteryScreen() {
                     `3 same: a triple such as 444 (${multOf('TRIPLE:4')}X, wins ${chance(WAYS.triple)}% of periods), or any triple (${multOf('ANYTRIPLE')}X, ${chance(WAYS.anyTriple)}%).`,
                     `Different: pick 3+ numbers for "3 different" — every group of three you picked is one bet (${multOf('DIFF3:1-2-3')}X, wins ${chance(WAYS.diff3)}% of periods). "2 different" wins when both numbers show (${multOf('DIFF2:1-2')}X, ${chance(WAYS.diff2)}%). 3 continuous: 123, 234, 345 or 456 in any order (${multOf('STRAIGHT')}X, ${chance(WAYS.straight)}%).`,
                     `Bet ₹${minStake}–₹${maxStake} per selection, max win ${winLimit(maxPayout)} per bet. Amount = balance × quantity × multiplier.`,
+                    ...(taxPercent > 0 ? [`Tax: ${taxPercent}% of every bet is deducted as tax when you place it, and the odds apply to the rest — a ₹100 bet counts as ₹${round2(100 - taxPercent)}, so a ${multOf('BIG') || 2}X win pays ₹${round2((100 - taxPercent) * (multOf('BIG') || 2))}.`] : []),
                     'Provably fair: each period’s dice, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
                   ]
               ).filter((t) => houseChance > 0 || !t.startsWith('⭐ House')).map((t, i) => (
@@ -1246,6 +1254,7 @@ const styles = StyleSheet.create({
   agreeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   agreeText: { color: INK, fontSize: 12, fontWeight: '600', flex: 1 },
   sheetInfo: { color: MUTED, fontSize: 12, fontWeight: '700' },
+  sheetTax: { color: MUTED, fontSize: 12, fontWeight: '600', marginBottom: 6 },
   sheetFoot: { flexDirection: 'row', height: 52 },
   cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E9EEEB' },
   cancelText: { color: MUTED, fontSize: 15, fontWeight: '800' },

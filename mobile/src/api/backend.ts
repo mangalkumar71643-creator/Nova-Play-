@@ -2001,7 +2001,9 @@ export interface K3Config {
   rtpPercent: number;
   /** Share of rounds that are a ⭐ House result (every bet loses). */
   houseChancePercent?: number;
-  /** Total return per unit staked, by bet key (e.g. "SUM:10", "BIG", "PAIR:3"). */
+  /** Tax taken from every bet when it is placed; the odds apply to the rest. */
+  taxPercent?: number;
+  /** The odds shown per bet key (e.g. "SUM:10", "BIG", "PAIR:3"); the tax comes off the bet. */
   multipliers: Record<string, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
@@ -2164,7 +2166,9 @@ export interface FiveDConfig {
   rtpPercent: number;
   /** Share of rounds that are a ⭐ House result (every bet loses). */
   houseChancePercent?: number;
-  /** Total return per unit staked, by bet key (e.g. "A:7", "B:BIG", "SUM:ODD"). */
+  /** Tax taken from every bet when it is placed; the odds apply to the rest. */
+  taxPercent?: number;
+  /** The odds shown per bet key (e.g. "A:7", "B:BIG", "SUM:ODD"); the tax comes off the bet. */
   multipliers: Record<string, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
   resultRule?: 'SEED' | 'LEAST_PAYOUT';

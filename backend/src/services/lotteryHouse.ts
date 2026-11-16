@@ -40,6 +40,15 @@ export function withWinFee(multiplier: number): number {
  * rest, so a 2X win on a ₹100 bet pays ₹196. LOTTERY_BET_TAX changes it.
  */
 export const BET_TAX = Number(process.env.LOTTERY_BET_TAX ?? 0.02);
+/**
+ * K3 and 5D take the tax the same way (owner's request, 2026-11-16): the apps
+ * show the fair odds (2X, 10X, 216X ...) and the tax comes off the bet, so a bet
+ * returns per unit staked the fair odds less BET_TAX, rounded down to the cent
+ * -- the multiplier stored on each bet and paid. (Win Go has its own table.)
+ */
+export function afterBetTax(fairOdds: number): number {
+  return Math.floor(fairOdds * (1 - BET_TAX) * 100 + 1e-9) / 100;
+}
 /** Trx Win Go's share of it: House when the hash's second-last decimal digit is below this (0 = never). */
 export const HOUSE_DIGITS = Math.round(HOUSE_CHANCE * 10);
 /** Return of every lottery bet: fair odds less the win fee on the results that are not House. */

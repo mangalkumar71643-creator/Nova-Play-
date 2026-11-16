@@ -290,7 +290,8 @@ export default function FiveDLotteryScreen() {
   const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const lockSeconds = config?.lockSeconds ?? 5;
   const houseChance = config?.houseChancePercent ?? 0;
-  const rtpPercent = config?.rtpPercent ?? 80;
+  const rtpPercent = config?.rtpPercent ?? 98;
+  const taxPercent = config?.taxPercent ?? 2;
   const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
   // Fair odds until the config loads: a digit 10X, the rest 2X.
   const multOf = useCallback((key: string) => config?.multipliers?.[key] ?? (/^\w+:\d$/.test(key) ? 10 : 2), [config]);
@@ -936,6 +937,11 @@ export default function FiveDLotteryScreen() {
               </Pressable>
             ))}
           </View>
+          {taxPercent > 0 && (
+            <Text style={styles.sheetTax}>
+              Tax {taxPercent}%: ₹{round2((totalCost * taxPercent) / 100).toFixed(2)} is deducted from {keys.length > 1 ? 'these bets' : 'this bet'}; the odds apply to ₹{round2(totalCost - (totalCost * taxPercent) / 100).toFixed(2)}.
+            </Text>
+          )}
           <Pressable onPress={() => setAgree(!agree)} style={styles.agreeRow}>
             <MaterialCommunityIcons name={agree ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'} size={18} color={agree ? G1 : MUTED} />
             <Text style={styles.agreeText}>I agree</Text>
@@ -1005,6 +1011,7 @@ export default function FiveDLotteryScreen() {
                     `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X.`,
                     'Pick as many as you like in a tab — every pick is its own bet.',
                     `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ${winLimit(maxPayout)}.`,
+                    ...(taxPercent > 0 ? [`Tax: ${taxPercent}% of every bet is deducted as tax when you place it, and the odds apply to the rest — a ₹100 bet counts as ₹${round2(100 - taxPercent)}, so a ${multOf('A:BIG')}X win pays ₹${round2((100 - taxPercent) * multOf('A:BIG'))}.`] : []),
                     'Whether a period is ⭐ House, and how ties are decided, come from a server seed whose hash is published before the period and the seed itself after it.',
                   ]
                 : [
@@ -1014,6 +1021,7 @@ export default function FiveDLotteryScreen() {
                     `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X and win ${chance(0.5)}% of periods.`,
                     'Pick as many as you like in a tab — every pick is its own bet.',
                     `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ${winLimit(maxPayout)}.`,
+                    ...(taxPercent > 0 ? [`Tax: ${taxPercent}% of every bet is deducted as tax when you place it, and the odds apply to the rest — a ₹100 bet counts as ₹${round2(100 - taxPercent)}, so a ${multOf('A:BIG')}X win pays ₹${round2((100 - taxPercent) * multOf('A:BIG'))}.`] : []),
                     'Provably fair: each period’s digits, and whether it is a House result, come from a server seed whose hash is published before the period, and the seed itself after it.',
                   ]
               ).filter((t) => houseChance > 0 || !t.startsWith('⭐ House')).map((t, i) => (
@@ -1170,6 +1178,7 @@ const styles = StyleSheet.create({
   agreeText: { color: INK, fontSize: 12, fontWeight: '600' },
   agreeLink: { color: '#E5283F', fontSize: 12, fontWeight: '700', flex: 1 },
   sheetInfo: { color: MUTED, fontSize: 12, fontWeight: '700' },
+  sheetTax: { color: MUTED, fontSize: 12, fontWeight: '600', marginBottom: 6 },
   sheetFoot: { flexDirection: 'row', height: 52 },
   cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E9EEEB' },
   cancelText: { color: MUTED, fontSize: 15, fontWeight: '800' },
