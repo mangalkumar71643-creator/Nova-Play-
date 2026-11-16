@@ -48,12 +48,12 @@ export const PAYLINES: [number, number, number][] = [
 /** Multiplier reel: value and its weight out of 100. It is drawn
  * independently of the reels, so RTP = E[line win] x E[multiplier]. */
 export const MULTIPLIERS: { value: number; weight: number }[] = [
-  { value: 1, weight: 77 },
-  { value: 2, weight: 9 },
-  { value: 3, weight: 5 },
+  { value: 1, weight: 78 },
+  { value: 2, weight: 8 },
+  { value: 3, weight: 4 },
   { value: 5, weight: 4 },
   { value: 10, weight: 3 },
-  { value: 15, weight: 2 },
+  { value: 15, weight: 3 },
 ];
 const MULTIPLIER_TOTAL = MULTIPLIERS.reduce((s, m) => s + m.weight, 0);
 

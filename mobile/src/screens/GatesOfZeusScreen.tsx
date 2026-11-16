@@ -40,15 +40,15 @@ const NAME: Record<ZeusSymbol, string> = {
   BLUE: 'Sapphire',
 };
 const FALLBACK_PAYTABLE: ZeusConfig['paytable'] = [
-  { symbol: 'CROWN', pays: [9.6, 24, 48] },
-  { symbol: 'HOURGLASS', pays: [2.4, 9.6, 24] },
-  { symbol: 'RING', pays: [1.95, 4.8, 14.5] },
-  { symbol: 'CHALICE', pays: [1.45, 1.95, 11.5] },
-  { symbol: 'YELLOW', pays: [0.96, 1.45, 9.6] },
-  { symbol: 'RED', pays: [0.77, 1.15, 7.7] },
-  { symbol: 'PURPLE', pays: [0.48, 0.96, 4.8] },
-  { symbol: 'GREEN', pays: [0.39, 0.87, 3.9] },
-  { symbol: 'BLUE', pays: [0.24, 0.72, 1.9] },
+  { symbol: 'CROWN', pays: [10.195, 25.488, 50.976] },
+  { symbol: 'HOURGLASS', pays: [2.549, 10.195, 25.488] },
+  { symbol: 'RING', pays: [2.071, 5.098, 15.399] },
+  { symbol: 'CHALICE', pays: [1.54, 2.071, 12.213] },
+  { symbol: 'YELLOW', pays: [1.02, 1.54, 10.195] },
+  { symbol: 'RED', pays: [0.818, 1.221, 8.177] },
+  { symbol: 'PURPLE', pays: [0.51, 1.02, 5.098] },
+  { symbol: 'GREEN', pays: [0.414, 0.924, 4.142] },
+  { symbol: 'BLUE', pays: [0.255, 0.765, 2.018] },
 ];
 
 function round2(n: number): number {
@@ -1102,7 +1102,7 @@ export default function GatesOfZeusScreen() {
           <Text style={styles.sideInfoLabel}>MAX WIN</Text>
           <Text style={styles.sideInfoValue}>{config?.maxWinX ?? 5000}x</Text>
           <GameInfoButton compact>
-            RTP {config ? `${config.rtpPercent}%` : '84.75%'} · max win {config?.maxWinX ?? 5000}x per spin{'\n'}
+            RTP {config ? `${config.rtpPercent}%` : '89.96%'} · max win {config?.maxWinX ?? 5000}x per spin{'\n'}
             No autoplay or turbo · each paid spin takes at least 2.5 seconds · provably fair
           </GameInfoButton>
         </View>
@@ -1226,7 +1226,7 @@ function Paytable({ paytable, bet, config }: { paytable: ZeusConfig['paytable'];
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 84.75}% (measured over 600 million simulated spins). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win {config?.maxWinX ?? 5000}x the bet, and {winLimit(config?.maxPayout)} per spin.
+        Return to player {config?.rtpPercent ?? 89.96}% (measured by simulation). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win {config?.maxWinX ?? 5000}x the bet, and {winLimit(config?.maxPayout)} per spin.
       </Text>
       <Text style={styles.ruleLine}>No autoplay or turbo; each paid spin takes at least 2.5 seconds. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

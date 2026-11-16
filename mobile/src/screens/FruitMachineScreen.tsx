@@ -35,7 +35,7 @@ const FALLBACK_LINES = [
   [0, 1, 2],
   [2, 1, 0],
 ];
-const FALLBACK_PAYS: Partial<Record<FruitSymbol, number>> = { SEVEN: 500, BAR: 190, BELL: 95, MELON: 50, GRAPES: 40, PLUM: 28, ORANGE: 19, LEMON: 14, CHERRY: 10 };
+const FALLBACK_PAYS: Partial<Record<FruitSymbol, number>> = { SEVEN: 500, BAR: 200, BELL: 100, MELON: 50, GRAPES: 40, PLUM: 31, ORANGE: 21, LEMON: 16, CHERRY: 10 };
 const FALLBACK_LADDER = [2, 5, 10, 20, 50, 100, 250];
 const PAY_ORDER: FruitSymbol[] = ['SEVEN', 'BAR', 'BELL', 'MELON', 'GRAPES', 'PLUM', 'ORANGE', 'LEMON', 'CHERRY'];
 const FILLER: FruitSymbol[] = ['CHERRY', 'LEMON', 'ORANGE', 'PLUM', 'GRAPES', 'MELON', 'BELL', 'BAR', 'SEVEN', 'STAR'];

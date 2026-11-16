@@ -45,17 +45,17 @@ export const FREE_STRIPS: number[][] = [
 
 /** Three, four and five of a kind on a line, in line bets. */
 export const PAYS: Partial<Record<FishSymbol, [number, number, number]>> = {
-  ROD: [75, 400, 2000],
-  TACKLE: [48, 190, 750],
-  LURE: [38, 115, 450],
-  FISH: [38, 115, 450],
-  ACE: [17, 70, 220],
-  KING: [17, 70, 220],
-  QUEEN: [14, 48, 150],
-  JACK: [14, 48, 150],
+  ROD: [81, 432, 2160],
+  TACKLE: [52, 205, 810],
+  LURE: [41, 124, 486],
+  FISH: [41, 124, 486],
+  ACE: [18, 76, 238],
+  KING: [18, 76, 238],
+  QUEEN: [15, 52, 162],
+  JACK: [15, 52, 162],
 };
 /** A line of nothing but Fishermen pays like rods. */
-export const WILD_PAYS: [number, number, number] = [75, 400, 2000];
+export const WILD_PAYS: [number, number, number] = [81, 432, 2160];
 export const LINE_COUNT = 10;
 
 /** Rows (0 top, 1 middle, 2 bottom) read on each reel, per line. */

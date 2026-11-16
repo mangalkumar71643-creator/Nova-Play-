@@ -995,7 +995,7 @@ export default function SlotScreen() {
             </View>
             <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 14 }}>
               {panel === 'pay' ? (
-                <Paytable paytable={paytable} paylines={paylines} multipliers={multValues} rtp={config?.rtpPercent ?? 84.92} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? NO_LIMIT} />
+                <Paytable paytable={paytable} paylines={paylines} multipliers={multValues} rtp={config?.rtpPercent ?? 89.83} minStake={minStake} maxStake={maxStake} maxPayout={config?.maxPayout ?? NO_LIMIT} />
               ) : (
                 <History spins={history} />
               )}

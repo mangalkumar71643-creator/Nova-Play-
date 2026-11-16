@@ -30,14 +30,14 @@ const FALLBACK_STRIPS: Neon777Symbol[][] = [
   [B3, BL, B1, B2, BL, B1, R7, BL, B3, B1, BL, B2, S7, BL, B1, B3, BL, B2, B1, BL, B1, BL, BL],
 ];
 const FALLBACK_SPECIAL: Neon777Special[] = [
-  { kind: 'NONE', value: 0, chancePercent: 63.64 },
-  { kind: 'MULT', value: 2, chancePercent: 14.55 },
-  { kind: 'MULT', value: 3, chancePercent: 4.55 },
-  { kind: 'MULT', value: 10, chancePercent: 1.82 },
-  { kind: 'BONUS', value: 5, chancePercent: 5.45 },
-  { kind: 'BONUS', value: 10, chancePercent: 2.73 },
-  { kind: 'BONUS', value: 20, chancePercent: 0.91 },
-  { kind: 'RESPIN', value: 0, chancePercent: 6.36 },
+  { kind: 'NONE', value: 0, chancePercent: 62.5 },
+  { kind: 'MULT', value: 2, chancePercent: 16.07 },
+  { kind: 'MULT', value: 5, chancePercent: 4.46 },
+  { kind: 'MULT', value: 10, chancePercent: 1.79 },
+  { kind: 'BONUS', value: 5, chancePercent: 5.36 },
+  { kind: 'BONUS', value: 10, chancePercent: 2.68 },
+  { kind: 'BONUS', value: 20, chancePercent: 0.89 },
+  { kind: 'RESPIN', value: 0, chancePercent: 6.25 },
 ];
 const FALLBACK_PAYS: Neon777Config['linePays'] = { RED7: 100, BLUE7: 50, ANY7: 20, BAR3: 15, BAR2: 10, BAR1: 5, ANYBAR: 3 };
 const RESULT_NAME: Record<Neon777Result, string> = {
@@ -1073,7 +1073,7 @@ function Paytable({ pays, special, bet, config }: { pays: Neon777Config['linePay
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 84.77}% (exact, counted over every reel stop). {config?.hitRatePercent ?? 14.27}% of spins win. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per spin {winLimit(config?.maxPayout)}.
+        Return to player {config?.rtpPercent ?? 89.88}% (exact, counted over every reel stop). {config?.hitRatePercent ?? 14.27}% of spins win. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per spin {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>Tap SPIN during a spin to stop the reels at once. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

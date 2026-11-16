@@ -2,11 +2,16 @@
  * Video poker, Jacks or Better: five cards are dealt from a single 52-card
  * deck, the player holds any of them and the rest are replaced once from the
  * same deck. The final hand is paid from the paytable as a multiple of the bet
- * (the total returned, so a pair of jacks or better gives the bet back).
+ * (the total returned, so a pair of jacks or better gives 1.06x the bet).
  *
- * With this paytable the return under perfect play is 84.84%, found by an
- * exact search over all 2,598,960 deals and all 32 ways to hold each one; any
- * other play returns less.
+ * The paytable is the earlier one (return 84.84% under perfect play, found by
+ * an exact search over all 2,598,960 deals and all 32 ways to hold each one)
+ * with every pay multiplied by 1.06 and rounded down to the cent (owner's
+ * request, 2026-11-16: a 10% house edge). Holding costs nothing, so scaling
+ * every pay by the same factor keeps each hold's value in the same order:
+ * perfect play is unchanged and its return is 1.06 x 84.84% = 89.93%, less
+ * at most 0.08% for the rounding down (89.86% to 89.93%). Any other play
+ * returns less.
  */
 
 export type Card = number; // 0-51: rank = card % 13 (0 = Ace, 1 = Two ... 12 = King), suit = floor(card / 13)
@@ -16,19 +21,19 @@ export type Hand = (typeof HANDS)[number];
 
 export const PAYTABLE: Record<Hand, number> = {
   NOTHING: 0,
-  JACKS_OR_BETTER: 1,
-  TWO_PAIR: 2,
-  THREE_OF_A_KIND: 2.5,
-  STRAIGHT: 3,
-  FLUSH: 4,
-  FULL_HOUSE: 5,
-  FOUR_OF_A_KIND: 15,
-  STRAIGHT_FLUSH: 50,
-  ROYAL_FLUSH: 500,
+  JACKS_OR_BETTER: 1.06,
+  TWO_PAIR: 2.12,
+  THREE_OF_A_KIND: 2.65,
+  STRAIGHT: 3.18,
+  FLUSH: 4.24,
+  FULL_HOUSE: 5.3,
+  FOUR_OF_A_KIND: 15.9,
+  STRAIGHT_FLUSH: 53,
+  ROYAL_FLUSH: 530,
 };
 
-/** Return under perfect play with PAYTABLE, from the exact search. */
-export const OPTIMAL_RTP_PERCENT = 84.84;
+/** Return under perfect play with PAYTABLE: between 89.86% and 89.93% (see the top of this file). */
+export const OPTIMAL_RTP_PERCENT = 89.9;
 
 export function rankOf(card: Card): number {
   return card % 13;

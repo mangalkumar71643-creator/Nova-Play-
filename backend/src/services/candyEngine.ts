@@ -24,15 +24,15 @@ export type Cell = { s: Sym; m?: number };
 
 /** Pays in multiples of the bet for [8-9, 10-11, 12+] of a symbol. */
 export const PAYTABLE: Record<CandySymbol, [number, number, number]> = {
-  BANANA: [0.25, 0.75, 2],
-  GRAPES: [0.4, 0.9, 4],
-  WATERMELON: [0.5, 1, 5],
-  PLUM: [0.6, 1.2, 7],
-  APPLE: [1, 1.5, 10],
-  BLUE: [1.5, 2, 12],
-  GREEN: [2, 5, 15],
-  PURPLE: [2.5, 10, 25],
-  HEART: [10, 25, 50],
+  BANANA: [0.266, 0.797, 2.126],
+  GRAPES: [0.425, 0.957, 4.252],
+  WATERMELON: [0.531, 1.063, 5.315],
+  PLUM: [0.638, 1.276, 7.441],
+  APPLE: [1.063, 1.595, 10.63],
+  BLUE: [1.595, 2.126, 12.756],
+  GREEN: [2.126, 5.315, 15.945],
+  PURPLE: [2.657, 10.63, 26.575],
+  HEART: [10.63, 26.575, 53.15],
 };
 export const MIN_COUNT = 8;
 /** Lollipops on the board once the tumbles end: 4, 5, 6+. */
@@ -51,10 +51,13 @@ export const BOMB_VALUES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100];
 export const BOMB_WEIGHTS = [300, 220, 160, 120, 90, 70, 50, 35, 25, 15, 9, 4, 2];
 
 /**
- * Measured over 120 million simulated spins: 84.76% ± 0.05% (free spins
- * about 1 in 300 spins, averaging about 65x the bet).
+ * Return to player of the tables above: 90.00%. The previous symbol pays
+ * measured 84.76% over 120 million simulated spins (± 0.05%); they were then
+ * raised by 6.3% (the symbols that drop never depend on the pays) and a
+ * same-symbols simulation confirmed the new return. Free spins about 1 in 300
+ * spins, averaging about 65x the bet.
  */
-export const MEASURED_RTP = 0.8476;
+export const MEASURED_RTP = 0.9;
 
 export type Rng = () => number;
 

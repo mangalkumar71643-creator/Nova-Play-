@@ -39,18 +39,18 @@ export const STRIPS: number[][] = [
 
 /** Two, three, four and five of a kind, in line bets (0 where two don't pay). */
 export const PAYS: Record<Exclude<PharaohSymbol, "BOOK">, [number, number, number, number]> = {
-  PHARAOH: [8, 75, 750, 3800],
-  EYE: [4, 30, 300, 1500],
-  SCARAB: [4, 19, 75, 480],
-  ANKH: [4, 19, 75, 480],
-  ACE: [0, 4, 24, 95],
-  KING: [0, 4, 24, 95],
-  QUEEN: [0, 4, 17, 65],
-  JACK: [0, 4, 17, 65],
-  TEN: [0, 4, 17, 65],
+  PHARAOH: [9, 81, 810, 4104],
+  EYE: [4, 32, 324, 1620],
+  SCARAB: [4, 21, 81, 518],
+  ANKH: [4, 21, 81, 518],
+  ACE: [0, 4, 27, 103],
+  KING: [0, 4, 27, 103],
+  QUEEN: [0, 4, 18, 70],
+  JACK: [0, 4, 18, 70],
+  TEN: [0, 4, 18, 70],
 };
 /** Books anywhere, in stakes. */
-export const SCATTER_PAYS: Record<number, number> = { 3: 2, 4: 20, 5: 200 };
+export const SCATTER_PAYS: Record<number, number> = { 3: 2, 4: 22, 5: 216 };
 export const LINE_COUNT = 10;
 export const FREE_SPINS = 10;
 /** Free spins stop here however many retriggers land (reached far less than once in a billion features). */

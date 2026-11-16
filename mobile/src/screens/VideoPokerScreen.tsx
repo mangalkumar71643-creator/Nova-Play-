@@ -36,15 +36,15 @@ const HAND_NAME: Record<PokerHand, string> = {
   NOTHING: 'No win',
 };
 const FALLBACK_PAYTABLE: PokerConfig['paytable'] = [
-  { hand: 'ROYAL_FLUSH', multiplier: 500 },
-  { hand: 'STRAIGHT_FLUSH', multiplier: 50 },
-  { hand: 'FOUR_OF_A_KIND', multiplier: 15 },
-  { hand: 'FULL_HOUSE', multiplier: 5 },
-  { hand: 'FLUSH', multiplier: 4 },
-  { hand: 'STRAIGHT', multiplier: 3 },
-  { hand: 'THREE_OF_A_KIND', multiplier: 2.5 },
-  { hand: 'TWO_PAIR', multiplier: 2 },
-  { hand: 'JACKS_OR_BETTER', multiplier: 1 },
+  { hand: 'ROYAL_FLUSH', multiplier: 530 },
+  { hand: 'STRAIGHT_FLUSH', multiplier: 53 },
+  { hand: 'FOUR_OF_A_KIND', multiplier: 15.9 },
+  { hand: 'FULL_HOUSE', multiplier: 5.3 },
+  { hand: 'FLUSH', multiplier: 4.24 },
+  { hand: 'STRAIGHT', multiplier: 3.18 },
+  { hand: 'THREE_OF_A_KIND', multiplier: 2.65 },
+  { hand: 'TWO_PAIR', multiplier: 2.12 },
+  { hand: 'JACKS_OR_BETTER', multiplier: 1.06 },
 ];
 const NO_HOLDS = [false, false, false, false, false];
 
@@ -705,7 +705,7 @@ function Rules({ config }: { config: PokerConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Payouts are the total returned for your bet, so Jacks or Better gives your bet back. The return with perfect play is {config?.rtpPercent ?? 84.84}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}; max win per hand {winLimit(config?.maxPayout)}.
+        Payouts are the total returned for your bet, so Jacks or Better gives {config?.paytable.find((p) => p.hand === 'JACKS_OR_BETTER')?.multiplier ?? 1.06}× your bet. The return with perfect play is {config?.rtpPercent ?? 89.9}%. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}; max win per hand {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>The deal and the draw come from your provably-fair seeds, fixed when the cards are dealt (Settings → Provably Fair).</Text>
     </View>

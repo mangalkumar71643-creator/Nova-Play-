@@ -11,8 +11,8 @@ import { nextRoundSeedMaterial } from "./fairnessService";
  * fixed lines (the three rows and both diagonals). The stake is spread
  * evenly over the lines, so a line paying P returns P / 5 of the stake.
  *
- *   three 7s 500, three BARs 190, three bells 95, melons 50, grapes 40,
- *   plums 28, oranges 19, lemons 14, cherries 10, and two cherries from the
+ *   three 7s 500, three BARs 200, three bells 100, melons 50, grapes 40,
+ *   plums 31, oranges 21, lemons 16, cherries 10, and two cherries from the
  *   left 4 (per line, in line bets).
  *
  * Two features from the pub machines, both decided by the spin's seed and
@@ -39,7 +39,7 @@ export const STRIPS: number[][] = [
 
 /** Three of a kind on a line, in line bets. */
 export const THREE_PAYS: Partial<Record<FruitSymbol, number>> = {
-  SEVEN: 500, BAR: 190, BELL: 95, MELON: 50, GRAPES: 40, PLUM: 28, ORANGE: 19, LEMON: 14, CHERRY: 10,
+  SEVEN: 500, BAR: 200, BELL: 100, MELON: 50, GRAPES: 40, PLUM: 31, ORANGE: 21, LEMON: 16, CHERRY: 10,
 };
 /** Two cherries from the left on a line, in line bets. */
 export const TWO_CHERRIES = 4;

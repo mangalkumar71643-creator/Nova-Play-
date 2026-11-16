@@ -22,14 +22,14 @@ const AUTO_OPTIONS = [10, 25, 50, 100];
 const SOUND_KEY = 'novaplay:aces:sound';
 const TOAST_MS = 1800;
 const FALLBACK_PAYTABLE: Record<AcesCard, [number, number, number]> = {
-  CLUB: [0.01, 0.03, 0.05],
-  DIAMOND: [0.01, 0.03, 0.05],
-  HEART: [0.02, 0.06, 0.1],
-  SPADE: [0.02, 0.06, 0.1],
-  J: [0.04, 0.12, 0.2],
-  Q: [0.06, 0.18, 0.3],
-  K: [0.07, 0.21, 0.35],
-  A: [0.09, 0.27, 0.45],
+  CLUB: [0.011, 0.032, 0.053],
+  DIAMOND: [0.011, 0.032, 0.053],
+  HEART: [0.021, 0.064, 0.106],
+  SPADE: [0.021, 0.064, 0.106],
+  J: [0.042, 0.127, 0.212],
+  Q: [0.064, 0.191, 0.319],
+  K: [0.074, 0.223, 0.372],
+  A: [0.096, 0.287, 0.478],
 };
 const FALLBACK_BASE = [1, 2, 3, 5];
 const FALLBACK_FREE = [2, 4, 6, 10];
@@ -1071,7 +1071,7 @@ function Paytable({ paytable, bet, config }: { paytable: Record<AcesCard, [numbe
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 84.69}% (measured over 120 million spins). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per spin {winLimit(config?.maxPayout)}.
+        Return to player {config?.rtpPercent ?? 89.95}% (measured by simulation). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per spin {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>Tap SPIN during a spin to speed it up. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

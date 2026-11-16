@@ -17,7 +17,7 @@ import { Card, HAND_CLASSES, HandClass, pairPlusReturn, qualifies, score3, settl
  * player hand against every dealer hand.
  */
 export const ANTE_PAYS = 0.7;
-export const PLAY_PAYS = 0.65;
+export const PLAY_PAYS = 1;
 export const ANTE_BONUS: Record<HandClass, number> = {
   HIGH_CARD: 0,
   PAIR: 0,
@@ -29,13 +29,13 @@ export const ANTE_BONUS: Record<HandClass, number> = {
 export const PAIR_PLUS_PAYS: Record<HandClass, number> = {
   HIGH_CARD: 0,
   PAIR: 1,
-  FLUSH: 2,
+  FLUSH: 3,
   STRAIGHT: 5,
-  THREE_OF_A_KIND: 30,
+  THREE_OF_A_KIND: 32,
   STRAIGHT_FLUSH: 40,
 };
-export const ANTE_RTP_PERCENT = 84.73;
-export const PAIR_PLUS_RTP_PERCENT = 84.5;
+export const ANTE_RTP_PERCENT = 89.83;
+export const PAIR_PLUS_RTP_PERCENT = 89.94;
 export const ACTIONS = ["PLAY", "FOLD"] as const;
 export type ThreeCardAction = (typeof ACTIONS)[number];
 const ROUND_CHANGED = "This hand changed in the meantime — please refresh.";

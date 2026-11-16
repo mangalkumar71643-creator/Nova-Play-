@@ -38,7 +38,7 @@ const SHORT_NAME: Record<ThreeCardHandClass, string> = {
   HIGH_CARD: 'High Card',
 };
 const FALLBACK_ANTE_PAYS = 0.7;
-const FALLBACK_PLAY_PAYS = 0.65;
+const FALLBACK_PLAY_PAYS = 1;
 const FALLBACK_BONUS: ThreeCardConfig['anteBonus'] = [
   { hand: 'STRAIGHT_FLUSH', pays: 5 },
   { hand: 'THREE_OF_A_KIND', pays: 4 },
@@ -46,9 +46,9 @@ const FALLBACK_BONUS: ThreeCardConfig['anteBonus'] = [
 ];
 const FALLBACK_PAIR_PLUS: ThreeCardConfig['pairPlus'] = [
   { hand: 'STRAIGHT_FLUSH', pays: 40 },
-  { hand: 'THREE_OF_A_KIND', pays: 30 },
+  { hand: 'THREE_OF_A_KIND', pays: 32 },
   { hand: 'STRAIGHT', pays: 5 },
-  { hand: 'FLUSH', pays: 2 },
+  { hand: 'FLUSH', pays: 3 },
   { hand: 'PAIR', pays: 1 },
 ];
 const CHIP_PAIR_PLUS = '#7C3AED';

@@ -736,7 +736,7 @@ function Paytable({ tables, risk, picks, config }: { tables: Record<KenoRisk, nu
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpRange ? `${config.rtpRange[0]}–${config.rtpRange[1]}` : '84.5–85'}% depending on picks and risk. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per bet {winLimit(config?.maxPayout)}.
+        Return to player {config?.rtpRange ? `${config.rtpRange[0]}–${config.rtpRange[1]}` : '89.25–90'}% depending on picks and risk. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win per bet {winLimit(config?.maxPayout)}.
       </Text>
       <Text style={styles.ruleLine}>Every draw comes from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

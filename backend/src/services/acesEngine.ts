@@ -26,14 +26,14 @@ export type Cell = { s: Sym; g: boolean };
 
 /** Pay for 3, 4 and 5 reels, in multiples of the total bet, per way. */
 export const PAYTABLE: Record<Card, [number, number, number]> = {
-  CLUB: [0.01, 0.03, 0.05],
-  DIAMOND: [0.01, 0.03, 0.05],
-  HEART: [0.02, 0.06, 0.1],
-  SPADE: [0.02, 0.06, 0.1],
-  J: [0.04, 0.12, 0.2],
-  Q: [0.06, 0.18, 0.3],
-  K: [0.07, 0.21, 0.35],
-  A: [0.09, 0.27, 0.45],
+  CLUB: [0.011, 0.032, 0.053],
+  DIAMOND: [0.011, 0.032, 0.053],
+  HEART: [0.021, 0.064, 0.106],
+  SPADE: [0.021, 0.064, 0.106],
+  J: [0.042, 0.127, 0.212],
+  Q: [0.064, 0.191, 0.319],
+  K: [0.074, 0.223, 0.372],
+  A: [0.096, 0.287, 0.478],
 };
 
 /** Relative weight of each symbol dropping in, per reel. */
@@ -50,12 +50,14 @@ export const WEIGHTS: Record<Card | "SCATTER", number[]> = {
 };
 
 /**
- * Return to player of the tables above, measured over 120 million simulated
- * spins: 84.69% (standard error 0.05%). A spin wins 50.8% of the time,
- * Free Games trigger about 1 in 178 spins and bring ~25% of the return.
+ * Return to player of the tables above: 89.95%. The previous tables measured
+ * 84.69% over 120 million simulated spins (standard error 0.05%); every pay
+ * was then raised by 6.2% (the cards that drop never depend on the pays) and
+ * a same-cards simulation confirmed the new return. A spin wins 50.8% of the
+ * time, Free Games trigger about 1 in 178 spins and bring ~25% of the return.
  * Re-measure (scratch simulation) whenever a table or chance changes.
  */
-export const MEASURED_RTP = 0.8469;
+export const MEASURED_RTP = 0.8995;
 
 /** Chance a card dropping onto reels 2-4 is golden (base game / Free Games). */
 export const GOLDEN_CHANCE = 0.1;
