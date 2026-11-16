@@ -50,14 +50,14 @@ export const WEIGHTS: Record<Card | "SCATTER", number[]> = {
 };
 
 /**
- * Return to player of the tables above: 89.95%. The previous tables measured
+ * Return to player of the tables above: 89.94%. The previous tables measured
  * 84.69% over 120 million simulated spins (standard error 0.05%); every pay
  * was then raised by 6.2% (the cards that drop never depend on the pays) and
  * a same-cards simulation confirmed the new return. A spin wins 50.8% of the
  * time, Free Games trigger about 1 in 178 spins and bring ~25% of the return.
  * Re-measure (scratch simulation) whenever a table or chance changes.
  */
-export const MEASURED_RTP = 0.8995;
+export const MEASURED_RTP = 0.8994;
 
 /** Chance a card dropping onto reels 2-4 is golden (base game / Free Games). */
 export const GOLDEN_CHANCE = 0.1;

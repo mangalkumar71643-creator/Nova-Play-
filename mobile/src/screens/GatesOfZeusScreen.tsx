@@ -1102,7 +1102,7 @@ export default function GatesOfZeusScreen() {
           <Text style={styles.sideInfoLabel}>MAX WIN</Text>
           <Text style={styles.sideInfoValue}>{config?.maxWinX ?? 5000}x</Text>
           <GameInfoButton compact>
-            RTP {config ? `${config.rtpPercent}%` : '89.96%'} · max win {config?.maxWinX ?? 5000}x per spin{'\n'}
+            RTP {config ? `${config.rtpPercent}%` : '89.97%'} · max win {config?.maxWinX ?? 5000}x per spin{'\n'}
             No autoplay or turbo · each paid spin takes at least 2.5 seconds · provably fair
           </GameInfoButton>
         </View>
@@ -1226,7 +1226,7 @@ function Paytable({ paytable, bet, config }: { paytable: ZeusConfig['paytable'];
       </Text>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Return to player {config?.rtpPercent ?? 89.96}% (measured by simulation). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win {config?.maxWinX ?? 5000}x the bet, and {winLimit(config?.maxPayout)} per spin.
+        Return to player {config?.rtpPercent ?? 89.97}% (measured by simulation). Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}. Max win {config?.maxWinX ?? 5000}x the bet, and {winLimit(config?.maxPayout)} per spin.
       </Text>
       <Text style={styles.ruleLine}>No autoplay or turbo; each paid spin takes at least 2.5 seconds. Every spin is drawn from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

@@ -56,13 +56,13 @@ export const ORB_VALUES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100, 250, 5
 export const ORB_WEIGHTS = [300, 220, 160, 120, 90, 70, 50, 35, 25, 15, 9, 4, 2, 0.4, 0.15];
 
 /**
- * Return to player of the tables above: 89.96%. The previous symbol pays
+ * Return to player of the tables above: 89.97%. The previous symbol pays
  * measured 84.75% over 600 million simulated spins (± 0.04%); they were then
  * raised by 6.2% (the symbols that drop never depend on the pays) and a
  * same-symbols simulation confirmed the new return. Free spins about 1 in 505
  * spins, averaging about 125x the bet; the base game returns about 63.7%.
  */
-export const MEASURED_RTP = 0.8996;
+export const MEASURED_RTP = 0.8997;
 
 export type Rng = () => number;
 

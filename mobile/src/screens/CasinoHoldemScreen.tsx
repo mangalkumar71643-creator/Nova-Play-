@@ -40,13 +40,13 @@ const FALLBACK_PAYS: HoldemConfig['antePays'] = [
   { hand: 'FOUR_OF_A_KIND', pays: 10 },
   { hand: 'FULL_HOUSE', pays: 2.5 },
   { hand: 'FLUSH', pays: 2 },
-  { hand: 'STRAIGHT', pays: 0.65 },
-  { hand: 'THREE_OF_A_KIND', pays: 0.65 },
-  { hand: 'TWO_PAIR', pays: 0.65 },
-  { hand: 'PAIR', pays: 0.65 },
-  { hand: 'HIGH_CARD', pays: 0.65 },
+  { hand: 'STRAIGHT', pays: 0.8 },
+  { hand: 'THREE_OF_A_KIND', pays: 0.8 },
+  { hand: 'TWO_PAIR', pays: 0.8 },
+  { hand: 'PAIR', pays: 0.8 },
+  { hand: 'HIGH_CARD', pays: 0.8 },
 ];
-const FALLBACK_CALL_PAYS = 0.65;
+const FALLBACK_CALL_PAYS = 0.75;
 /** Slots: 0-1 player, 2-6 board, 7-8 dealer. */
 const SLOTS = 9;
 

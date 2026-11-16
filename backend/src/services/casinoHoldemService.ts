@@ -16,19 +16,19 @@ import { Card, HAND_CLASSES, HandClass, best5, qualifies, settle } from "./holde
  * hand to make the best call-or-fold decision.
  */
 export const ANTE_PAYS: Record<HandClass, number> = {
-  HIGH_CARD: 0.65,
-  PAIR: 0.65,
-  TWO_PAIR: 0.65,
-  THREE_OF_A_KIND: 0.65,
-  STRAIGHT: 0.65,
+  HIGH_CARD: 0.8,
+  PAIR: 0.8,
+  TWO_PAIR: 0.8,
+  THREE_OF_A_KIND: 0.8,
+  STRAIGHT: 0.8,
   FLUSH: 2,
   FULL_HOUSE: 2.5,
   FOUR_OF_A_KIND: 10,
   STRAIGHT_FLUSH: 20,
   ROYAL_FLUSH: 100,
 };
-export const CALL_PAYS = 0.65;
-export const OPTIMAL_RTP_PERCENT = 84.95;
+export const CALL_PAYS = 0.75;
+export const OPTIMAL_RTP_PERCENT = 90.01;
 export const ACTIONS = ["CALL", "FOLD"] as const;
 export type HoldemAction = (typeof ACTIONS)[number];
 const ROUND_CHANGED = "This hand changed in the meantime — please refresh.";
