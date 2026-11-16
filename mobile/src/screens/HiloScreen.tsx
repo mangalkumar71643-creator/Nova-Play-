@@ -668,7 +668,7 @@ export default function HiloScreen() {
 }
 
 function Rules({ config }: { config: HiloConfig | null }) {
-  const rtp = config?.rtpPercent ?? 85;
+  const rtp = config?.rtpPercent ?? 90;
   return (
     <View>
       <Text style={styles.ruleHead}>How to play</Text>

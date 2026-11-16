@@ -814,7 +814,7 @@ export default function TreasureDigScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per dig{'\n'}
+          RTP {config?.rtpPercent ?? 90}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per dig{'\n'}
           No autoplay · the crabs are placed by your provably-fair seeds when the dig starts
         </GameInfoButton>
       </ScrollView>

@@ -700,7 +700,7 @@ function Rules({ config }: { config: CoinFlipConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Multiplier after n right calls = {(config?.rtpPercent ?? 85) / 100} × 2ⁿ, so the return is {config?.rtpPercent ?? 85}% whenever you cash out. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}; {config?.maxPayout == null || config.maxPayout >= NO_LIMIT ? 'max win per round: no limit' : `max win per round ${winLimit(config.maxPayout)} — reaching it cashes out automatically`}.
+        Multiplier after n right calls = {(config?.rtpPercent ?? 90) / 100} × 2ⁿ, so the return is {config?.rtpPercent ?? 90}% whenever you cash out. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}; {config?.maxPayout == null || config.maxPayout >= NO_LIMIT ? 'max win per round: no limit' : `max win per round ${winLimit(config.maxPayout)} — reaching it cashes out automatically`}.
       </Text>
       <Text style={styles.ruleLine}>Every flip comes from your provably-fair seeds (Settings → Provably Fair).</Text>
     </View>

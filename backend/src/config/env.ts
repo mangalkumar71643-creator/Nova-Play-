@@ -32,10 +32,12 @@ export const env = {
       return Math.min(Number(process.env.GAME_MAX_STAKE ?? 100_000), this.maxPayout);
     },
     // Return-to-player: long-run share of total stakes paid back as winnings
-    // (0.75 = a 25% house edge on Dice, Limbo, Plinko, Keno, Hi-Lo, Mines,
+    // (0.90 = a 10% house edge on Dice, Limbo, Plinko, Keno, Hi-Lo, Mines,
     // Chicken Road, Dragon Tower, Pump and Coin Flip; the crash games use
-    // crashHouseEdge and the shared-table games tableRtp below).
-    rtp: Number(process.env.GAME_RTP ?? 0.75),
+    // crashHouseEdge and the shared-table games tableRtp below). Owner's
+    // request, 2026-11-16: every game whose result comes from the player's or
+    // round's own seed is at a 10% house edge (it was 25% here).
+    rtp: Number(process.env.GAME_RTP ?? 0.9),
     // Dragon Tiger, Andar Bahar, Teen Patti, Roulette and Baccarat set their
     // multipliers from this (0.85). Under tableLeastPayout the result is
     // picked by the bets, so their real return is lower than this.
@@ -51,9 +53,9 @@ export const env = {
     winMultiplier: Number(process.env.GAME_WIN_MULTIPLIER ?? 2),
     // House edge of every crash game (Aviator, Rocket, Cricket X, Goal Rush,
     // Airship, Big Catch, Cosmonaut, Night Racer, Sky Jet incl. its jackpot)
-    // and Vortex: 0.15 = players get 85% back over time (owner's request,
-    // 2026-10-23; it was 0.25). Each game shows it.
-    crashHouseEdge: Number(process.env.CRASH_HOUSE_EDGE ?? 0.15),
+    // and Vortex: 0.10 = players get 90% back over time (owner's request,
+    // 2026-11-16; it was 0.15, and 0.25 before 2026-10-23). Each game shows it.
+    crashHouseEdge: Number(process.env.CRASH_HOUSE_EDGE ?? 0.1),
     // Win Go result rule. Off: the number comes from the round's server
     // seed. On ("true"): the least-staked rule (winGoService.leastStakedNumber),
     // which the app's How to play shows from 1.0.24 — only turn it on once

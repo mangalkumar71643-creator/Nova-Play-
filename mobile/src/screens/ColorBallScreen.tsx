@@ -26,7 +26,7 @@ const MIX_MS = 1500;
 const COLORS: BallColor[] = ['RED', 'BLUE', 'GREEN', 'GOLD'];
 /** Used until the config arrives; the server's drum replaces it. */
 const FALLBACK_BALLS: BallColor[] = [...Array<BallColor>(9).fill('RED'), ...Array<BallColor>(7).fill('BLUE'), ...Array<BallColor>(3).fill('GREEN'), 'GOLD'];
-const FALLBACK_PAYS: Record<BallColor, number> = { RED: 1.88, BLUE: 2.42, GREEN: 5.66, GOLD: 17 };
+const FALLBACK_PAYS: Record<BallColor, number> = { RED: 2, BLUE: 2.57, GREEN: 6, GOLD: 18 };
 
 /** Sphere shading per colour: highlight, body, shadow. */
 const SHADE: Record<BallColor, [string, string, string]> = {
@@ -365,7 +365,7 @@ export default function ColorBallScreen() {
 
   const minutes = Math.floor((now - sessionStart.current) / 60000);
   const seconds = Math.floor(((now - sessionStart.current) % 60000) / 1000);
-  const rtpLine = config ? `${Math.min(...config.colors.map((c) => c.rtpPercent))}–${Math.max(...config.colors.map((c) => c.rtpPercent))}%` : '85%';
+  const rtpLine = config ? `${Math.min(...config.colors.map((c) => c.rtpPercent))}–${Math.max(...config.colors.map((c) => c.rtpPercent))}%` : '90%';
   const won = shown !== null && shown.payout > shown.stake;
   const stageH = G + big + 92;
 

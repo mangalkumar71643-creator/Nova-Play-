@@ -1,6 +1,7 @@
 import { prisma } from "../db/prismaClient";
 import { LOTTERY_RTP } from "./lotteryHouse";
 import { env } from "../config/env";
+import { fortuneSixRtp } from "./fortuneSixService";
 
 /**
  * Per-game house result, from each game's own bet table (so it covers every
@@ -155,6 +156,7 @@ export async function getGameReport() {
   // and games with their own paytables (slots, poker, ...) show none.
   const edgeOf = (key: string, category: string): number | null => {
     if (category === "Retired") return null;
+    if (key === "FortuneSix") return 1 - fortuneSixRtp();
     if (category === "Lottery") return 1 - LOTTERY_RTP;
     if (category === "Crash") return env.games.crashHouseEdge;
     if (["AndarBahar", "TeenPatti", "DragonTiger", "Baccarat", "Roulette"].includes(key)) return 1 - env.games.tableRtp;

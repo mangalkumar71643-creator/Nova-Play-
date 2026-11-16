@@ -213,7 +213,7 @@ export default function LimboScreen() {
   const shake = useRef(new Animated.Value(0)).current;
   const rocketSpin = useRef(new Animated.Value(0)).current;
 
-  const rtp = config?.rtpPercent ?? 85;
+  const rtp = config?.rtpPercent ?? 90;
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 100000;
   const maxPayout = config?.maxPayout ?? NO_LIMIT;
@@ -701,7 +701,7 @@ export default function LimboScreen() {
 }
 
 function Rules({ config }: { config: LimboConfig | null }) {
-  const rtp = config?.rtpPercent ?? 85;
+  const rtp = config?.rtpPercent ?? 90;
   return (
     <View>
       <Text style={styles.ruleHead}>How to play</Text>

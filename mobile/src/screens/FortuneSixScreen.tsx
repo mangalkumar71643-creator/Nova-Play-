@@ -62,7 +62,7 @@ const FALLBACK_PAYS: Record<number, number> = {
   34: 2.25,
   35: 1.2,
 };
-const FALLBACK_RTP = 79.99;
+const FALLBACK_RTP = 89.99;
 /** ⭐ House ticket marker: dark plum with gold, unlike any ball colour. */
 const HOUSE_BG = '#3A1452';
 
@@ -164,6 +164,8 @@ export default function FortuneSixScreen() {
   const { coins, refreshWallet } = useGameState();
 
   const [config, setConfig] = useState<FortuneSixConfig | null>(null);
+  // "One ticket in N is a House ticket", from the server's setting (1 in 10 now).
+  const houseOneIn = Math.round(100 / (config?.houseChancePercent || 10));
   const [bet, setBet] = useState(DEFAULT_BET);
   const [picks, setPicks] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
@@ -338,7 +340,7 @@ export default function FortuneSixScreen() {
       if (payout > bet) {
         await flashBanner({ title: m >= 100 ? 'JACKPOT!' : m >= 10 ? 'BIG WIN!' : 'WIN!', sub: `6 by ball ${res.position} · ${m}x · ${money(payout)}`, big: m >= 10 }, m >= 10 ? 1600 : 1000);
       } else if (house) {
-        await flashBanner({ title: '⭐ HOUSE', sub: 'One ticket in five · this ticket loses', big: false }, 1000);
+        await flashBanner({ title: '⭐ HOUSE', sub: `One ticket in ${houseOneIn} · this ticket loses`, big: false }, 1000);
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -564,7 +566,7 @@ export default function FortuneSixScreen() {
 
         <GameInfoButton>
           RTP {config?.rtpPercent ?? FALLBACK_RTP}% · ticket {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per ticket{'\n'}
-          One ticket in five is a ⭐ House ticket, which loses{'\n'}
+          One ticket in {houseOneIn} is a ⭐ House ticket, which loses{'\n'}
           No autoplay or turbo · each ticket takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

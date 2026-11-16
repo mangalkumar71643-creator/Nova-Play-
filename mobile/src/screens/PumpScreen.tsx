@@ -791,7 +791,7 @@ function Rules({ config }: { config: PumpConfig | null }) {
       </View>
       <Text style={styles.ruleHead}>Game info</Text>
       <Text style={styles.ruleLine}>
-        Multiplier after n pumps = {(config?.rtpPercent ?? 85) / 100} ÷ (chance of surviving n pumps), so the return is {config?.rtpPercent ?? 75}% whenever you cash out — except that a win never pays less than 1.01x, so the first pumps on Easy, Medium and Hard pay 1.01x. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}; {config?.maxPayout == null || config.maxPayout >= NO_LIMIT ? 'max win per balloon: no limit' : `max win per balloon ${winLimit(config.maxPayout)} — reaching it cashes out automatically`}.
+        Multiplier after n pumps = {(config?.rtpPercent ?? 85) / 100} ÷ (chance of surviving n pumps), so the return is {config?.rtpPercent ?? 90}% whenever you cash out — except that a win never pays less than 1.01x, so the first pumps on Easy, Medium and Hard pay 1.01x. Bet ₹{config?.minStake ?? 1} – ₹{config?.maxStake ?? 100000}; {config?.maxPayout == null || config.maxPayout >= NO_LIMIT ? 'max win per balloon: no limit' : `max win per balloon ${winLimit(config.maxPayout)} — reaching it cashes out automatically`}.
       </Text>
       <Text style={styles.ruleLine}>Where the balloon pops is fixed from your provably-fair seeds when it's handed to you and shown when the round ends (Settings → Provably Fair).</Text>
     </View>

@@ -28,9 +28,9 @@ const RISK_COLOR: Record<WheelRisk, string> = { LOW: GREEN, MEDIUM: '#5AC8FF', H
 
 /** Used until the config arrives; the server's wheels replace it. */
 const FALLBACK: Record<WheelRisk, number[]> = {
-  LOW: [1.2, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.2, 0, 1.4, 0, 1.2, 1.2, 1.4, 0, 1.2, 0, 1.2, 1.4, 1.7, 0],
+  LOW: [1.3, 0, 1.3, 1.3, 1.3, 0, 1.4, 0, 1.3, 1.3, 1.3, 0, 1.4, 0, 1.3, 1.3, 1.3, 0, 1.4, 0, 1.3, 1.3, 1.4, 0, 1.3, 0, 1.3, 1.4, 1.8, 0],
   MEDIUM: [6, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0, 1.5, 0, 0, 3, 0, 0, 1.5, 0, 2, 0, 0],
-  HIGH: [20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  HIGH: [21.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 };
 
 /** Segment colours by multiplier: dark for a blank, warmer and brighter as it pays more. */
@@ -527,7 +527,7 @@ export default function LuckyWheelScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% on every risk level · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per spin{'\n'}
+          RTP {config?.rtpPercent ?? 90}% on every risk level · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per spin{'\n'}
           No autoplay or turbo · each spin takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>

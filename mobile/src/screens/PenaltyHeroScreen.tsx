@@ -1246,7 +1246,7 @@ export default function PenaltyHeroScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per round
+          RTP {config?.rtpPercent ?? 90}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per round
           {'\n'}
           No autoplay · the keeper's zones are fixed by your provably-fair seeds before you shoot
         </GameInfoButton>

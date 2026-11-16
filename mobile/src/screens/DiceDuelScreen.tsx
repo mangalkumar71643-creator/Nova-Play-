@@ -378,7 +378,7 @@ export default function DiceDuelScreen() {
   const minutes = Math.floor((now - sessionStart.current) / 60000);
   const seconds = Math.floor(((now - sessionStart.current) % 60000) / 1000);
   const outcome = shown?.outcome ?? null;
-  const rtpLine = config ? [...new Set(config.picks.map((p) => p.rtpPercent))].join('% / ') + '%' : '85%';
+  const rtpLine = config ? [...new Set(config.picks.map((p) => p.rtpPercent))].join('% / ') + '%' : '90%';
 
   const tray = (side: 'PLAYER' | 'HOUSE') => {
     const isP = side === 'PLAYER';

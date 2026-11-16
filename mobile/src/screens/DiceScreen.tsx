@@ -237,7 +237,7 @@ export default function DiceScreen() {
   const resultAnim = useRef(new Animated.Value(0)).current;
   const tumbleLoop = useRef<Animated.CompositeAnimation | null>(null);
 
-  const rtp = config?.rtpPercent ?? 85;
+  const rtp = config?.rtpPercent ?? 90;
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 100000;
   const maxPayout = config?.maxPayout ?? NO_LIMIT;
@@ -816,7 +816,7 @@ export default function DiceScreen() {
 }
 
 function Rules({ config }: { config: DiceConfig | null }) {
-  const rtp = config?.rtpPercent ?? 85;
+  const rtp = config?.rtpPercent ?? 90;
   const minWinText = config?.minWinMultiplier ?? 1.01;
   return (
     <View>

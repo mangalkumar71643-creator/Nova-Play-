@@ -38,8 +38,8 @@ export function withWinFee(multiplier: number): number {
 export const HOUSE_DIGITS = Math.round(HOUSE_CHANCE * 10);
 /** Return of every lottery bet: fair odds less the win fee on the results that are not House. */
 export const LOTTERY_RTP = (1 - HOUSE_CHANCE) * (1 - LOTTERY_WIN_FEE);
-/** Fortune Six: one ticket in five is a House ticket. */
-export const FORTUNE_SIX_HOUSE_CHANCE = 0.2;
+/** Fortune Six: one ticket in ten is a House ticket (it was one in five until 2026-11-16: 10% house edge, owner's request). */
+export const FORTUNE_SIX_HOUSE_CHANCE = 0.1;
 
 /** Round-based games (Win Go, K3, 5D, Jhandi Munda): drawn from the round's seed and period number. */
 export function isHouseRound(serverSeed: string, periodNumber: string): boolean {

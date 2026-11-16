@@ -5,23 +5,22 @@ import { env } from "../config/env";
 import { fairGameFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
-import { FORTUNE_SIX_HOUSE_CHANCE as HOUSE_CHANCE, isHouseTicket, withWinFee } from "./lotteryHouse";
+import { FORTUNE_SIX_HOUSE_CHANCE as HOUSE_CHANCE, isHouseTicket } from "./lotteryHouse";
 
 /**
  * Fortune 6: the player picks 6 of 48 numbers, then 35 balls are drawn in
  * order (a seeded shuffle of all 48 from the player's provably-fair seeds,
  * keeping the first 35). If all 6 picks are drawn, the ticket pays by the
  * position of the ball that completed it: the sooner, the bigger. One ticket
- * in five is a ⭐ House ticket (lotteryHouse.ts, drawn from the same seeds),
+ * in ten is a ⭐ House ticket (lotteryHouse.ts, drawn from the same seeds),
  * which loses whatever the balls do.
  *
  * The chance the 6th pick lands on position k is C(k-1, 5) / C(48, 6), so on
  * a ticket that is not House the table below returns
  * sum(PAYS[k] * C(k-1, 5)) / C(48, 6) = 99.99% (fair odds, never above 100%),
- * and with the House tickets 79.99%, just under the 80% lottery rtp. The top
- * pays (balls 6-10) are the ones the per-ticket maxPayout trims at bigger
- * stakes, so the return sits in the positions below them: a 5-rupee ticket
- * still returns 89.02%.
+ * and with the House tickets 89.99%: a 10% house edge. The top pays (balls
+ * 6-10) are the ones a per-ticket maxPayout, when one is set, trims at bigger
+ * stakes.
  */
 
 export const NUMBERS = 48;
@@ -29,13 +28,12 @@ export const DRAWN = 35;
 export const PICKS = 6;
 
 /** What a ticket that is not House pays (stake included) when its 6th number is drawn at this position. */
-// Less the lottery win fee (lotteryHouse.ts), applied below.
+// Fair odds, no win fee: Fortune Six keeps its 10% through its House tickets alone.
 export const PAYS: Record<number, number> = {
   6: 10000, 7: 7500, 8: 5000, 9: 2500, 10: 1000, 11: 550, 12: 325, 13: 220, 14: 160, 15: 110,
   16: 88, 17: 76, 18: 65, 19: 54, 20: 44, 21: 37, 22: 30, 23: 24, 24: 17.5, 25: 13,
   26: 11, 27: 9.8, 28: 8.2, 29: 7, 30: 6, 31: 4.8, 32: 3.75, 33: 2.7, 34: 2.25, 35: 1.2,
 };
-for (const k of Object.keys(PAYS)) PAYS[Number(k)] = withWinFee(PAYS[Number(k)]);
 
 function comb(n: number, k: number): number {
   let r = 1;

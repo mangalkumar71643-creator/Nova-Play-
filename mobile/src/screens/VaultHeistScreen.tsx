@@ -817,7 +817,7 @@ export default function VaultHeistScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config?.rtpPercent ?? 85}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per heist{'\n'}
+          RTP {config?.rtpPercent ?? 90}% at every cash-out point · bet {money(minStake)}–{money(maxStake)} · max {winLimit(maxPayout)} per heist{'\n'}
           No autoplay · each lock's alarm digits are fixed by your provably-fair seeds before you dial
         </GameInfoButton>
       </ScrollView>
