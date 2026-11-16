@@ -3,7 +3,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Defs, G, Line, LinearGradient as SvgLinearGradient, Path, RadialGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -45,6 +45,8 @@ const HOUSE_INK = '#9A5F00';
 const DURATIONS: WinGoDuration[] = [60, 30, 180, 300, 600];
 /** The original Win Go's serif lettering for labels and buttons. */
 const SERIF = 'serif';
+/** The system sans the page's plain Text uses, so a two-colour (SVG) digit matches the one-colour digits beside it on the web. */
+const DIGIT_FONT = Platform.OS === 'web' ? 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' : undefined;
 const DURATION_LABEL: Record<WinGoDuration, string> = { 30: '30S', 60: '1Min', 180: '3Min', 300: '5Min', 600: '10Min' };
 /** The bet sheet's title: "WinGo 1 minute". */
 const DURATION_NAME: Record<WinGoDuration, string> = { 30: '30 second', 60: '1 minute', 180: '3 minute', 300: '5 minute', 600: '10 minute' };
@@ -54,7 +56,7 @@ const ROWS_PER_PAGE = 10;
 const TOAST_MS = 1800;
 const WIN_MS = 3500;
 // Fair odds on the 4 periods in 5 that are not House (80% return).
-const FALLBACK = { number: 10, size: 2, violet: 5, color: 2.1, colorMixed: 1.6 };
+const FALLBACK = { number: 9.8, size: 2, violet: 4.9, color: 2, colorMixed: 1.5 };
 const FALLBACK_HOUSE_PERCENT = 0;
 const FALLBACK_RTP_PERCENT = 80;
 
@@ -99,6 +101,27 @@ export function pctText(p: number): string {
 }
 
 // ---------- art ----------
+
+/** A result number in its colour; 0 and 5 are drawn in two colours (violet over red / green), like the reference game. */
+export const ResultDigit = memo(function ResultDigit({ n, size }: { n: number; size: number }) {
+  const cols = colorsOf(n).map((c) => HEX[c]);
+  if (cols.length === 1) return <Text style={{ fontSize: size, fontWeight: '900', color: cols[0] }}>{n}</Text>;
+  const id = `wgd${n}`;
+  const w = size * 0.8;
+  return (
+    <Svg width={w} height={size * 1.2}>
+      <Defs>
+        <SvgLinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={cols[1]} />
+          <Stop offset="1" stopColor={cols[0]} />
+        </SvgLinearGradient>
+      </Defs>
+      <SvgText x={w / 2} y={size * 0.93} fontSize={size} fontWeight="900" fontFamily={DIGIT_FONT} fill={`url(#${id})`} textAnchor="middle">
+        {n}
+      </SvgText>
+    </Svg>
+  );
+});
 
 /** A glossy number ball; 0 and 5 are split with violet. */
 export const NumberBall = memo(function NumberBall({ n, size }: { n: number; size: number }) {
@@ -678,7 +701,9 @@ export default function WinGoScreen() {
                     </View>
                   ) : (
                     <>
-                      <Text style={[styles.tdNum, { flex: 1, color: HEX[h.colors[0]] }]}>{h.number}</Text>
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <ResultDigit n={h.number} size={24} />
+                      </View>
                       <Text style={[styles.td, { flex: 1.1, fontWeight: '700' }]}>{h.size === 'BIG' ? 'Big' : 'Small'}</Text>
                       <View style={{ flex: 0.9, flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
                         {h.colors.map((c) => (
@@ -731,6 +756,9 @@ export default function WinGoScreen() {
                         return (
                           <View key={n} style={{ width: chartStep, alignItems: 'center' }}>
                             <View style={[styles.chartCell, hit && { backgroundColor: HEX[h.colors[0]], borderColor: HEX[h.colors[0]] }]}>
+                              {hit && h.colors.length > 1 && (
+                                <LinearGradient colors={[HEX[h.colors[0]], HEX[h.colors[1]]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 9 }]} />
+                              )}
                               <Text style={[styles.chartCellText, hit && { color: '#FFFFFF' }]}>{n}</Text>
                             </View>
                           </View>
@@ -895,9 +923,15 @@ export default function WinGoScreen() {
             <View style={styles.winBody}>
               <Text style={styles.winLabel}>Lottery results</Text>
               <View style={styles.winResult}>
-                <View style={[styles.winTag, { backgroundColor: HEX[win.result.colors[0]] }]}>
-                  <Text style={styles.winTagText}>{win.result.colors.map((c) => c[0] + c.slice(1).toLowerCase()).join(' ')}</Text>
-                </View>
+                {win.result.colors.length > 1 ? (
+                  <LinearGradient colors={[HEX[win.result.colors[0]], HEX[win.result.colors[1]]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.winTag}>
+                    <Text style={styles.winTagText}>{win.result.colors.map((c) => c[0] + c.slice(1).toLowerCase()).join(' ')}</Text>
+                  </LinearGradient>
+                ) : (
+                  <View style={[styles.winTag, { backgroundColor: HEX[win.result.colors[0]] }]}>
+                    <Text style={styles.winTagText}>{win.result.colors.map((c) => c[0] + c.slice(1).toLowerCase()).join(' ')}</Text>
+                  </View>
+                )}
                 <NumberBall n={win.result.number} size={34} />
                 <View style={[styles.winTag, { backgroundColor: win.result.size === 'BIG' ? C_BIG : C_SMALL }]}>
                   <Text style={styles.winTagText}>{win.result.size === 'BIG' ? 'Big' : 'Small'}</Text>

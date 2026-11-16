@@ -65,7 +65,7 @@ const ROWS_PER_PAGE = 10;
 const TOAST_MS = 1800;
 const WIN_MS = 3500;
 // Fair odds on the 4 periods in 5 that are not House (80% return).
-const FALLBACK = { number: 10, size: 2, violet: 5, color: 2.1, colorMixed: 1.6 };
+const FALLBACK = { number: 9.8, size: 2, violet: 4.9, color: 2, colorMixed: 1.5 };
 const FALLBACK_HOUSE_PERCENT = 0;
 const FALLBACK_RTP_PERCENT = 80;
 
@@ -967,6 +967,9 @@ export default function TrxWinScreen() {
                         return (
                           <View key={n} style={{ width: chartStep, alignItems: 'center' }}>
                             <View style={[styles.chartCell, hit && { backgroundColor: HEX[h.colors[0]], borderColor: HEX[h.colors[0]] }]}>
+                              {hit && h.colors.length > 1 && (
+                                <LinearGradient colors={[HEX[h.colors[0]], HEX[h.colors[1]]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 9 }]} />
+                              )}
                               <Text style={[styles.chartCellText, hit && { color: '#FFFFFF' }]}>{n}</Text>
                             </View>
                           </View>
@@ -1115,9 +1118,15 @@ export default function TrxWinScreen() {
             <View style={styles.winBody}>
               <Text style={styles.winLabel}>Lottery results</Text>
               <View style={styles.winResult}>
-                <View style={[styles.winTag, { backgroundColor: HEX[win.result.colors[0]] }]}>
-                  <Text style={styles.winTagText}>{win.result.colors.map((c) => c[0] + c.slice(1).toLowerCase()).join(' ')}</Text>
-                </View>
+                {win.result.colors.length > 1 ? (
+                  <LinearGradient colors={[HEX[win.result.colors[0]], HEX[win.result.colors[1]]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.winTag}>
+                    <Text style={styles.winTagText}>{win.result.colors.map((c) => c[0] + c.slice(1).toLowerCase()).join(' ')}</Text>
+                  </LinearGradient>
+                ) : (
+                  <View style={[styles.winTag, { backgroundColor: HEX[win.result.colors[0]] }]}>
+                    <Text style={styles.winTagText}>{win.result.colors.map((c) => c[0] + c.slice(1).toLowerCase()).join(' ')}</Text>
+                  </View>
+                )}
                 <NumberBall n={win.result.number} size={34} />
                 <View style={[styles.winTag, { backgroundColor: win.result.size === 'BIG' ? C_BIG : C_SMALL }]}>
                   <Text style={styles.winTagText}>{win.result.size === 'BIG' ? 'Big' : 'Small'}</Text>

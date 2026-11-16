@@ -28,20 +28,19 @@ function floor2(n: number): number {
 }
 
 /**
- * Fair odds on the 9 rounds in 10 that are not House (1 / the chance of
- * winning on such a round), so with House every bet returns LOTTERY_RTP (80%):
- *  - number (1 in 10): 10x — wins 8% of rounds
- *  - big 5-9 / small 0-4 (5 in 10): 2x — 40%
- *  - violet (0 and 5): 5x — 18%
- *  - green (1,3,7,9 + 5) / red (2,4,6,8 + 0): `color` on the four plain
- *    numbers and 0.5 less on the shared violet one, so 4c + (c - 0.5) = 10
- *    (2.1x and 1.6x).
+ * What a bet returns per unit when it wins (shown in the apps as is):
+ *  - Big (5-9) / Small (0-4): 2x
+ *  - Green (1,3,7,9) / Red (2,4,6,8): 2x; on the shared violet number (5 for
+ *    Green, 0 for Red) 1.5x
+ *  - a number: the fair 10x less the lottery win fee (lotteryHouse.ts), 9.8x
+ *  - Violet (0 and 5): the fair 5x less the fee, 4.9x
+ * (Owner's request, 2026-11-16: Big / Small and Green / Red read 2X as in the
+ * reference game, so they no longer carry the 2% win fee — they paid 1.96x,
+ * 2.05x and 1.56x before.)
  */
 export const PAYOUTS = (() => {
   const fair = (winsInTen: number) => floor2(10 / winsInTen);
-  const color = floor2((10 + 0.5) / 5);
-  // Less the lottery win fee (lotteryHouse.ts): 9.8x, 1.96x, 4.9x, 2.05x, 1.56x at 2%.
-  return { number: withWinFee(fair(1)), size: withWinFee(fair(5)), violet: withWinFee(fair(2)), color: withWinFee(color), colorMixed: withWinFee(floor2(color - 0.5)) };
+  return { number: withWinFee(fair(1)), size: 2, violet: withWinFee(fair(2)), color: 2, colorMixed: 1.5 };
 })();
 
 export function colorsOf(n: number): ("GREEN" | "RED" | "VIOLET")[] {
