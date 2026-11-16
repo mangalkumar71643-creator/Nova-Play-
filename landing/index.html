@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NovaPlay — Play 50+ games on your phone. Register in a minute.</title>
+<meta name="description" content="Aviator, Win Go, Mines, Teen Patti, Dragon Tiger and 50+ more games in one app. Register with just your mobile number and start playing. 18+ only.">
+<meta name="theme-color" content="#140306">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="NovaPlay">
+<meta property="og:title" content="NovaPlay — 50+ games in one app">
+<meta property="og:description" content="Aviator, Win Go, Mines, Teen Patti and more. Register with your mobile number and start playing. 18+ only.">
+<meta property="og:image" content="assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preload" href="assets/fonts/outfit-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:"Outfit";src:url(assets/fonts/outfit-latin-wght-normal.woff2) format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Inter";src:url(assets/fonts/inter-latin-wght-normal.woff2) format("woff2");font-weight:100 900;font-display:swap}
+
+:root{
+  --bg:#120205; --bg-2:#1b0509; --wine:#3a0913; --crimson:#8a1a2c;
+  --red:#e0213a; --red-dark:#a30f25; --red-light:#ff5468;
+  --gold:#f0b93d; --gold-light:#ffde8c; --cream:#fff3c4;
+  --text:#fff; --muted:#e2c6cb; --soft:#b99ea4;
+  --line:rgba(255,222,140,.18); --card:rgba(255,255,255,.045);
+  --display:"Outfit",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --wrap:1120px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);font-size:16px;line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.1;letter-spacing:-.01em;text-wrap:balance}
+p{margin:0;text-wrap:pretty}
+.wrap{width:100%;max-width:var(--wrap);margin:0 auto;padding:0 20px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--gold);color:#2a1300;padding:8px 14px;border-radius:8px;z-index:100;font-weight:700}
+.skip:focus{left:8px}
+:focus-visible{outline:3px solid var(--gold-light);outline-offset:3px;border-radius:10px}
+svg.i{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border-radius:999px;font-family:var(--display);font-weight:800;letter-spacing:.2px;cursor:pointer;border:0;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
+.btn:active{transform:scale(.97)}
+.btn-primary{padding:17px 30px;font-size:19px;color:#fff;background:linear-gradient(180deg,var(--red-light) 0%,var(--red) 55%,var(--red-dark) 100%);box-shadow:0 12px 32px rgba(224,33,58,.45),inset 0 1px 0 rgba(255,255,255,.4)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 38px rgba(224,33,58,.55),inset 0 1px 0 rgba(255,255,255,.45);filter:brightness(1.05)}
+.btn-ghost{padding:16px 26px;font-size:17px;color:var(--gold-light);background:rgba(255,255,255,.04);border:1.5px solid rgba(255,222,140,.45)}
+.btn-ghost:hover{background:rgba(255,222,140,.1);transform:translateY(-2px)}
+.btn-sm{padding:10px 20px;font-size:15px}
+
+/* header */
+.top{position:sticky;top:0;z-index:50;background:rgba(18,2,5,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid transparent;transition:border-color .2s,background .2s}
+.top.scrolled{border-color:var(--line);background:rgba(18,2,5,.82)}
+.top .wrap{display:flex;align-items:center;gap:22px;height:68px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:23px;letter-spacing:.3px}
+.brand img{width:40px;height:40px}
+.brand span{background:linear-gradient(#fff6cf,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.nav{display:none;gap:28px;margin-left:24px;font-weight:500;color:var(--muted);font-size:15px}
+.nav a:hover{color:var(--gold-light)}
+.top .actions{margin-left:auto;display:flex;align-items:center;gap:14px}
+.top .login{font-weight:600;font-size:15px;color:var(--muted)}
+.top .login:hover{color:var(--gold-light)}
+
+/* hero */
+.hero{position:relative;padding:36px 0 30px;background:
+  radial-gradient(70% 55% at 80% 8%,rgba(224,33,58,.38),transparent 70%),
+  radial-gradient(60% 50% at 8% 40%,rgba(138,26,44,.45),transparent 72%),
+  radial-gradient(50% 40% at 50% 100%,rgba(240,185,61,.10),transparent 70%)}
+.hero:after{content:"";position:absolute;left:0;right:0;bottom:0;height:110px;background:linear-gradient(transparent,var(--bg));pointer-events:none}
+.hero .wrap{position:relative;z-index:1;display:grid;gap:36px;align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:rgba(240,185,61,.12);border:1px solid rgba(240,185,61,.35);color:var(--gold-light);font-weight:600;font-size:13.5px;letter-spacing:.3px}
+.eyebrow i{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(240,185,61,.2)}
+h1{font-size:clamp(34px,9vw,62px);font-weight:900;margin:18px 0 16px}
+h1 em{font-style:normal;background:linear-gradient(180deg,#fff6cf,var(--gold) 70%,#e49b17);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(17px,2.6vw,20px);color:var(--muted);max-width:34em}
+.cta{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:30px 0 14px}
+.cta .btn-primary{min-width:230px}
+.free{display:block;color:var(--soft);font-size:14px;margin-bottom:22px}
+.checks{display:flex;flex-wrap:wrap;gap:10px 22px;padding:0;margin:0;list-style:none;color:var(--muted);font-size:14.5px;font-weight:500}
+.checks li{display:flex;align-items:center;gap:8px}
+.checks svg{color:var(--gold);width:1.2em;height:1.2em}
+
+/* phone mock */
+.stage{position:relative;display:flex;justify-content:center;padding:26px 0 10px}
+.device{position:relative;width:290px}
+.glow{position:absolute;inset:8% 6% 4%;background:radial-gradient(closest-side,rgba(224,33,58,.55),transparent 72%);filter:blur(30px);z-index:0}
+.phone{position:relative;z-index:1;width:100%;border-radius:44px;padding:10px;background:linear-gradient(160deg,#6b5a3a,#2b2118 40%,#8b6d2f 100%);box-shadow:0 40px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,222,140,.25),inset 0 0 0 1px rgba(255,255,255,.08)}
+.screen{position:relative;border-radius:35px;overflow:hidden;padding:30px 14px 16px;background:linear-gradient(180deg,#4a0b18,#240710 38%,#140306)}
+.notch{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:78px;height:20px;border-radius:12px;background:#0b0204;z-index:3}
+.appbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.appbar img{width:28px;height:28px}
+.appbar b{font-family:var(--display);font-size:16px;color:var(--gold-light)}
+.appbar .age{margin-left:auto;font-size:11px;font-weight:700;color:var(--gold-light);border:1px solid rgba(255,222,140,.4);padding:2px 8px;border-radius:999px}
+.banner{border-radius:16px;padding:12px 14px;margin-bottom:12px;background:linear-gradient(120deg,rgba(224,33,58,.9),rgba(138,26,44,.9));border:1px solid rgba(255,222,140,.3);position:relative;overflow:hidden}
+.banner small{display:block;color:#ffd9de;font-size:11.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+.banner strong{font-family:var(--display);font-size:18px;line-height:1.15;display:block;margin-top:2px}
+.banner:after{content:"";position:absolute;right:-18px;top:-18px;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,rgba(255,222,140,.55),transparent 70%)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.tiles img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:12px;box-shadow:0 5px 12px rgba(0,0,0,.45)}
+.dock{display:flex;justify-content:space-around;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,222,140,.15)}
+.dock span{display:block;width:30px;height:5px;border-radius:3px;background:rgba(255,222,140,.28)}
+.dock span:first-child{background:var(--gold)}
+.float{position:absolute;z-index:2;filter:drop-shadow(0 14px 22px rgba(0,0,0,.55));animation:floaty 6s ease-in-out infinite}
+.float img{width:100%;border-radius:20px}
+.f1{width:96px;left:-56px;top:62px;--r:-9deg}
+.f2{width:88px;right:-52px;top:250px;--r:8deg;animation-delay:-2s}
+.f3{width:92px;left:-48px;bottom:58px;--r:6deg;animation-delay:-4s}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(var(--r))}50%{transform:translateY(-12px) rotate(var(--r))}}
+
+/* sections */
+section{padding:64px 0}
+.kicker{color:var(--gold);font-weight:700;letter-spacing:2px;font-size:12.5px;text-transform:uppercase;margin-bottom:12px;display:block}
+.sec-title{font-size:clamp(30px,5.4vw,44px);font-weight:800;margin-bottom:12px}
+.sec-sub{color:var(--muted);font-size:17px;max-width:38em}
+.head{margin-bottom:34px}
+.center{text-align:center}.center .sec-sub{margin-left:auto;margin-right:auto}
+
+/* stats */
+.stats{padding:6px 0 10px}
+.stats .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.stat{padding:20px 14px;border-radius:20px;background:var(--card);border:1px solid var(--line);text-align:center;display:flex;flex-direction:column;justify-content:center;min-height:104px}
+.stat b{display:block;font-family:var(--display);font-size:clamp(26px,5vw,34px);font-weight:900;background:linear-gradient(#fff6cf,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15}
+.stat span{display:block;color:var(--soft);font-size:14px;margin-top:4px}
+
+/* games */
+.games-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.game{position:relative;display:block;border-radius:22px;transition:transform .2s ease}
+.game img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:20px;box-shadow:0 10px 24px rgba(0,0,0,.5);transition:box-shadow .2s}
+.game:hover{transform:translateY(-6px) scale(1.03)}
+.game:hover img{box-shadow:0 16px 34px rgba(224,33,58,.4)}
+.more{display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:1;border-radius:20px;text-align:center;padding:10px;background:linear-gradient(160deg,#5e1020,#24050b);border:1.5px dashed rgba(255,222,140,.5);transition:transform .2s ease}
+.more:hover{transform:translateY(-6px) scale(1.03)}
+.more b{font-family:var(--display);font-size:clamp(26px,7vw,36px);font-weight:900;background:linear-gradient(#fff6cf,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1}
+.more span{font-size:13px;color:var(--muted);margin-top:6px;font-weight:600}
+.marquee{margin-top:34px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.marquee .track{display:flex;gap:14px;width:max-content;animation:slide 48s linear infinite}
+.marquee img{width:84px;height:84px;object-fit:contain;border-radius:16px;opacity:.92}
+@keyframes slide{to{transform:translateX(-50%)}}
+.games-cta{display:flex;justify-content:center;margin-top:34px}
+
+/* steps */
+.steps{display:grid;gap:16px;counter-reset:s}
+.step{position:relative;padding:24px 22px 22px;border-radius:22px;background:var(--card);border:1px solid var(--line)}
+.step .num{position:absolute;top:-14px;left:20px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:900;color:#2a1300;background:linear-gradient(var(--gold-light),var(--gold));box-shadow:0 6px 16px rgba(240,185,61,.35)}
+.step .ic{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;margin-bottom:14px;color:var(--gold-light);background:rgba(240,185,61,.1);border:1px solid rgba(240,185,61,.3)}
+.step .ic svg{width:24px;height:24px}
+.step h3{font-size:21px;font-weight:800;margin-bottom:6px}
+.step p{color:var(--muted);font-size:15.5px}
+
+/* why */
+.why-grid{display:grid;gap:16px}
+.feature{padding:24px;border-radius:22px;background:linear-gradient(160deg,rgba(94,16,32,.55),rgba(36,5,11,.55));border:1px solid var(--line)}
+.feature .ic{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;margin-bottom:14px;color:#2a1300;background:linear-gradient(var(--gold-light),var(--gold))}
+.feature .ic svg{width:24px;height:24px}
+.feature h3{font-size:20px;font-weight:800;margin-bottom:6px}
+.feature p{color:var(--muted);font-size:15.5px}
+
+/* final cta */
+.final{padding:30px 0 70px}
+.band{position:relative;overflow:hidden;border-radius:30px;padding:46px 24px;text-align:center;background:
+  radial-gradient(80% 90% at 50% 0%,rgba(255,84,104,.5),transparent 70%),
+  linear-gradient(160deg,#6a1424,#2a060d);border:1.5px solid rgba(255,222,140,.45);box-shadow:0 30px 70px rgba(0,0,0,.5)}
+.band h2{font-size:clamp(30px,6vw,46px);font-weight:900;margin-bottom:10px}
+.band p{color:var(--muted);font-size:17px;max-width:36em;margin:0 auto 26px}
+.band .cta{justify-content:center;margin:0}
+.band .tilt{position:absolute;width:96px;opacity:.9;filter:drop-shadow(0 10px 18px rgba(0,0,0,.5));display:none}
+
+/* footer */
+footer{border-top:1px solid var(--line);padding:34px 0 120px;background:var(--bg-2)}
+.foot{display:grid;gap:22px}
+.foot .brand{font-size:21px}
+.foot nav{display:flex;flex-wrap:wrap;gap:8px 22px;color:var(--muted);font-size:14.5px}
+.foot nav a:hover{color:var(--gold-light)}
+.legal{color:var(--soft);font-size:13px;line-height:1.65;max-width:62em}
+.legal strong{color:var(--gold-light);font-weight:700}
+.copy{color:#7e656a;font-size:12.5px}
+
+/* sticky mobile bar */
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(18,2,5,.96) 38%);transform:translateY(130%);transition:transform .3s ease}
+.sticky.show{transform:none}
+.sticky .btn{width:100%;max-width:520px;margin:0 auto;display:flex}
+
+/* reveal */
+.js .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+.js .reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .float,.marquee .track{animation:none}
+  .js .reveal{opacity:1;transform:none;transition:none}
+}
+
+@media (min-width:640px){
+  .stats .grid{grid-template-columns:repeat(4,1fr)}
+  .games-grid{grid-template-columns:repeat(4,1fr);gap:18px}
+  .steps{grid-template-columns:repeat(2,1fr);gap:22px}
+  .why-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (min-width:900px){
+  .nav{display:flex}
+  .hero{padding:70px 0 56px}
+  .hero .wrap{grid-template-columns:1.1fr .9fr;gap:40px}
+  .device{width:310px}
+  .f1{width:118px;left:-86px;top:70px}.f2{width:104px;right:-74px;top:286px}.f3{width:110px;left:-74px;bottom:78px}
+  .games-grid{grid-template-columns:repeat(6,1fr);gap:20px}
+  .steps{grid-template-columns:repeat(4,1fr)}
+  .why-grid{grid-template-columns:repeat(4,1fr)}
+  .band{padding:64px 40px}
+  .band .tilt{display:block}
+  .band .t1{left:5%;top:34px;transform:rotate(-10deg)}
+  .band .t2{right:5%;bottom:30px;transform:rotate(9deg)}
+  section{padding:84px 0}
+  .foot{grid-template-columns:1fr auto;align-items:start}
+  .sticky{display:none}
+  footer{padding-bottom:40px}
+}
+@media (max-width:420px){
+  .cta .btn{width:100%}
+  .device{width:262px}
+  .f1{width:78px;left:-22px;top:-14px}.f2{width:72px;right:-20px;top:196px}.f3{width:76px;left:-18px;bottom:46px}
+  .top .login{display:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap">
+    <a class="brand" href="#" aria-label="NovaPlay home"><img src="assets/badge.webp" width="40" height="40" alt=""><span>NovaPlay</span></a>
+    <nav class="nav" aria-label="Main">
+      <a href="#games">Games</a><a href="#how">How it works</a><a href="#why">Why NovaPlay</a>
+    </nav>
+    <div class="actions">
+      <a class="login" data-login href="https://novaplay-games.vercel.app/?login=1">Log in</a>
+      <a class="btn btn-primary btn-sm" data-register href="https://novaplay-games.vercel.app/?register=1">Register</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<!-- HERO -->
+<section class="hero" style="padding-bottom:36px">
+  <div class="wrap">
+    <div class="copy-col">
+      <span class="eyebrow"><i></i>50+ games · Android &amp; web</span>
+      <h1>All your favourite<br>games. <em>One app.</em></h1>
+      <p class="lead">Aviator, Win Go, Mines, Teen Patti, Dragon Tiger and 50+ more. Register with just your mobile number and start playing.</p>
+      <div class="cta" id="heroCta">
+        <a class="btn btn-primary" data-register href="https://novaplay-games.vercel.app/?register=1">Register now
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn-ghost" href="https://novaplay-games.vercel.app/download/NovaPlay.apk">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>Get the Android app</a>
+      </div>
+      <span class="free">Free to join · takes under a minute</span>
+      <ul class="checks">
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Mobile number only</li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Rules in every game</li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Fair-play seeds you can check</li>
+      </ul>
+    </div>
+
+    <div class="stage" aria-hidden="true">
+      <div class="glow"></div>
+      <div class="device">
+      <div class="float f1"><img src="assets/games/aviator.webp" width="240" height="252" alt=""></div>
+      <div class="float f2"><img src="assets/games/mines.webp" width="240" height="241" alt=""></div>
+      <div class="float f3"><img src="assets/games/chicken-road.webp" width="240" height="252" alt=""></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="appbar"><img src="assets/badge.webp" width="28" height="28" alt=""><b>NovaPlay</b><span class="age">18+</span></div>
+          <div class="banner"><small>Welcome</small><strong>Pick a game and play</strong></div>
+          <div class="tiles">
+            <img src="assets/games/wingo.webp" width="240" height="288" alt="">
+            <img src="assets/games/teen-patti.webp" width="240" height="268" alt="">
+            <img src="assets/games/dragon-tiger.webp" width="240" height="257" alt="">
+            <img src="assets/games/royal-gems.webp" width="240" height="244" alt="">
+            <img src="assets/games/rocket.webp" width="240" height="249" alt="">
+            <img src="assets/games/k3-lottery.webp" width="240" height="262" alt="">
+            <img src="assets/games/money-coming.webp" width="240" height="264" alt="">
+            <img src="assets/games/jhandi-munda.webp" width="240" height="260" alt="">
+            <img src="assets/games/lucky-wheel.webp" width="240" height="239" alt="">
+          </div>
+          <div class="dock"><span></span><span></span><span></span><span></span></div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="wrap">
+    <div class="grid reveal">
+      <div class="stat"><b>50+</b><span>games in one app</span></div>
+      <div class="stat"><b>1 min</b><span>to register</span></div>
+      <div class="stat"><b>Fair-play</b><span>seeds you can check</span></div>
+      <div class="stat"><b>App + Web</b><span>play your way</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- GAMES -->
+<section id="games">
+  <div class="wrap">
+    <div class="head center reveal">
+      <span class="kicker">Games</span>
+      <h2 class="sec-title">Something for every mood</h2>
+      <p class="sec-sub">Crash games, lotteries, cards, slots and quick instant games — all on one wallet.</p>
+    </div>
+    <div class="games-grid reveal">
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/aviator.webp" width="240" height="252" alt="Aviator"></a>
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/wingo.webp" width="240" height="288" alt="Win Go"></a>
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/mines.webp" width="240" height="241" alt="Mines"></a>
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/teen-patti.webp" width="240" height="268" alt="Teen Patti"></a>
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/dragon-tiger.webp" width="240" height="257" alt="Dragon Tiger"></a>
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/chicken-road.webp" width="240" height="252" alt="Chicken Road"></a>
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/royal-gems.webp" width="240" height="244" alt="Royal Gems"></a>
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/money-coming.webp" width="240" height="264" alt="Money Coming"></a>
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/k3-lottery.webp" width="240" height="262" alt="K3 Lottery"></a>
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/jhandi-munda.webp" width="240" height="260" alt="Jhandi Munda"></a>
+      <a class="game" data-register href="https://novaplay-games.vercel.app/?register=1"><img loading="lazy" src="assets/games/rocket.webp" width="240" height="249" alt="Rocket"></a>
+      <a class="more" data-register href="https://novaplay-games.vercel.app/?register=1"><b>+40</b><span>more games</span></a>
+    </div>
+    <div class="marquee reveal" aria-hidden="true">
+      <div class="track">
+        <img loading="lazy" src="assets/games/five-d-lottery.webp" alt=""><img loading="lazy" src="assets/games/lucky-wheel.webp" alt=""><img loading="lazy" src="assets/games/plinko.webp" alt=""><img loading="lazy" src="assets/games/roulette.webp" alt=""><img loading="lazy" src="assets/games/baccarat.webp" alt=""><img loading="lazy" src="assets/games/gates-of-zeus.webp" alt=""><img loading="lazy" src="assets/games/candy-blast.webp" alt=""><img loading="lazy" src="assets/games/wolf-moon.webp" alt=""><img loading="lazy" src="assets/games/blackjack.webp" alt=""><img loading="lazy" src="assets/games/aviator.webp" alt="">
+        <img loading="lazy" src="assets/games/five-d-lottery.webp" alt=""><img loading="lazy" src="assets/games/lucky-wheel.webp" alt=""><img loading="lazy" src="assets/games/plinko.webp" alt=""><img loading="lazy" src="assets/games/roulette.webp" alt=""><img loading="lazy" src="assets/games/baccarat.webp" alt=""><img loading="lazy" src="assets/games/gates-of-zeus.webp" alt=""><img loading="lazy" src="assets/games/candy-blast.webp" alt=""><img loading="lazy" src="assets/games/wolf-moon.webp" alt=""><img loading="lazy" src="assets/games/blackjack.webp" alt=""><img loading="lazy" src="assets/games/aviator.webp" alt="">
+      </div>
+    </div>
+    <div class="games-cta reveal"><a class="btn btn-primary" data-register href="https://novaplay-games.vercel.app/?register=1">Register to play
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section id="how" style="background:linear-gradient(180deg,transparent,rgba(58,9,19,.35) 30%,rgba(58,9,19,.35) 70%,transparent)">
+  <div class="wrap">
+    <div class="head center reveal">
+      <span class="kicker">How it works</span>
+      <h2 class="sec-title">From sign-up to playing in four steps</h2>
+      <p class="sec-sub">No long forms. Your mobile number and a password are all you need to start.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><span class="num">1</span>
+        <div class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6"/></svg></div>
+        <h3>Register</h3><p>Tap Register, enter your mobile number and set a password. Got a friend’s invite code? Add it here.</p></div>
+      <div class="step reveal"><span class="num">2</span>
+        <div class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><path d="M3 7l12-3v3"/><circle cx="17" cy="13.5" r="1.2"/></svg></div>
+        <h3>Add balance</h3><p>Top up your wallet whenever you like. One wallet works for every game in the app.</p></div>
+      <div class="step reveal"><span class="num">3</span>
+        <div class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.2"/><circle cx="15.5" cy="15.5" r="1.2"/><circle cx="12" cy="12" r="1.2"/></svg></div>
+        <h3>Pick a game</h3><p>Open How to play inside any game to see exactly how it pays and how each result is decided.</p></div>
+      <div class="step reveal"><span class="num">4</span>
+        <div class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></svg></div>
+        <h3>Withdraw winnings</h3><p>Won something? Request a withdrawal from your wallet whenever you’re ready.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY -->
+<section id="why">
+  <div class="wrap">
+    <div class="head center reveal">
+      <span class="kicker">Why NovaPlay</span>
+      <h2 class="sec-title">Built to be clear and easy to use</h2>
+    </div>
+    <div class="why-grid">
+      <div class="feature reveal"><div class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/></svg></div>
+        <h3>Rules you can read</h3><p>Every game has a plain-English How to play, with the odds and the result rule written out.</p></div>
+      <div class="feature reveal"><div class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <h3>Fair-play seeds</h3><p>Rounds are drawn from seeds you can look up and verify later in Settings → Provably Fair.</p></div>
+      <div class="feature reveal"><div class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg></div>
+        <h3>Android app &amp; web</h3><p>Install the Android app or play in your browser. Same account, same wallet.</p></div>
+      <div class="feature reveal"><div class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="4" height="6" rx="1.5"/><rect x="18" y="14" width="4" height="6" rx="1.5"/><path d="M20 20c0 1.5-2 2-5 2"/></svg></div>
+        <h3>Help in the app</h3><p>Questions about your account or a payment? Reach support from inside the app.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<div class="final">
+  <div class="wrap">
+    <div class="band reveal">
+      <img class="tilt t1" src="assets/games/aviator.webp" width="240" height="252" alt="" loading="lazy">
+      <img class="tilt t2" src="assets/games/wingo.webp" width="240" height="288" alt="" loading="lazy">
+      <h2>Ready to play?</h2>
+      <p>Create your NovaPlay account now — it only takes your mobile number.</p>
+      <div class="cta">
+        <a class="btn btn-primary" data-register href="https://novaplay-games.vercel.app/?register=1">Register now
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn-ghost" href="https://novaplay-games.vercel.app/download/NovaPlay.apk">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>Get the Android app</a>
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>
+      <a class="brand" href="#" aria-label="NovaPlay"><img src="assets/badge.webp" width="40" height="40" alt=""><span>NovaPlay</span></a>
+      <p class="legal" style="margin-top:14px"><strong>18+ only.</strong> This game involves an element of financial risk and may be addictive. Please play responsibly and at your own risk. Only play with money you can afford to lose.</p>
+      <p class="copy" style="margin-top:14px">© 2026 NovaPlay. All rights reserved.</p>
+    </div>
+    <nav aria-label="Footer">
+      <a href="#games">Games</a><a href="#how">How it works</a><a href="#why">Why NovaPlay</a>
+      <a data-login href="https://novaplay-games.vercel.app/?login=1">Log in</a>
+      <a href="https://novaplay-games.vercel.app/download/NovaPlay.apk">Android app</a>
+    </nav>
+  </div>
+</footer>
+
+<div class="sticky" id="sticky"><a class="btn btn-primary" data-register href="https://novaplay-games.vercel.app/?register=1">Register now
+  <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+
+<script>
+(function () {
+  var APP = "https://novaplay-games.vercel.app/";
+  var d = document, root = d.documentElement;
+  root.classList.add("js");
+
+  // The Register button opens the app's Register form directly; a friend's invite code
+  // (?invite=123456 on this page) is carried over so it is already filled in there.
+  var q = new URLSearchParams(location.search);
+  var invite = (q.get("invite") || q.get("ref") || "").replace(/\D/g, "").slice(0, 12);
+  var reg = APP + "?register=1" + (invite ? "&invite=" + invite : "");
+  var log = APP + "?login=1";
+  [].forEach.call(d.querySelectorAll("[data-register]"), function (a) { a.href = reg; });
+  [].forEach.call(d.querySelectorAll("[data-login]"), function (a) { a.href = log; });
+
+  // header shadow
+  var top = d.getElementById("top");
+  function onScroll() { top.classList.toggle("scrolled", window.scrollY > 8); }
+  onScroll(); window.addEventListener("scroll", onScroll, { passive: true });
+
+  // reveal on scroll
+  var items = [].slice.call(d.querySelectorAll(".reveal"));
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+    }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
+    items.forEach(function (el) { io.observe(el); });
+  } else { items.forEach(function (el) { el.classList.add("in"); }); }
+
+  // sticky Register bar on phones once the hero button has scrolled away
+  var sticky = d.getElementById("sticky"), cta = d.getElementById("heroCta"), band = d.querySelector(".band");
+  if ("IntersectionObserver" in window && cta) {
+    var heroGone = false, bandShown = false;
+    var update = function () { sticky.classList.toggle("show", heroGone && !bandShown); };
+    new IntersectionObserver(function (es) { heroGone = !es[0].isIntersecting && es[0].boundingClientRect.top < 0; update(); }).observe(cta);
+    if (band) new IntersectionObserver(function (es) { bandShown = es[0].isIntersecting; update(); }).observe(band);
+  }
+})();
+</script>
+</body>
+</html>

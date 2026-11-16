@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchSupportContact } from '../api/backend';
 import { showAlert } from '../components/AppAlert';
@@ -17,6 +17,29 @@ const LAST_PHONE_KEY = 'novaplay:lastPhone:v1';
 const UID_MAP_KEY = 'novaplay:auth:uids:v1';
 const MIN_PASSWORD = 6;
 const digitsOf = (s: string) => s.replace(/\D/g, '').slice(-10);
+
+/**
+ * Web only: the separate welcome website links straight into this form
+ * (?register=1 opens Register, ?login=1 opens Log in) and can carry a friend's
+ * invite code (?invite=123456). The parameters are read once and then removed
+ * from the address, so a later reload doesn't force the form again.
+ */
+function takeWebEntry(): { mode: 'register' | 'login' | null; invite: string } {
+  const none = { mode: null, invite: '' };
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return none;
+  try {
+    const url = new URL(window.location.href);
+    const q = url.searchParams;
+    const mode = q.has('register') ? 'register' : q.has('login') ? 'login' : null;
+    const invite = (q.get('invite') ?? '').replace(/\D/g, '').slice(0, 12);
+    if (!mode && !invite) return none;
+    ['register', 'login', 'invite'].forEach((k) => q.delete(k));
+    window.history.replaceState(null, '', url.pathname + (q.toString() ? `?${q}` : '') + url.hash);
+    return { mode, invite };
+  } catch {
+    return none;
+  }
+}
 const validPhone = (d: string) => /^[6-9]\d{9}$/.test(d);
 
 /**
@@ -47,6 +70,8 @@ export default function LoginScreen() {
   // The number used last time, so a returning player only types the password.
   useEffect(() => {
     let cancelled = false;
+    const entry = takeWebEntry();
+    if (entry.invite) setInviteCode(entry.invite);
     AsyncStorage.multiGet([LAST_PHONE_KEY, UID_MAP_KEY])
       .then(([last, uids]) => {
         if (cancelled) return;
@@ -58,7 +83,8 @@ export default function LoginScreen() {
           known = false;
         }
         if (lastPhone) setPhone(lastPhone);
-        setMode(lastPhone || known ? 'login' : 'register');
+        // A link from the welcome website decides the form; otherwise a new install registers and a known phone logs in.
+        setMode(entry.mode ?? (entry.invite ? 'register' : lastPhone || known ? 'login' : 'register'));
       })
       .catch(() => {})
       .finally(() => !cancelled && setReady(true));
