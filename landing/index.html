@@ -72,7 +72,7 @@ svg.i{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;st
 .top .login:hover{color:var(--gold-light)}
 
 /* hero */
-.hero{position:relative;padding:36px 0 30px;background:
+.hero{position:relative;padding:14px 0 30px;background:
   radial-gradient(70% 55% at 80% 8%,rgba(224,33,58,.38),transparent 70%),
   radial-gradient(60% 50% at 8% 40%,rgba(138,26,44,.45),transparent 72%),
   radial-gradient(50% 40% at 50% 100%,rgba(240,185,61,.10),transparent 70%)}
@@ -91,7 +91,7 @@ h1 em{font-style:normal;background:linear-gradient(180deg,#fff6cf,var(--gold) 70
 .checks svg{color:var(--gold);width:1.2em;height:1.2em}
 
 /* phone mock */
-.stage{position:relative;display:flex;justify-content:center;padding:26px 0 10px}
+.stage{position:relative;display:flex;justify-content:center;padding:18px 0 4px;order:-1}
 .device{position:relative;width:290px}
 .glow{position:absolute;inset:8% 6% 4%;background:radial-gradient(closest-side,rgba(224,33,58,.55),transparent 72%);filter:blur(30px);z-index:0}
 .phone{position:relative;z-index:1;width:100%;border-radius:44px;padding:10px;background:linear-gradient(160deg,#6b5a3a,#2b2118 40%,#8b6d2f 100%);box-shadow:0 40px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,222,140,.25),inset 0 0 0 1px rgba(255,255,255,.08)}
@@ -110,12 +110,11 @@ h1 em{font-style:normal;background:linear-gradient(180deg,#fff6cf,var(--gold) 70
 .dock{display:flex;justify-content:space-around;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,222,140,.15)}
 .dock span{display:block;width:30px;height:5px;border-radius:3px;background:rgba(255,222,140,.28)}
 .dock span:first-child{background:var(--gold)}
-.float{position:absolute;z-index:2;filter:drop-shadow(0 14px 22px rgba(0,0,0,.55));animation:floaty 6s ease-in-out infinite}
+.float{position:absolute;z-index:2;filter:drop-shadow(0 14px 22px rgba(0,0,0,.55));transform:rotate(var(--r))}
 .float img{width:100%;border-radius:20px}
 .f1{width:96px;left:-56px;top:62px;--r:-9deg}
-.f2{width:88px;right:-52px;top:250px;--r:8deg;animation-delay:-2s}
-.f3{width:92px;left:-48px;bottom:58px;--r:6deg;animation-delay:-4s}
-@keyframes floaty{0%,100%{transform:translateY(0) rotate(var(--r))}50%{transform:translateY(-12px) rotate(var(--r))}}
+.f2{width:88px;right:-52px;top:250px;--r:8deg}
+.f3{width:92px;left:-48px;bottom:58px;--r:6deg}
 
 /* sections */
 section{padding:64px 0}
@@ -195,7 +194,7 @@ footer{border-top:1px solid var(--line);padding:34px 0 120px;background:var(--bg
 .js .reveal.in{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
-  .float,.marquee .track{animation:none}
+  .marquee .track{animation:none}
   .js .reveal{opacity:1;transform:none;transition:none}
 }
 
@@ -209,6 +208,7 @@ footer{border-top:1px solid var(--line);padding:34px 0 120px;background:var(--bg
   .nav{display:flex}
   .hero{padding:70px 0 56px}
   .hero .wrap{grid-template-columns:1.1fr .9fr;gap:40px}
+  .stage{order:0;padding:26px 0 10px}
   .device{width:310px}
   .f1{width:118px;left:-86px;top:70px}.f2{width:104px;right:-74px;top:286px}.f3{width:110px;left:-74px;bottom:78px}
   .games-grid{grid-template-columns:repeat(6,1fr);gap:20px}
@@ -226,7 +226,7 @@ footer{border-top:1px solid var(--line);padding:34px 0 120px;background:var(--bg
 @media (max-width:420px){
   .cta .btn{width:100%}
   .device{width:262px}
-  .f1{width:78px;left:-22px;top:-14px}.f2{width:72px;right:-20px;top:196px}.f3{width:76px;left:-18px;bottom:46px}
+  .f1{width:78px;left:-22px;top:-26px}.f2{width:72px;right:-20px;top:196px}.f3{width:76px;left:-18px;bottom:46px}
   .top .login{display:none}
 }
 </style>
@@ -455,12 +455,12 @@ footer{border-top:1px solid var(--line);padding:34px 0 120px;background:var(--bg
     items.forEach(function (el) { io.observe(el); });
   } else { items.forEach(function (el) { el.classList.add("in"); }); }
 
-  // sticky Register bar on phones once the hero button has scrolled away
+  // sticky Register bar on phones whenever the hero's own Register button is off screen
   var sticky = d.getElementById("sticky"), cta = d.getElementById("heroCta"), band = d.querySelector(".band");
   if ("IntersectionObserver" in window && cta) {
-    var heroGone = false, bandShown = false;
-    var update = function () { sticky.classList.toggle("show", heroGone && !bandShown); };
-    new IntersectionObserver(function (es) { heroGone = !es[0].isIntersecting && es[0].boundingClientRect.top < 0; update(); }).observe(cta);
+    var heroSeen = false, bandShown = false;
+    var update = function () { sticky.classList.toggle("show", !heroSeen && !bandShown); };
+    new IntersectionObserver(function (es) { heroSeen = es[0].intersectionRatio >= 0.6; update(); }, { threshold: [0, 0.6] }).observe(cta);
     if (band) new IntersectionObserver(function (es) { bandShown = es[0].isIntersecting; update(); }).observe(band);
   }
 })();
