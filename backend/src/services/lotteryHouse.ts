@@ -34,6 +34,12 @@ export const LOTTERY_WIN_FEE = Number(process.env.LOTTERY_WIN_FEE ?? 0.02);
 export function withWinFee(multiplier: number): number {
   return Math.floor(multiplier * (1 - LOTTERY_WIN_FEE) * 100 + 1e-9) / 100;
 }
+/**
+ * Win Go and Trx Win Go take a tax from every bet when it is placed (owner's
+ * request, 2026-11-16, as in the reference game): the odds then apply to the
+ * rest, so a 2X win on a ₹100 bet pays ₹196. LOTTERY_BET_TAX changes it.
+ */
+export const BET_TAX = Number(process.env.LOTTERY_BET_TAX ?? 0.02);
 /** Trx Win Go's share of it: House when the hash's second-last decimal digit is below this (0 = never). */
 export const HOUSE_DIGITS = Math.round(HOUSE_CHANCE * 10);
 /** Return of every lottery bet: fair odds less the win fee on the results that are not House. */

@@ -3,9 +3,9 @@ import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { assertCanTransact } from "./responsibleGamblingService";
-import { PAYOUTS, colorsOf, headlineFor, isValidKey, payoutMultiplier, periodNumberFor, resultForBets, sizeOf } from "./winGoService";
+import { PAYOUTS, colorsOf, headlineFor, isValidKey, payoutMultiplier, periodNumberFor, resultForBets, returnPerUnit, sizeOf } from "./winGoService";
 import { firstBlockAtOrAfter, lastDigitOf } from "./tronBlocks";
-import { HOUSE_CHANCE, HOUSE_DIGITS, LOTTERY_RTP, houseFromBlockHash } from "./lotteryHouse";
+import { BET_TAX, HOUSE_CHANCE, HOUSE_DIGITS, LOTTERY_RTP, houseFromBlockHash } from "./lotteryHouse";
 import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast } from "./leastPayout";
 
 /**
@@ -149,10 +149,11 @@ async function settleRound(roundId: string) {
       }
       const rate = round.house ? 0 : payoutMultiplier(bet.area, round.result!);
       const won = rate > 0;
-      const payout = won ? Math.min(floor2(Number(bet.amount) * rate), env.games.maxPayout) : 0;
+      const paid = returnPerUnit(rate);
+      const payout = won ? Math.min(floor2(Number(bet.amount) * paid), env.games.maxPayout) : 0;
       const claimed = await tx.trxBet.updateMany({
         where: { id: bet.id, status: "PENDING" },
-        data: { status: won ? "WON" : "LOST", payout, paidMultiplier: rate },
+        data: { status: won ? "WON" : "LOST", payout, paidMultiplier: paid },
       });
       if (claimed.count === 0) return;
       const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId: bet.userId } });
@@ -213,6 +214,8 @@ export function getTrxConfig() {
     rtpPercent: round2(LOTTERY_RTP * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
     soloHouseChancePercent: round2(env.games.winGoSoloHouseChance * 100),
+    /** Tax taken from every bet when it is placed; the odds apply to the rest. */
+    taxPercent: round2(BET_TAX * 100),
     payouts: PAYOUTS,
     resultRule: env.games.lotteryLeastPayout ? ("LEAST_STAKED" as const) : ("BLOCK" as const),
     voidAfterMinutes: VOID_AFTER_MS / 60000,
@@ -253,7 +256,7 @@ export async function placeTrxBets(userId: string, durationSeconds: number, bets
     for (const b of bets) {
       const t = perKey.get(b.area)!;
       if (t > env.games.maxStake) throw new ApiError(400, `Max bet per selection is ${env.games.maxStake}.`);
-      if (t * headlineFor(b.area) > env.games.maxPayout) throw new ApiError(400, `Max win per selection is ${env.games.maxPayout}.`);
+      if (t * returnPerUnit(headlineFor(b.area)) > env.games.maxPayout) throw new ApiError(400, `Max win per selection is ${env.games.maxPayout}.`);
     }
     // Conditional debit: simultaneous requests can never overdraw the wallet.
     const debited = await tx.wallet.updateMany({ where: { userId, balance: { gte: total } }, data: { balance: { decrement: total } } });

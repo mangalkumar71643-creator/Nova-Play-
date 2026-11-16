@@ -65,7 +65,7 @@ const ROWS_PER_PAGE = 10;
 const TOAST_MS = 1800;
 const WIN_MS = 3500;
 // Fair odds on the 4 periods in 5 that are not House (80% return).
-const FALLBACK = { number: 9.8, size: 2, violet: 4.9, color: 2, colorMixed: 1.5 };
+const FALLBACK = { number: 9, size: 2, violet: 4.5, color: 2, colorMixed: 1.5 };
 const FALLBACK_HOUSE_PERCENT = 0;
 const FALLBACK_RTP_PERCENT = 80;
 
@@ -460,13 +460,15 @@ export default function TrxWinScreen() {
   const P = config?.payouts ?? FALLBACK;
   const housePercent = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
   const soloPercent = config?.soloHouseChancePercent ?? 40;
-  const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP_PERCENT;
+  const taxPercent = config?.taxPercent ?? 2;
   const leastStaked = config?.resultRule === 'LEAST_STAKED';
   const minStake = config?.minStake ?? 1;
   const maxStake = config?.maxStake ?? 100000;
   const maxPayout = config?.maxPayout ?? NO_LIMIT;
   const lockSeconds = config?.lockSeconds ?? 5;
   const rateOf = (key: string) => (key.startsWith('NUM:') ? P.number : key === 'BIG' || key === 'SMALL' ? P.size : key === 'VIOLET' ? P.violet : P.color);
+  // What a win returns per ₹1 bet once the tax is taken from the bet.
+  const netRateOf = (key: string) => rateOf(key) * (1 - taxPercent / 100);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -654,7 +656,7 @@ export default function TrxWinScreen() {
     if (locked) return showToast('Betting is closed for this period');
     if (perBet < minStake) return showToast(`Minimum ₹${minStake}`);
     if (perBet > maxStake) return showToast(`Max ₹${maxStake} per bet`);
-    if (perBet * rateOf(selection) > maxPayout) return showToast(`Max ₹${Math.floor(maxPayout / rateOf(selection))} here (max win ${winLimit(maxPayout)})`);
+    if (perBet * netRateOf(selection) > maxPayout) return showToast(`Max ₹${Math.floor(maxPayout / netRateOf(selection))} here (max win ${winLimit(maxPayout)})`);
     if (perBet > coins) return showToast('Insufficient balance');
     setPlacing(true);
     try {
@@ -1091,6 +1093,11 @@ export default function TrxWinScreen() {
               </Pressable>
             ))}
           </View>
+          {taxPercent > 0 && (
+            <Text style={[styles.rulesText, { color: MUTED, marginTop: 6 }]}>
+              Tax {taxPercent}%: ₹{round2((perBet * taxPercent) / 100).toFixed(2)} is deducted from this bet; the odds apply to ₹{round2(perBet - (perBet * taxPercent) / 100).toFixed(2)}.
+            </Text>
+          )}
           <Pressable onPress={() => setAgree(!agree)} style={styles.agreeRow}>
             <MaterialCommunityIcons name={agree ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'} size={18} color={agree ? selColor : MUTED} />
             <Text style={styles.agreeText}>I agree</Text>
@@ -1222,6 +1229,7 @@ export default function TrxWinScreen() {
                     `Violet: 0 or 5 pays ${P.violet}X.`,
                     `Number: the exact number pays ${P.number}X.`,
                     `Big (5–9) / Small (0–4): ${P.size}X.`,
+                    ...(taxPercent > 0 ? [`Tax: ${taxPercent}% of every bet is deducted as tax when you place it, and the odds apply to the rest — a ₹100 bet counts as ₹${round2(100 - taxPercent)}, so a ${P.size}X win pays ₹${round2((100 - taxPercent) * P.size)}.`] : []),
                     `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ${winLimit(maxPayout)}.`,
                     `If the TRON network can't be read for ${config?.voidAfterMinutes ?? 60} minutes after a draw, that period is cancelled and every bet on it refunded.`,
                   ]
@@ -1235,7 +1243,8 @@ export default function TrxWinScreen() {
                     `Violet: 0 or 5 pays ${P.violet}X.`,
                     `Number: the exact number pays ${P.number}X.`,
                     `Big (5–9) / Small (0–4): ${P.size}X.`,
-                    `Win chances, House included: a number wins ${pctText(0.1 * (1 - housePercent / 100))} of periods, Big or Small ${pctText(0.5 * (1 - housePercent / 100))}, Green or Red ${pctText(0.5 * (1 - housePercent / 100))}, Violet ${pctText(0.2 * (1 - housePercent / 100))}. Every bet returns ${rtpPercent}% of stakes on average.`,
+                    ...(taxPercent > 0 ? [`Tax: ${taxPercent}% of every bet is deducted as tax when you place it, and the odds apply to the rest — a ₹100 bet counts as ₹${round2(100 - taxPercent)}, so a ${P.size}X win pays ₹${round2((100 - taxPercent) * P.size)}.`] : []),
+                    `Win chances, House included: a number wins ${pctText(0.1 * (1 - housePercent / 100))} of periods, Big or Small ${pctText(0.5 * (1 - housePercent / 100))}, Green or Red ${pctText(0.5 * (1 - housePercent / 100))}, Violet ${pctText(0.2 * (1 - housePercent / 100))}.`,
                     `Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ${winLimit(maxPayout)}.`,
                     `If the TRON network can't be read for ${config?.voidAfterMinutes ?? 60} minutes after a draw, that period is cancelled and every bet on it refunded.`,
                   ]

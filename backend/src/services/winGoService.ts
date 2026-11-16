@@ -4,14 +4,16 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
-import { HOUSE_CHANCE, LOTTERY_RTP, isHouseRound, withWinFee } from "./lotteryHouse";
+import { BET_TAX, HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
 import { assertAppAtLeast } from "./leastPayout";
 
 /**
  * Win Go: one number 0-9 per round on fixed wall-clock tracks (one chain of
- * rounds per duration). Bets on the number, its colour and its size. One
- * round in five is a ⭐ House result (lotteryHouse.ts) on which every bet
- * loses; the rest pay fair odds on the number.
+ * rounds per duration). Bets on the number, its colour and its size. The
+ * number follows the least-money rule (leastStakedNumber, resultForBets) when
+ * env.games.winGoLeastStaked is on, else the round's seed; a ⭐ House round
+ * (lotteryHouse.ts, off by default) loses every bet. A 2% tax comes off each
+ * bet when it is placed and the odds apply to the rest (PAYOUTS, BET_TAX).
  */
 export const WINGO_DURATIONS = [30, 60, 180, 300, 600] as const;
 export type WinGoDuration = (typeof WINGO_DURATIONS)[number];
@@ -28,20 +30,25 @@ function floor2(n: number): number {
 }
 
 /**
- * What a bet returns per unit when it wins (shown in the apps as is):
+ * What a bet returns per unit when it wins, as the apps show it (owner's
+ * request, 2026-11-16: the reference game's table, with the tax taken from the
+ * bet instead of from the odds -- see BET_TAX, returnPerUnit):
+ *  - a number: 9x
+ *  - Violet (0 and 5): 4.5x
  *  - Big (5-9) / Small (0-4): 2x
  *  - Green (1,3,7,9) / Red (2,4,6,8): 2x; on the shared violet number (5 for
  *    Green, 0 for Red) 1.5x
- *  - a number: the fair 10x less the lottery win fee (lotteryHouse.ts), 9.8x
- *  - Violet (0 and 5): the fair 5x less the fee, 4.9x
- * (Owner's request, 2026-11-16: Big / Small and Green / Red read 2X as in the
- * reference game, so they no longer carry the 2% win fee — they paid 1.96x,
- * 2.05x and 1.56x before.)
  */
-export const PAYOUTS = (() => {
-  const fair = (winsInTen: number) => floor2(10 / winsInTen);
-  return { number: withWinFee(fair(1)), size: 2, violet: withWinFee(fair(2)), color: 2, colorMixed: 1.5 };
-})();
+export const PAYOUTS = { number: 9, size: 2, violet: 4.5, color: 2, colorMixed: 1.5 };
+
+/**
+ * What a rate returns per unit of the bet as placed: the tax is taken from the
+ * bet first and the rate applies to the rest, so 2X on a bet taxed 2% returns
+ * 1.96 per unit (a ₹100 bet counts ₹98 and pays ₹196), 9X returns 8.82.
+ */
+export function returnPerUnit(rate: number): number {
+  return Math.round(rate * (1 - BET_TAX) * 100) / 100;
+}
 
 export function colorsOf(n: number): ("GREEN" | "RED" | "VIOLET")[] {
   if (n === 0) return ["RED", "VIOLET"];
@@ -211,11 +218,12 @@ async function settleRound(round: RoundRow) {
   for (const bet of pending) {
     const rate = round.house ? 0 : payoutMultiplier(bet.area, result);
     const won = rate > 0;
-    const payout = won ? Math.min(floor2(Number(bet.amount) * rate), env.games.maxPayout) : 0;
+    const paid = returnPerUnit(rate);
+    const payout = won ? Math.min(floor2(Number(bet.amount) * paid), env.games.maxPayout) : 0;
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.winGoBet.updateMany({
         where: { id: bet.id, status: "PENDING" },
-        data: { status: won ? "WON" : "LOST", payout, paidMultiplier: rate },
+        data: { status: won ? "WON" : "LOST", payout, paidMultiplier: paid },
       });
       if (claimed.count === 0) return;
       const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId: bet.userId } });
@@ -275,6 +283,8 @@ export function getWinGoConfig() {
     rtpPercent: round2(LOTTERY_RTP * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
     soloHouseChancePercent: round2(env.games.winGoSoloHouseChance * 100),
+    /** Tax taken from every bet when it is placed; the odds apply to the rest. */
+    taxPercent: round2(BET_TAX * 100),
     payouts: PAYOUTS,
     resultRule: env.games.winGoLeastStaked ? ("LEAST_STAKED" as const) : ("SEED" as const),
   };
@@ -314,7 +324,7 @@ export async function placeWinGoBets(userId: string, durationSeconds: number, be
     for (const b of bets) {
       const t = perKey.get(b.area)!;
       if (t > env.games.maxStake) throw new ApiError(400, `Max bet per selection is ${env.games.maxStake}.`);
-      if (t * headlineFor(b.area) > env.games.maxPayout) throw new ApiError(400, `Max win per selection is ${env.games.maxPayout}.`);
+      if (t * returnPerUnit(headlineFor(b.area)) > env.games.maxPayout) throw new ApiError(400, `Max win per selection is ${env.games.maxPayout}.`);
     }
     // Conditional debit: simultaneous requests can never overdraw the wallet.
     const debited = await tx.wallet.updateMany({ where: { userId, balance: { gte: total } }, data: { balance: { decrement: total } } });
