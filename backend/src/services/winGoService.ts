@@ -94,7 +94,7 @@ export function numberFor(serverSeed: string, periodNumber: string): number {
  * is the one whose winning choices have the least money on them in all.
  * Ties go to a draw from the round's seed, so every settler of the round
  * gets the same number from the same bets. Trx Win Go passes its block
- * hash as the seed.
+ * hash as the seed. (resultForBets adds the one-player case.)
  */
 export function leastStakedNumber(bets: { area: string; amount: unknown }[], serverSeed: string, periodNumber: string): number {
   // In paise, so equal totals compare equal.
@@ -104,6 +104,32 @@ export function leastStakedNumber(bets: { area: string; amount: unknown }[], ser
   const least = Math.min(...totals);
   const tied = totals.flatMap((t, n) => (t === least ? [n] : []));
   return tied[Math.floor(fairGameFloat(serverSeed, periodNumber, "wingo-least", 0) * tied.length)];
+}
+
+/**
+ * The number for a period once betting has closed (owner's request,
+ * 2026-11-16). With two or more players it is the least-money rule above.
+ * With exactly one player there is nobody to weigh the bets against (the rule
+ * would hand a lone player a certain loss, or a certain win), so the number is
+ * the period's ordinary random draw (`natural`) -- except that a share of such
+ * periods (env.games.winGoSoloHouseChance) is taken by the House: the number
+ * is then the one that pays that player the least, ties drawn from the seed.
+ * Both draws come from the period's own seed (Trx Win Go: the block hash), so
+ * they can be re-checked once it is out.
+ */
+export function resultForBets(
+  bets: { userId: string; area: string; amount: unknown }[],
+  natural: number,
+  serverSeed: string,
+  periodNumber: string
+): number {
+  if (new Set(bets.map((b) => b.userId)).size !== 1) return leastStakedNumber(bets, serverSeed, periodNumber);
+  if (fairGameFloat(serverSeed, periodNumber, "wingo-solo", 0) >= env.games.winGoSoloHouseChance) return natural;
+  // What the player would be paid on each number, in paise so equal totals compare equal.
+  const paid = Array.from({ length: 10 }, (_, n) => bets.reduce((sum, b) => sum + Math.round(Number(b.amount) * payoutMultiplier(b.area, n) * 100), 0));
+  const least = Math.min(...paid);
+  const tied = paid.flatMap((p, n) => (p === least ? [n] : []));
+  return tied[Math.floor(fairGameFloat(serverSeed, periodNumber, "wingo-solo", 1) * tied.length)];
 }
 
 /** First app version whose How to play states the least-staked rule. */
@@ -179,8 +205,8 @@ async function settleRound(round: RoundRow) {
   if (env.games.winGoLeastStaked) {
     // From every bet on the round (betting has closed), not just the
     // pending ones, so a second settler arrives at the same number.
-    const all = await prisma.winGoBet.findMany({ where: { roundId: round.id }, select: { area: true, amount: true } });
-    result = leastStakedNumber(all, round.serverSeed, round.periodNumber);
+    const all = await prisma.winGoBet.findMany({ where: { roundId: round.id }, select: { userId: true, area: true, amount: true } });
+    result = resultForBets(all, numberFor(round.serverSeed, round.periodNumber), round.serverSeed, round.periodNumber);
     await prisma.winGoRound.updateMany({ where: { id: round.id, settled: false }, data: { result } });
   }
   for (const bet of pending) {
@@ -249,6 +275,7 @@ export function getWinGoConfig() {
     lockSeconds: LOCK_SECONDS,
     rtpPercent: round2(LOTTERY_RTP * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
+    soloHouseChancePercent: round2(env.games.winGoSoloHouseChance * 100),
     payouts: PAYOUTS,
     resultRule: env.games.winGoLeastStaked ? ("LEAST_STAKED" as const) : ("SEED" as const),
   };

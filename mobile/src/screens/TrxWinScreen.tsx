@@ -459,6 +459,7 @@ export default function TrxWinScreen() {
 
   const P = config?.payouts ?? FALLBACK;
   const housePercent = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
+  const soloPercent = config?.soloHouseChancePercent ?? 40;
   const rtpPercent = config?.rtpPercent ?? FALLBACK_RTP_PERCENT;
   const leastStaked = config?.resultRule === 'LEAST_STAKED';
   const minStake = config?.minStake ?? 1;
@@ -1180,7 +1181,7 @@ export default function TrxWinScreen() {
                     : `The digit before the result digit (${detail.number}) is 0, so this period is a ⭐ House result.`}
                 </Text>
               )}
-              {leastStaked && <Text style={styles.detailNote}>The number is the one with the least money on the choices it makes win (least-money rule), not the hash digit.</Text>}
+              {leastStaked && <Text style={styles.detailNote}>The number is the one with the least money on the choices it makes win (least-money rule), not the hash digit — unless only one player bet: then it is the hash digit or, on a period the House takes, the number that pays that player the least.</Text>}
               <Pressable onPress={() => openBlock(detail)} style={[styles.verifyBtn, { alignSelf: 'stretch', justifyContent: 'center', marginTop: 4 }]}>
                 <MaterialCommunityIcons name="shield-check" size={15} color={LEDGER_2} />
                 <Text style={styles.verifyText}>Verify on TronScan</Text>
@@ -1203,7 +1204,8 @@ export default function TrxWinScreen() {
                 ? [
                     `Each period (${DURATION_LABEL[duration]}) ends at a set time. Betting closes ${lockSeconds} seconds before it.`,
                     'Result rule — least money wins (same as Win Go): when betting closes, the number, colour (Green, Red, Violet) and Big / Small with the least money bet on them by all players win. For each number 0–9, the money on every choice it would make a winner is added up, and the number with the smallest total is the result.',
-                    'This means the result goes against where most players’ money is: the more money is on a choice, the less likely it is to win. The number is not the digit in the block hash.',
+                    'This means the result goes against where most players’ money is: the more money is on a choice, the less likely it is to win. The number is not the digit in the block hash, except in a period with only one player (next point).',
+                    `When only one player has bet on a period there is nobody to compare with, so the number is the last digit of the block hash, as in a plain draw — but the House takes ${soloPercent}% of such periods (decided by the block): the number is then the one that pays that player the least. A player on their own therefore loses most of the time.`,
                     'The TRON block (the first one at or after the period’s end) still decides ties — which number wins when two have the same money on them — and House. You can check the block on TronScan.',
                     `⭐ House: one period in five (${housePercent}%) is a House result — when the second-last decimal digit in the block hash is 0 or 1. Every bet on a House period loses, whatever the number.`,
                     `Green: 1, 3, 7, 9 pay ${P.color}X; 5 pays ${P.colorMixed}X.`,

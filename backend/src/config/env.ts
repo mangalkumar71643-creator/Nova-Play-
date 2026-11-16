@@ -61,6 +61,12 @@ export const env = {
     // which the app's How to play shows from 1.0.24 — only turn it on once
     // that app version is out.
     winGoLeastStaked: process.env.WINGO_LEAST_STAKED === "true",
+    // Win Go and Trx Win Go, a period with exactly one player (owner's request,
+    // 2026-11-16): the least-money rule has nobody to weigh the bets against,
+    // so the number is a normal random draw, except that this share of such
+    // periods is taken by the House (the number that pays that player the
+    // least). 0.4 = a Big/Small bet loses about 7 times in 10.
+    winGoSoloHouseChance: Number(process.env.WINGO_SOLO_HOUSE_CHANCE ?? 0.4),
     // Same for K3, 5D and Jhandi Munda (least total payout wins) and Trx
     // Win Go (Win Go's least-staked rule): leastPayout.ts. Shown in the
     // app from 1.0.25; older apps are asked to update before they can bet.

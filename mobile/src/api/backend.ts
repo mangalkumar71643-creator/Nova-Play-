@@ -2081,6 +2081,8 @@ export interface WinGoConfig {
   rtpPercent: number;
   /** Share of rounds that are a ⭐ House result (every bet loses). */
   houseChancePercent?: number;
+  /** Share of one-player periods the House takes (the number that pays that player the least). */
+  soloHouseChancePercent?: number;
   payouts: { number: number; size: number; violet: number; color: number; colorMixed: number };
   /** How the number is chosen: SEED = drawn from the round's seed; LEAST_STAKED = least money staked wins. */
   resultRule?: 'SEED' | 'LEAST_STAKED';
@@ -2240,6 +2242,8 @@ export interface TrxConfig {
   rtpPercent: number;
   /** Share of rounds that are a ⭐ House result (every bet loses). */
   houseChancePercent?: number;
+  /** Share of one-player periods the House takes (the number that pays that player the least). */
+  soloHouseChancePercent?: number;
   payouts: { number: number; size: number; violet: number; color: number; colorMixed: number };
   /** A round whose block can't be read for this long is refunded. */
   voidAfterMinutes: number;

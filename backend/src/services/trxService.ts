@@ -3,7 +3,7 @@ import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { assertCanTransact } from "./responsibleGamblingService";
-import { PAYOUTS, colorsOf, headlineFor, isValidKey, leastStakedNumber, payoutMultiplier, periodNumberFor, sizeOf } from "./winGoService";
+import { PAYOUTS, colorsOf, headlineFor, isValidKey, payoutMultiplier, periodNumberFor, resultForBets, sizeOf } from "./winGoService";
 import { firstBlockAtOrAfter, lastDigitOf } from "./tronBlocks";
 import { HOUSE_CHANCE, HOUSE_DIGITS, LOTTERY_RTP, houseFromBlockHash } from "./lotteryHouse";
 import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast } from "./leastPayout";
@@ -104,10 +104,11 @@ async function resolveRound(round: RoundRow, now: Date, budget: { lookups: numbe
   }
   let digit = block ? lastDigitOf(block.hash) : null;
   if (block && digit !== null && env.games.lotteryLeastPayout) {
-    // Win Go's least-staked rule (betting closed before the draw); the
-    // block still decides ties and House, so anyone can re-check them.
-    const all = await prisma.trxBet.findMany({ where: { roundId: round.id }, select: { area: true, amount: true } });
-    digit = leastStakedNumber(all, block.hash, round.periodNumber);
+    // Win Go's least-staked rule (betting closed before the draw), and its
+    // one-player case with the hash's own digit as the random number; the
+    // block still decides ties, House and the solo draw, so anyone can re-check them.
+    const all = await prisma.trxBet.findMany({ where: { roundId: round.id }, select: { userId: true, area: true, amount: true } });
+    digit = resultForBets(all, digit, block.hash, round.periodNumber);
   }
   if (block && digit !== null) {
     await prisma.trxRound.updateMany({
@@ -211,6 +212,7 @@ export function getTrxConfig() {
     lockSeconds: LOCK_SECONDS,
     rtpPercent: round2(LOTTERY_RTP * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
+    soloHouseChancePercent: round2(env.games.winGoSoloHouseChance * 100),
     payouts: PAYOUTS,
     resultRule: env.games.lotteryLeastPayout ? ("LEAST_STAKED" as const) : ("BLOCK" as const),
     voidAfterMinutes: VOID_AFTER_MS / 60000,
