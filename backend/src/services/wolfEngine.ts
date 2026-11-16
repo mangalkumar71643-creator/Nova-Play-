@@ -28,14 +28,14 @@ export type Cell = { s: Sym; v?: number; j?: "MINI" | "MAJOR" };
 
 /** Line pays for [3, 4, 5] of a kind, in total bets. */
 export const PAYTABLE: Record<Payer, [number, number, number]> = {
-  BUFFALO: [1.9, 7.6, 38],
-  EAGLE: [1.14, 3.8, 15.2],
-  COUGAR: [0.76, 3.04, 11.4],
-  HORSE: [0.76, 2.28, 7.6],
-  ACE: [0.38, 1.14, 3.8],
-  KING: [0.38, 1.14, 3.8],
-  QUEEN: [0.24, 0.76, 3.04],
-  JACK: [0.24, 0.76, 3.04],
+  BUFFALO: [2.056, 8.223, 41.116],
+  EAGLE: [1.233, 4.112, 16.446],
+  COUGAR: [0.822, 3.289, 12.335],
+  HORSE: [0.822, 2.467, 8.223],
+  ACE: [0.411, 1.233, 4.112],
+  KING: [0.411, 1.233, 4.112],
+  QUEEN: [0.26, 0.822, 3.289],
+  JACK: [0.26, 0.822, 3.289],
 };
 
 export const LINES: number[][] = [
@@ -101,11 +101,15 @@ export const MAJOR_CHANCE = 0.002;
 export const RESPIN_MOON_CHANCE = 0.074;
 
 /**
- * Measured over 720 million simulated spins: 84.72% ± 0.03% (line wins 52.6%;
- * free spins about 1 in 275 spins at 32x; Money Respin about 1 in 230 spins
- * at 47x; a spin wins something 35.7% of the time).
+ * Return to player of the tables above: 89.97%. The previous line pays
+ * measured 84.72% over 720 million simulated spins (± 0.03%); the line pays
+ * (free spins included) were then raised by 8.2% while the Money Respin cash
+ * and the jackpots stayed, and a same-reels simulation over 80 million spins
+ * measured what that adds (64.04 points per 100% of line pays, ± 0.03). Line
+ * wins 52.6% of spins; free spins about 1 in 275 spins; Money Respin about
+ * 1 in 230 spins at 47x; a spin wins something 35.7% of the time.
  */
-export const MEASURED_RTP = 0.8472;
+export const MEASURED_RTP = 0.8997;
 
 export type Rng = () => number;
 

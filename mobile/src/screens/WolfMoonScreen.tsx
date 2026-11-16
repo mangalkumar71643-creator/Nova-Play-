@@ -866,7 +866,7 @@ export default function WolfMoonScreen() {
         </View>
 
         <GameInfoButton>
-          RTP {config ? `${config.rtpPercent}%` : '84.72%'} · bet {money(minStake)}–{money(maxStake)} · max win {config?.maxWinX ?? 5000}x, {winLimit(config?.maxPayout)} per spin{'\n'}
+          RTP {config ? `${config.rtpPercent}%` : '89.97%'} · bet {money(minStake)}–{money(maxStake)} · max win {config?.maxWinX ?? 5000}x, {winLimit(config?.maxPayout)} per spin{'\n'}
           No autoplay or turbo · each paid spin takes at least 2.5 seconds · provably fair
         </GameInfoButton>
       </ScrollView>
