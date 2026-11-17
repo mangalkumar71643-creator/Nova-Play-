@@ -22,7 +22,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { useAuth } from '../state/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { NO_LIMIT } from '../utils/limits';
 
 // The three risk levels are played as coloured tile rows, top to bottom.
@@ -43,7 +43,6 @@ const AUTO_GAP_MS = 320;
 const BIG_WIN_MULTIPLIER = 10;
 const BIG_WIN_MS = 3000;
 const HISTORY_LEN = 30;
-const SOUND_KEY = 'novaplay:plinko:sound:v1';
 const LANG_KEY = 'novaplay:plinko:lang:v1';
 const TICK_MIN_GAP_MS = 35;
 
@@ -252,7 +251,7 @@ export default function PlinkoScreen() {
   const mountedRef = useRef(true);
   const soundRef = useRef(true);
   soundRef.current = soundOn;
-  const playersRef = useRef<{ tick: AudioPlayer; land: AudioPlayer; win: AudioPlayer } | null>(null);
+  const playersRef = useRef<GamePlayers | null>(null);
   const lastTickRef = useRef(0);
   const soundTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const t = TEXT[lang];
@@ -270,19 +269,14 @@ export default function PlinkoScreen() {
     fetchFairnessStatus()
       .then((f) => setSeedHash(f.serverSeedHash))
       .catch(() => {});
-    AsyncStorage.multiGet([SOUND_KEY, LANG_KEY])
-      .then(([[, snd], [, lng]]) => {
-        if (snd === 'off') setSoundOn(false);
+    loadSoundEnabled().then((on) => on || setSoundOn(false));
+    AsyncStorage.multiGet([LANG_KEY])
+      .then(([[, lng]]) => {
         if (lng === 'hi' || lng === 'en') setLang(lng);
       })
       .catch(() => {});
     try {
-      setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
-      playersRef.current = {
-        tick: createAudioPlayer(require('../../assets/sounds/plinko-tick.wav')),
-        land: createAudioPlayer(require('../../assets/sounds/plinko-land.wav')),
-        win: createAudioPlayer(require('../../assets/sounds/plinko-win.wav')),
-      };
+      playersRef.current = createGamePlayers('plinko');
     } catch {
       playersRef.current = null;
     }
@@ -317,7 +311,7 @@ export default function PlinkoScreen() {
     toastTimer.current = setTimeout(() => setToast(null), 1600);
   }, []);
 
-  const play = useCallback((name: 'tick' | 'land' | 'win') => {
+  const play = useCallback((name: GameCue) => {
     if (!soundRef.current) return;
     const player = playersRef.current?.[name];
     if (!player) return;
@@ -337,7 +331,7 @@ export default function PlinkoScreen() {
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    AsyncStorage.setItem(SOUND_KEY, next ? 'on' : 'off').catch(() => {});
+    setSoundEnabled(next);
   };
 
   const chooseLang = (l: Lang) => {
@@ -396,7 +390,7 @@ export default function PlinkoScreen() {
         );
       }
       if (ball.multiplier >= BIG_WIN_MULTIPLIER) setBigWin({ m: ball.multiplier, amount: ball.payout });
-      play(ball.multiplier > 1 ? 'win' : 'land');
+      play(ball.multiplier > 1 ? 'big' : 'land');
       inFlightRef.current -= 1;
       setInFlight(inFlightRef.current);
       if (inFlightRef.current === 0) refreshWallet();

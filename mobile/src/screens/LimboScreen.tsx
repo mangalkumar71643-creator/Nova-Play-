@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
@@ -23,7 +22,6 @@ const DEFAULT_BET = 10;
 const AUTO_OPTIONS = [10, 25, 50, 100];
 const TARGET_STEPS = [1.01, 1.1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10, 15, 20, 25, 50, 75, 100, 250, 500, 1000, 2500, 5000, 10000];
 const QUICK_TARGETS = [1.5, 2, 3, 5, 10, 100];
-const SOUND_KEY = 'novaplay:limbo:sound';
 const TOAST_MS = 1800;
 const RECENT_MAX = 12;
 
@@ -201,7 +199,7 @@ export default function LimboScreen() {
   balanceRef.current = shownBalance;
   const stateRef = useRef({ bet, target });
   stateRef.current = { bet, target };
-  const playersRef = useRef<{ tick: AudioPlayer; win: AudioPlayer; land: AudioPlayer } | null>(null);
+  const playersRef = useRef<GamePlayers | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const doPlayRef = useRef<() => void>(() => {});
@@ -231,7 +229,7 @@ export default function LimboScreen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  const play = useCallback((name: 'tick' | 'win' | 'land') => {
+  const play = useCallback((name: GameCue) => {
     if (!soundRef.current) return;
     const p = playersRef.current?.[name];
     if (!p) return;
@@ -251,16 +249,9 @@ export default function LimboScreen() {
     fetchLimboHistory(RECENT_MAX)
       .then((h) => mountedRef.current && setRecent(h.reverse().map((b) => ({ id: b.id, v: Number(b.result), won: b.won }))))
       .catch(() => {});
-    AsyncStorage.getItem(SOUND_KEY)
-      .then((v) => v === 'off' && setSoundOn(false))
-      .catch(() => {});
+    loadSoundEnabled().then((on) => on || setSoundOn(false));
     try {
-      setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
-      playersRef.current = {
-        tick: createAudioPlayer(require('../../assets/sounds/plinko-tick.wav')),
-        win: createAudioPlayer(require('../../assets/sounds/plinko-win.wav')),
-        land: createAudioPlayer(require('../../assets/sounds/plinko-land.wav')),
-      };
+      playersRef.current = createGamePlayers('limbo');
     } catch {
       playersRef.current = null;
     }
@@ -319,7 +310,7 @@ export default function LimboScreen() {
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    AsyncStorage.setItem(SOUND_KEY, next ? 'on' : 'off').catch(() => {});
+    setSoundEnabled(next);
   };
 
   const doPlay = useCallback(async () => {
@@ -371,7 +362,7 @@ export default function LimboScreen() {
     setLast({ result, won: b.won, target: t, payout });
     setRecent((r) => [...r, { id: b.id, v: result, won: b.won }].slice(-RECENT_MAX));
     if (b.won) {
-      play('win');
+      play('big');
       setShownBalance((v) => round2(v + payout));
       burst.setValue(0);
       Animated.timing(burst, { toValue: 1, duration: 800, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();

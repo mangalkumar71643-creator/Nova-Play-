@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -70,7 +70,6 @@ const STAKE_STEPS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000
 const DEFAULT_STAKE = 10;
 const GOLD = '#FFD66B';
 const DANGER = '#FF2D55';
-const SOUND_KEY = 'novaplay:vortex:sound:v1';
 const FAST_KEY = 'novaplay:vortex:fast:v1';
 const WIN_CARD_MS = 2600;
 const TOAST_MS = 2000;
@@ -424,7 +423,7 @@ export default function VortexScreen() {
   const mountedRef = useRef(true);
   const queued = useRef<Queued>(null);
   const reel = useRef<ReelHandle>(null);
-  const players = useRef<{ tick: AudioPlayer; land: AudioPlayer; win: AudioPlayer } | null>(null);
+  const players = useRef<GamePlayers | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const splashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -469,7 +468,7 @@ export default function VortexScreen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  const play = useCallback((name: 'tick' | 'land' | 'win') => {
+  const play = useCallback((name: GameCue) => {
     if (!soundRef.current) return;
     try {
       const player = players.current?.[name];
@@ -532,23 +531,14 @@ export default function VortexScreen() {
         });
       }, Math.max(0, SPLASH_MIN_MS - (Date.now() - openedAt)));
     });
-    AsyncStorage.multiGet([SOUND_KEY, FAST_KEY])
-      .then(([[, snd], [, fst]]) => {
+    loadSoundEnabled().then((on) => mountedRef.current && !on && setSoundOn(false));
+    AsyncStorage.multiGet([FAST_KEY])
+      .then(([[, fst]]) => {
         if (!mountedRef.current) return;
-        if (snd === 'off') setSoundOn(false);
         if (fst === 'on') setFast(true);
       })
       .catch(() => {});
-    try {
-      setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
-      players.current = {
-        tick: createAudioPlayer(require('../../assets/sounds/plinko-tick.wav')),
-        land: createAudioPlayer(require('../../assets/sounds/plinko-land.wav')),
-        win: createAudioPlayer(require('../../assets/sounds/plinko-win.wav')),
-      };
-    } catch {
-      players.current = null;
-    }
+    players.current = createGamePlayers('vortex');
     return () => {
       mountedRef.current = false;
       autoRef.current = false;
@@ -847,7 +837,7 @@ export default function VortexScreen() {
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    AsyncStorage.setItem(SOUND_KEY, next ? 'on' : 'off').catch(() => {});
+    setSoundEnabled(next);
   };
 
   const toggleFast = () => {

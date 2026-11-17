@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -19,7 +18,6 @@ const GOLD = '#FFD166';
 const BET_LEVELS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
 const DEFAULT_BET = 10;
 const AUTO_OPTIONS = [10, 25, 50, 100];
-const SOUND_KEY = 'novaplay:neon777:sound';
 const TOAST_MS = 1800;
 
 // Fallbacks so the reels can draw before the config arrives; the server's config (the same strips) replaces them.
@@ -444,7 +442,7 @@ export default function Neon777Screen() {
   balanceRef.current = shownBalance;
   const soundRef = useRef(soundOn);
   soundRef.current = soundOn;
-  const playersRef = useRef<{ tick: AudioPlayer; win: AudioPlayer; land: AudioPlayer } | null>(null);
+  const playersRef = useRef<GamePlayers | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
   const popAnim = useRef(new Animated.Value(0)).current;
@@ -503,7 +501,7 @@ export default function Neon777Screen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  const play = useCallback((name: 'tick' | 'win' | 'land') => {
+  const play = useCallback((name: GameCue) => {
     if (!soundRef.current) return;
     const p = playersRef.current?.[name];
     if (!p) return;
@@ -520,16 +518,9 @@ export default function Neon777Screen() {
     fetchNeon777Config()
       .then((c) => mountedRef.current && setConfig(c))
       .catch(() => {});
-    AsyncStorage.getItem(SOUND_KEY)
-      .then((v) => v === 'off' && setSoundOn(false))
-      .catch(() => {});
+    loadSoundEnabled().then((on) => on || setSoundOn(false));
     try {
-      setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
-      playersRef.current = {
-        tick: createAudioPlayer(require('../../assets/sounds/plinko-tick.wav')),
-        win: createAudioPlayer(require('../../assets/sounds/plinko-win.wav')),
-        land: createAudioPlayer(require('../../assets/sounds/plinko-land.wav')),
-      };
+      playersRef.current = createGamePlayers('neon777');
     } catch {
       playersRef.current = null;
     }
@@ -691,6 +682,7 @@ export default function Neon777Screen() {
     if (payout > 0 && payout / stake >= 20) {
       const ratio = payout / stake;
       setBigWin({ label: ratio >= 100 ? 'JACKPOT' : ratio >= 50 ? 'MEGA WIN' : 'BIG WIN', amount: payout });
+      play('big');
       bigAnim.setValue(0);
       Animated.spring(bigAnim, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }).start();
     }
@@ -733,7 +725,7 @@ export default function Neon777Screen() {
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    AsyncStorage.setItem(SOUND_KEY, next ? 'on' : 'off').catch(() => {});
+    setSoundEnabled(next);
   };
 
   const openPanel = (p: 'pay' | 'history') => {

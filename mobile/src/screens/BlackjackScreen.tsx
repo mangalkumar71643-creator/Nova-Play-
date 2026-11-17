@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -20,7 +19,6 @@ const LOSE = '#FF5A6E';
 const CHIPS = [1, 5, 10, 25, 100, 500];
 const CHIP_COLORS: Record<number, string> = { 1: '#E8E8EE', 5: '#D7263D', 10: '#1F6FEB', 25: '#1E9E4A', 100: '#1A1A1F', 500: '#7C3AED' };
 const DEFAULT_BET = 10;
-const SOUND_KEY = 'novaplay:blackjack:sound';
 const TOAST_MS = 1900;
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const SUITS = ['♠', '♥', '♣', '♦'];
@@ -298,7 +296,7 @@ export default function BlackjackScreen() {
   const balanceRef = useRef(shownBalance);
   balanceRef.current = shownBalance;
   const handsShownRef = useRef(1);
-  const playersRef = useRef<{ tick: AudioPlayer; win: AudioPlayer; land: AudioPlayer } | null>(null);
+  const playersRef = useRef<GamePlayers | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerAnim = useRef(new Animated.Value(0)).current;
   const activeGlow = useRef(new Animated.Value(0)).current;
@@ -373,7 +371,7 @@ export default function BlackjackScreen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  const play = useCallback((name: 'tick' | 'win' | 'land') => {
+  const play = useCallback((name: GameCue) => {
     if (!soundRef.current) return;
     const p = playersRef.current?.[name];
     if (!p) return;
@@ -438,16 +436,9 @@ export default function BlackjackScreen() {
     fetchBlackjackConfig()
       .then((c) => mountedRef.current && setConfig(c))
       .catch(() => {});
-    AsyncStorage.getItem(SOUND_KEY)
-      .then((v) => v === 'off' && setSoundOn(false))
-      .catch(() => {});
+    loadSoundEnabled().then((on) => on || setSoundOn(false));
     try {
-      setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
-      playersRef.current = {
-        tick: createAudioPlayer(require('../../assets/sounds/plinko-tick.wav')),
-        win: createAudioPlayer(require('../../assets/sounds/plinko-win.wav')),
-        land: createAudioPlayer(require('../../assets/sounds/plinko-land.wav')),
-      };
+      playersRef.current = createGamePlayers('blackjack');
     } catch {
       playersRef.current = null;
     }
@@ -552,7 +543,7 @@ export default function BlackjackScreen() {
       setShownBalance((b) => round2(b + payout));
       const bj = next.hands.some((h) => h.outcome === 'BLACKJACK');
       if (payout > staked) {
-        play('win');
+        play('big');
         showBanner({ title: bj ? 'BLACKJACK!' : 'YOU WIN', sub: `₹${payout.toFixed(2)}`, tone: bj ? 'bj' : 'win' });
       } else if (payout === staked && payout > 0) {
         showBanner({ title: 'PUSH', sub: `₹${payout.toFixed(2)} returned`, tone: 'push' });
@@ -683,7 +674,7 @@ export default function BlackjackScreen() {
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    AsyncStorage.setItem(SOUND_KEY, next ? 'on' : 'off').catch(() => {});
+    setSoundEnabled(next);
   };
 
   const openPanel = (p: 'history' | 'rules') => {

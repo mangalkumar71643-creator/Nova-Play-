@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -28,7 +27,6 @@ const FALLBACK_DIFFS: Record<TowerDifficulty, { tiles: number; eggs: number }> =
 };
 const BET_LEVELS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
 const DEFAULT_BET = 10;
-const SOUND_KEY = 'novaplay:tower:sound';
 const TOAST_MS = 1900;
 
 function round2(n: number): number {
@@ -233,7 +231,7 @@ export default function DragonTowerScreen() {
   soundRef.current = soundOn;
   const balanceRef = useRef(shownBalance);
   balanceRef.current = shownBalance;
-  const playersRef = useRef<{ tick: AudioPlayer; win: AudioPlayer; land: AudioPlayer } | null>(null);
+  const playersRef = useRef<GamePlayers | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flips = useRef(new Map<string, Animated.Value>()).current;
   const pulse = useRef(new Animated.Value(0)).current;
@@ -268,7 +266,7 @@ export default function DragonTowerScreen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  const play = useCallback((name: 'tick' | 'win' | 'land') => {
+  const play = useCallback((name: GameCue) => {
     if (!soundRef.current) return;
     const p = playersRef.current?.[name];
     if (!p) return;
@@ -293,16 +291,9 @@ export default function DragonTowerScreen() {
         setDifficulty(open.difficulty);
       })
       .catch(() => {});
-    AsyncStorage.getItem(SOUND_KEY)
-      .then((v) => v === 'off' && setSoundOn(false))
-      .catch(() => {});
+    loadSoundEnabled().then((on) => on || setSoundOn(false));
     try {
-      setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
-      playersRef.current = {
-        tick: createAudioPlayer(require('../../assets/sounds/plinko-tick.wav')),
-        win: createAudioPlayer(require('../../assets/sounds/plinko-win.wav')),
-        land: createAudioPlayer(require('../../assets/sounds/plinko-land.wav')),
-      };
+      playersRef.current = createGamePlayers('dragontower');
     } catch {
       playersRef.current = null;
     }
@@ -431,7 +422,7 @@ export default function DragonTowerScreen() {
       setRound(r);
       const payout = Number(r.payout);
       setShownBalance((b) => round2(b + payout));
-      play('win');
+      play('big');
       showBanner({ title: 'CASHED OUT', sub: `₹${payout.toFixed(2)}  ·  ${fmtMult(Number(r.multiplier))}`, tone: 'win' });
       refreshWallet().catch(() => {});
     } catch (err) {
@@ -461,7 +452,7 @@ export default function DragonTowerScreen() {
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    AsyncStorage.setItem(SOUND_KEY, next ? 'on' : 'off').catch(() => {});
+    setSoundEnabled(next);
   };
 
   const openPanel = (p: 'history' | 'rules') => {

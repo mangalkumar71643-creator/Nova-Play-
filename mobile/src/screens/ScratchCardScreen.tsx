@@ -7,6 +7,7 @@ import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, LinearGradient as SvgLin
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import { ScratchConfig, ScratchTicketRow, buyScratchTicket, fetchScratchConfig, fetchScratchHistory } from '../api/backend';
+import { GameCue, GamePlayers, createGamePlayers } from '../sound/engine';
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
@@ -411,6 +412,14 @@ export default function ScratchCardScreen() {
   const sparkId = useRef(0);
   const t0 = useRef(0);
   const finishing = useRef(false);
+  const sfxRef = useRef<GamePlayers | null>(null);
+  const sfx = (cue: GameCue) => {
+    try {
+      sfxRef.current?.[cue].play();
+    } catch {
+      // A missed sound effect is harmless.
+    }
+  };
   const revealingAll = useRef(false);
   const panelRef = useRef(panel);
   panelRef.current = panel;
@@ -447,6 +456,7 @@ export default function ScratchCardScreen() {
 
   useEffect(() => {
     mountedRef.current = true;
+    sfxRef.current = createGamePlayers('scratchcard');
     fetchScratchConfig()
       .then((c) => mountedRef.current && setConfig(c))
       .catch(() => mountedRef.current && setToast('Could not load the game — check your connection.'));
@@ -462,6 +472,8 @@ export default function ScratchCardScreen() {
     sweep.start();
     return () => {
       mountedRef.current = false;
+      sfxRef.current?.tick.remove();
+      sfxRef.current = null;
       clearInterval(clock);
       loop.stop();
       sweep.stop();
@@ -517,6 +529,7 @@ export default function ScratchCardScreen() {
       fetchScratchHistory(30)
         .then((rows) => mountedRef.current && setHistory(rows))
         .catch(() => {});
+    sfx(payout > stake ? 'big' : payout <= 0 ? 'lose' : 'tick');
     // Only a return above the stake is celebrated.
     if (payout > stake) {
       winPulse.setValue(0);
@@ -534,6 +547,7 @@ export default function ScratchCardScreen() {
   const reveal = (i: number) => {
     if (revealedRef.current[i]) return;
     revealedRef.current[i] = true;
+    sfx('tick');
     setRevealed([...revealedRef.current]);
     const { P: p } = geo.current;
     addSpark((i % 3) * (p + GAP) + p / 2, Math.floor(i / 3) * (p + GAP) + p / 2);
@@ -636,6 +650,7 @@ export default function ScratchCardScreen() {
       ticketRef.current = t;
       setTicket(t);
       setPhaseBoth('scratching');
+      sfx('land');
     } catch (err) {
       if (!mountedRef.current) return;
       showToast(errorMessage(err));

@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -19,7 +18,6 @@ const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const SUITS = ['♠', '♥', '♣', '♦'];
 const BET_LEVELS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
 const DEFAULT_BET = 10;
-const SOUND_KEY = 'novaplay:threecard:sound';
 const TOAST_MS = 1900;
 const HAND_NAME: Record<ThreeCardHandClass, string> = {
   STRAIGHT_FLUSH: 'Straight Flush',
@@ -319,7 +317,7 @@ export default function ThreeCardPokerScreen() {
   soundRef.current = soundOn;
   const balanceRef = useRef(shownBalance);
   balanceRef.current = shownBalance;
-  const playersRef = useRef<{ tick: AudioPlayer; win: AudioPlayer; land: AudioPlayer } | null>(null);
+  const playersRef = useRef<GamePlayers | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flips = useRef(Array.from({ length: SLOTS }, () => new Animated.Value(1))).current;
   const bannerAnim = useRef(new Animated.Value(0)).current;
@@ -340,7 +338,7 @@ export default function ThreeCardPokerScreen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  const play = useCallback((name: 'tick' | 'win' | 'land') => {
+  const play = useCallback((name: GameCue) => {
     if (!soundRef.current) return;
     const p = playersRef.current?.[name];
     if (!p) return;
@@ -382,16 +380,9 @@ export default function ThreeCardPokerScreen() {
         showHand(open);
       })
       .catch(() => {});
-    AsyncStorage.getItem(SOUND_KEY)
-      .then((v) => v === 'off' && setSoundOn(false))
-      .catch(() => {});
+    loadSoundEnabled().then((on) => on || setSoundOn(false));
     try {
-      setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
-      playersRef.current = {
-        tick: createAudioPlayer(require('../../assets/sounds/plinko-tick.wav')),
-        win: createAudioPlayer(require('../../assets/sounds/plinko-win.wav')),
-        land: createAudioPlayer(require('../../assets/sounds/plinko-land.wav')),
-      };
+      playersRef.current = createGamePlayers('threecardpoker');
     } catch {
       playersRef.current = null;
     }
@@ -519,10 +510,10 @@ export default function ThreeCardPokerScreen() {
       const theirs = h.dealer ? HAND_NAME[h.dealer.hand] : '';
       const extra = ppPaid > 0 ? `Pair Plus paid ₹${ppPaid.toFixed(2)}` : undefined;
       if (h.outcome === 'WIN') {
-        play('win');
+        play('big');
         showBanner({ title: 'YOU WIN', sub: `${mine} beats ${theirs} · ₹${payout.toFixed(2)}`, extra, tone: 'win' });
       } else if (h.outcome === 'DEALER_NOT_QUALIFIED') {
-        play('win');
+        play('big');
         showBanner({ title: "DEALER DOESN'T QUALIFY", sub: `Ante paid · ₹${payout.toFixed(2)}`, extra, tone: 'win' });
       } else if (h.outcome === 'TIE') {
         play('tick');
@@ -557,7 +548,7 @@ export default function ThreeCardPokerScreen() {
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    AsyncStorage.setItem(SOUND_KEY, next ? 'on' : 'off').catch(() => {});
+    setSoundEnabled(next);
   };
 
   const openPanel = (p: 'history' | 'rules') => {

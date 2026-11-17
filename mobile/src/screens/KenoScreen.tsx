@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -24,7 +23,6 @@ const RISK_LABEL: Record<KenoRisk, string> = { CLASSIC: 'Classic', LOW: 'Low', M
 const BET_LEVELS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
 const DEFAULT_BET = 10;
 const AUTO_OPTIONS = [10, 25, 50, 100];
-const SOUND_KEY = 'novaplay:keno:sound';
 const TOAST_MS = 1800;
 
 /** Same tables as the server, used until the config arrives. */
@@ -233,7 +231,7 @@ export default function KenoScreen() {
   balanceRef.current = shownBalance;
   const stateRef = useRef({ picks, risk, bet });
   stateRef.current = { picks, risk, bet };
-  const playersRef = useRef<{ tick: AudioPlayer; win: AudioPlayer; land: AudioPlayer } | null>(null);
+  const playersRef = useRef<GamePlayers | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const doBetRef = useRef<() => void>(() => {});
@@ -255,7 +253,7 @@ export default function KenoScreen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  const play = useCallback((name: 'tick' | 'win' | 'land') => {
+  const play = useCallback((name: GameCue) => {
     if (!soundRef.current) return;
     const p = playersRef.current?.[name];
     if (!p) return;
@@ -272,16 +270,9 @@ export default function KenoScreen() {
     fetchKenoConfig()
       .then((c) => mountedRef.current && setConfig(c))
       .catch(() => {});
-    AsyncStorage.getItem(SOUND_KEY)
-      .then((v) => v === 'off' && setSoundOn(false))
-      .catch(() => {});
+    loadSoundEnabled().then((on) => on || setSoundOn(false));
     try {
-      setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
-      playersRef.current = {
-        tick: createAudioPlayer(require('../../assets/sounds/plinko-tick.wav')),
-        win: createAudioPlayer(require('../../assets/sounds/plinko-win.wav')),
-        land: createAudioPlayer(require('../../assets/sounds/plinko-land.wav')),
-      };
+      playersRef.current = createGamePlayers('keno');
     } catch {
       playersRef.current = null;
     }
@@ -351,7 +342,7 @@ export default function KenoScreen() {
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    AsyncStorage.setItem(SOUND_KEY, next ? 'on' : 'off').catch(() => {});
+    setSoundEnabled(next);
   };
 
   const doBet = useCallback(async () => {
@@ -407,7 +398,7 @@ export default function KenoScreen() {
     setRound({ drawn: b.drawn, shown: b.drawn.length, hits: b.hits, multiplier: Number(b.multiplier), payout, done: true });
     if (payout > 0) {
       setShownBalance((v) => round2(v + payout));
-      if (payout > stake) play('win');
+      if (payout > stake) play('big');
       // The win card shows briefly, then fades so the board stays readable.
       Animated.sequence([
         Animated.spring(winAnim, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),

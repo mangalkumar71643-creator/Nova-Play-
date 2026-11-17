@@ -1,6 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, StyleProp, StyleSheet, Switch, Text, View, ViewStyle, useWindowDimensions } from 'react-native';
+
+import { setSoundEnabled, useSoundEnabled } from '../sound/engine';
 
 type Props = {
   /** The game's info line(s): RTP, bet range, max win and fairness notes. */
@@ -16,6 +18,7 @@ type Props = {
  */
 export default function GameInfoButton({ children, compact, style }: Props) {
   const [open, setOpen] = useState(false);
+  const soundOn = useSoundEnabled();
   const { width } = useWindowDimensions();
   return (
     <>
@@ -41,6 +44,11 @@ export default function GameInfoButton({ children, compact, style }: Props) {
               </Pressable>
             </View>
             <Text style={styles.body}>{children}</Text>
+            <View style={styles.soundRow}>
+              <MaterialCommunityIcons name={soundOn ? 'volume-high' : 'volume-off'} size={18} color="#FFD66B" />
+              <Text style={styles.soundLabel}>Game sounds</Text>
+              <Switch value={soundOn} onValueChange={setSoundEnabled} trackColor={{ false: '#4A3A55', true: '#B8860B' }} thumbColor={soundOn ? '#FFD66B' : '#CFC3D6'} accessibilityLabel="Game sounds" />
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -70,4 +78,6 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   title: { color: '#FFF4E4', fontSize: 15, fontWeight: '900', letterSpacing: 3 },
   body: { color: '#E8DCEC', fontSize: 13, lineHeight: 20 },
+  soundRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,214,107,0.25)' },
+  soundLabel: { flex: 1, color: '#FFF4E4', fontSize: 13, fontWeight: '700' },
 });

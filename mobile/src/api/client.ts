@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
+import { sfxError, sfxRequest, sfxResponse } from '../sound/apiHook';
+
 // Live NovaPlay backend on Vercel.
 export const API_BASE_URL = 'https://novaplay-server.vercel.app';
 
@@ -36,7 +38,24 @@ const RETRY_DELAYS_MS = [1000, 2500];
 const NOT_SENT = /UnknownHost|resolve host|ENOTFOUND|EAI_AGAIN|ConnectException|Failed to connect|ECONNREFUSED|No address associated/i;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Every request the app makes goes through here. The game sounds listen in (sound/apiHook.ts): a bet or a
+ * spin is heard when it is sent or answered, and nothing the sounds do can change what the request returns.
+ */
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const method = (options.method ?? 'GET').toUpperCase();
+  sfxRequest(method, path);
+  try {
+    const body = await request<T>(path, options);
+    sfxResponse(method, path, options.body, body);
+    return body;
+  } catch (err) {
+    sfxError(method, path);
+    throw err;
+  }
+}
+
+async function request<T>(path: string, options: RequestInit): Promise<T> {
   const token = await getBackendToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

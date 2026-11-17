@@ -1,4 +1,5 @@
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { setActiveRoute } from '../sound/engine';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import BottomTabs from './BottomTabs';
@@ -246,11 +247,23 @@ function MainNavigator() {
   );
 }
 
+/** The name of the screen in focus, however deeply it is nested (tabs inside the stack). */
+function focusedRouteName(state: unknown): string | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let s: any = state;
+  while (s && Array.isArray(s.routes) && s.routes.length > 0) {
+    const route = s.routes[s.index ?? s.routes.length - 1];
+    if (!route?.state) return route?.name;
+    s = route.state;
+  }
+  return undefined;
+}
+
 export default function RootNavigator() {
   const { loading, isAuthenticated } = useAuth();
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer theme={navigationTheme} onStateChange={(state) => setActiveRoute(focusedRouteName(state))}>
       {loading ? (
         <ScreenContainer scroll={false}>
           <LoadingState />

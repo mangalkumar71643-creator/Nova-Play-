@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -17,7 +16,6 @@ const LILAC = '#D8B4FE';
 const INK = '#F5EEFF';
 const BET_LEVELS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
 const DEFAULT_BET = 10;
-const SOUND_KEY = 'novaplay:diamonds:sound';
 const TOAST_MS = 1900;
 
 /** Ruby, sapphire, emerald, amethyst, topaz, aquamarine, rose: [light, main, dark]. */
@@ -210,7 +208,7 @@ export default function DiamondsScreen() {
   soundRef.current = soundOn;
   const balanceRef = useRef(shownBalance);
   balanceRef.current = shownBalance;
-  const playersRef = useRef<{ tick: AudioPlayer; win: AudioPlayer; land: AudioPlayer } | null>(null);
+  const playersRef = useRef<GamePlayers | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drops = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(1))).current;
   const glow = useRef(new Animated.Value(0)).current;
@@ -228,7 +226,7 @@ export default function DiamondsScreen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  const play = useCallback((name: 'tick' | 'win' | 'land') => {
+  const play = useCallback((name: GameCue) => {
     if (!soundRef.current) return;
     const p = playersRef.current?.[name];
     if (!p) return;
@@ -245,16 +243,9 @@ export default function DiamondsScreen() {
     fetchDiamondsConfig()
       .then((c) => mountedRef.current && setConfig(c))
       .catch(() => {});
-    AsyncStorage.getItem(SOUND_KEY)
-      .then((v) => v === 'off' && setSoundOn(false))
-      .catch(() => {});
+    loadSoundEnabled().then((on) => on || setSoundOn(false));
     try {
-      setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
-      playersRef.current = {
-        tick: createAudioPlayer(require('../../assets/sounds/plinko-tick.wav')),
-        win: createAudioPlayer(require('../../assets/sounds/plinko-win.wav')),
-        land: createAudioPlayer(require('../../assets/sounds/plinko-land.wav')),
-      };
+      playersRef.current = createGamePlayers('diamonds');
     } catch {
       playersRef.current = null;
     }
@@ -334,9 +325,9 @@ export default function DiamondsScreen() {
     const payout = Number(b.payout);
     if (payout > 0) setShownBalance((x) => round2(x + payout));
     if (BIG.includes(b.result)) {
-      play('win');
+      play('big');
       showBanner({ title: RESULT_NAME[b.result].toUpperCase(), sub: `₹${payout.toFixed(2)}  ·  ${fmtMult(Number(b.multiplier))}` });
-    } else if (payout > Number(b.stake)) play('win');
+    } else if (payout > Number(b.stake)) play('big');
     else if (payout === 0) play('land');
     refreshWallet().catch(() => {});
     busyRef.current = false;
@@ -358,7 +349,7 @@ export default function DiamondsScreen() {
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    AsyncStorage.setItem(SOUND_KEY, next ? 'on' : 'off').catch(() => {});
+    setSoundEnabled(next);
   };
 
   const openPanel = (p: 'history' | 'rules') => {
