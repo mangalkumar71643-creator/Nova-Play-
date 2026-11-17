@@ -57,7 +57,7 @@ def airship(r):
     return {
         "start": L.mix([(L.hp(L.noise(0.3, r), 3000) * L.env_swell(L.N(0.3), 0.3) * 0.35, 0, 1), (L.click(r, 0.03, 900, 4), 0.02, 0.8), (L.bell(float(hz(65)), 0.5, 0.3), 0.12, 0.6)]),
         "launch": L.mix([(L.hp(L.noise(1.0, r), 2200) * L.env_swell(L.N(1.0), 0.4) * 0.45, 0, 1), (L.bell(float(hz(60)), 0.9, 0.5), 0.1, 0.8), (L.sweep(60, 120, 1.0, "saw") * L.env_swell(L.N(1.0), 0.8) * 0.2, 0, 1)]),
-        "loop": C.pad_loop(r, [55, 55.0 + 1, 110, 165], trem=2, noise_amt=0.18),
+        "loop": C.pad_loop(r, [110, 165, 220, 330, 440], trem=2, noise_amt=0.3),
         "cashout": L.mix([(L.bell(float(hz(72)), 0.7, 0.4), 0, 1), (L.bell(float(hz(76)), 0.7, 0.4), 0.14, 1)]),
         "special": L.mix([(L.gong(95, 1.2, 0.8), 0, 1), (L.rattle(r, 0.5, 30, 700) * 0.5, 0.05, 1), (L.sweep(300, 60, 0.9, "saw") * L.env_exp(L.N(0.9), 0.4) * 0.25, 0, 1)]),
         "win": C.win_stinger(r, 69, L.MAJOR, C.voice("organ", d=0.6, tau=0.4), 5, coins=0.4, step=0.085),
@@ -98,7 +98,7 @@ def nightracer(r):
     return {
         "start": L.mix([(L.rattle(r, 0.35, 28, 700, 0.2) * 0.7, 0, 1), (L.sweep(70, 220, 0.4, "saw") * L.env_swell(L.N(0.4), 0.8) * 0.35, 0.1, 1)]),
         "launch": L.mix([(L.sweep(70, 520, 1.0, "saw") * L.env_swell(L.N(1.0), 0.85, 1.1) * 0.4, 0, 1), (L.bp(L.noise(0.3, r), 2500, 4200) * L.env_exp(L.N(0.3), 0.1) * 0.4, 0.2, 1)]),
-        "loop": C.engine_loop(r, f0=92, chug=31, noise_amt=0.3, band=(200, 1800), n_h=18, cut=3000, dist=2.4),
+        "loop": C.engine_loop(r, f0=121, chug=41, noise_amt=0.18, band=(400, 1600), n_h=22, cut=3600, dist=3.4),
         "step": L.mix([(L.whoosh(0.5, 500, 7000, r, shape="fast") * 0.8, 0, 1), (L.sweep(200, 1400, 0.35, "saw") * L.env_swell(L.N(0.35), 0.6) * 0.3, 0, 1)]),
         "cashout": L.mix([(C.voice("brass", d=0.4)(float(hz(67))), 0, 0.8), (C.voice("brass", d=0.5)(float(hz(71))), 0.1, 0.8), (C.voice("brass", d=0.6)(float(hz(74))), 0.2, 0.9), (L.coin_shower(r, 6, 0.4), 0.2, 0.7)]),
         "special": L.mix([(L.bp(L.noise(0.8, r), 1800, 4300) * L.env_swell(L.N(0.8), 0.15, 0.9) * 0.9, 0, 1), (L.explosion(0.7, r, 0.8), 0.35, 1), (L.rattle(r, 0.5, 60, 4500) * 0.3, 0.4, 1)]),

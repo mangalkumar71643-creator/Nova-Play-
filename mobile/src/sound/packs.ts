@@ -383,7 +383,6 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
   scratchcard: {
     start: require('../../assets/sounds/games/scratchcard/start.mp3'),
     tick: require('../../assets/sounds/games/scratchcard/tick.mp3'),
-    land: require('../../assets/sounds/games/scratchcard/land.mp3'),
     win: require('../../assets/sounds/games/scratchcard/win.mp3'),
     bigwin: require('../../assets/sounds/games/scratchcard/bigwin.mp3'),
     lose: require('../../assets/sounds/games/scratchcard/lose.mp3'),

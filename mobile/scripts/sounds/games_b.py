@@ -140,7 +140,7 @@ def andarbahar(r):
 
 def teenpatti(r):
     d = {
-        "start": K("card-shuffle", 0, 0.9),
+        "start": L.fade(K("card-shuffle", 0, 0.9)[: L.N(1.3)], 0.002, 0.25),
         "tick": C.tk(r, "flick", 3200),
         "reveal": L.mix([(K("card-fan-1"), 0, 1.0), (cards(3, 0.2, 2, 0.5), 0.35, 0.9), (C.dhol(r, 100), 0.95, 0.8)]),
         "land": L.mix([(C.card_place(1), 0, 1.0), (C.tabla(r, 150, 0.3), 0.03, 0.7)]),
@@ -246,7 +246,6 @@ def scratchcard(r):
     d = {
         "start": L.mix([(L.bp(L.noise(0.25, r), 3000, 9000) * L.env_swell(L.N(0.25), 0.2) * 1.2, 0, 1.0), (C.start_sound(r, "chips"), 0.15, 0.6), (scratch(r, 0.9), 0.4, 0.7)]),
         "tick": L.bp(L.noise(0.1, r), 1800, 7000) * L.env_swell(L.N(0.1), 0.4) * 1.5,
-        "land": L.click(r, 0.03, 2000, 4, 0.01) * 1.6,
     }
     d.update(triple(r, 79, L.MAJOR_PENT, "glass", 6, coins=1.0, shim=0.7, lose_kind="pluck", lose_f=380, step=0.065, d=0.5, ratio=3.5, index=3.2))
     return d

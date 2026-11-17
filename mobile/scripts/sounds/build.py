@@ -51,25 +51,69 @@ def soft_limit(x, knee=0.7):
     return y
 
 
+def fft_filter(x, hp=None, lp=None, order=3, loop=False):
+    """Zero-phase high-pass / low-pass in the frequency domain (circular for loops, so they stay seamless)."""
+    n = len(x)
+    m = n if loop else n + 4096
+    X = np.fft.rfft(x, m)
+    fr = np.fft.rfftfreq(m, 1 / L.SR)
+    H = np.ones_like(fr)
+    if hp:
+        H *= 1 / np.sqrt(1 + (hp / np.maximum(fr, 1e-3)) ** (2 * order))
+    if lp:
+        H *= 1 / np.sqrt(1 + (fr / lp) ** (2 * order))
+    return np.fft.irfft(X * H, m)[:n].astype(np.float32)
+
+
+def energy(x):
+    return float(np.sum(np.asarray(x, dtype=np.float64) ** 2)) + 1e-12
+
+
+def phone_shape(x, loop):
+    """Make it work on a phone speaker: nothing below ~140 Hz (it only costs headroom), bass that would be
+    inaudible gets harmonics in the range a small speaker can play, and nothing piercing above ~7 kHz."""
+    x = fft_filter(x, hp=140, loop=loop)
+    low = fft_filter(x, lp=300, loop=loop)
+    audible = x - low
+    if energy(audible) < 0.45 * energy(x) and energy(low) > 1e-8:
+        g = 6.0 / (float(np.max(np.abs(low))) + 1e-9)
+        harm = fft_filter(np.tanh(g * low), hp=300, lp=2600, loop=loop)
+        harm = harm * float(np.sqrt(energy(low) / energy(harm))) * 0.9
+        x = audible + harm + 0.25 * low
+    x = fft_filter(x, lp=7500, loop=loop)
+    centroid_hi = energy(fft_filter(x, hp=6500, loop=loop)) / energy(x)
+    if centroid_hi > 0.25:  # a hiss-heavy sound: take the top off a little more
+        x = fft_filter(x, lp=5200, loop=loop)
+    return x
+
+
 def finish(event, x):
     x = np.nan_to_num(np.asarray(x, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0)
-    if event == "loop":
+    loop = event == "loop"
+    if loop:
         n = L.N(1.0)
         if len(x) != n:
             raise ValueError(f"loop must be exactly 1.0 s, got {len(x) / L.SR:.3f}")
         x = x - float(np.mean(x))
     else:
-        x = L.hp(x, 25, 1)
         x = L.trim(x, 0.003, 0.004)
         cap = L.N(MAX_LEN)
         if len(x) > cap:
             x = x[:cap]
+    x = phone_shape(x, loop)
+    if not loop:
+        x = L.trim(x, 0.002, 0.004)
         x = L.fade(x, 0.002, 0.035)
+        if len(x) < L.N(0.09):  # an mp3 shorter than a frame or two is not reliably readable
+            x = np.concatenate([x, np.zeros(L.N(0.09) - len(x), dtype=np.float32)])
     peak = float(np.max(np.abs(x))) if len(x) else 0.0
     if peak < 1e-5:
         raise ValueError("silent sound")
-    act = np.abs(x) > 0.02 * peak
-    rms = float(np.sqrt(np.mean(x[act] ** 2)))
+    # Level by what a phone speaker reproduces (300 Hz - 7 kHz), so every sound is equally loud there.
+    band = fft_filter(x, hp=300, lp=7000, loop=loop)
+    bpeak = float(np.max(np.abs(band))) + 1e-9
+    act = np.abs(band) > 0.03 * bpeak
+    rms = float(np.sqrt(np.mean(band[act] ** 2)))
     x = x * (RMS[event] / rms)
     x = soft_limit(x)
     p = float(np.max(np.abs(x)))
