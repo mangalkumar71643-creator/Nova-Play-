@@ -26,9 +26,20 @@ python3 mobile/scripts/sounds/build.py --kenney /tmp/kenney_casino --report
 
 `build.py` renders every pack, levels each kind of sound to the same loudness (so no game is much louder than another), exports
 mp3 (loops are wav so they repeat without a gap), rewrites `packs.ts` and prints a "too alike" check — no two games should have
-near-identical sounds of the same kind (the build reports any pair above 0.95 similarity; the current worst is about 0.94).
+near-identical sounds of the same kind (the build reports any pair above 0.95 similarity; the current worst is about 0.95).
 Output is deterministic: the same inputs always give the same files.
 
 To change one game's sound, edit its function in `games_a.py` (crash and step games) or `games_b.py` (tables, lotteries, slots,
 instant games), then run the build with `--only <game>` to hear just that game (this does not rewrite `packs.ts`), and finally a
 full build.
+
+## How the app plays them
+
+* `mobile/src/sound/engine.ts` — one global on/off switch (Settings → Sound Effects, in the info card of the games that have one, and the speaker icon of the games that have it), the pack of the
+  game on screen, and `createGamePlayers()` for the screens that play their own cues (tick / land / win / big).
+* `mobile/src/sound/apiHook.ts` — plays the sounds of every other game from the API traffic: a bet or spin when it is sent or answered,
+  steps and cash-outs, a crash game's take-off / flight / crash from its round polls, the countdown, draw and landing of timed rounds from
+  the server's clock, and a win or loss when the waiting bets come back settled.
+* `mobile/src/sound/games.ts` — which route / API path / kind each game is, and how a screen's cues map onto its pack.
+* `cd mobile && npx tsx scripts/sounds/check-api-hook.ts` — checks all of the above on made-up API traffic and a virtual clock, and that
+  every game has the sounds its kind needs.
