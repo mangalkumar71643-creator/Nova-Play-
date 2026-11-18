@@ -43,3 +43,17 @@ full build.
 * `mobile/src/sound/games.ts` — which route / API path / kind each game is, and how a screen's cues map onto its pack.
 * `cd mobile && npx tsx scripts/sounds/check-api-hook.ts` — checks all of the above on made-up API traffic and a virtual clock, and that
   every game has the sounds its kind needs.
+
+## Background music
+
+A game can have a background music loop on top of its sound effects (Aviator has one). Give `music.py` the track and the game's key:
+
+```bash
+python3 -I mobile/scripts/sounds/music.py aviator /path/to/track.mp3 --volume 0.4
+```
+
+It finds where the track's fade-in ends and its fade-out begins, picks the loop end that lines up best with the part just before the
+loop start, cross-fades the join (so the repeat has no jump), levels the loop to -20 LUFS, encodes an mp3 into
+`mobile/assets/sounds/music/<game>.mp3` and rewrites `mobile/src/sound/music.ts`. The app plays it while that game is on screen, pauses it
+in the background, and it has its own switch (Settings → Music) besides the main sound switch. Where a track comes from is written down in
+`mobile/assets/sounds/music/README.md`.

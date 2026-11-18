@@ -14,7 +14,7 @@ import { colors, radius, spacing, typography } from '../theme';
 import { useAuth } from '../state/AuthContext';
 import { ApiClientError } from '../api/client';
 import { fetchFairnessStatus, rotateFairnessSeed } from '../api/backend';
-import { setSoundEnabled, useSoundEnabled } from '../sound/engine';
+import { setMusicEnabled, setSoundEnabled, useMusicEnabled, useSoundEnabled } from '../sound/engine';
 
 function truncateHash(hash: string): string {
   return `${hash.slice(0, 10)}…${hash.slice(-6)}`;
@@ -31,7 +31,7 @@ export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { phone, logout, backendUser, submitKyc, setDepositLimits, selfExclude } = useAuth();
   const sound = useSoundEnabled();
-  const [music, setMusic] = useState(true);
+  const music = useMusicEnabled();
   const [vibration, setVibration] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [kycBusy, setKycBusy] = useState(false);
@@ -116,7 +116,7 @@ export default function SettingsScreen() {
       <SectionHeader title="Preferences" />
       <View style={styles.card}>
         <ToggleRow icon="volume-high" label="Sound Effects" value={sound} onChange={setSoundEnabled} />
-        <ToggleRow icon="music-note-outline" label="Music" value={music} onChange={setMusic} />
+        <ToggleRow icon="music-note-outline" label="Music" value={music} onChange={setMusicEnabled} />
         <ToggleRow icon="vibrate" label="Vibration" value={vibration} onChange={setVibration} />
         <ToggleRow icon="bell-ring-outline" label="Notifications" value={notificationsEnabled} onChange={setNotificationsEnabled} last />
       </View>

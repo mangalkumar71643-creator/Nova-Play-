@@ -17,7 +17,6 @@ def aviator(r):
     return {
         "start": L.mix([(L.thud(70, 0.18, r), 0, 1), (L.rattle(r, 0.22, 60, 1800), 0, 0.5), (L.sweep(110, 260, 0.25, "saw") * L.env_swell(L.N(0.25), 0.7) * 0.3, 0, 1)]),
         "launch": L.mix([(L.sweep(90, 380, 0.9, "saw") * L.env_swell(L.N(0.9), 0.85, 1.1) * 0.5, 0, 1), (L.whoosh(0.9, 250, 3200, r) * 0.7, 0.1, 1)]),
-        "loop": C.engine_loop(r, f0=66, chug=22, noise_amt=0.55, band=(250, 2400), n_h=16, cut=2300),
         "cashout": _cash(r, 2400, 9, 88),
         "special": L.mix([(L.sweep(520, 70, 0.8, "saw") * L.env_exp(L.N(0.8), 0.45) * 0.5, 0, 1), (L.explosion(0.8, r, 0.6) * 0.55, 0.15, 1), (L.rattle(r, 0.4, 40, 900) * 0.4, 0.05, 1)]),
         "win": C.win_stinger(r, 76, L.MAJOR_PENT, C.voice("bell", d=0.6, tau=0.35), 5, coins=0.6),

@@ -23,6 +23,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
+import SoundToggle from '../components/SoundToggle';
 
 const MIN_STAKE = 10;
 const STAKE_STEP = 10;
@@ -1424,6 +1425,7 @@ export default function AviatorScreen() {
       >
         <MaterialCommunityIcons name="chevron-left" size={28} color="#FFFFFF" />
       </Pressable>
+      <SoundToggle style={[styles.soundBtn, { top: insets.top + 8 }]} color="#B8B8BE" />
 
       <Text style={[styles.balanceChip, { top: insets.top + 8 }]}>₹{coins.toFixed(2)}</Text>
 
@@ -1613,6 +1615,11 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
+  },
+  soundBtn: {
+    position: 'absolute',
+    left: 52,
     zIndex: 10,
   },
   balanceChip: {

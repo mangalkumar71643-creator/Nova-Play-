@@ -254,7 +254,7 @@ check('screen games: a result inside spin{} is noted too', [`mult=${results.slot
 const gamesSource = fs.readFileSync(path.join(SRC, 'games.ts'), 'utf8');
 const defs = [...gamesSource.matchAll(/^ {2}(crash|steps|instant|table|lottery|screen)\('(\w+)'/gm)].map((m) => ({ kind: m[1], key: m[2] }));
 const need: Record<string, string[]> = {
-  crash: ['start', 'launch', 'loop', 'cashout', 'special', 'lose'],
+  crash: ['start', 'launch', 'cashout', 'special', 'lose'],
   steps: ['start', 'step', 'cashout', 'special', 'win', 'bigwin'],
   instant: ['start', 'win', 'bigwin', 'lose'],
   table: ['start', 'reveal', 'win', 'bigwin', 'lose'],
@@ -262,7 +262,12 @@ const need: Record<string, string[]> = {
   screen: ['win', 'bigwin'],
 };
 const missing: string[] = [];
+const musicSource = fs.readFileSync(path.join(SRC, 'music.ts'), 'utf8');
+const hasMusic = new Set([...musicSource.matchAll(/^ {2}(\w+): \{ src:/gm)].map((m) => m[1]));
 for (const d of defs) for (const ev of need[d.kind]) if (!(packEvents[d.key] ?? []).includes(ev)) missing.push(`${d.key}.${ev}`);
+// A crash game has some flight ambience: its own loop or a background music track.
+for (const d of defs) if (d.kind === 'crash' && !(packEvents[d.key] ?? []).includes('loop') && !hasMusic.has(d.key)) missing.push(`${d.key}.loop|music`);
+check('music: every track belongs to a game', [...hasMusic].filter((k) => !defs.some((d) => d.key === k)), []);
 check(`packs: all ${defs.length} games have the sounds their kind needs`, missing, []);
 const packKeys = Object.keys(packEvents).sort();
 check('packs: every pack belongs to a game and every game has a pack', packKeys.filter((k) => !defs.some((d) => d.key === k)).concat(defs.filter((d) => !packKeys.includes(d.key)).map((d) => d.key)), []);
