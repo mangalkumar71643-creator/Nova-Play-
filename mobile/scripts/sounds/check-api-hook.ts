@@ -261,10 +261,12 @@ const need: Record<string, string[]> = {
   lottery: ['start', 'reveal', 'win', 'bigwin', 'lose'],
   screen: ['win', 'bigwin'],
 };
+// Sounds a game is silent on by choice (the owner asked for them to go): the check does not ask for them.
+const SILENT_BY_CHOICE: Record<string, string[]> = { aviator: ['launch', 'special', 'lose'] };
 const missing: string[] = [];
 const musicSource = fs.readFileSync(path.join(SRC, 'music.ts'), 'utf8');
 const hasMusic = new Set([...musicSource.matchAll(/^ {2}(\w+): \{ src:/gm)].map((m) => m[1]));
-for (const d of defs) for (const ev of need[d.kind]) if (!(packEvents[d.key] ?? []).includes(ev)) missing.push(`${d.key}.${ev}`);
+for (const d of defs) for (const ev of need[d.kind]) if (!(packEvents[d.key] ?? []).includes(ev) && !(SILENT_BY_CHOICE[d.key] ?? []).includes(ev)) missing.push(`${d.key}.${ev}`);
 // A crash game has some flight ambience: its own loop or a background music track.
 for (const d of defs) if (d.kind === 'crash' && !(packEvents[d.key] ?? []).includes('loop') && !hasMusic.has(d.key)) missing.push(`${d.key}.loop|music`);
 check('music: every track belongs to a game', [...hasMusic].filter((k) => !defs.some((d) => d.key === k)), []);
