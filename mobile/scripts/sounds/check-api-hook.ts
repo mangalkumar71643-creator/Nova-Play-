@@ -254,7 +254,7 @@ check('screen games: a result inside spin{} is noted too', [`mult=${results.slot
 const gamesSource = fs.readFileSync(path.join(SRC, 'games.ts'), 'utf8');
 const defs = [...gamesSource.matchAll(/^ {2}(crash|steps|instant|table|lottery|screen)\('(\w+)'/gm)].map((m) => ({ kind: m[1], key: m[2] }));
 const need: Record<string, string[]> = {
-  crash: ['start', 'launch', 'cashout', 'special', 'lose'],
+  crash: ['start', 'cashout', 'special', 'lose'],
   steps: ['start', 'step', 'cashout', 'special', 'win', 'bigwin'],
   instant: ['start', 'win', 'bigwin', 'lose'],
   table: ['start', 'reveal', 'win', 'bigwin', 'lose'],

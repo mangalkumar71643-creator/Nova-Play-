@@ -14,7 +14,7 @@ def _cash(r, f=2350, n=8, bell_f=84, gain=0.9):
 
 # ================================================================== crash games
 def aviator(r):
-    return {
+    d = {
         "start": L.mix([(L.thud(70, 0.18, r), 0, 1), (L.rattle(r, 0.22, 60, 1800), 0, 0.5), (L.sweep(110, 260, 0.25, "saw") * L.env_swell(L.N(0.25), 0.7) * 0.3, 0, 1)]),
         "launch": L.mix([(L.sweep(90, 380, 0.9, "saw") * L.env_swell(L.N(0.9), 0.85, 1.1) * 0.5, 0, 1), (L.whoosh(0.9, 250, 3200, r) * 0.7, 0.1, 1)]),
         "cashout": _cash(r, 2400, 9, 88),
@@ -23,6 +23,10 @@ def aviator(r):
         "bigwin": C.bigwin_stinger(r, 76, L.MAJOR_PENT, C.voice("bell", d=0.6, tau=0.35), 1.0, 0.5),
         "lose": C.lose_motif(r, 76, L.MAJOR_PENT, C.voice("bell", d=0.6, tau=0.35), "slide", 300, 0.5, -9),
     }
+    # No take-off sound: the owner's background music carries the flight. (It is still rendered above so the
+    # other sounds keep exactly the noise they have always had.)
+    del d["launch"]
+    return d
 
 
 def rocket(r):

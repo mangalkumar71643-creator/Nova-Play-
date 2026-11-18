@@ -122,12 +122,17 @@ export function useSoundEnabled(): boolean {
 
 // ---------------------------------------------------------------- players
 let modeSet = false;
+/** Resolves once the audio mode is in force. On Android, playing before that makes the phone treat the game as the one app that
+ *  owns the speaker, and a ping from another app could then pause the game's music. */
+let modeReady: Promise<void> = Promise.resolve();
 function ensureAudioMode() {
   if (modeSet) return;
   modeSet = true;
   try {
-    // Effects follow the phone's silent switch and never stop the user's music.
-    setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' }).catch(() => {});
+    // Effects follow the phone's silent switch and never stop the user's music (nor are they stopped by it).
+    modeReady = setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' })
+      .then(() => {})
+      .catch(() => {});
   } catch {
     // ignore
   }
@@ -168,7 +173,7 @@ export class SoundSet {
       } catch {
         this.music = null; // the game stays without its music
       }
-      this.syncMusic();
+      modeReady.then(() => this.syncMusic());
     }
     const pack = PACKS[game];
     if (!pack) return;

@@ -32,7 +32,6 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
   },
   aviator: {
     start: require('../../assets/sounds/games/aviator/start.mp3'),
-    launch: require('../../assets/sounds/games/aviator/launch.mp3'),
     cashout: require('../../assets/sounds/games/aviator/cashout.mp3'),
     special: require('../../assets/sounds/games/aviator/special.mp3'),
     win: require('../../assets/sounds/games/aviator/win.mp3'),
