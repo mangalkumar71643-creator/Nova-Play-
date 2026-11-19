@@ -277,7 +277,10 @@ const need: Record<string, string[]> = {
   screen: ['win', 'bigwin'],
 };
 // Sounds a game is silent on by choice (the owner asked for them to go): the check does not ask for them.
-const SILENT_BY_CHOICE: Record<string, string[]> = { aviator: ['launch', 'lose'] };
+const SILENT_BY_CHOICE: Record<string, string[]> = {
+  aviator: ['launch', 'lose'],
+  chickenroad: ['start', 'step', 'cashout', 'special', 'win', 'bigwin'], // music only
+};
 const missing: string[] = [];
 const musicSource = fs.readFileSync(path.join(SRC, 'music.ts'), 'utf8');
 const hasMusic = new Set([...musicSource.matchAll(/^ {2}(\w+): \{ src:/gm)].map((m) => m[1]));

@@ -100,13 +100,6 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     lose: require('../../assets/sounds/games/casinoholdem/lose.mp3'),
   },
   chickenroad: {
-    start: require('../../assets/sounds/games/chickenroad/start.mp3'),
-    step: require('../../assets/sounds/games/chickenroad/step.mp3'),
-    cashout: require('../../assets/sounds/games/chickenroad/cashout.mp3'),
-    special: require('../../assets/sounds/games/chickenroad/special.mp3'),
-    win: require('../../assets/sounds/games/chickenroad/win.mp3'),
-    bigwin: require('../../assets/sounds/games/chickenroad/bigwin.mp3'),
-    lose: require('../../assets/sounds/games/chickenroad/lose.mp3'),
   },
   coinflip: {
     start: require('../../assets/sounds/games/coinflip/start.mp3'),

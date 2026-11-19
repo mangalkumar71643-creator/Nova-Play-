@@ -3,7 +3,9 @@
 Turns a music track into a seamless background loop for one game and updates the index the app bundles.
 
   python3 -I mobile/scripts/sounds/music.py aviator /path/to/track.mp3 [--volume 0.4] [--xfade 2.0] [--lufs -20] [--kbps 80]
+  python3 -I mobile/scripts/sounds/music.py chickenroad /path/to/loop.mp3 --as-is     (the track already loops: keep it whole)
 
+* (--as-is: the track is already a seamless loop made by its owner, so it is kept whole and only levelled and encoded.)
 * finds where the track's fade-in ends and its fade-out begins (or use --from / --to, in seconds),
 * picks the loop end where the music lines up best with the part just before the loop start (so the repeat has no jump),
   and cross-fades the last --xfade seconds into that earlier part,
@@ -104,20 +106,7 @@ def write_index(manifest):
         fh.write("\n".join(lines))
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("game")
-    ap.add_argument("track")
-    ap.add_argument("--volume", type=float, default=0.4, help="how loud the app plays it (0-1)")
-    ap.add_argument("--xfade", type=float, default=2.0)
-    ap.add_argument("--lufs", type=float, default=-20.0)
-    ap.add_argument("--kbps", type=int, default=80)
-    ap.add_argument("--from", dest="start", type=float)
-    ap.add_argument("--to", dest="end", type=float)
-    ap.add_argument("--search", type=float, default=6.0, help="seconds before the end to look for the best loop end")
-    a = ap.parse_args()
-
-    y = decode(a.track)
+def make_loop(y, a):
     m = y.mean(axis=1)
     s0, s1 = steady_span(m)
     s0 = a.start if a.start is not None else s0
@@ -136,6 +125,29 @@ def main():
     w_out = (1 - t) if rho > 0.3 else np.cos(t * np.pi / 2)
     loop = np.concatenate([y[ai: bi - X], end * w_out + pre * w_in], axis=0).astype(np.float32)
     print(f"cross-fade {a.xfade:.1f}s, correlation {rho:.2f}, loop {len(loop) / SR:.2f}s")
+    return loop
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("game")
+    ap.add_argument("track")
+    ap.add_argument("--volume", type=float, default=0.4, help="how loud the app plays it (0-1)")
+    ap.add_argument("--xfade", type=float, default=2.0)
+    ap.add_argument("--lufs", type=float, default=-20.0)
+    ap.add_argument("--kbps", type=int, default=80)
+    ap.add_argument("--from", dest="start", type=float)
+    ap.add_argument("--to", dest="end", type=float)
+    ap.add_argument("--search", type=float, default=6.0, help="seconds before the end to look for the best loop end")
+    ap.add_argument("--as-is", action="store_true", help="the track is already a seamless loop: keep it whole, only level and encode it")
+    a = ap.parse_args()
+
+    y = decode(a.track)
+    if a.as_is:
+        loop = y.astype(np.float32)
+        print(f"track {len(y) / SR:.3f}s kept whole as the loop")
+    else:
+        loop = make_loop(y, a)
 
     lufs = loudness(loop)
     gain = 10 ** ((a.lufs - lufs) / 20)

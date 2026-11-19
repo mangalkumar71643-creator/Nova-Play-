@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { showAlert } from '../components/AppAlert';
+import SoundToggle from '../components/SoundToggle';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
 import { ApiClientError } from '../api/client';
@@ -551,6 +552,7 @@ export default function ChickenRoadScreen() {
           <Text style={styles.logoText}>ROAD</Text>
         </View>
         <View style={styles.headerSpacer} />
+        <SoundToggle size={20} color="#B8B8BE" style={styles.soundBtn} />
         <View style={styles.balancePill}>
           <Text style={styles.balanceRupee}>₹</Text>
           <Text style={styles.balanceAmount}>{coins.toFixed(2)}</Text>
@@ -854,6 +856,7 @@ const styles = StyleSheet.create({
   logoEgg: { fontSize: 22 },
   logoText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', lineHeight: 13 },
   headerSpacer: { flex: 1 },
+  soundBtn: { width: 34, height: 34 },
   balancePill: {
     flexDirection: 'row',
     alignItems: 'center',

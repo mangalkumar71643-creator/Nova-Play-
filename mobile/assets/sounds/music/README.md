@@ -6,5 +6,6 @@ index the app bundles; both are written by `scripts/sounds/music.py`.
 | File | Where it comes from |
 |---|---|
 | `aviator.mp3` | The track the app's owner supplied for Aviator (file name `mk_song_mp_.mp3`, 73 s, sent in the chat on 2026-11-18), cut into a gapless 64 s loop. **The owner is responsible for having the rights to use it.** |
+| `chickenroad.mp3` | The Chicken Road loop the owner sent (file name `chicken_road_seamless.mp3`, 20.6 s, sent in the chat on 2026-11-19). It already loops, so it is kept whole (`--as-is`), only levelled and encoded. Its container tags show it was cut out of a video. **The owner is responsible for having the rights to use it.** |
 
 Add a track: `python3 -I mobile/scripts/sounds/music.py <game> /path/to/track.mp3 [--volume 0.4]`, then add a line to the table above.

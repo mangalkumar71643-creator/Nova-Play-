@@ -157,20 +157,9 @@ def vortex(r):
 
 # ================================================================== step / risk games
 def chickenroad(r):
-    def bok(f=620, d=0.11, up=True):
-        y = L.sweep(f, f * (1.5 if up else 0.7), d, "saw")
-        y = L.formant(y, (900, 2300), (5, 7)) * L.env_exp(L.N(d), d * 0.5, 0.004)
-        return L.hp(y, 400) * 1.2
-    horn = L.mix([(L.lp(L.osc("square", 392, 0.3), 2200) * 0.4, 0, 1), (L.lp(L.osc("square", 494, 0.3), 2200) * 0.4, 0, 1)]) * L.env_exp(L.N(0.3), 0.25, 0.003)
-    return {
-        "start": L.mix([(bok(560, 0.1), 0, 1), (bok(700, 0.1), 0.13, 0.9), (L.coin(r, 2400, 0.2, 0.08), 0.22, 0.7)]),
-        "step": L.mix([(bok(640, 0.09, True), 0, 1), (L.thud(300, 0.05, r, 0.02), 0.07, 0.4)]),
-        "cashout": L.mix([(_cash(r, 2500, 6, 86), 0, 1), (bok(700, 0.1), 0.05, 0.8), (bok(820, 0.1), 0.2, 0.8)]),
-        "special": L.mix([(horn, 0, 1.1), (L.whoosh(0.4, 200, 1800, r, shape="fast") * 0.6, 0.1, 1), (L.thud(80, 0.3, r, 0.1) * 1.2, 0.35, 1), (L.lp(L.noise(0.25, r), 900) * L.env_exp(L.N(0.25), 0.07) * 0.5, 0.36, 1)]),
-        "win": C.win_stinger(r, 75, L.MAJOR, C.voice("mallet", d=0.5, tau=0.25), 5, coins=0.7, step=0.07),
-        "bigwin": C.bigwin_stinger(r, 75, L.MAJOR, C.voice("mallet", d=0.55), 1.0, 0.3, extra=bok(900, 0.12) * 0.7),
-        "lose": L.mix([(horn * 0.8, 0, 1), (L.thud(75, 0.3, r, 0.1) * 1.2, 0.3, 1)]),
-    }
+    # Silent by choice: the owner asked for no sound effects in Chicken Road (no cluck on a step, no horn, no jingles).
+    # Only its background music plays (assets/sounds/music/chickenroad.mp3).
+    return {}
 
 
 def mines(r):
