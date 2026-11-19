@@ -243,6 +243,38 @@ export class SoundSet {
     }
   }
 
+  /** Brings a playing sound down to silence over `ms`, then stops it (so a sound that belongs to a moment does not outlive it). */
+  fadeOut(ev: SoundEvent, ms = 200): void {
+    if (this.dead) return;
+    for (const p of this.players.get(ev) ?? []) {
+      try {
+        const v0 = p.volume;
+        const steps = 5;
+        for (let i = 1; i <= steps; i++) {
+          setTimeout(() => {
+            try {
+              if (!this.dead) p.volume = v0 * (1 - i / steps);
+            } catch {
+              // ignore
+            }
+          }, (ms * i) / steps);
+        }
+        setTimeout(() => {
+          try {
+            if (this.dead) return;
+            p.pause();
+            quiet(p.seekTo(0));
+            p.volume = v0;
+          } catch {
+            // ignore
+          }
+        }, ms + 30);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   startLoop(volume = 0.55): void {
     if (this.dead || !enabled) return;
     const p = this.players.get('loop')?.[0];
@@ -358,6 +390,10 @@ export function playFor(game: string, ev: SoundEvent, opts?: PlayOptions): void 
 
 export function stopFor(game: string, ev: SoundEvent): void {
   if (active && activeKey === game) active.stop(ev);
+}
+
+export function fadeFor(game: string, ev: SoundEvent, ms = 200): void {
+  if (active && activeKey === game) active.fadeOut(ev, ms);
 }
 
 export function hasFor(game: string, ev: SoundEvent): boolean {

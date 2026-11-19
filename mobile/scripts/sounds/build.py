@@ -28,6 +28,9 @@ import games_b  # noqa: E402
 import lib as L  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+# Sounds the app's owner supplied: supplied/<game>/<event>.<mp3|wav|ogg|m4a|...> replaces that event's synthesised sound.
+SUPPLIED = os.path.join(HERE, "supplied")
+AUDIO_EXT = (".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac")
 OUT = os.path.join(ROOT, "assets", "sounds", "games")
 PACKS_TS = os.path.join(ROOT, "src", "sound", "packs.ts")
 
@@ -87,7 +90,8 @@ def phone_shape(x, loop):
     return x
 
 
-def finish(event, x):
+def finish(event, x, faithful=False):
+    """faithful=True (a sound the owner supplied): keep it as it is, only trim, level and encode it."""
     x = np.nan_to_num(np.asarray(x, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0)
     loop = event == "loop"
     if loop:
@@ -100,7 +104,7 @@ def finish(event, x):
         cap = L.N(MAX_LEN)
         if len(x) > cap:
             x = x[:cap]
-    x = phone_shape(x, loop)
+    x = fft_filter(x, hp=35, loop=loop) if faithful else phone_shape(x, loop)
     if not loop:
         x = L.trim(x, 0.002, 0.004)
         x = L.fade(x, 0.002, 0.035)
@@ -143,11 +147,20 @@ def render_game(args):
     C.KENNEY["dir"] = kenney
     rng = L.rng_for(game)
     raw = ALL[game](rng)
+    sup = os.path.join(SUPPLIED, game)
+    supplied = set()
+    if os.path.isdir(sup):
+        for fn in sorted(os.listdir(sup)):
+            ev, ext = os.path.splitext(fn)
+            if ext.lower() in AUDIO_EXT and ev in EVENTS and ev != "loop":
+                # Decoded by ffmpeg only (it is untrusted input), then levelled like every other sound.
+                raw[ev] = L.load_sample(os.path.join(sup, fn), gain_norm=False)
+                supplied.add(ev)
     files, info = {}, {}
     for ev, arr in raw.items():
         if ev not in EVENTS:
             raise ValueError(f"{game}: unknown event {ev}")
-        x, st = finish(ev, arr)
+        x, st = finish(ev, arr, faithful=ev in supplied)
         d = os.path.join(OUT, game)
         os.makedirs(d, exist_ok=True)
         if ev == "loop":

@@ -1,4 +1,4 @@
-import { BIG_WIN_MULTIPLIER, hasFor, loopFor, noteResult, onActiveGameChange, playFor, stopFor } from './engine';
+import { BIG_WIN_MULTIPLIER, fadeFor, hasFor, loopFor, noteResult, onActiveGameChange, playFor, stopFor } from './engine';
 import { GameDef, gameForPath } from './games';
 import type { SoundEvent } from './types';
 
@@ -154,6 +154,8 @@ function onCrashPhase(def: GameDef, s: GameState, view: Json) {
     loopFor(g, false);
   }
   if (phase === 'CRASHED' && (prev === 'FLYING' || prev === 'BETTING')) {
+    // The take-off sound belongs to the flight: it ends when the plane does.
+    if (hasFor(g, 'launch')) fadeFor(g, 'launch', 200);
     playFor(g, 'special');
     // The loss is heard when the bet comes back settled; this covers a reply that never comes.
     if (s.bets.size > 0) {
