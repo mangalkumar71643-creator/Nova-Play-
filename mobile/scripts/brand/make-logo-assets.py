@@ -23,9 +23,17 @@ What it writes (relative to the repository root):
   mobile/android/app/src/main/res/mipmap-*/ic_launcher{,_round,_foreground,_monochrome,_background}.webp
   mobile/android/app/src/main/res/drawable-*/splashscreen_logo.webp
   landing/{favicon.png,favicon-32.png}, landing/assets/{badge.webp,apple-touch-icon.png}  the welcome website
+  landing/assets/logo-h.webp                  the welcome website's header / footer logo: emblem + wordmark side by side
+  landing/index.html                          only the "?v=..." stamps on the logo URLs (see stamp_landing_html)
   backend/public/invite/novaplay-badge.webp                                               the invite page / admin notifications
 
-Not made here: landing/assets/og.jpg (the share picture) and the Android XML (colours, adaptive icon, splash theme).
+Not made here: landing/assets/og.jpg (the share picture; its bytes only feed the stamp) and the Android XML (colours,
+adaptive icon, splash theme).
+
+Why the stamps: the welcome website serves /assets/* with "max-age=86400, stale-while-revalidate=604800" and the favicons
+are cached by the browser on their own, so a logo file that is replaced under the same URL keeps showing the OLD logo
+to anyone who visited before. Every logo URL in landing/index.html therefore carries "?v=<hash of the logo files>", which
+this script rewrites each time it runs.
 Needs: pip install pillow numpy
 """
 import argparse
@@ -51,6 +59,8 @@ CONTENT_CIRCLE = (621.5, 642.3, 306.0)  # smallest circle around the artwork (x,
 EMBLEM_CENTER = (632.5, 526.5)      # the "N" in its ring
 EMBLEM_RADIUS = 214.0
 EMBLEM_BOTTOM = 722                 # below this row the wordmark starts
+WORDMARK_BOX = (330, 726, 940, 850)  # "NOVA PLAY" (rows 730..788) and the red arc under it (rows 798..838)
+LOGO_FILES = ["assets/badge.webp", "assets/logo-h.webp", "assets/apple-touch-icon.png", "assets/og.jpg", "favicon-32.png", "favicon.png"]
 
 SAFE_RADIUS_DP = 33.0               # adaptive icon: the artwork stays inside the 66 dp safe circle of the 108 dp canvas
 PAD = 1500
@@ -255,6 +265,51 @@ def build_web(master):
     badge = to_rgba(emblem_rgb(master, 200, fill=0.96))
     save_webp(badge, ROOT / "landing" / "assets" / "badge.webp", lossless=False, quality=95)
     save_webp(badge, ROOT / "backend" / "public" / "invite" / "novaplay-badge.webp", lossless=False, quality=95)
+    lk = lockup(master)
+    save_webp(lk, ROOT / "landing" / "assets" / "logo-h.webp", lossless=False, quality=92)
+    return lk.size
+
+
+def trim(rgba, pad=6):
+    box = rgba.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox()
+    l, t, r, b = box
+    out = Image.new("RGBA", (r - l + 2 * pad, b - t + 2 * pad), (0, 0, 0, 0))
+    out.alpha_composite(rgba.crop(box), (pad, pad))
+    return out
+
+
+def lockup(master):
+    """Emblem and wordmark side by side (the owner's picture stacks them), 120 px tall = 3x of a 40 px header logo."""
+    h = 120
+    emblem_src = cut(master, (360, 290, 910, 760), fade=20, bottom=EMBLEM_BOTTOM)
+    text_src = cut(master, WORDMARK_BOX, fade=6)
+    ke = h / 381.0                                   # the emblem (rows 339..720) fills the height
+    emb = to_rgba(place(emblem_src, 632.5, 529.5, ke, 150, h))
+    kt = 0.79
+    tw, th = int(round(610 * kt)) + 6, int(round(124 * kt)) + 6
+    txt = to_rgba(place(text_src, (WORDMARK_BOX[0] + WORDMARK_BOX[2]) / 2, (WORDMARK_BOX[1] + WORDMARK_BOX[3]) / 2, kt, tw, th))
+    canvas = Image.new("RGBA", (150 + 10 + tw, h), (0, 0, 0, 0))
+    canvas.alpha_composite(emb, (0, 0))
+    canvas.alpha_composite(txt, (160, (h - th) // 2))
+    return trim(canvas)
+
+
+def stamp_landing_html():
+    """Put "?v=<hash of the logo files>" on every logo URL in landing/index.html (see the docstring for why)."""
+    import hashlib
+    import re
+
+    land = ROOT / "landing"
+    h = hashlib.sha256()
+    for f in LOGO_FILES:
+        h.update((land / f).read_bytes())
+    token = h.hexdigest()[:8]
+    html = (land / "index.html").read_text()
+    names = "|".join(re.escape(f) for f in sorted(LOGO_FILES, key=len, reverse=True))
+    new = re.sub(r"(?<![\w-])(" + names + r")(\?v=[0-9a-f]+)?", lambda m: f"{m.group(1)}?v={token}", html)
+    if new != html:
+        (land / "index.html").write_text(new)
+    return token
 
 
 def preview(master, art, out):
@@ -298,7 +353,9 @@ def main():
     assert max(border[0].max(), border[-1].max(), border[:, 0].max(), border[:, -1].max()) <= 2, "the frame's glow reaches into the artwork"
     build_android(master, art)
     build_expo(master, art)
-    build_web(master)
+    lk_size = build_web(master)
+    if (ROOT / "landing" / "index.html").exists():
+        print("landing logo stamp: ?v=" + stamp_landing_html(), "| header logo", lk_size)
     if args.preview:
         preview(master, art, args.preview)
     print("done")
