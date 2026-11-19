@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { TowerConfig, TowerDifficulty, TowerRound, cashOutTower, fetchActiveTower, fetchTowerConfig, fetchTowerHistory, pickTower, startTower } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const JADE = '#2FE0A8';
 const GOLD = '#FFD66B';
@@ -100,7 +101,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Stop offset="1" stopColor={GOLD} stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#dtSky)" />
       <Circle cx={w * 0.82} cy={h * 0.13} r={w * 0.3} fill="url(#dtHalo)" />
       <Circle cx={w * 0.82} cy={h * 0.13} r={w * 0.075} fill="url(#dtMoon)" />
       {Array.from({ length: 30 }, (_, i) => {
@@ -495,6 +495,7 @@ export default function DragonTowerScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="teal-neon" />
       <Background w={W} h={H} />
 
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>

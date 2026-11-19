@@ -10,6 +10,7 @@ import { WheelConfig, WheelRisk, WheelSpinRow, fetchWheelConfig, fetchWheelHisto
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -376,6 +377,7 @@ export default function LuckyWheelScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="violet-space" />
       <LinearGradient colors={['#3A0E5E', '#12041E']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>

@@ -24,6 +24,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
+import GameBackdrop from '../components/GameBackdrop';
 
 // How far the live number may run past the server's latest reply.
 const MAX_AHEAD_OF_SERVER_MS = 1200;
@@ -605,7 +606,7 @@ export default function RocketScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <LinearGradient colors={['#120634', '#07031A']} style={StyleSheet.absoluteFill} />
+      <GameBackdrop theme="violet-space" />
 
       {/* Top bar */}
       <View style={styles.topBar}>

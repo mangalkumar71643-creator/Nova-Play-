@@ -24,6 +24,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
+import GameBackdrop from '../components/GameBackdrop';
 
 // How far the live number may run past the server's latest reply.
 const MAX_AHEAD_OF_SERVER_MS = 1200;
@@ -688,7 +689,7 @@ export default function CricketXScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <LinearGradient colors={['#0A1030', '#050818']} style={StyleSheet.absoluteFill} />
+      <GameBackdrop theme="indigo-space" />
 
       {/* Top bar */}
       <View style={styles.topBar}>

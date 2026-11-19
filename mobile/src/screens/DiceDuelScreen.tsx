@@ -10,6 +10,7 @@ import { DiceDuelBetRow, DiceDuelConfig, DuelPick, fetchDiceDuelConfig, fetchDic
 import GameInfoButton from '../components/GameInfoButton';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -410,6 +411,7 @@ export default function DiceDuelScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="indigo-space" />
       <LinearGradient colors={['#0A2440', '#140A22', '#06080F']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>

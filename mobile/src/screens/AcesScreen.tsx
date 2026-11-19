@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { AcesCard, AcesCell, AcesConfig, AcesOutcome, AcesRound, AcesSpinRow, AcesStep, AcesSym, fetchAcesConfig, fetchAcesHistory, spinAces } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const GOLD_DEEP = '#B8862B';
@@ -197,7 +198,6 @@ function Background({ w, h, free }: { w: number; h: number; free: boolean }) {
           <Stop offset="1" stopColor={free ? '#A855F7' : '#E11D48'} stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#acBg)" />
       <G opacity={0.05}>{tiles}</G>
       <Circle cx={cx} cy={h * 0.5} r={Math.max(w, h) * 0.5} fill="url(#acGlow)" />
       {/* art-deco sunburst at the top */}
@@ -745,6 +745,7 @@ export default function AcesScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="ruby" />
       <Background w={W} h={H} free={!!free} />
 
       {/* Header */}

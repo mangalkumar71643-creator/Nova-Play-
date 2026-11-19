@@ -22,6 +22,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const SYMBOLS: JhandiSymbol[] = ['HEART', 'SPADE', 'DIAMOND', 'CLUB', 'FLAG', 'CROWN'];
@@ -773,7 +774,7 @@ export default function JhandiMundaScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <LinearGradient colors={['#2A0A22', '#12040F']} style={StyleSheet.absoluteFill} />
+      <GameBackdrop theme="plum" />
 
       {/* Top bar */}
       <View style={styles.topBar}>

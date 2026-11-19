@@ -21,6 +21,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const PITCH = '#1F8A3A';
 const LIME = '#C6FF3A';
@@ -868,6 +869,7 @@ export default function PenaltyHeroScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="pitch" />
       <LinearGradient colors={['#0A1638', '#03060F']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>

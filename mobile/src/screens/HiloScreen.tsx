@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { HiloAction, HiloChoice, HiloConfig, HiloRound, HiloStep, fetchActiveHilo, fetchHiloConfig, fetchHiloHistory, hiloAction, startHilo } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const CORAL = '#FF6B4A';
 const MINT = '#34E3A0';
@@ -114,7 +115,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Path d="M28 0 L0 0 0 28" fill="none" stroke="#FFFFFF" strokeOpacity={0.035} strokeWidth={1} />
         </Pattern>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#hlBg)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#hlGrid)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#hlSpot)" />
       {/* Giant faint up / down chevrons either side of the stage */}
@@ -428,6 +428,7 @@ export default function HiloScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="noir-red" />
       <Background w={W} h={H} />
 
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>

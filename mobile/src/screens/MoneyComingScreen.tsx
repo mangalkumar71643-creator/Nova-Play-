@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { MoneyComingConfig, MoneyComingOutcome, MoneyComingSpecial, MoneyComingSpinRow, fetchMoneyComingConfig, fetchMoneyComingHistory, spinMoneyComing } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const ACCENT = '#22C55E';
 const ACCENT2 = '#FFD24A';
@@ -363,7 +364,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Path d="M0 22 L 22 0" stroke="#FFD24A" strokeOpacity={0.05} strokeWidth={1} />
         </Pattern>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#mcBg)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#mcDiag)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#mcGlow)" />
       {bits.map((b, i) =>
@@ -826,6 +826,7 @@ export default function MoneyComingScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="emerald" />
       <Background w={W} h={H} />
 
       {/* Header */}

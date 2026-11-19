@@ -10,6 +10,7 @@ import { TreasureConfig, TreasureRound, cashOutTreasure, digTreasureMound, fetch
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const SAND = '#F2D49A';
 const SEA = '#1AA8C8';
@@ -625,6 +626,7 @@ export default function TreasureDigScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="ocean" />
       <LinearGradient colors={['#0A3A4A', '#04161E']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>

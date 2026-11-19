@@ -11,6 +11,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD166';
 const GOLD_DEEP = '#B8860B';
@@ -882,6 +883,7 @@ export default function FruitMachineScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="noir-red" />
       <LinearGradient colors={['#1A0004', '#0A0003', '#000000']} style={StyleSheet.absoluteFill} />
 
       {/* Top bar */}

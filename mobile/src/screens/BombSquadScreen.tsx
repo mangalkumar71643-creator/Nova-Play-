@@ -10,6 +10,7 @@ import { BombConfig, BombRound, cashOutBomb, cutBombWire, fetchBombConfig, fetch
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const HAZARD = '#FFC21A';
 const LED_RED = '#FF2A2A';
@@ -560,6 +561,7 @@ export default function BombSquadScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="steel" />
       <LinearGradient colors={['#181B22', '#050608']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>

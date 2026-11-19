@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { Neon777Config, Neon777Outcome, Neon777Result, Neon777Special, Neon777SpinRow, Neon777Symbol, fetchNeon777Config, fetchNeon777History, spinNeon777 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const NEON_PINK = '#FF2D95';
 const NEON_CYAN = '#22E5FF';
@@ -320,7 +321,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Path d="M40 0 L 0 0 0 40" fill="none" stroke={NEON_CYAN} strokeOpacity={0.06} strokeWidth={1} />
         </Pattern>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#n7Bg)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#n7Grid)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#n7GlowP)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#n7GlowC)" />
@@ -743,6 +743,7 @@ export default function Neon777Screen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="neon-magenta" />
       <Background w={W} h={H} />
 
       {/* Header */}

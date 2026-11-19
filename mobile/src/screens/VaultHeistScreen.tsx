@@ -10,6 +10,7 @@ import { VaultConfig, VaultRound, VaultTry, cashOutVault, crackVaultLock, fetchV
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const STEEL = '#8A96A8';
 const CYAN = '#3CE0FF';
@@ -545,6 +546,7 @@ export default function VaultHeistScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="steel" />
       <LinearGradient colors={['#101826', '#04060A']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>

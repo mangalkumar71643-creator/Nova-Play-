@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { SlotConfig, SlotSpin, SlotSymbol, fetchSlotConfig, fetchSlotHistory, spinSlot } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const GOLD_DEEP = '#B8862B';
@@ -340,7 +341,6 @@ function Background({ w, h, reelTop, reelH }: { w: number; h: number; reelTop: n
           <Stop offset="1" stopColor="#8A3CD6" stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#slBg)" />
       <Path d={lattice.join(' ')} fill="none" stroke={GOLD} strokeOpacity={0.06} strokeWidth={1} />
       <Circle cx={cx} cy={reelTop + reelH / 2} r={Math.max(w, reelH) * 0.7} fill="url(#slGlow)" />
       <Path d={arch} fill="none" stroke={GOLD} strokeOpacity={0.3} strokeWidth={2} />
@@ -704,6 +704,7 @@ export default function SlotScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="violet-space" />
       <Background w={W} h={H} reelTop={reelTop} reelH={boxH} />
 
       {/* Header */}

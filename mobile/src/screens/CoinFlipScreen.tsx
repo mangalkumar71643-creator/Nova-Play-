@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { CoinFlipConfig, CoinFlipRound, CoinSide, cashOutCoinFlip, fetchActiveCoinFlip, fetchCoinFlipConfig, fetchCoinFlipHistory, flipCoin, startCoinFlip } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const SILVER = '#CBD5E1';
@@ -110,7 +111,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Stop offset="1" stopColor={GOLD} stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#cfBg)" />
       {/* Damask-like diamonds */}
       {Array.from({ length: 7 }, (_, r) =>
         Array.from({ length: 6 }, (_, c) => {
@@ -468,6 +468,7 @@ export default function CoinFlipScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="desert-gold" />
       <Background w={W} h={H} />
 
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>

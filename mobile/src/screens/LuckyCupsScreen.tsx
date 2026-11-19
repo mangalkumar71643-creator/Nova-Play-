@@ -10,6 +10,7 @@ import { CupPick, CupsConfig, CupsRound, cashOutCups, fetchCupsConfig, fetchCups
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -537,6 +538,7 @@ export default function LuckyCupsScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="ruby" />
       <LinearGradient colors={['#2A0614', '#0A0206']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>

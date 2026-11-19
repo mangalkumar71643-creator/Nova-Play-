@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { LimboBet, LimboConfig, fetchLimboConfig, fetchLimboHistory, playLimbo } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const PINK = '#FF5FD2';
 const VIOLET = '#A78BFA';
@@ -73,7 +74,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Stop offset="1" stopColor="#0A0320" stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#lBg)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#lNeb1)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#lNeb2)" />
       {STARS.map((s, i) => (
@@ -425,6 +425,7 @@ export default function LimboScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="violet-space" />
       <Background w={W} h={H} />
 
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>

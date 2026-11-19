@@ -12,6 +12,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -695,6 +696,7 @@ export default function ScratchCardScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="ruby" />
       <LinearGradient colors={['#4A0A1E', '#16030A']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>

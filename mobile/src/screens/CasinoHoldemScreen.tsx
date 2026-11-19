@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { HoldemConfig, HoldemHand, HoldemHandClass, dealHoldem, fetchActiveHoldem, fetchHoldemConfig, fetchHoldemHistory, holdemAction } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#F5C84C';
 const CREAM = '#FFF6DF';
@@ -185,7 +186,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Path d="M23 4 L42 23 L23 42 L4 23 Z" fill="none" stroke={GOLD} strokeOpacity={0.05} strokeWidth={1} />
         </Pattern>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#chBg)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#chDeco)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#chLamp)" />
     </Svg>
@@ -609,6 +609,7 @@ export default function CasinoHoldemScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="ruby" />
       <Background w={W} h={H} />
 
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>

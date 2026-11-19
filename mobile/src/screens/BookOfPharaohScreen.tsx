@@ -10,6 +10,7 @@ import { BookOfPharaohConfig, PharaohFreeSpin, PharaohLineWin, PharaohSpinRow, P
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#F5C542';
 const GOLD_LIGHT = '#FFF1B0';
@@ -932,6 +933,7 @@ export default function BookOfPharaohScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="desert-gold" />
       <LinearGradient colors={free.active ? ['#1A0636', '#05020F'] : ['#050A26', '#020308']} style={StyleSheet.absoluteFill} />
 
       {/* Top bar */}

@@ -27,6 +27,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
+import GameBackdrop from '../components/GameBackdrop';
 
 // How far the live number may run past the server's latest reply.
 const MAX_AHEAD_OF_SERVER_MS = 1200;
@@ -640,7 +641,7 @@ export default function NightRacerScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <LinearGradient colors={['#0E0624', '#03020A']} style={StyleSheet.absoluteFill} />
+      <GameBackdrop theme="neon-magenta" />
 
       {/* Top bar */}
       <View style={styles.topBar}>

@@ -10,6 +10,7 @@ import { WolfCell, WolfConfig, WolfLineWin, WolfOutcome, WolfPayer, WolfSpinRow,
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const SILVER = '#E8EEF8';
 const MOONLIGHT = '#FFF6D8';
@@ -654,6 +655,7 @@ export default function WolfMoonScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="moonlight" />
       <LinearGradient colors={free ? ['#2A0A1A', '#0A0408'] : ['#0E0A2A', '#05030F']} style={StyleSheet.absoluteFill} />
 
       {/* Top bar */}

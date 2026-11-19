@@ -10,6 +10,7 @@ import { FishFreeSpin, FishLineWin, FishSymbol, FishermanConfig, FishermanSpinRo
 import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD166';
 const GOLD_DEEP = '#B8860B';
@@ -938,6 +939,7 @@ export default function FishermansCatchScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="ocean" />
       <LinearGradient colors={free.active ? ['#060B2A', '#02040F'] : ['#1A0F3A', '#05030F']} style={StyleSheet.absoluteFill} />
 
       {/* Top bar */}

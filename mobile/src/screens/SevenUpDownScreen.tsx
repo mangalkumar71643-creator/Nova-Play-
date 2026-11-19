@@ -33,6 +33,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const W = Dimensions.get('window').width;
 const BOARD_PAD = 8;
@@ -927,6 +928,7 @@ export default function SevenUpDownScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="emerald" />
       <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="7 Up Down" />
       {/* Header */}
       <LinearGradient colors={['#4A1119', '#2A070C']} style={[styles.header, { paddingTop: insets.top + 6 }]}>

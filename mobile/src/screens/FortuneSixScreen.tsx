@@ -10,6 +10,7 @@ import { FortuneSixBetRow, FortuneSixConfig, fetchFortuneSixConfig, fetchFortune
 import GameInfoButton from '../components/GameInfoButton';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -376,6 +377,7 @@ export default function FortuneSixScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="indigo-space" />
       <LinearGradient colors={['#0E2A4A', '#0A0E24', '#05060E']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>

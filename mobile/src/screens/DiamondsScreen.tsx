@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { DiamondsBet, DiamondsConfig, DiamondsResult, fetchDiamondsConfig, fetchDiamondsHistory, playDiamonds } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const LILAC = '#D8B4FE';
@@ -114,7 +115,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Stop offset="1" stopColor="#A855F7" stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#dmBg)" />
       {/* Light rays fanning up from the gem stage */}
       {[-0.42, -0.2, 0, 0.2, 0.42].map((k, i) => (
         <Path key={i} d={`M${w / 2} ${h * 0.62} L${w / 2 + k * w * 1.6 - w * 0.05} 0 L${w / 2 + k * w * 1.6 + w * 0.05} 0 Z`} fill="#E9D5FF" opacity={0.035} />
@@ -405,6 +405,7 @@ export default function DiamondsScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="plum" />
       <Background w={W} h={H} />
 
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>

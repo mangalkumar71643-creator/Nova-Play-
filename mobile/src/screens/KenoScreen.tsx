@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { KenoBet, KenoConfig, KenoRisk, fetchKenoConfig, fetchKenoHistory, playKeno } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const AMBER = '#FFB547';
 const GOLD = '#FFD66B';
@@ -82,7 +83,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Stop offset="1" stopColor="#2563EB" stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#kBg)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#kGlow)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#kGlow2)" />
       {/* Stage lights fanning down from the top */}
@@ -459,6 +459,7 @@ export default function KenoScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="indigo-space" />
       <Background w={W} h={H} />
 
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>

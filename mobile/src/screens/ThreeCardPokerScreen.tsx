@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { ThreeCardConfig, ThreeCardHand, ThreeCardHandClass, dealThreeCard, fetchActiveThreeCard, fetchThreeCardConfig, fetchThreeCardHistory, threeCardAction } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#E9C46A';
 const CREAM = '#FFF6DF';
@@ -164,7 +165,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Path d="M0 28 A28 28 0 0 1 56 28 M8 28 A20 20 0 0 1 48 28 M16 28 A12 12 0 0 1 40 28 M28 0 L28 28" fill="none" stroke={GOLD} strokeOpacity={0.05} strokeWidth={1} />
         </Pattern>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#tcBg)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#tcDeco)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#tcLamp)" />
     </Svg>
@@ -629,6 +629,7 @@ export default function ThreeCardPokerScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="sapphire" />
       <Background w={W} h={H} />
 
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>

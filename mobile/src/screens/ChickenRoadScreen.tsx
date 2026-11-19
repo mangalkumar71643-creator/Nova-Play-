@@ -939,7 +939,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#3A3A3E',
   },
   stakeMinMaxText: { color: '#B8B8BE', fontSize: 12, fontWeight: '700' },
-  stakeInput: { flex: 1, color: '#FFFFFF', fontSize: 18, fontWeight: '700', padding: 0 },
+  // minWidth 0: a text box keeps its own width otherwise and pushes the MAX button off the screen.
+  stakeInput: { flex: 1, minWidth: 0, color: '#FFFFFF', fontSize: 18, fontWeight: '700', padding: 0 },
   presetRow: { flexDirection: 'row', gap: 8 },
   presetBtn: {
     flex: 1,

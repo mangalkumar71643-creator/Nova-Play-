@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { PokerConfig, PokerHand, PokerRound, dealPoker, drawPoker, fetchActivePoker, fetchPokerConfig, fetchPokerHistory } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const AMBER = '#FFE58A';
@@ -151,7 +152,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Rect x={0} y={0} width={34} height={34} fill="none" stroke="#FFFFFF" strokeOpacity={0.035} strokeWidth={1} />
         </Pattern>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#vpBg)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#vpDiamond)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#vpSpot)" />
       {/* Faint suits in the corners */}
@@ -521,6 +521,7 @@ export default function VideoPokerScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="sapphire" />
       <Background w={W} h={H} />
 
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>

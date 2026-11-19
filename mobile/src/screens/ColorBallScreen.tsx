@@ -10,6 +10,7 @@ import { BallColor, ColorBallBetRow, ColorBallConfig, fetchColorBallConfig, fetc
 import GameInfoButton from '../components/GameInfoButton';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -371,6 +372,7 @@ export default function ColorBallScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <GameBackdrop theme="violet-space" />
       <LinearGradient colors={['#2A0E4A', '#120A24', '#07040E']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>

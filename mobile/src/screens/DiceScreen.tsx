@@ -10,6 +10,7 @@ import { ApiClientError } from '../api/client';
 import { DiceBet, DiceConfig, fetchDiceConfig, fetchDiceHistory, rollDice } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const CYAN = '#3DF2FF';
 const TEAL = '#14B8C4';
@@ -108,7 +109,6 @@ function Background({ w, h }: { w: number; h: number }) {
           <Stop offset="1" stopColor="#6D28D9" stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      <Rect x={0} y={0} width={w} height={h} fill="url(#dBg)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#dGlow)" />
       <Rect x={0} y={0} width={w} height={h} fill="url(#dGlow2)" />
       {lines}
@@ -498,6 +498,7 @@ export default function DiceScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="teal-neon" />
       <Background w={W} h={H} />
 
       {/* Header */}
