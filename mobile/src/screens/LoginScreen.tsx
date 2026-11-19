@@ -650,16 +650,17 @@ const styles = StyleSheet.create({
   fieldIconOn: { backgroundColor: 'rgba(168,24,44,0.7)' },
   prefix: { fontFamily: fonts.bold, fontSize: 14.5, color: '#FFFFFF', paddingLeft: 12 },
   prefixLine: { width: 1, height: 22, backgroundColor: 'rgba(240,185,61,0.35)', marginLeft: 10 },
-  fieldInput: { flex: 1, height: 50, paddingHorizontal: 12, fontFamily: fonts.semi, fontSize: 14.5, color: '#FFFFFF' },
-  fieldOk: { marginRight: 6 },
-  eye: { paddingHorizontal: 12, height: 50, alignItems: 'center', justifyContent: 'center' },
+  // minWidth 0: on the web an input keeps its own default width, which pushed the green tick (and on a narrow phone the eye) out of the box.
+  fieldInput: { flex: 1, minWidth: 0, height: 50, paddingHorizontal: 12, fontFamily: fonts.semi, fontSize: 14.5, color: '#FFFFFF' },
+  fieldOk: { marginRight: 10, flexShrink: 0 },
+  eye: { paddingHorizontal: 12, height: 50, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
 
   strength: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 9 },
   bars: { flex: 1, flexDirection: 'row', gap: 5 },
   bar: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)' },
   strengthText: { fontFamily: fonts.bold, fontSize: 11, minWidth: 54, textAlign: 'right' },
 
-  codeBtn: { height: 36, paddingHorizontal: 14, marginRight: 8, borderRadius: 11, borderWidth: 1.4, borderColor: colors.gold, justifyContent: 'center', backgroundColor: 'rgba(240,185,61,0.10)' },
+  codeBtn: { flexShrink: 0, height: 36, paddingHorizontal: 14, marginRight: 8, borderRadius: 11, borderWidth: 1.4, borderColor: colors.gold, justifyContent: 'center', backgroundColor: 'rgba(240,185,61,0.10)' },
   codeBtnText: { fontFamily: fonts.extra, color: colors.goldLight, fontSize: 12 },
 
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: spacing.md },
