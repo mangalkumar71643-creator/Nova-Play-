@@ -2,7 +2,8 @@ import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { forwardRef, memo, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import Svg, { Circle, Defs, Ellipse, G, Line, LinearGradient as SvgLinearGradient, Path, Polyline, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
@@ -939,8 +940,7 @@ export default function FishermansCatchScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <GameBackdrop theme="ocean" />
-      <LinearGradient colors={free.active ? ['#060B2A', '#02040F'] : ['#1A0F3A', '#05030F']} style={StyleSheet.absoluteFill} />
+      <GameBackdrop theme={free.active ? 'indigo-space' : 'ocean'} />
 
       {/* Top bar */}
       <View style={styles.topBar}>

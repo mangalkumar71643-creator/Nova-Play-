@@ -3,22 +3,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Linking,
-  Modal,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, Share, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
 import { AgentSummary, claimAgentRewards, fetchAgentSummary, JackpotEntry } from '../api/backend';
 import { ApiClientError } from '../api/client';

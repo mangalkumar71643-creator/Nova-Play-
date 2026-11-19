@@ -3,7 +3,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import Svg, { Circle, Defs, Ellipse, G, Line, LinearGradient as SvgLinearGradient, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -25,6 +26,7 @@ import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
 import GameBackdrop from '../components/GameBackdrop';
+import ChipStrip, { CHIP_HEIGHT } from '../components/ChipStrip';
 
 // How far the live number may run past the server's latest reply.
 const MAX_AHEAD_OF_SERVER_MS = 1200;
@@ -713,7 +715,7 @@ export default function CricketXScreen() {
 
       <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
         {/* Recent results */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.histRow}>
+        <ChipStrip>
           {history.map((h) => {
             const m = Number(h.crashMultiplier);
             return (
@@ -722,7 +724,7 @@ export default function CricketXScreen() {
               </View>
             );
           })}
-        </ScrollView>
+        </ChipStrip>
 
         {/* Broadcast-style scene */}
         <View style={[styles.scene, { width: SW, height: SH }]}>
@@ -961,8 +963,7 @@ const styles = StyleSheet.create({
   balanceText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   depositBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: GOLD },
 
-  histRow: { gap: 6, paddingHorizontal: 10, paddingVertical: 6 },
-  histChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 12, borderWidth: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  histChip: { height: CHIP_HEIGHT, justifyContent: 'center', paddingHorizontal: 9, borderRadius: 12, borderWidth: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
   histText: { fontSize: 12, fontWeight: '900' },
 
   scene: { alignSelf: 'center', borderRadius: 18, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(79,195,255,0.35)' },

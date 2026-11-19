@@ -2,7 +2,8 @@ import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient as SvgLinearGradient, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
@@ -627,7 +628,6 @@ export default function TreasureDigScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <GameBackdrop theme="ocean" />
-      <LinearGradient colors={['#0A3A4A', '#04161E']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
@@ -717,7 +717,8 @@ export default function TreasureDigScreen() {
         </Animated.View>
 
         {/* Multiplier ladder (scrolls; the next find stays in view) */}
-        <ScrollView ref={ladderRef} horizontal showsHorizontalScrollIndicator={false} style={{ width: S, marginTop: 10 }} contentContainerStyle={{ gap: 5 }}>
+        <View style={{ width: S, marginTop: 10 }}>
+        <ScrollView ref={ladderRef} horizontal showsHorizontalScrollIndicator={false} style={{ width: S }} contentContainerStyle={{ gap: 5 }}>
           {Array.from({ length: steps }, (_, i) => {
             const n = i + 1;
             const reached = treasures >= n && (pending || won);
@@ -735,6 +736,8 @@ export default function TreasureDigScreen() {
             );
           })}
         </ScrollView>
+          <LinearGradient colors={['rgba(4,22,30,0)', 'rgba(4,22,30,0.92)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ladderFade} pointerEvents="none" />
+        </View>
 
         {/* Crabs on the island */}
         <View style={[styles.modeRow, { width: S }]}>
@@ -919,6 +922,7 @@ function History({ rounds }: { rounds: TreasureRound[] | null }) {
 }
 
 const styles = StyleSheet.create({
+  ladderFade: { position: 'absolute', right: 0, top: 0, bottom: 0, width: 26 },
   root: { flex: 1, backgroundColor: '#04161E' },
   topBar: { height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },

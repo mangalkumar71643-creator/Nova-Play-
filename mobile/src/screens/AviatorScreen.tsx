@@ -2,7 +2,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Dimensions, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from '../components/AppText';
 import { showAlert } from '../components/AppAlert';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +25,7 @@ import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
 import SoundToggle from '../components/SoundToggle';
+import GameBackdrop from '../components/GameBackdrop';
 
 const MIN_STAKE = 10;
 const STAKE_STEP = 10;
@@ -1418,6 +1420,7 @@ export default function AviatorScreen() {
 
   return (
     <View style={styles.screenRoot}>
+      <GameBackdrop theme="noir-red" />
       <Pressable
         onPress={() => navigation.goBack()}
         hitSlop={10}

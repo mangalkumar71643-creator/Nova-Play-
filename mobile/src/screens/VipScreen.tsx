@@ -3,18 +3,8 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  Image,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Animated, Easing, Image, NativeScrollEvent, NativeSyntheticEvent, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import { claimVipBonus, fetchVipStatus, VipStatus } from '../api/backend';
 import { ApiClientError } from '../api/client';
 import LoadingState from '../components/LoadingState';

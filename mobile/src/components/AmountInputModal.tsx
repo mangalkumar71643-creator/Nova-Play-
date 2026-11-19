@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from './AppText';
 import KeyboardAvoidingOverlay from './KeyboardAvoidingOverlay';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
 

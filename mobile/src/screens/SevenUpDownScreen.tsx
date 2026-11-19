@@ -3,7 +3,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Dimensions, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Dimensions, Easing, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../components/AppText';
 import Svg, {
   Circle,
   Defs,
@@ -1085,12 +1086,15 @@ export default function SevenUpDownScreen() {
 
       {/* Info bar */}
       <LinearGradient colors={['#3A170B', '#220C05']} style={styles.infoBar}>
-        <Text style={styles.infoPeriod} numberOfLines={1}>
-          #{view?.periodNumber.slice(-5) ?? '-----'}
-        </Text>
-        <Text style={[styles.infoStatus, phase === 'BETTING' && styles.infoStatusLive]} numberOfLines={1}>
-          {statusText}
-        </Text>
+        <View style={styles.infoTop}>
+          <Text style={styles.infoPeriod} numberOfLines={1}>
+            #{view?.periodNumber.slice(-5) ?? '-----'}
+          </Text>
+          <Text style={[styles.infoStatus, phase === 'BETTING' && styles.infoStatusLive]} numberOfLines={1}>
+            {statusText}
+          </Text>
+          <View style={styles.infoPeriod} />
+        </View>
         <Text style={styles.infoLimits} numberOfLines={1}>
           Min <Text style={styles.infoMin}>{minStake}</Text>  Max <Text style={styles.infoMax}>{maxStake}</Text>  Max win <Text style={styles.infoMax}>{winLimit(config?.maxPayout)}</Text>
         </Text>
@@ -1324,18 +1328,18 @@ const styles = StyleSheet.create({
   },
 
   infoBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 5,
+    gap: 1,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: '#8A5A2B',
   },
+  infoTop: { flexDirection: 'row', alignItems: 'center' },
   infoPeriod: { width: 70, color: '#C9A77A', fontSize: 13, fontWeight: '700' },
   infoStatus: { flex: 1, textAlign: 'center', color: '#C9A77A', fontSize: 15, fontWeight: '800', letterSpacing: 1 },
   infoStatusLive: { color: GOLD },
-  infoLimits: { color: '#C9A77A', fontSize: 13, fontWeight: '600' },
+  infoLimits: { color: '#C9A77A', fontSize: 12, fontWeight: '600', textAlign: 'center' },
   infoMin: { color: '#4ADE80', fontWeight: '800' },
   infoMax: { color: '#FF5A4E', fontWeight: '800' },
 

@@ -3,17 +3,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Dimensions,
-  LayoutRectangle,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Dimensions, LayoutRectangle, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from '../components/AppText';
 import { showAlert } from '../components/AppAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -30,6 +21,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 const TILE_COUNT = 25;
 const COLUMNS = 5;
@@ -442,11 +434,8 @@ export default function MinesScreen() {
   const minesDropdownHeight = MINES_DROPDOWN_VISIBLE * (MINES_OPTION_HEIGHT + MINES_OPTION_GAP);
 
   return (
-    <LinearGradient
-      colors={['#0A3C98', '#0B5BD6']}
-      style={styles.root}
-      onLayout={(e) => setRootHeight(e.nativeEvent.layout.height)}
-    >
+    <View style={styles.root} onLayout={(e) => setRootHeight(e.nativeEvent.layout.height)}>
+      <GameBackdrop theme="sapphire" />
       <View
         style={[styles.topBar, { paddingTop: insets.top + 8 }]}
         onLayout={(e) => setTopBarBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
@@ -765,7 +754,7 @@ export default function MinesScreen() {
           </View>
         </View>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 

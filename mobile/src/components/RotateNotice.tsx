@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from './AppText';
 import { lockOrientation, onOrientationRequest, Orientation, requestedOrientation } from '../utils/orientation';
 import { colors, fonts, gradients } from '../theme';
 

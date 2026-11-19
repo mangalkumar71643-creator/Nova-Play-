@@ -2,7 +2,8 @@ import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Rect, RadialGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
@@ -412,7 +413,6 @@ export default function DiceDuelScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <GameBackdrop theme="indigo-space" />
-      <LinearGradient colors={['#0A2440', '#140A22', '#06080F']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.topBar}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>

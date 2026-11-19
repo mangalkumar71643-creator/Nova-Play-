@@ -4,7 +4,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { lockOrientation } from '../utils/orientation';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -848,7 +849,6 @@ export default function AndarBaharScreen() {
     <View ref={rootRef} collapsable={false} style={styles.root}>
       <GameBackdrop theme="crimson" />
       <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Andar Bahar" />
-      <LinearGradient colors={['#3A0D16', '#1E060B']} style={StyleSheet.absoluteFill} />
 
       {/* Top bar */}
       <View style={[styles.topBar, { height: topH, paddingLeft: padX, paddingRight: padX }]}>

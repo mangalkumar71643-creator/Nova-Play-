@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './AppText';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { fonts } from '../theme';
 import { GAME_ICONS, GameCategory } from './GameTile';

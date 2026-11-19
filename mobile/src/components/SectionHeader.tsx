@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './AppText';
 import { colors, spacing, typography } from '../theme';
 
 type Props = { title: string; actionLabel?: string; onAction?: () => void };

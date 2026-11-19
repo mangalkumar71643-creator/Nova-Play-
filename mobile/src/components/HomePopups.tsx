@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Image, Modal, Pressable, View, useWindowDimensions } from 'react-native';
+import { Text } from './AppText';
 import { API_BASE_URL } from '../api/client';
 
 type HomePopup = { id: string; title: string; width: number; height: number; imageUrl: string };

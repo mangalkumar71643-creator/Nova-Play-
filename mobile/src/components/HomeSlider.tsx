@@ -1,7 +1,8 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Animated, AppState, Easing, Image, Linking, PanResponder, Platform, Pressable, Text, View } from 'react-native';
+import { Animated, AppState, Easing, Image, Linking, PanResponder, Platform, Pressable, View } from 'react-native';
+import { Text } from './AppText';
 import { API_BASE_URL } from '../api/client';
 import { fonts } from '../theme';
 import { GAME_CATEGORIES } from './GameTile';

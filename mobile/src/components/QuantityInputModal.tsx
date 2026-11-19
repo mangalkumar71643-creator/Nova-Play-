@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from './AppText';
 import KeyboardAvoidingOverlay from './KeyboardAvoidingOverlay';
 
 /**

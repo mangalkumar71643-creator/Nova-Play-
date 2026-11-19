@@ -4,7 +4,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { lockOrientation } from '../utils/orientation';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, GestureResponderEvent, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, GestureResponderEvent, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import Svg, { Circle, Defs, Ellipse, G, Line, LinearGradient as SvgLinearGradient, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -1100,7 +1101,6 @@ export default function RouletteScreen() {
     <View style={styles.root}>
       <GameBackdrop theme="emerald" />
       <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Roulette" />
-      <LinearGradient colors={['#07140E', '#0B2A1B', '#051009']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
 
       {/* Top bar */}
       <View style={[styles.topBar, { height: topH, paddingLeft: padL, paddingRight: padR }]}>

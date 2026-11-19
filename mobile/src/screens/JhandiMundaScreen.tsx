@@ -3,7 +3,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient as SvgLinearGradient, Path, Polygon, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -23,6 +24,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import ChipStrip, { CHIP_HEIGHT } from '../components/ChipStrip';
 
 const GOLD = '#FFD66B';
 const SYMBOLS: JhandiSymbol[] = ['HEART', 'SPADE', 'DIAMOND', 'CLUB', 'FLAG', 'CROWN'];
@@ -797,7 +799,7 @@ export default function JhandiMundaScreen() {
 
       <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
         {/* Recent rounds: the symbol that came most, and how many times (⭐ on a House round) */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.histRow}>
+        <ChipStrip edge={12}>
           {history.length === 0 && <Text style={styles.histEmpty}>Results will show here</Text>}
           {history.map((h) => {
             if (h.house) {
@@ -816,7 +818,7 @@ export default function JhandiMundaScreen() {
               </View>
             );
           })}
-        </ScrollView>
+        </ChipStrip>
 
         {/* The table with the bowl and dice; the win card hangs off its bottom edge */}
         <View style={styles.tableWrap}>
@@ -990,14 +992,13 @@ const styles = StyleSheet.create({
   },
   balanceText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
   depositBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center' },
-  histRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 6, alignItems: 'center' },
   histEmpty: { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
   histChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
+    height: CHIP_HEIGHT,
     paddingHorizontal: 8,
-    paddingVertical: 4,
     borderRadius: 14,
     backgroundColor: '#FFF6E2',
     borderWidth: 1.5,

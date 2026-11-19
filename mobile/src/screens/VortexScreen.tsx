@@ -5,7 +5,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiClientError } from '../api/client';
 import {
@@ -43,6 +44,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useGameState } from '../state/GameStateContext';
 import { fonts } from '../theme';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 // Same rings as the server (vortexService.ts); the server's own settings
 // replace this as soon as they load.
@@ -870,7 +872,7 @@ export default function VortexScreen() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient colors={['#262933', '#191B22', '#101116']} style={StyleSheet.absoluteFill} />
+      <GameBackdrop theme="violet-space" />
       <VortexBackdrop width={W} height={H} />
 
       {/* Top bar */}

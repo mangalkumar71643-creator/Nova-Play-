@@ -2,7 +2,8 @@ import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useEffect, useState } from 'react';
-import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './AppText';
 import { API_BASE_URL } from '../api/client';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 

@@ -46,7 +46,8 @@ import { BookOfPharaohTileArt } from '../screens/BookOfPharaohScreen';
 import { MoneyComingTileArt } from '../screens/MoneyComingScreen';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { Image, ImageSourcePropType, Pressable, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, Pressable, View } from 'react-native';
+import { Text } from './AppText';
 
 /** Size of a game tile, the same on the home grid and the category pages. */
 export const GAME_ICON_SIZE = 150;

@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleProp, StyleSheet, Switch, Text, View, ViewStyle, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, StyleProp, StyleSheet, Switch, View, ViewStyle, useWindowDimensions } from 'react-native';
+import { Text } from './AppText';
 
 import { setSoundEnabled, useSoundEnabled } from '../sound/engine';
 

@@ -3,7 +3,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../components/AppText';
 import { showAlert } from '../components/AppAlert';
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +25,7 @@ import { useAuth } from '../state/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { NO_LIMIT } from '../utils/limits';
+import GameBackdrop from '../components/GameBackdrop';
 
 // The three risk levels are played as coloured tile rows, top to bottom.
 const COLORS: { risk: PlinkoRisk; label: string; tile: [string, string]; button: [string, string]; border: string; ball: [string, string, string] }[] = [
@@ -514,7 +516,8 @@ export default function PlinkoScreen() {
   const tileFont = geometry ? Math.max(7, Math.min(13, geometry.sx * 0.32)) : 10;
 
   return (
-    <LinearGradient colors={['#0D5CA6', '#1291A6', '#1AAF9B']} style={styles.root}>
+    <View style={styles.root}>
+      <GameBackdrop theme="ocean" />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.title}>PLINKO</Text>
         <View style={styles.seedRow}>
@@ -956,7 +959,7 @@ export default function PlinkoScreen() {
           </View>
         </View>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 

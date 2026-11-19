@@ -3,7 +3,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Switch, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import Svg, { Circle, Defs, Ellipse, G, Line, LinearGradient as SvgLinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
@@ -28,6 +29,7 @@ import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
 import GameBackdrop from '../components/GameBackdrop';
+import ChipStrip, { CHIP_HEIGHT } from '../components/ChipStrip';
 
 // How far the live number may run past the server's latest reply.
 const MAX_AHEAD_OF_SERVER_MS = 1200;
@@ -656,7 +658,7 @@ export default function SkyJetScreen() {
         )}
 
         {/* Recent results */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.histRow}>
+        <ChipStrip>
           {history.map((h) => {
             const m = Number(h.crashMultiplier);
             return (
@@ -665,7 +667,7 @@ export default function SkyJetScreen() {
               </View>
             );
           })}
-        </ScrollView>
+        </ChipStrip>
 
         {/* Sky scene */}
         <View style={[styles.scene, { width: SW, height: SH }]}>
@@ -915,8 +917,7 @@ const styles = StyleSheet.create({
   jackpotValue: { color: '#FFF4C8', fontSize: 24, fontWeight: '900', fontVariant: ['tabular-nums'], textShadowColor: '#FFB23F', textShadowRadius: 10 },
   jackpotWins: { color: 'rgba(255,214,107,0.75)', fontSize: 11, fontWeight: '700', textAlign: 'center', marginTop: 4, marginHorizontal: 14 },
 
-  histRow: { gap: 6, paddingHorizontal: 10, paddingVertical: 6 },
-  histChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 12, borderWidth: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  histChip: { height: CHIP_HEIGHT, justifyContent: 'center', paddingHorizontal: 9, borderRadius: 12, borderWidth: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
   histText: { fontSize: 12, fontWeight: '900' },
 
   scene: { alignSelf: 'center', borderRadius: 18, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,178,63,0.5)' },

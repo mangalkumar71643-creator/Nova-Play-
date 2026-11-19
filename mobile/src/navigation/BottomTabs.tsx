@@ -1,6 +1,7 @@
 import { BottomTabBarHeightCallbackContext, BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React, { useContext, useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Ellipse, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
 import { CrownIcon, EarnIcon, GiftIcon, HomeIcon, IconGlow, TrophyIcon } from '../components/TabIcons';

@@ -2,18 +2,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  Dimensions,
-  Easing,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from '../components/AppText';
 import { showAlert } from '../components/AppAlert';
 import SoundToggle from '../components/SoundToggle';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +21,7 @@ import {
   startChickenRoadRound,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
+import GameBackdrop from '../components/GameBackdrop';
 
 const MIN_STAKE = 10;
 const QUICK_STAKES = [10, 100, 500, 1000];
@@ -542,6 +533,7 @@ export default function ChickenRoadScreen() {
 
   return (
     <View style={styles.root}>
+      <GameBackdrop theme="asphalt" />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.backBtn}>
           <MaterialCommunityIcons name="chevron-left" size={26} color="#FFFFFF" />
