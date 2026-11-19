@@ -6,4 +6,4 @@ and puts it in the game's pack. (A looping background track is different: use `m
 
 | File | Where it comes from |
 |---|---|
-| `aviator/launch.mp3` | The take-off sound the owner sent for Aviator (file name `aviator_background_music.mp3`, 1.9 s, sent in the chat on 2026-11-19). Its container tags show it was cut out of a video. **The owner is responsible for having the rights to use it.** |
+| `aviator/special.mp3` | The 1.9 s sound the owner sent for Aviator (file name `aviator_background_music.mp3`, sent in the chat on 2026-11-19). The owner first called it the take-off sound, then corrected that: it is the **crash** sound. It plays when the plane crashes and never before: the server keeps the crash secret until it happens, and the app plays nothing that could warn a player. Its container tags show it was cut out of a video. **The owner is responsible for having the rights to use it.** |

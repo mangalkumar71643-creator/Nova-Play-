@@ -96,7 +96,7 @@ advance(300);
 get('/aviator/my-bets', [{ id: 'b1', status: 'LOST', payout: '0', amount: '100' }]);
 drain();
 check('crash: bet, take-off + flight loop, crash, then the loss', calls, [
-  '0 aviator.start', '500 aviator.launch', '500 aviator.loop(on)', '2500 aviator.loop(off)', '2500 aviator.fade(launch)', '2500 aviator.special', '2800 aviator.lose',
+  '0 aviator.start', '500 aviator.launch', '500 aviator.loop(on)', '2500 aviator.loop(off)', '2500 aviator.special', '2800 aviator.lose',
 ]);
 
 fresh('aviator');
@@ -108,7 +108,7 @@ post('/aviator/cashout', { multiplier: 2.5, payout: 250 }, { betId: 'b1' });
 get('/aviator/current', { periodNumber: 'p1', phase: 'CRASHED' });
 drain();
 check('crash: a cashed-out bet hears the cash-out and no loss', calls, [
-  '0 aviator.start', '0 aviator.launch', '0 aviator.loop(on)', '2000 aviator.cashout', '2000 aviator.loop(off)', '2000 aviator.fade(launch)', '2000 aviator.special',
+  '0 aviator.start', '0 aviator.launch', '0 aviator.loop(on)', '2000 aviator.cashout', '2000 aviator.loop(off)', '2000 aviator.special',
 ]);
 
 fresh('aviator');
@@ -137,7 +137,21 @@ fresh('aviator');
 get('/aviator/current', { periodNumber: 'p1', phase: 'FLYING' });
 get('/aviator/current', { periodNumber: 'p1', phase: 'CRASHED' });
 drain();
-check('crash: opening mid-flight loops but does not announce a take-off or a loss', calls, ['0 aviator.loop(on)', '0 aviator.loop(off)', '0 aviator.fade(launch)', '0 aviator.special']);
+check('crash: opening mid-flight loops but does not announce a take-off or a loss', calls, ['0 aviator.loop(on)', '0 aviator.loop(off)', '0 aviator.special']);
+
+fresh('aviator');
+post('/aviator/bet', { id: 'b1', amount: '100', status: 'PENDING' });
+get('/aviator/current', { periodNumber: 'p1', phase: 'BETTING' });
+get('/aviator/current', { periodNumber: 'p1', phase: 'FLYING' });
+advance(1500);
+get('/aviator/current', { periodNumber: 'p1', phase: 'FLYING' });
+advance(1500);
+get('/aviator/current', { periodNumber: 'p1', phase: 'FLYING' });
+const beforeCrash = calls.length;
+check('crash: nothing warns the player while the plane is still flying (only the bet was heard)', calls.filter((c) => /special|lose|fade|stop/.test(c)), []);
+advance(400);
+get('/aviator/current', { periodNumber: 'p1', phase: 'CRASHED' });
+check('crash: the crash sound starts when the crash is known, not before', calls.slice(beforeCrash).filter((c) => /special/.test(c)), ['3400 aviator.special']);
 
 // ------------------------------------------------------------ step games
 fresh('mines');
@@ -263,7 +277,7 @@ const need: Record<string, string[]> = {
   screen: ['win', 'bigwin'],
 };
 // Sounds a game is silent on by choice (the owner asked for them to go): the check does not ask for them.
-const SILENT_BY_CHOICE: Record<string, string[]> = { aviator: ['special', 'lose'] };
+const SILENT_BY_CHOICE: Record<string, string[]> = { aviator: ['launch', 'lose'] };
 const missing: string[] = [];
 const musicSource = fs.readFileSync(path.join(SRC, 'music.ts'), 'utf8');
 const hasMusic = new Set([...musicSource.matchAll(/^ {2}(\w+): \{ src:/gm)].map((m) => m[1]));

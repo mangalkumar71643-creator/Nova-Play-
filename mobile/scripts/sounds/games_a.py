@@ -23,9 +23,9 @@ def aviator(r):
         "bigwin": C.bigwin_stinger(r, 76, L.MAJOR_PENT, C.voice("bell", d=0.6, tau=0.35), 1.0, 0.5),
         "lose": C.lose_motif(r, 76, L.MAJOR_PENT, C.voice("bell", d=0.6, tau=0.35), "slide", 300, 0.5, -9),
     }
-    # The owner asked for no take-off sound and no crash sound: the background music carries the flight. The crash
-    # sound and the "you lost" sound (which plays at the same moment as the crash) are left out too. They are still
-    # rendered above so the sounds that stay keep exactly the noise they have always had.
+    # Aviator has no take-off sound and no "you lost" sound (the owner's background music carries the flight); its crash
+    # sound is the owner's own file, supplied/aviator/special.mp3, which build.py puts in the pack. The recipe's own versions
+    # are still rendered above so the sounds that stay keep exactly the noise they have always had.
     for silent in ("launch", "special", "lose"):
         del d[silent]
     return d
