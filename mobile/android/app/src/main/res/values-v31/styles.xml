@@ -1,0 +1,7 @@
+<resources>
+  <!-- Android 12+: the system splash shows the launcher icon on this colour (black, like the logo's own background). -->
+  <style name="Theme.App.SplashScreen" parent="AppTheme">
+    <item name="android:windowBackground">@drawable/ic_launcher_background</item>
+    <item name="android:windowSplashScreenBackground">@color/splashscreen_background</item>
+  </style>
+</resources>

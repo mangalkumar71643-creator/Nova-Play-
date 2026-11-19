@@ -46,11 +46,8 @@ src = Image.open(MOBILE / "assets" / "icon.png").convert("RGBA")
 for size in (192, 512):
     src.resize((size, size), Image.LANCZOS).save(icons / f"icon-{size}.png")
 src.resize((180, 180), Image.LANCZOS).save(icons / "apple-touch-icon.png")
-# Maskable: the picture inside the safe 80% on the app's dark red.
-mask = Image.new("RGBA", (512, 512), THEME)
-inner = src.resize((400, 400), Image.LANCZOS)
-mask.paste(inner, (56, 56), inner)
-mask.save(icons / "icon-maskable-512.png")
+# Maskable: full-bleed, the logo inside the safe zone (made by scripts/brand/make-logo-assets.py).
+Image.open(MOBILE / "assets" / "brand" / "icon-maskable-512.png").convert("RGBA").save(icons / "icon-maskable-512.png")
 
 (TMP / "manifest.webmanifest").write_text(json.dumps({
     "name": "NovaPlay", "short_name": "NovaPlay", "description": "NovaPlay games in your browser",
