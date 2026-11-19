@@ -14,6 +14,7 @@ import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
 import GameBackdrop from '../components/GameBackdrop';
+import { NARROW } from '../utils/narrow';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -804,16 +805,16 @@ export default function ScratchCardScreen() {
                 WIN {money(result.payout)} <Text style={styles.plateSub}>({fmtX(result.m)})</Text>
               </Text>
             ) : result.payout > 0 ? (
-              <Text style={styles.plateText}>RETURNED {money(result.payout)}</Text>
+              <Text style={styles.plateText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>RETURNED {money(result.payout)}</Text>
             ) : (
-              <Text style={styles.plateText}>NO WIN · TRY ANOTHER TICKET</Text>
+              <Text style={styles.plateText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>NO WIN · TRY ANOTHER TICKET</Text>
             )
           ) : phase === 'scratching' ? (
-            <Text style={styles.plateText}>SCRATCH THE GOLD · {opened}/9 OPEN</Text>
+            <Text style={styles.plateText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>SCRATCH THE GOLD · {opened}/9 OPEN</Text>
           ) : phase === 'buying' ? (
-            <Text style={styles.plateText}>PRINTING YOUR TICKET…</Text>
+            <Text style={styles.plateText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>PRINTING YOUR TICKET…</Text>
           ) : (
-            <Text style={styles.plateText}>BUY A TICKET · MATCH 3 TO WIN</Text>
+            <Text style={styles.plateText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>BUY A TICKET · MATCH 3 TO WIN</Text>
           )}
         </View>
 
@@ -842,7 +843,7 @@ export default function ScratchCardScreen() {
               <Pressable onPress={() => stepBet(-1)} disabled={busy} style={[styles.betBtn, busy && styles.dim]} hitSlop={6}>
                 <MaterialCommunityIcons name="minus" size={18} color={INK} />
               </Pressable>
-              <Text style={styles.betValue}>{money(bet)}</Text>
+              <Text style={styles.betValue} numberOfLines={1} adjustsFontSizeToFit>{money(bet)}</Text>
               <Pressable onPress={() => stepBet(1)} disabled={busy} style={[styles.betBtn, busy && styles.dim]} hitSlop={6}>
                 <MaterialCommunityIcons name="plus" size={18} color={INK} />
               </Pressable>
@@ -999,21 +1000,21 @@ const styles = StyleSheet.create({
   keyX: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   serial: { color: 'rgba(255,214,107,0.6)', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginTop: 8 },
   plate: { marginTop: 10, paddingHorizontal: 18, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(10,2,6,0.85)', borderWidth: 1.5, borderColor: GOLD },
-  plateText: { color: TEXT, fontSize: 13, fontWeight: '900', letterSpacing: 1.5 },
+  plateText: { color: TEXT, fontSize: NARROW ? 12 : 13, fontWeight: '900', letterSpacing: NARROW ? 0.6 : 1.5 },
   plateWin: { color: GREEN, fontSize: 16, fontWeight: '900', letterSpacing: 1 },
   plateSub: { color: GOLD, fontSize: 13 },
   session: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, paddingVertical: 6, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)' },
   sessionText: { color: '#E8C8D0', fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },
   sessionSep: { color: '#6A4A54', fontSize: 12 },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingHorizontal: 4 },
-  sideBtn: { alignItems: 'center', gap: 2, width: 58 },
+  sideBtn: { alignItems: 'center', gap: 2, width: 50 },
   sideText: { color: GOLD, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  betBox: { alignItems: 'center', gap: 4 },
+  betBox: { alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 },
   betLabel: { color: '#E0B8C4', fontSize: 10, fontWeight: '900', letterSpacing: 2 },
   betRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6, flexShrink: 1,
     backgroundColor: 'rgba(34,4,14,0.9)',
     borderRadius: 20,
     borderWidth: 1.5,
@@ -1021,12 +1022,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 4,
   },
-  betBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: TEXT, alignItems: 'center', justifyContent: 'center' },
-  betValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', minWidth: 70, textAlign: 'center' },
+  betBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: TEXT, alignItems: 'center', justifyContent: 'center' },
+  betValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', minWidth: 54, flexShrink: 1, textAlign: 'center' },
   dim: { opacity: 0.4 },
-  mainWrap: { width: 92, height: 92, alignItems: 'center', justifyContent: 'center' },
-  mainHalo: { position: 'absolute', width: 92, height: 92, borderRadius: 46, backgroundColor: GOLD },
-  mainBtn: { width: 82, height: 82, borderRadius: 41, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
+  mainWrap: { width: 88, height: 88, alignItems: 'center', justifyContent: 'center' },
+  mainHalo: { position: 'absolute', width: 88, height: 88, borderRadius: 44, backgroundColor: GOLD },
+  mainBtn: { width: 78, height: 78, borderRadius: 39, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
   mainSmall: { color: INK, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   banner: { position: 'absolute', top: '58%', alignSelf: 'center' },
   bannerInner: { paddingHorizontal: 30, paddingVertical: 12, borderRadius: 16, borderWidth: 3, alignItems: 'center' },

@@ -25,6 +25,7 @@ import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
 import ChipStrip, { CHIP_HEIGHT } from '../components/ChipStrip';
+import { NARROW } from '../utils/narrow';
 
 const GOLD = '#FFD66B';
 const SYMBOLS: JhandiSymbol[] = ['HEART', 'SPADE', 'DIAMOND', 'CLUB', 'FLAG', 'CROWN'];
@@ -782,7 +783,7 @@ export default function JhandiMundaScreen() {
       <View style={styles.topBar}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color="#FFFFFF" />
-          <Text style={styles.title}>
+          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             JHANDI <Text style={{ color: GOLD }}>MUNDA</Text>
           </Text>
         </Pressable>
@@ -976,9 +977,9 @@ export default function JhandiMundaScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#12040F' },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, height: 52 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  title: { color: '#FFFFFF', fontSize: 19, fontWeight: '900', fontStyle: 'italic', letterSpacing: 1 },
-  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 1, minWidth: 0 },
+  title: { color: '#FFFFFF', fontSize: NARROW ? 16 : 19, fontWeight: '900', fontStyle: 'italic', letterSpacing: NARROW ? 0.5 : 1, flexShrink: 1 },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   balancePill: {
     flexDirection: 'row',
     alignItems: 'center',

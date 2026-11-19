@@ -27,6 +27,7 @@ import { winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
 import GameBackdrop from '../components/GameBackdrop';
 import ChipStrip, { CHIP_HEIGHT } from '../components/ChipStrip';
+import { NARROW } from '../utils/narrow';
 
 // How far the live number may run past the server's latest reply.
 const MAX_AHEAD_OF_SERVER_MS = 1200;
@@ -583,7 +584,7 @@ export default function GoalRushScreen() {
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color="#FFFFFF" />
           <MaterialCommunityIcons name="soccer" size={22} color={GREEN} />
-          <Text style={styles.title}>GOAL RUSH</Text>
+          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>GOAL RUSH</Text>
         </Pressable>
         <View style={styles.topRight}>
           <View style={styles.balancePill}>
@@ -806,9 +807,9 @@ export default function GoalRushScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#07031A' },
   topBar: { height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  title: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', fontStyle: 'italic', letterSpacing: 2 },
-  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 },
+  title: { color: '#FFFFFF', fontSize: NARROW ? 16 : 20, fontWeight: '900', fontStyle: 'italic', letterSpacing: NARROW ? 0.5 : 2, flexShrink: 1 },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   balancePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,214,107,0.4)' },
   balanceText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   depositBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: GOLD },

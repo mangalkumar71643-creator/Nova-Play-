@@ -132,8 +132,9 @@ def arcs(c, t):
     cy = c.h * 0.52
     sc = c.h / 1560.0 if c.w > c.h else 1.0
     # (x of the arc at its middle, half-length, strength, line width)
-    # the arcs hug the screen edges (as on the Home screen), so they never sit behind a game's buttons and text
-    specs = [(40 * sc * 1.5, 820 * sc, 1.00, 2.4), (66 * sc * 1.5, 760 * sc, 0.80, 1.9), (92 * sc * 1.5, 700 * sc, 0.58, 1.5), (118 * sc * 1.5, 640 * sc, 0.36, 1.2)]
+    # one bright arc right at the screen edge (as on the Home screen) and three faint ones just inside it: nothing
+    # reaches far enough into the screen to sit behind a game's buttons and text
+    specs = [(34 * sc * 1.5, 820 * sc, 1.00, 2.2), (54 * sc * 1.5, 760 * sc, 0.42, 1.6), (72 * sc * 1.5, 700 * sc, 0.20, 1.3), (90 * sc * 1.5, 640 * sc, 0.10, 1.1)]
     for side in (0, 1):
         for x0, half, st, wd in specs:
             k = x0 / (half ** 2)
@@ -154,7 +155,7 @@ def arcs(c, t):
             inner = np.clip(xx - xc, 0, None)
             wash += (np.exp(-inner / 46.0) * along * st * (xx >= xc)).astype(np.float32)
     c.screen(layer * 0.95)
-    c.add(np.clip(wash, 0, 1.6) * 0.5, rgb(t["accent2"]), 0.12)
+    c.add(np.clip(wash, 0, 1.6) * 0.5, rgb(t["accent2"]), 0.07)
 
 
 def disc_layer(c, pts, soft=0.8, ss=2):

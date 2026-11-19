@@ -848,7 +848,7 @@ export default function WolfMoonScreen() {
               <Pressable onPress={() => stepBet(-1)} disabled={busy} style={[styles.betBtn, busy && styles.dim]} hitSlop={6}>
                 <MaterialCommunityIcons name="minus" size={18} color={NIGHT} />
               </Pressable>
-              <Text style={styles.betValue}>{money(bet)}</Text>
+              <Text style={styles.betValue} numberOfLines={1} adjustsFontSizeToFit>{money(bet)}</Text>
               <Pressable onPress={() => stepBet(1)} disabled={busy} style={[styles.betBtn, busy && styles.dim]} hitSlop={6}>
                 <MaterialCommunityIcons name="plus" size={18} color={NIGHT} />
               </Pressable>
@@ -1015,13 +1015,13 @@ const styles = StyleSheet.create({
   sessionText: { color: '#C8D0E0', fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },
   sessionSep: { color: '#5A6070', fontSize: 12 },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingHorizontal: 4 },
-  sideBtn: { alignItems: 'center', gap: 2, width: 58 },
+  sideBtn: { alignItems: 'center', gap: 2, width: 50 },
   sideText: { color: TURQ, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  betBox: { alignItems: 'center', gap: 4 },
+  betBox: { alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 },
   betLabel: { color: '#A8B0C8', fontSize: 10, fontWeight: '900', letterSpacing: 2 },
-  betRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(5,3,15,0.8)', borderRadius: 20, borderWidth: 1.5, borderColor: '#8A6A3A', paddingHorizontal: 6, paddingVertical: 4 },
-  betBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: SILVER, alignItems: 'center', justifyContent: 'center' },
-  betValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', minWidth: 70, textAlign: 'center' },
+  betRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, backgroundColor: 'rgba(5,3,15,0.8)', borderRadius: 20, borderWidth: 1.5, borderColor: '#8A6A3A', paddingHorizontal: 6, paddingVertical: 4 },
+  betBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: SILVER, alignItems: 'center', justifyContent: 'center' },
+  betValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', minWidth: 54, flexShrink: 1, textAlign: 'center' },
   dim: { opacity: 0.4 },
   spinWrap: { width: 86, height: 86, alignItems: 'center', justifyContent: 'center' },
   spinHalo: { position: 'absolute', width: 86, height: 86, borderRadius: 43, backgroundColor: MOONLIGHT },

@@ -355,6 +355,8 @@ export default function AcesScreen() {
   const frameW = boardW + pad * 2;
   const frameH = boardH + pad * 2;
   const frameLeft = (W - frameW) / 2;
+  // The controls bar needs about 330 dp: on a small phone the frame is narrower than that.
+  const ctrlW = Math.max(frameW, Math.min(W - 24, 360));
   const spare = Math.max(0, H - insets.bottom - 18 - controlsH - headerH - (logoH + 8 + comboH + 8 + frameH + 12 + stripH));
   const logoTop = headerH + spare * 0.3;
   const comboTop = logoTop + logoH + 8;
@@ -883,7 +885,7 @@ export default function AcesScreen() {
       </View>
 
       {/* Controls */}
-      <View style={[styles.controls, { bottom: insets.bottom + 18, left: frameLeft, width: frameW }]}>
+      <View style={[styles.controls, { bottom: insets.bottom + 18, left: (W - ctrlW) / 2, width: ctrlW }]}>
         <View style={styles.betBox}>
           <Pressable onPress={() => changeBet(-1)} style={[styles.betBtn, (busy || autoLeft > 0) && styles.dim]} hitSlop={6} accessibilityLabel="Lower bet">
             <MaterialCommunityIcons name="minus" size={20} color="#2A1600" />
@@ -928,7 +930,7 @@ export default function AcesScreen() {
       </View>
 
       {autoOpen && (
-        <View style={[styles.autoPop, { bottom: insets.bottom + 126, right: frameLeft }]}>
+        <View style={[styles.autoPop, { bottom: insets.bottom + 126, right: (W - ctrlW) / 2 }]}>
           <Text style={styles.autoPopTitle}>AUTO SPIN</Text>
           <View style={styles.autoGrid}>
             {AUTO_OPTIONS.map((n) => (

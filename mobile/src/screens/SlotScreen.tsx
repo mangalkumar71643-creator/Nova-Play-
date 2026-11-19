@@ -694,6 +694,8 @@ export default function SlotScreen() {
   const reelTop = logoTop + logoH + 6;
   const stripTop = reelTop + boxH + 12 + spare * 0.2;
   const boxLeft = (W - boxW) / 2;
+  // The controls bar needs about 330 dp: on a small phone the reel box is narrower than that.
+  const ctrlW = Math.max(boxW, Math.min(W - 24, 360));
   const symbolSize = cell * 0.84;
   const winLines = win?.lines ?? [];
   const winningCells = new Set<number>();
@@ -876,7 +878,7 @@ export default function SlotScreen() {
       </View>
 
       {/* Controls */}
-      <View style={[styles.controls, { bottom: insets.bottom + 18, left: boxLeft, width: boxW }]}>
+      <View style={[styles.controls, { bottom: insets.bottom + 18, left: (W - ctrlW) / 2, width: ctrlW }]}>
         <View style={styles.betBox}>
           <Pressable onPress={() => changeBet(-1)} style={[styles.betBtn, (spinning || autoLeft > 0) && styles.dim]} hitSlop={6} accessibilityLabel="Lower bet">
             <MaterialCommunityIcons name="minus" size={20} color="#2A1600" />
@@ -923,7 +925,7 @@ export default function SlotScreen() {
       </View>
 
       {autoOpen && (
-        <View style={[styles.autoPop, { bottom: insets.bottom + 126, right: boxLeft }]}>
+        <View style={[styles.autoPop, { bottom: insets.bottom + 126, right: (W - ctrlW) / 2 }]}>
           <Text style={styles.autoPopTitle}>AUTO SPIN</Text>
           <View style={styles.autoGrid}>
             {AUTO_OPTIONS.map((n) => (

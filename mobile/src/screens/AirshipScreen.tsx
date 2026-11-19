@@ -655,7 +655,7 @@ export default function AirshipScreen() {
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={BRASS_LIGHT} />
           <MaterialCommunityIcons name="airballoon" size={20} color={BRASS} />
-          <Text style={styles.title}>AIRSHIP</Text>
+          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>AIRSHIP</Text>
         </Pressable>
         <View style={styles.topRight}>
           <View style={styles.balancePill}>
@@ -885,9 +885,9 @@ export default function AirshipScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#08060A' },
   topBar: { height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  title: { color: BRASS_LIGHT, fontSize: 21, fontWeight: '900', letterSpacing: 4, fontFamily: SERIF },
-  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 },
+  title: { color: BRASS_LIGHT, fontSize: 21, fontWeight: '900', letterSpacing: 4, fontFamily: SERIF, flexShrink: 1 },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   balancePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: 'rgba(216,168,74,0.12)', borderWidth: 1.5, borderColor: BRASS_DARK },
   balanceText: { color: BRASS_LIGHT, fontSize: 14, fontWeight: '800', fontFamily: SERIF },
   depositBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: BRASS },

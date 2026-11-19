@@ -788,7 +788,7 @@ export default function TreasureDigScreen() {
               <Pressable onPress={() => stepBet(-1)} disabled={pending} style={[styles.betBtn, pending && styles.dim]} hitSlop={6}>
                 <MaterialCommunityIcons name="minus" size={18} color={INK} />
               </Pressable>
-              <Text style={styles.betValue}>{money(pending ? stake : bet)}</Text>
+              <Text style={styles.betValue} numberOfLines={1} adjustsFontSizeToFit>{money(pending ? stake : bet)}</Text>
               <Pressable onPress={() => stepBet(1)} disabled={pending} style={[styles.betBtn, pending && styles.dim]} hitSlop={6}>
                 <MaterialCommunityIcons name="plus" size={18} color={INK} />
               </Pressable>
@@ -974,14 +974,14 @@ const styles = StyleSheet.create({
   sessionText: { color: '#D8E4E8', fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },
   sessionSep: { color: '#5A7078', fontSize: 12 },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingHorizontal: 4 },
-  sideBtn: { alignItems: 'center', gap: 2, width: 58 },
+  sideBtn: { alignItems: 'center', gap: 2, width: 50 },
   sideText: { color: GOLD, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  betBox: { alignItems: 'center', gap: 4 },
+  betBox: { alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 },
   betLabel: { color: '#A8C0C8', fontSize: 10, fontWeight: '900', letterSpacing: 2 },
   betRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6, flexShrink: 1,
     backgroundColor: 'rgba(4,30,40,0.9)',
     borderRadius: 20,
     borderWidth: 1.5,
@@ -989,12 +989,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 4,
   },
-  betBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: TEXT, alignItems: 'center', justifyContent: 'center' },
-  betValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', minWidth: 70, textAlign: 'center' },
+  betBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: TEXT, alignItems: 'center', justifyContent: 'center' },
+  betValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', minWidth: 54, flexShrink: 1, textAlign: 'center' },
   dim: { opacity: 0.4 },
-  mainWrap: { width: 92, height: 92, alignItems: 'center', justifyContent: 'center' },
-  mainHalo: { position: 'absolute', width: 92, height: 92, borderRadius: 46, backgroundColor: GOLD },
-  mainBtn: { width: 82, height: 82, borderRadius: 41, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', paddingHorizontal: 6 },
+  mainWrap: { width: 88, height: 88, alignItems: 'center', justifyContent: 'center' },
+  mainHalo: { position: 'absolute', width: 88, height: 88, borderRadius: 44, backgroundColor: GOLD },
+  mainBtn: { width: 78, height: 78, borderRadius: 39, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', paddingHorizontal: 6 },
   mainSmall: { color: INK, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   mainBig: { color: INK, fontSize: 15, fontWeight: '900' },
   banner: { position: 'absolute', top: '47%', alignSelf: 'center' },

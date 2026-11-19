@@ -1207,7 +1207,7 @@ export default function PenaltyHeroScreen() {
               <Pressable onPress={() => stepBet(-1)} disabled={pending} style={[styles.betBtn, pending && styles.dim]} hitSlop={6}>
                 <MaterialCommunityIcons name="minus" size={18} color={NAVY} />
               </Pressable>
-              <Text style={styles.betValue}>{money(pending ? stake : bet)}</Text>
+              <Text style={styles.betValue} numberOfLines={1} adjustsFontSizeToFit>{money(pending ? stake : bet)}</Text>
               <Pressable onPress={() => stepBet(1)} disabled={pending} style={[styles.betBtn, pending && styles.dim]} hitSlop={6}>
                 <MaterialCommunityIcons name="plus" size={18} color={NAVY} />
               </Pressable>
@@ -1565,9 +1565,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 4,
   },
-  sideBtn: { alignItems: 'center', gap: 2, width: 58 },
+  sideBtn: { alignItems: 'center', gap: 2, width: 50 },
   sideText: { color: LIME, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  betBox: { alignItems: 'center', gap: 4 },
+  betBox: { alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 },
   betLabel: {
     color: '#A8B0C8',
     fontSize: 10,
@@ -1577,7 +1577,7 @@ const styles = StyleSheet.create({
   betRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6, flexShrink: 1,
     backgroundColor: 'rgba(10,18,48,0.85)',
     borderRadius: 20,
     borderWidth: 1.5,
@@ -1586,9 +1586,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   betBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: WHITE,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1597,27 +1597,28 @@ const styles = StyleSheet.create({
     color: WHITE,
     fontSize: 15,
     fontWeight: '900',
-    minWidth: 70,
+    minWidth: 54,
+    flexShrink: 1,
     textAlign: 'center',
   },
   dim: { opacity: 0.4 },
   mainWrap: {
-    width: 92,
-    height: 92,
+    width: 88,
+    height: 88,
     alignItems: 'center',
     justifyContent: 'center',
   },
   mainHalo: {
     position: 'absolute',
-    width: 92,
-    height: 92,
-    borderRadius: 46,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: LIME,
   },
   mainBtn: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+    width: 78,
+    height: 78,
+    borderRadius: 39,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
