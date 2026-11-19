@@ -1,8 +1,8 @@
 # NovaPlay game sounds
 
 Every game has its own sound pack in `mobile/assets/sounds/games/<game>/`
-(`start`, `step`, `tick`, `land`, `reveal`, `launch`, `loop`, `cashout`, `special`, `win`, `bigwin`, `lose` — only the ones that
-fit that game). `mobile/src/sound/packs.ts` is the generated index the app bundles.
+(`start`, `step`, `tick`, `land`, `reveal`, `launch`, `countdown`, `loop`, `cashout`, `special`, `win`, `bigwin`, `lose` — only the
+ones that fit that game). `mobile/src/sound/packs.ts` is the generated index the app bundles.
 
 ## How they are made
 
@@ -57,3 +57,11 @@ loop start, cross-fades the join (so the repeat has no jump), levels the loop to
 `mobile/assets/sounds/music/<game>.mp3` and rewrites `mobile/src/sound/music.ts`. The app plays it while that game is on screen, pauses it
 in the background, and it has its own switch (Settings → Music) besides the main sound switch. Where a track comes from is written down in
 `mobile/assets/sounds/music/README.md`.
+
+## Sounds the owner supplies
+
+`supplied/<game>/<event>.<mp3|wav|flac|...>` replaces the synthesised sound of that event when the packs are built (see
+`supplied/README.md` for where each one comes from). A sound that is mostly bass (a phone speaker cannot play it) is cut from ~110 Hz up and
+levelled without a limiter; every other supplied sound is only trimmed, levelled and encoded. `countdown` is one sound for the last seconds
+of a timed round: Win Go plays it from 5.1 s before the round ends (`countdownMs` in `src/sound/games.ts`), for everyone watching, and if a
+player joins late it starts from the part that is still to come.

@@ -468,9 +468,9 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
   },
   wingo: {
     start: require('../../assets/sounds/games/wingo/start.mp3'),
-    tick: require('../../assets/sounds/games/wingo/tick.mp3'),
     land: require('../../assets/sounds/games/wingo/land.mp3'),
     reveal: require('../../assets/sounds/games/wingo/reveal.mp3'),
+    countdown: require('../../assets/sounds/games/wingo/countdown.mp3'),
     win: require('../../assets/sounds/games/wingo/win.mp3'),
     bigwin: require('../../assets/sounds/games/wingo/bigwin.mp3'),
     lose: require('../../assets/sounds/games/wingo/lose.mp3'),

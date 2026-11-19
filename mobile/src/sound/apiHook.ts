@@ -24,6 +24,8 @@ interface GameState {
   bets: Map<string, Bet>;
   phase: string | null;
   period: string | null;
+  /** When the period being followed ends (local clock, ms). */
+  endsAt: number;
   steps: number;
   pressedAt: number;
   sawReveal: boolean;
@@ -38,7 +40,7 @@ const states = new Map<string, GameState>();
 function stateOf(game: string): GameState {
   let s = states.get(game);
   if (!s) {
-    s = { bets: new Map(), phase: null, period: null, steps: 0, pressedAt: 0, sawReveal: false, timers: new Set(), scheduled: new Set(), watch: null, looping: false };
+    s = { bets: new Map(), phase: null, period: null, endsAt: 0, steps: 0, pressedAt: 0, sawReveal: false, timers: new Set(), scheduled: new Set(), watch: null, looping: false };
     states.set(game, s);
   }
   return s;
@@ -277,19 +279,37 @@ function scheduleRound(def: GameDef, s: GameState, view: Json) {
   const g = def.key;
   const period = typeof view?.periodNumber === 'string' ? view.periodNumber : '';
   if (!period) return;
-  if (s.period !== period) {
-    s.period = period;
-    s.sawReveal = false;
-  }
   const server = Date.parse(view.serverTime);
   const offset = Number.isFinite(server) ? server - Date.now() : 0;
   const local = (iso: unknown) => Date.parse(String(iso)) - offset;
   const hasBets = () => [...s.bets.values()].some((b) => !b.period || b.period === period);
   const end = def.kind === 'table' ? local(view.betEndTime) : local(view.endTime);
-  for (let k = 5; k >= 1; k--) {
-    schedule(def, s, `${period}:t${k}`, end - k * 1000, () => {
-      if (hasBets()) playFor(g, 'tick');
-    });
+  if (s.period !== period) {
+    // Another round, or another tab of the game, while a countdown is still going: it must not play on.
+    if (s.period && s.endsAt > Date.now() + 300) fadeFor(g, 'countdown', 150);
+    s.period = period;
+    s.endsAt = end;
+    s.sawReveal = false;
+  }
+  if (def.countdownMs) {
+    // One sound for the last seconds of the round (for everyone watching, bets or not), timed so that its last ding
+    // falls on the end of the round. Joined late, it starts from the part that is still to come.
+    const key = `${period}:countdown`;
+    const startAt = end - def.countdownMs;
+    const late = Date.now() - startAt;
+    if (!s.scheduled.has(key) && late < def.countdownMs + 400 && -late <= 30_000) {
+      s.scheduled.add(key);
+      const from = Math.max(0, late) / 1000;
+      later(g, s, Math.max(0, -late), () => {
+        if (s.period === period) playFor(g, 'countdown', from > 0 ? { from } : undefined);
+      });
+    }
+  } else {
+    for (let k = 5; k >= 1; k--) {
+      schedule(def, s, `${period}:t${k}`, end - k * 1000, () => {
+        if (hasBets()) playFor(g, 'tick');
+      });
+    }
   }
   schedule(def, s, `${period}:reveal`, end, () => {
     if (!hasBets()) return;

@@ -6,6 +6,7 @@ export type SoundEvent =
   | 'land' // the board / reels / dice settle
   | 'reveal' // the result is being drawn (cards dealt, dice shaken, wheel spun)
   | 'launch' // a crash game takes off
+  | 'countdown' // the last seconds of a timed round (one sound that lasts them all)
   | 'loop' // a crash game's flight (repeats)
   | 'cashout' // money taken out safely
   | 'special' // a blow-up, crash, mine, or other hazard

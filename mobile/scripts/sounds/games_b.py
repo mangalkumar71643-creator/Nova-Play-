@@ -194,6 +194,8 @@ def wingo(r):
         "bigwin": L.mix([(chiptune(r, 72, 9, 0.065), 0, 1.0), (chiptune(r, 84, 7, 0.06), 0.6, 0.8), (L.coin_shower(r, 18, 1.2), 0.15, 0.8)]),
         "lose": L.mix([(C.blip(392, 0.12, "square", 0.08), 0, 0.5), (C.blip(330, 0.12, "square", 0.08), 0.13, 0.5), (C.blip(262, 0.3, "square", 0.18, -0.1), 0.26, 0.5)]),
     }
+    # The last 5 seconds of a round are one sound the owner supplied (supplied/wingo/countdown.flac), not these beats.
+    del d["tick"]
     return d
 
 

@@ -36,14 +36,15 @@ PACKS_TS = os.path.join(ROOT, "src", "sound", "packs.ts")
 
 ALL = {**games_a.GAMES_A, **games_b.GAMES_B}
 
-EVENTS = ["start", "step", "tick", "land", "reveal", "launch", "loop", "cashout", "special", "win", "bigwin", "lose"]
+EVENTS = ["start", "step", "tick", "land", "reveal", "launch", "countdown", "loop", "cashout", "special", "win", "bigwin", "lose"]
 
 # Target RMS (linear, over the audible part) per event so that no game or event is much louder than another.
 RMS = {
     "tick": 0.075, "step": 0.11, "start": 0.13, "land": 0.14, "reveal": 0.13, "launch": 0.13, "cashout": 0.15,
-    "special": 0.17, "win": 0.16, "bigwin": 0.18, "lose": 0.12, "loop": 0.06,
+    "special": 0.17, "win": 0.16, "bigwin": 0.18, "lose": 0.12, "loop": 0.06, "countdown": 0.14,
 }
 MAX_LEN = 4.2  # seconds, one-shots
+MAX_LEN_OF = {"countdown": 7.0}  # the last-5-seconds sound of a timed round is longer
 
 
 def soft_limit(x, knee=0.7):
@@ -101,10 +102,16 @@ def finish(event, x, faithful=False):
         x = x - float(np.mean(x))
     else:
         x = L.trim(x, 0.003, 0.004)
-        cap = L.N(MAX_LEN)
+        cap = L.N(MAX_LEN_OF.get(event, MAX_LEN))
         if len(x) > cap:
             x = x[:cap]
-    x = fft_filter(x, hp=35, loop=loop) if faithful else phone_shape(x, loop)
+    bass_heavy = False
+    if faithful:
+        # A supplied sound that is mostly bass (a phone cannot play it) keeps what a phone speaker can: from ~110 Hz up.
+        bass_heavy = energy(fft_filter(x, lp=150, loop=loop)) > 0.4 * energy(x)
+        x = fft_filter(x, hp=110 if bass_heavy else 35, loop=loop)
+    else:
+        x = phone_shape(x, loop)
     if not loop:
         x = L.trim(x, 0.002, 0.004)
         x = L.fade(x, 0.002, 0.035)
@@ -118,7 +125,10 @@ def finish(event, x, faithful=False):
     bpeak = float(np.max(np.abs(band))) + 1e-9
     act = np.abs(band) > 0.03 * bpeak
     rms = float(np.sqrt(np.mean(band[act] ** 2)))
-    x = x * (RMS[event] / rms)
+    scale = RMS[event] / rms
+    if bass_heavy:
+        scale = min(scale, 0.85 / peak)  # no limiter on it: keep it clean
+    x = x * scale
     x = soft_limit(x)
     p = float(np.max(np.abs(x)))
     if p > 0.97:

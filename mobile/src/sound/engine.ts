@@ -145,6 +145,8 @@ export interface PlayOptions {
   volume?: number;
   /** 1 = as recorded; higher is quicker and higher-pitched. */
   rate?: number;
+  /** Start this many seconds into the sound (a countdown joined late). */
+  from?: number;
 }
 
 function quiet(p: unknown) {
@@ -225,7 +227,7 @@ export class SoundSet {
       }
     }
     try {
-      quiet(p.seekTo(0));
+      quiet(p.seekTo(opts?.from && opts.from > 0 ? opts.from : 0));
       p.play();
     } catch {
       // A missed sound effect is harmless.

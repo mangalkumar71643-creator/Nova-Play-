@@ -50,7 +50,8 @@ const results: Record<string, number> = {};
 const activeListeners: ((k: string | null) => void)[] = [];
 const fakeEngine = {
   BIG_WIN_MULTIPLIER: 10,
-  playFor: (g: string, ev: string, opts?: { rate?: number }) => calls.push(`${stamp()} ${g}.${ev}${opts?.rate ? `@${opts.rate.toFixed(2)}` : ''}`),
+  playFor: (g: string, ev: string, opts?: { rate?: number; from?: number }) =>
+    calls.push(`${stamp()} ${g}.${ev}${opts?.rate ? `@${opts.rate.toFixed(2)}` : ''}${opts?.from ? `+${opts.from.toFixed(1)}s` : ''}`),
   stopFor: (g: string, ev: string) => calls.push(`${stamp()} ${g}.stop(${ev})`),
   fadeFor: (g: string, ev: string) => calls.push(`${stamp()} ${g}.fade(${ev})`),
   hasFor: (g: string, ev: string) => (packEvents[g] ?? []).includes(ev),
@@ -247,11 +248,25 @@ get('/wingo/60/current', { periodNumber: 'w1', serverTime: iso(0), endTime: iso(
 advance(1000);
 get('/wingo/60/current', { periodNumber: 'w1', serverTime: iso(0), endTime: iso(8000), locked: false });
 drain();
-check('lottery: bet, last-5-seconds beats once each, draw', calls, [
-  '0 wingo.start', '4000 wingo.tick', '5000 wingo.tick', '6000 wingo.tick', '7000 wingo.tick', '8000 wingo.tick', '9000 wingo.reveal',
+check('lottery: Win Go plays its one countdown sound 5.1 s before the end (not beats), then the draw', calls, [
+  '0 wingo.start', '3900 wingo.countdown', '9000 wingo.reveal',
 ]);
 get('/wingo/my-bets?limit=50', [{ id: 'w-a', area: 'GREEN', amount: '10', status: 'WON', payout: '20', periodNumber: 'w1' }, { id: 'old', status: 'LOST', amount: '5', payout: '0' }]);
 check('lottery: the settled bet wins (an old one in the list stays silent)', calls.slice(-1), [`${now - base} wingo.win`]);
+fresh('wingo');
+get('/wingo/60/current', { periodNumber: 'w5', serverTime: iso(0), endTime: iso(30000), locked: false });
+advance(31000);
+check('lottery: the countdown plays for everyone watching, with or without a bet', calls, ['24900 wingo.countdown']);
+fresh('wingo');
+get('/wingo/60/current', { periodNumber: 'w6', serverTime: iso(0), endTime: iso(3000), locked: false });
+advance(10);
+check('lottery: joining with 3 s left starts the countdown from where it is (2.1 s in)', calls, ['0 wingo.countdown+2.1s']);
+fresh('wingo');
+get('/wingo/60/current', { periodNumber: 'w7', serverTime: iso(0), endTime: iso(9000), locked: false });
+advance(4500);
+get('/wingo/30/current', { periodNumber: 'w8', serverTime: iso(0), endTime: iso(25500), locked: false });
+advance(30000);
+check('lottery: another tab while the countdown is going stops it, and the old round plays nothing more', calls, ['3900 wingo.countdown', '4500 wingo.fade(countdown)', '24900 wingo.countdown']);
 fresh('k3');
 post('/k3/60/bet', { periodNumber: 'k1', bets: [{ id: 'k-a', area: 'SMALL', amount: '10', status: 'PENDING' }] });
 get('/k3/my-bets?limit=50', [{ id: 'k-a', amount: '10', status: 'WON', payout: '300', periodNumber: 'k1' }]);

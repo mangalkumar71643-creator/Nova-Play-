@@ -32,6 +32,8 @@ export interface GameDef {
   /** instant: ms after the press when the reels / dice / balls settle, and when the result is shown. */
   landAt?: number;
   resultAt?: number;
+  /** lottery: how long before the end of a round its 'countdown' sound starts (the sound's last ding falls on the end). */
+  countdownMs?: number;
   /** screen: where the screen's generic cues land in the pack. Defaults: tick→tick, land→land, win→win. */
   cues?: Partial<Record<GameCue, SoundEvent>>;
 }
@@ -54,7 +56,7 @@ const instant = (key: string, route: string, path: string, play: string, landAt:
   resultAt,
 });
 const table = (key: string, route: string, path: string): GameDef => ({ key, route, path, kind: 'table' });
-const lottery = (key: string, route: string, path: string): GameDef => ({ key, route, path, kind: 'lottery' });
+const lottery = (key: string, route: string, path: string, countdownMs?: number): GameDef => ({ key, route, path, kind: 'lottery', countdownMs });
 const screen = (key: string, route: string, path: string, cues?: GameDef['cues']): GameDef => ({ key, route, path, kind: 'screen', cues });
 
 export const GAMES: GameDef[] = [
@@ -93,7 +95,7 @@ export const GAMES: GameDef[] = [
   table('roulette', 'Roulette', '/roulette'),
   table('baccarat', 'Baccarat', '/baccarat'),
 
-  lottery('wingo', 'WinGo', '/wingo'),
+  lottery('wingo', 'WinGo', '/wingo', 5100),
   lottery('k3', 'K3Lottery', '/k3'),
   lottery('fived', 'FiveDLottery', '/5d'),
   lottery('trxwin', 'TrxWin', '/trx'),
