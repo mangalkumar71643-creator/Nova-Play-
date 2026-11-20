@@ -21,7 +21,6 @@ import {
   startChickenRoadRound,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
-import GameBackdrop from '../components/GameBackdrop';
 
 const MIN_STAKE = 10;
 const QUICK_STAKES = [10, 100, 500, 1000];
@@ -533,7 +532,6 @@ export default function ChickenRoadScreen() {
 
   return (
     <View style={styles.root}>
-      <GameBackdrop theme="asphalt" />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.backBtn}>
           <MaterialCommunityIcons name="chevron-left" size={26} color="#FFFFFF" />

@@ -54,7 +54,6 @@ THEMES = {
     "steel":         dict(base=("#212C3C", "#131A25", "#07090E"), accent="#FFC21A", accent2="#36506E", glow=("#4C86C0", .5, .30, .55), motifs=["haze", "dots", "arcs", "sparks", "horizon"]),
     "plum":          dict(base=("#450B3C", "#270623", "#10030F"), accent="#FFA0E0", accent2="#B0208C", glow=("#C02CA0", .5, .32, .60), motifs=["haze", "dots", "arcs", "sparks", "horizon"]),
     "neon-magenta":  dict(base=("#34053E", "#1B0422", "#08020E"), accent="#FF48E0", accent2="#3DF2FF", glow=("#D020C0", .5, .32, .60), motifs=["stars", "haze", "arcs", "sparks", "horizon"]),
-    "asphalt":       dict(base=("#242830", "#14161B", "#07080A"), accent="#FFD23D", accent2="#4A5568", glow=("#8A94A8", .5, .30, .50), motifs=["haze", "dots", "arcs", "sparks", "horizon"]),
     "noir-red":      dict(base=("#1A0A0E", "#0E0508", "#050203"), accent="#FF4D5E", accent2="#8A1020", glow=("#C4172C", .5, .34, .55), motifs=["haze", "dots", "arcs", "sparks", "horizon"]),
 }
 

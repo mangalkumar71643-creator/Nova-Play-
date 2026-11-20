@@ -24,13 +24,13 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import { useKeyboardOverlap } from '../utils/keyboard';
-import GameBackdrop from '../components/GameBackdrop';
 
 // ---------- theme ----------
 
 const G1 = '#26A15D';
 const G2 = '#177A43';
 const G3 = '#0F6034';
+const PAGE_BG = '#F2F4F3';
 const INK = '#1E2A23';
 const MUTED = '#8A968F';
 const C_GREEN = '#1DB25E';
@@ -501,7 +501,6 @@ export default function WinGoScreen() {
 
   return (
     <View style={styles.root}>
-      <GameBackdrop theme="emerald" />
       <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: (sheetOpen ? sheetH : 0) + insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <LinearGradient colors={[G1, G2, G3]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + 4, height: insets.top + 60 + 130 }]}>
@@ -1017,7 +1016,7 @@ export default function WinGoScreen() {
 const shadow = { shadowColor: '#0B3D22', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0F4A30' },
+  root: { flex: 1, backgroundColor: PAGE_BG },
   // Height is set inline: status bar + icon row + the part the wallet card overlaps.
   header: { borderBottomRightRadius: 60, overflow: 'hidden' },
   headerArc: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.07)' },
@@ -1039,7 +1038,7 @@ const styles = StyleSheet.create({
   durTab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 12, overflow: 'hidden', gap: 2 },
   durText: { fontFamily: SERIF, color: MUTED, fontSize: 11, fontWeight: '700' },
   ticket: { marginTop: 12, height: 120, borderRadius: 14, flexDirection: 'row', ...shadow },
-  notch: { position: 'absolute', left: '54%', marginLeft: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: '#16583A' },
+  notch: { position: 'absolute', left: '54%', marginLeft: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: PAGE_BG },
   ticketLeft: { width: '54%', padding: 12, justifyContent: 'space-between' },
   howBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.85)' },
   howText: { fontFamily: SERIF, color: '#FFFFFF', fontSize: 12, fontWeight: '700' },

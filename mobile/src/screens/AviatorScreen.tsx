@@ -25,7 +25,6 @@ import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
 import SoundToggle from '../components/SoundToggle';
-import GameBackdrop from '../components/GameBackdrop';
 
 const MIN_STAKE = 10;
 const STAKE_STEP = 10;
@@ -1420,7 +1419,6 @@ export default function AviatorScreen() {
 
   return (
     <View style={styles.screenRoot}>
-      <GameBackdrop theme="noir-red" />
       <Pressable
         onPress={() => navigation.goBack()}
         hitSlop={10}

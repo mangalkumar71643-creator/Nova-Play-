@@ -18,7 +18,6 @@ export type BackdropTheme =
   | 'steel'
   | 'plum'
   | 'neon-magenta'
-  | 'asphalt'
   | 'noir-red';
 
 /** The picture for each theme (portrait). */
@@ -39,7 +38,6 @@ export const BACKDROPS: Record<BackdropTheme, number> = {
   'steel': require('../../assets/backdrops/steel.webp'),
   'plum': require('../../assets/backdrops/plum.webp'),
   'neon-magenta': require('../../assets/backdrops/neon-magenta.webp'),
-  'asphalt': require('../../assets/backdrops/asphalt.webp'),
   'noir-red': require('../../assets/backdrops/noir-red.webp'),
 };
 
@@ -69,6 +67,5 @@ export const BACKDROP_BASE: Record<BackdropTheme, string> = {
   'steel': '#0F141D',
   'plum': '#1E051B',
   'neon-magenta': '#15031B',
-  'asphalt': '#101115',
   'noir-red': '#0B0406',
 };

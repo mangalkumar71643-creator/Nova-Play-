@@ -24,7 +24,6 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
-import GameBackdrop from '../components/GameBackdrop';
 
 // ---------- theme ----------
 
@@ -32,6 +31,7 @@ const G1 = '#23A35E';
 const G2 = '#12743F';
 const G3 = '#0B5A30';
 const GOLD = '#F4CF6A';
+const PAGE_BG = '#EEF3F0';
 const INK = '#1C2B22';
 const MUTED = '#7C8A82';
 // ⭐ House result: dark plum with gold, unlike any die or bet colour.
@@ -541,7 +541,6 @@ export default function K3LotteryScreen() {
 
   return (
     <View style={styles.root}>
-      <GameBackdrop theme="emerald" />
       <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingBottom: (sheetOpen ? sheetH : 0) + insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <LinearGradient colors={[G1, G2, G3]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + 6, height: insets.top + 58 + 110 }]}>
@@ -1139,7 +1138,7 @@ const TONE = {
 const shadow = { shadowColor: '#0B3D22', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0F4A30' },
+  root: { flex: 1, backgroundColor: PAGE_BG },
   // Height is set inline: status bar + icon row + the part the wallet card overlaps.
   header: { borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
   deco: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.07)' },
@@ -1162,7 +1161,7 @@ const styles = StyleSheet.create({
   durIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF2EF', marginBottom: 4 },
   durText: { color: MUTED, fontSize: 11, fontWeight: '700' },
   ticket: { marginTop: 12, height: 118, borderRadius: 14, flexDirection: 'row', ...shadow },
-  notch: { position: 'absolute', left: '52%', marginLeft: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: '#16583A' },
+  notch: { position: 'absolute', left: '52%', marginLeft: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: PAGE_BG },
   ticketLeft: { width: '52%', padding: 12, justifyContent: 'space-between' },
   howBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)' },
   howText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
