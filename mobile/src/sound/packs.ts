@@ -22,7 +22,6 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     lose: require('../../assets/sounds/games/airship/lose.mp3'),
   },
   andarbahar: {
-    start: require('../../assets/sounds/games/andarbahar/start.mp3'),
     tick: require('../../assets/sounds/games/andarbahar/tick.mp3'),
     land: require('../../assets/sounds/games/andarbahar/land.mp3'),
     reveal: require('../../assets/sounds/games/andarbahar/reveal.mp3'),
@@ -38,7 +37,6 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     bigwin: require('../../assets/sounds/games/aviator/bigwin.mp3'),
   },
   baccarat: {
-    start: require('../../assets/sounds/games/baccarat/start.mp3'),
     tick: require('../../assets/sounds/games/baccarat/tick.mp3'),
     land: require('../../assets/sounds/games/baccarat/land.mp3'),
     reveal: require('../../assets/sounds/games/baccarat/reveal.mp3'),
@@ -162,7 +160,6 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     lose: require('../../assets/sounds/games/diceduel/lose.mp3'),
   },
   dragontiger: {
-    start: require('../../assets/sounds/games/dragontiger/start.mp3'),
     tick: require('../../assets/sounds/games/dragontiger/tick.mp3'),
     land: require('../../assets/sounds/games/dragontiger/land.mp3'),
     reveal: require('../../assets/sounds/games/dragontiger/reveal.mp3'),
@@ -240,7 +237,6 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     lose: require('../../assets/sounds/games/hilo/lose.mp3'),
   },
   jhandimunda: {
-    start: require('../../assets/sounds/games/jhandimunda/start.mp3'),
     tick: require('../../assets/sounds/games/jhandimunda/tick.mp3'),
     land: require('../../assets/sounds/games/jhandimunda/land.mp3'),
     reveal: require('../../assets/sounds/games/jhandimunda/reveal.mp3'),
@@ -364,7 +360,6 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     lose: require('../../assets/sounds/games/rocket/lose.mp3'),
   },
   roulette: {
-    start: require('../../assets/sounds/games/roulette/start.mp3'),
     tick: require('../../assets/sounds/games/roulette/tick.mp3'),
     land: require('../../assets/sounds/games/roulette/land.mp3'),
     reveal: require('../../assets/sounds/games/roulette/reveal.mp3'),
@@ -380,7 +375,6 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     lose: require('../../assets/sounds/games/scratchcard/lose.mp3'),
   },
   sevenupdown: {
-    start: require('../../assets/sounds/games/sevenupdown/start.mp3'),
     tick: require('../../assets/sounds/games/sevenupdown/tick.mp3'),
     land: require('../../assets/sounds/games/sevenupdown/land.mp3'),
     reveal: require('../../assets/sounds/games/sevenupdown/reveal.mp3'),
@@ -407,7 +401,6 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     lose: require('../../assets/sounds/games/slot/lose.mp3'),
   },
   teenpatti: {
-    start: require('../../assets/sounds/games/teenpatti/start.mp3'),
     tick: require('../../assets/sounds/games/teenpatti/tick.mp3'),
     land: require('../../assets/sounds/games/teenpatti/land.mp3'),
     reveal: require('../../assets/sounds/games/teenpatti/reveal.mp3'),

@@ -25,6 +25,7 @@ import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { playChipBet } from '../sound/ui';
 
 // ---------- table ----------
 
@@ -971,6 +972,7 @@ export default function RouletteScreen() {
       const added: PlacedChip[] = entries.map((e) => ({ key: keyRef.current++, area: e.area, amount: e.amount }));
       const keys = new Set(added.map((c) => c.key));
       setChips((prev) => [...prev, ...added]);
+      playChipBet();
       enqueue(async () => {
         try {
           const res = await placeRouletteBets(entries);

@@ -35,7 +35,7 @@ import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { playChipBet, withPopupSound } from '../sound/ui';
 
 const W = Dimensions.get('window').width;
 const BOARD_PAD = 8;
@@ -803,6 +803,7 @@ export default function SevenUpDownScreen() {
       const added: PlacedChip[] = entries.map((e) => ({ key: keyRef.current++, area: e.area, amount: e.amount }));
       const keys = new Set(added.map((c) => c.key));
       setChips((prev) => [...prev, ...added]);
+      playChipBet();
       enqueue(async () => {
         try {
           const res = await placeSevenUpDownBets(entries);

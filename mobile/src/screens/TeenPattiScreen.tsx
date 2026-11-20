@@ -28,7 +28,7 @@ import { useAuth } from '../state/AuthContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { playChipBet, withPopupSound } from '../sound/ui';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500, 1000];
 const CHIP_COLORS: Record<number, string> = {
@@ -651,6 +651,7 @@ export default function TeenPattiScreen() {
       const added: PlacedChip[] = entries.map((e) => ({ key: keyRef.current++, area: e.area, amount: e.amount }));
       const keys = new Set(added.map((c) => c.key));
       setChips((prev) => [...prev, ...added]);
+      playChipBet();
       enqueue(async () => {
         try {
           const res = await placeTeenPattiBets(entries);

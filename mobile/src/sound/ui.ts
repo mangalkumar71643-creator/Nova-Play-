@@ -10,19 +10,28 @@ import { ensureAudioMode, isSoundEnabled } from './engine';
 const UI_SOURCES = {
   /** A popup (rules, history, a win card ...) is closed with its cross. */
   popupClose: require('../../assets/sounds/ui/popup_close.mp3'),
+  /** A chip goes from the player's chips onto a bet (a tap on a betting area, Rebet, Double ...). */
+  chipBet: require('../../assets/sounds/ui/chip_bet.mp3'),
 } as const;
 
 export type UiSound = keyof typeof UI_SOURCES;
 
+/**
+ * How many players a sound gets, taken in turns, so quick taps do not cut each other off. A sound that is tapped many times in
+ * a second (the chips) needs more than one that is not (a popup being closed). A sound's length times its taps per second is
+ * about how many it needs.
+ */
+const VOICES: Record<UiSound, number> = { popupClose: 2, chipBet: 4 };
+
 const players = new Map<UiSound, { list: AudioPlayer[]; turn: number } | null>();
 
-/** Two players per sound, taken in turns, so two quick taps do not cut each other off. Made on the first use, kept for good. */
+/** The players of a sound, taken in turns (VOICES). Made on the first use (or at start-up, see preloadUiSounds), kept for good. */
 function playersOf(name: UiSound) {
   let entry = players.get(name);
   if (entry === undefined) {
     try {
       ensureAudioMode();
-      entry = { list: [createAudioPlayer(UI_SOURCES[name]), createAudioPlayer(UI_SOURCES[name])], turn: 0 };
+      entry = { list: Array.from({ length: VOICES[name] }, () => createAudioPlayer(UI_SOURCES[name])), turn: 0 };
     } catch {
       entry = null; // this sound stays silent
     }
@@ -65,4 +74,13 @@ export function withPopupSound<A extends unknown[]>(fn?: (...args: A) => unknown
     playUi('popupClose');
     fn?.(...args);
   };
+}
+
+/**
+ * The chips going onto a bet: call it at the moment the bet is taken (the chip leaves the player's chips), once for one tap,
+ * Rebet or Double. The bets' own sound from the API (the old "bet placed" sound of the table games) is not played any more,
+ * so this one is the only sound a bet makes.
+ */
+export function playChipBet(): void {
+  playUi('chipBet');
 }

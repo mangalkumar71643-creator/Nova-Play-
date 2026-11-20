@@ -4,7 +4,8 @@ import type { SoundEvent } from './types';
 
 /*
  * Plays the game sounds from the API traffic, so a game does not need a line of sound code in its screen:
- * a bet or a spin is heard when it is sent or answered, steps and cash-outs when the reply comes, a crash
+ * a bet or a spin is heard when it is sent or answered (not a table game's bet: its chip goes onto the table with the owner's
+ * chip sound, played by the screen at the tap, see ui.ts), steps and cash-outs when the reply comes, a crash
  * game's take-off / flight / crash from its round polls, and a round's win or loss when the bets that were
  * waiting come back settled. Games whose screens play their own cues only have their results noted here
  * (so a screen's "win" can turn into the big-win sound).
@@ -256,7 +257,8 @@ function onRounds(def: GameDef, method: string, rest: string, body: Json) {
   if (method === 'POST' && rest === '/bet') {
     const period = typeof body?.periodNumber === 'string' ? body.periodNumber : undefined;
     for (const b of betsOf(body)) if (b?.id && (!b.status || b.status === 'PENDING')) s.bets.set(String(b.id), { stake: num(b.amount), period });
-    playFor(g, 'start');
+    // A lottery's bet is heard when the reply comes; a table game's was heard at the tap (the chip sound, ui.ts).
+    if (def.kind === 'lottery') playFor(g, 'start');
   } else if (method === 'POST' && rest === '/cancel') {
     for (const id of Array.isArray(body?.cancelled) ? body.cancelled : []) s.bets.delete(String(id));
   } else if (method === 'GET' && rest === '/current') {

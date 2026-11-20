@@ -71,6 +71,17 @@ part that is still to come.
 
 Sounds of the interface itself (not of a game) live in `supplied/ui/<name>.<ext>`; `build.py` trims and levels them like the games' sounds
 and writes `assets/sounds/ui/<name>.mp3`. `src/sound/ui.ts` lists them and plays them (`playUi('popupClose')`); they follow the same
-Sound Effects switch as the games' sounds. So far there is one: the popup-closing sound, played by the cross of every popup in the app
-(games, the Home popups added from the admin panel, VIP, Profile ...) through `onPress={withPopupSound(() => setPanel(null))}`. A new popup cross needs the same wrapper
-(`npx tsx scripts/sounds/check-api-hook.ts` fails if one is missing; a cross that clears something, like "clear picks", has none).
+Sound Effects switch as the games' sounds. So far there are two:
+
+- the popup-closing sound, played by the cross of every popup in the app (games, the Home popups added from the admin panel, VIP,
+  Profile ...) through `onPress={withPopupSound(() => setPanel(null))}`. A new popup cross needs the same wrapper
+  (`npx tsx scripts/sounds/check-api-hook.ts` fails if one is missing; a cross that clears something, like "clear picks", has none).
+- the chip sound (`playChipBet()`), heard when a chip goes onto a bet: a tap on a betting area, Rebet or Double in the seven chip table
+  games (Seven Up Down, Dragon Tiger, Andar Bahar, Teen Patti, Jhandi Munda, Roulette, Baccarat), and a chip added to the bet in Blackjack. It is called
+  inside `placeChips`, right after the bet is accepted (a refused bet, betting closed or not enough balance, makes no sound), so it is
+  heard at the tap and not when the server answers. It is these games' only bet sound: their packs have no `start` (`NOT_IN_PACK` in
+  `build.py`) and `apiHook.ts` plays nothing for a table game's `/bet` reply. A new chip game puts `playChipBet()` in the same place
+  (the check script fails if a screen with `type PlacedChip` has none). Four players take turns, so quick taps overlap and do not cut each other off.
+
+A sound is levelled by what a phone speaker reproduces (300 Hz to 7 kHz). One that has almost nothing there (the chip sound is a low thump
+and a high hiss) would come out about twice as loud as the rest, so those are listed in `UI_LEVEL_BY_WHOLE` in `build.py` and levelled by the whole sound.

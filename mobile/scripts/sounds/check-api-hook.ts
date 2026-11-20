@@ -217,8 +217,9 @@ fresh('roulette');
 post('/roulette/bet', { periodNumber: 'r9', bets: [{ id: 'x1', area: 'RED', amount: '10', status: 'PENDING' }] });
 get('/roulette/current', { periodNumber: 'r9', phase: 'BETTING', serverTime: iso(0), betEndTime: iso(8000), resultTime: iso(12000), endTime: iso(15000) });
 drain();
-check('table: bet, countdown of the last 5 s, draw, landing', calls, [
-  '0 roulette.start', '3000 roulette.tick', '4000 roulette.tick', '5000 roulette.tick', '6000 roulette.tick', '7000 roulette.tick', '8000 roulette.reveal', '12000 roulette.land',
+// (The bet itself makes no sound here: a table game's chip sound is played by the screen at the tap, see ui.ts.)
+check('table: no sound from the bet reply, then the countdown of the last 5 s, draw, landing', calls, [
+  '3000 roulette.tick', '4000 roulette.tick', '5000 roulette.tick', '6000 roulette.tick', '7000 roulette.tick', '8000 roulette.reveal', '12000 roulette.land',
 ]);
 get('/roulette/my-round', { periodNumber: 'r9', bets: [{ id: 'x1', area: 'RED', amount: '10', status: 'WON', payout: '20' }] });
 check('table: the settled win', calls.slice(-1), [`${now - base} roulette.win`]);
@@ -234,12 +235,12 @@ check('table: a bet placed earlier is followed, and its loss is heard once', cal
 fresh('sevenupdown');
 post('/seven-up-down/bet', { periodNumber: 's1', bets: [{ id: 'z1', area: 'UP', amount: '10', status: 'PENDING' }, { id: 'z2', area: 'N7', amount: '10', status: 'PENDING' }] });
 get('/seven-up-down/my-round', { periodNumber: 's1', bets: [{ id: 'z1', amount: '10', status: 'WON', payout: '20' }, { id: 'z2', amount: '10', status: 'LOST', payout: '0' }] });
-check('table: several bets in one reply give one sound (a win if any won)', calls, ['0 sevenupdown.start', '0 sevenupdown.win']);
+check('table: several bets in one reply give one sound (a win if any won)', calls, ['0 sevenupdown.win']);
 fresh('sevenupdown');
 post('/seven-up-down/bet', { periodNumber: 's1', bets: [{ id: 'z1', area: 'N7', amount: '10', status: 'PENDING' }] });
 post('/seven-up-down/cancel', { cancelled: ['z1'], refund: 10 });
 get('/seven-up-down/my-round', { periodNumber: 's1', bets: [{ id: 'z1', amount: '10', status: 'VOID', payout: '10' }] });
-check('table: a cancelled bet is silent', calls, ['0 sevenupdown.start']);
+check('table: a cancelled bet is silent', calls, []);
 
 // ------------------------------------------------------------ lotteries
 fresh('wingo');
@@ -304,7 +305,7 @@ const need: Record<string, string[]> = {
   crash: ['start', 'cashout', 'special', 'lose'],
   steps: ['start', 'step', 'cashout', 'special', 'win', 'bigwin'],
   instant: ['start', 'win', 'bigwin', 'lose'],
-  table: ['start', 'reveal', 'win', 'bigwin', 'lose'],
+  table: ['reveal', 'win', 'bigwin', 'lose'], // its bet is the chip sound (ui.ts), not a sound of the pack
   lottery: ['start', 'reveal', 'win', 'bigwin', 'lose'],
   screen: ['win', 'bigwin'],
 };
@@ -373,6 +374,23 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
   const ui = fs.readFileSync(path.join(SRC, 'ui.ts'), 'utf8');
   const uiFiles = [...ui.matchAll(/require\('\.\.\/\.\.\/(assets\/sounds\/ui\/[\w.-]+)'\)/g)].map((m) => m[1]);
   check('ui: every interface sound file exists', uiFiles.filter((f) => !fs.existsSync(path.join(APP, '..', f))), []);
+
+  // Every game that puts chips on a bet plays the chip sound at the moment the chips are taken (once for a tap, Rebet or Double),
+  // right where the bet is accepted, so a bet that is refused (betting closed, not enough balance) makes no sound.
+  const noChip: string[] = [];
+  let chipGames = 0;
+  for (const f of files) {
+    const src = fs.readFileSync(f, 'utf8');
+    if (/type PlacedChip\b/.test(src)) {
+      chipGames++;
+      if (!/setChips\(\(prev\) => \[\.\.\.prev, \.\.\.added\]\);\s*playChipBet\(\);/.test(src)) noChip.push(path.relative(APP, f));
+    }
+  }
+  const bj = fs.readFileSync(path.join(APP, 'screens', 'BlackjackScreen.tsx'), 'utf8');
+  const addChip = bj.slice(bj.indexOf('const addChip = '), bj.indexOf('const toggleSound'));
+  if (!/playChipBet\(\);\s*setBet\(next\);/.test(addChip) || /play\('tick'\)/.test(addChip)) noChip.push('screens/BlackjackScreen.tsx (addChip)');
+  check(`ui: the ${chipGames} chip table games and Blackjack play the chip sound when a chip is put on a bet`, noChip, []);
+  check('ui: the chip sound is a real game feature (more than the 7 table games found)', [chipGames >= 7], [true]);
 }
 
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed');

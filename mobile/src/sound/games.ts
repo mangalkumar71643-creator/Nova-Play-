@@ -10,7 +10,7 @@ export type GameKind =
   | 'steps'
   /** One request plays the whole round (wheel, slots, dice duel, …). */
   | 'instant'
-  /** Timed rounds you bet on (Roulette, Baccarat, Dragon Tiger, …). */
+  /** Timed rounds you bet on (Roulette, Baccarat, Dragon Tiger, …). A bet is heard as the chip sound (ui.ts), played by the screen when the chip goes on the table. */
   | 'table'
   /** Timed number draws (Win Go, K3, 5D, TRX). */
   | 'lottery'

@@ -11,7 +11,7 @@ import { ApiClientError } from '../api/client';
 import { BlackjackAction, BlackjackConfig, BlackjackHand, BlackjackOutcome, blackjackAction, dealBlackjack, fetchActiveBlackjack, fetchBlackjackConfig, fetchBlackjackHistory } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
-import { withPopupSound } from '../sound/ui';
+import { playChipBet, withPopupSound } from '../sound/ui';
 
 const GOLD = '#F4CF6B';
 const GOLD_DEEP = '#B8862B';
@@ -669,7 +669,7 @@ export default function BlackjackScreen() {
       showToast(`Maximum bet is ₹${maxStake}`);
       return;
     }
-    play('tick');
+    playChipBet();
     setBet(next);
   };
 

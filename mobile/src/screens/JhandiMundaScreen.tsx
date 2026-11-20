@@ -26,6 +26,7 @@ import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
 import ChipStrip, { CHIP_HEIGHT } from '../components/ChipStrip';
 import { NARROW } from '../utils/narrow';
+import { playChipBet } from '../sound/ui';
 
 const GOLD = '#FFD66B';
 const SYMBOLS: JhandiSymbol[] = ['HEART', 'SPADE', 'DIAMOND', 'CLUB', 'FLAG', 'CROWN'];
@@ -688,6 +689,7 @@ export default function JhandiMundaScreen() {
       const added: PlacedChip[] = entries.map((e) => ({ key: keyRef.current++, area: e.area, amount: e.amount }));
       const keys = new Set(added.map((c) => c.key));
       setChips((prev) => [...prev, ...added]);
+      playChipBet();
       enqueue(async () => {
         try {
           const res = await placeJhandiMundaBets(entries);

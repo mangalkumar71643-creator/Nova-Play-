@@ -40,8 +40,17 @@ PACKS_TS = os.path.join(ROOT, "src", "sound", "packs.ts")
 # Interface sounds the owner supplied (not a game's): supplied/ui/<name>.<ext> -> assets/sounds/ui/<name>.mp3 (played by src/sound/ui.ts).
 UI_SUPPLIED = os.path.join(SUPPLIED, "ui")
 UI_OUT = os.path.join(ROOT, "assets", "sounds", "ui")
+# Interface sounds whose energy is mostly outside what a phone speaker reproduces (a low thump and high hiss, almost nothing
+# between 300 Hz and 7 kHz). Levelled by that band they come out about twice as loud as every other sound, so these are
+# levelled by the whole sound instead.
+UI_LEVEL_BY_WHOLE = {"chip_bet"}
 
 ALL = {**games_a.GAMES_A, **games_b.GAMES_B}
+
+# The table games' bet is heard as the owner's chip sound (supplied/ui/chip_bet.mp3), played by the screen the moment the chip goes
+# onto the table, so their packs have no "start" of their own. The recipes still make one (the game's other sounds are drawn from
+# the same random stream, and leaving it out would change them), it is only not written.
+NOT_IN_PACK = {g: {"start"} for g in ("sevenupdown", "dragontiger", "andarbahar", "teenpatti", "jhandimunda", "roulette", "baccarat")}
 
 EVENTS = ["start", "step", "tick", "land", "reveal", "launch", "countdown", "loop", "cashout", "special", "win", "bigwin", "lose"]
 
@@ -99,8 +108,9 @@ def phone_shape(x, loop):
     return x
 
 
-def finish(event, x, faithful=False):
-    """faithful=True (a sound the owner supplied): keep it as it is, only trim, level and encode it."""
+def finish(event, x, faithful=False, whole=False):
+    """faithful=True (a sound the owner supplied): keep it as it is, only trim, level and encode it.
+    whole=True: level by the whole sound and not by the phone-speaker band (for a sound that has hardly any energy in it)."""
     x = np.nan_to_num(np.asarray(x, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0)
     loop = event == "loop"
     if loop:
@@ -129,7 +139,7 @@ def finish(event, x, faithful=False):
     if peak < 1e-5:
         raise ValueError("silent sound")
     # Level by what a phone speaker reproduces (300 Hz - 7 kHz), so every sound is equally loud there.
-    band = fft_filter(x, hp=300, lp=7000, loop=loop)
+    band = x if whole else fft_filter(x, hp=300, lp=7000, loop=loop)
     bpeak = float(np.max(np.abs(band))) + 1e-9
     act = np.abs(band) > 0.03 * bpeak
     rms = float(np.sqrt(np.mean(band[act] ** 2)))
@@ -194,6 +204,8 @@ def render_game(args):
     for ev, arr in raw.items():
         if ev not in EVENTS:
             raise ValueError(f"{game}: unknown event {ev}")
+        if ev in NOT_IN_PACK.get(game, ()):
+            continue
         x, st = finish(ev, arr, faithful=ev in supplied)
         d = os.path.join(OUT, game)
         os.makedirs(d, exist_ok=True)
@@ -218,7 +230,7 @@ def build_ui():
         name, ext = os.path.splitext(fn)
         if ext.lower() not in AUDIO_EXT:
             continue
-        x, _ = finish("ui", L.load_sample(os.path.join(UI_SUPPLIED, fn), gain_norm=False), faithful=True)
+        x, _ = finish("ui", L.load_sample(os.path.join(UI_SUPPLIED, fn), gain_norm=False), faithful=True, whole=name in UI_LEVEL_BY_WHOLE)
         L.to_mp3(x, os.path.join(UI_OUT, name + ".mp3"), "96k")
         done.append((name, len(x) / L.SR))
     return done
