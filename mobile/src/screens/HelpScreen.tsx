@@ -1,11 +1,12 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState } from 'react';
-import { LayoutAnimation, Platform, Pressable, StyleSheet, UIManager, View } from 'react-native';
+import { LayoutAnimation, Platform, StyleSheet, UIManager, View } from 'react-native';
 import { Text } from '../components/AppText';
 import AppHeader from '../components/AppHeader';
 import ScreenContainer from '../components/ScreenContainer';
 import { openLiveChat } from '../utils/liveChat';
 import { colors, radius, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -81,10 +82,10 @@ export default function HelpScreen() {
     <ScreenContainer>
       <AppHeader showBack title="FAQ" showCoins={false} showNotifications={false} showProfile={false} />
 
-      <Pressable style={styles.topContactButton} onPress={openLiveSupport} disabled={connecting}>
+      <TapPressable style={styles.topContactButton} onPress={openLiveSupport} disabled={connecting}>
         <MaterialCommunityIcons name="headset" size={18} color={colors.textPrimary} />
         <Text style={styles.topContactButtonText}>{connecting ? 'Connecting…' : 'Contact Customer Service'}</Text>
-      </Pressable>
+      </TapPressable>
 
       <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
 
@@ -93,21 +94,21 @@ export default function HelpScreen() {
           const open = openIndex === index;
           return (
             <View key={faq.question} style={styles.card}>
-              <Pressable onPress={() => toggle(index)} style={styles.questionRow}>
+              <TapPressable onPress={() => toggle(index)} style={styles.questionRow}>
                 <Text style={styles.question}>{faq.question}</Text>
                 <MaterialCommunityIcons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={colors.gold} />
-              </Pressable>
+              </TapPressable>
               {open ? <Text style={styles.answer}>{faq.answer}</Text> : null}
             </View>
           );
         })}
       </View>
 
-      <Pressable style={styles.contactCard} onPress={openLiveSupport} disabled={connecting}>
+      <TapPressable style={styles.contactCard} onPress={openLiveSupport} disabled={connecting}>
         <MaterialCommunityIcons name="lifebuoy" size={22} color={colors.gold} />
         <Text style={styles.contactTitle}>Still need help?</Text>
         <Text style={styles.contactBody}>Tap here — it opens a live chat with our team in your browser.</Text>
-      </Pressable>
+      </TapPressable>
     </ScreenContainer>
   );
 }

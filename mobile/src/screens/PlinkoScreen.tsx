@@ -26,7 +26,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 // The three risk levels are played as coloured tile rows, top to bottom.
 const COLORS: { risk: PlinkoRisk; label: string; tile: [string, string]; button: [string, string]; border: string; ball: [string, string, string] }[] = [
@@ -712,11 +712,11 @@ export default function PlinkoScreen() {
       </View>
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.gamePill}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.gamePill}>
           <MaterialCommunityIcons name="chevron-left" size={20} color="#FFFFFF" />
           <Text style={styles.gamePillText}>PLINKO</Text>
         </Pressable>
-        <Pressable onPress={() => setSheet('rules')} style={styles.helpBtn}>
+        <Pressable onPress={withTapSound(() => setSheet('rules'))} style={styles.helpBtn}>
           <Text style={styles.helpText}>?</Text>
         </Pressable>
         <View style={{ flex: 1 }} />
@@ -804,7 +804,7 @@ export default function PlinkoScreen() {
           <Text style={styles.menuUser} numberOfLines={1}>
             {backendUser ? `${backendUser.firstName}${backendUser.uid ? ` · UID ${backendUser.uid}` : ''}` : 'Player'}
           </Text>
-          <Pressable onPress={toggleSound} style={styles.menuItem}>
+          <Pressable onPress={withTapSound(toggleSound)} style={styles.menuItem}>
             <MaterialCommunityIcons name={soundOn ? 'volume-high' : 'volume-off'} size={22} color="#FFFFFF" />
             <Text style={styles.menuLabel}>{t.sound}</Text>
             <View style={[styles.switchTrack, soundOn && styles.switchTrackOn]}>

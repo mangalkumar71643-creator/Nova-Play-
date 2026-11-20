@@ -13,7 +13,7 @@ import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const GOLD = '#FFD166';
 const GOLD_DEEP = '#B8860B';
@@ -889,7 +889,7 @@ export default function FruitMachineScreen() {
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color="#FFFFFF" />
           <Text style={styles.title}>FRUIT MACHINE</Text>
         </Pressable>
@@ -1011,7 +1011,7 @@ export default function FruitMachineScreen() {
         <View style={[styles.deck, { width: outerW }]}>
           <LinearGradient colors={['#C9CED8', '#7A808C', '#4A4E58']} style={[StyleSheet.absoluteFill, { borderRadius: 16 }]} />
           <View style={styles.deckInner}>
-            <ArcadeButton label="PAYS" color="#2F8BFF" size={40} lit={!busy} onPress={() => setPanel('pay')}>
+            <ArcadeButton label="PAYS" color="#2F8BFF" size={40} lit={!busy} onPress={withTapSound(() => setPanel('pay'))}>
               <MaterialCommunityIcons name="information-variant" size={22} color="#FFFFFF" />
             </ArcadeButton>
             <ArcadeButton label="STAKE −" color="#FFB43C" size={40} lit={!busy && betLevels.indexOf(bet) > 0} onPress={() => stepBet(-1)}>

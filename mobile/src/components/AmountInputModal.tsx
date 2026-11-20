@@ -1,11 +1,12 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from './AppText';
 import KeyboardAvoidingOverlay from './KeyboardAvoidingOverlay';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
 import { withPopupSound } from '../sound/ui';
+import TapPressable from './TapPressable';
 
 type Props = {
   visible: boolean;
@@ -54,13 +55,13 @@ export default function AmountInputModal({
               style={styles.input}
               autoFocus
             />
-            <Pressable
+            <TapPressable
               style={[styles.confirmButton, (!isValid || busy) && styles.confirmButtonDisabled]}
               disabled={!isValid || busy}
               onPress={() => onConfirm(amount)}
             >
               <Text style={styles.confirmButtonText}>{busy ? 'Please wait…' : confirmLabel}</Text>
-            </Pressable>
+            </TapPressable>
           </LinearGradient>
         </View>
       </KeyboardAvoidingOverlay>

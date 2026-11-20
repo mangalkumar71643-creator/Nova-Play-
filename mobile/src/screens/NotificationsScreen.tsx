@@ -2,12 +2,13 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { fetchNotifications, markNotificationsRead, PlayerNotification } from '../api/backend';
 import ScreenContainer from '../components/ScreenContainer';
 import { RootStackParamList } from '../navigation/types';
 import { colors, radius, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 type Tab = 'platform' | 'personal';
 
@@ -32,22 +33,22 @@ export default function NotificationsScreen() {
   return (
     <ScreenContainer scroll={false}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TapPressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         <Text style={styles.headerTitle}>Notifications</Text>
         <View style={styles.backButton} />
       </View>
 
       <View style={styles.tabRow}>
-        <Pressable style={styles.tab} onPress={() => setTab('platform')}>
+        <TapPressable style={styles.tab} onPress={() => setTab('platform')}>
           <Text style={[styles.tabLabel, tab === 'platform' && styles.tabLabelActive]}>Platform</Text>
           {tab === 'platform' ? <View style={styles.tabUnderline} /> : null}
-        </Pressable>
-        <Pressable style={styles.tab} onPress={() => setTab('personal')}>
+        </TapPressable>
+        <TapPressable style={styles.tab} onPress={() => setTab('personal')}>
           <Text style={[styles.tabLabel, tab === 'personal' && styles.tabLabelActive]}>Personal</Text>
           {tab === 'personal' ? <View style={styles.tabUnderline} /> : null}
-        </Pressable>
+        </TapPressable>
       </View>
 
       {shown.length > 0 ? (

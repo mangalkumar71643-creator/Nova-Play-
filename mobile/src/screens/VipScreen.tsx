@@ -3,7 +3,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, NativeScrollEvent, NativeSyntheticEvent, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Image, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../components/AppText';
 import { claimVipBonus, fetchVipStatus, VipStatus } from '../api/backend';
 import { ApiClientError } from '../api/client';
@@ -20,6 +20,7 @@ import { vipLevels as VIP_LOOKS } from '../data/mockData';
 import { useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 function buildPrivileges(level: VipLevelDef): { icon: IconName; label: string; value: string }[] {
   const items: { icon: IconName; label: string; value: string }[] = [];
@@ -67,11 +68,11 @@ function BenefitRow({
         {note ? <Text style={styles.benefitNote}>{note}</Text> : null}
       </View>
       {reached && !claimed ? (
-        <Pressable onPress={onClaim}>
+        <TapPressable onPress={onClaim}>
           <LinearGradient colors={gradients.goldButton} style={styles.claimPill}>
             <Text style={styles.claimPillText}>Claim</Text>
           </LinearGradient>
-        </Pressable>
+        </TapPressable>
       ) : claimed ? (
         <View style={styles.receivedPill}>
           <Text style={styles.receivedPillText}>Received</Text>
@@ -215,9 +216,9 @@ export default function VipScreen() {
           style={StyleSheet.absoluteFill}
         />
         <View style={styles.header}>
-          <Pressable onPress={() => navigation.navigate('Home')} style={styles.backButton}>
+          <TapPressable onPress={() => navigation.navigate('Home')} style={styles.backButton}>
             <MaterialCommunityIcons name="chevron-left" size={30} color={colors.goldLight} />
-          </Pressable>
+          </TapPressable>
           <View style={styles.headerCenter}>
             <Image source={AVATARS[avatarId - 1]} style={styles.avatar} />
             <View style={styles.headerText}>
@@ -334,9 +335,9 @@ export default function VipScreen() {
 
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>V{current.level} level privileges</Text>
-        <Pressable onPress={() => setDescriptionVisible(true)}>
+        <TapPressable onPress={() => setDescriptionVisible(true)}>
           <Text style={styles.sectionLink}>View VIP level description ›</Text>
-        </Pressable>
+        </TapPressable>
       </View>
 
       <Animated.ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.privilegesRow}>
@@ -365,9 +366,9 @@ export default function VipScreen() {
         <>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>V{current.level} level benefits</Text>
-            <Pressable onPress={() => setBonusHistoryVisible(true)}>
+            <TapPressable onPress={() => setBonusHistoryVisible(true)}>
               <Text style={styles.sectionLink}>View my bonus history ›</Text>
-            </Pressable>
+            </TapPressable>
           </View>
           <View style={styles.benefitsList}>
             {current.upgradeBonus ? (
@@ -400,12 +401,12 @@ export default function VipScreen() {
         </>
       ) : null}
 
-      <Pressable style={styles.levelUpButtonWrap} onPress={() => navigation.navigate('Home')}>
+      <TapPressable style={styles.levelUpButtonWrap} onPress={() => navigation.navigate('Home')}>
         <LinearGradient colors={['#FF4A63', '#D11A33', '#8E0E1F']} style={styles.levelUpButton}>
           <View style={styles.levelUpShine} />
           <Text style={styles.levelUpLabel}>Level up now</Text>
         </LinearGradient>
-      </Pressable>
+      </TapPressable>
 
       <VipLevelTable visible={descriptionVisible} onClose={() => setDescriptionVisible(false)} vip={vip} />
 

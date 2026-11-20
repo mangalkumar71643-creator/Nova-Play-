@@ -1,9 +1,10 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Text } from './AppText';
 import { Mission } from '../data/models';
 import { colors, radius, spacing, typography } from '../theme';
+import TapPressable from './TapPressable';
 
 type Props = { mission: Mission; onClaim: () => void };
 
@@ -25,7 +26,7 @@ export default function MissionCard({ mission, onClaim }: Props) {
           {Math.min(mission.progress, mission.target)}/{mission.target} · +{mission.reward} coins
         </Text>
       </View>
-      <Pressable
+      <TapPressable
         onPress={onClaim}
         disabled={!ready}
         style={[styles.claimButton, mission.claimed && styles.claimButtonDone, !ready && !mission.claimed && styles.claimButtonDisabled]}
@@ -33,7 +34,7 @@ export default function MissionCard({ mission, onClaim }: Props) {
         <Text style={[styles.claimText, (mission.claimed || !ready) && styles.claimTextMuted]}>
           {mission.claimed ? 'Claimed' : ready ? 'Claim' : 'In progress'}
         </Text>
-      </Pressable>
+      </TapPressable>
     </View>
   );
 }

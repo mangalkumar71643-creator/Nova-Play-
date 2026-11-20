@@ -22,7 +22,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const TILE_COUNT = 25;
 const COLUMNS = 5;
@@ -553,18 +553,18 @@ export default function MinesScreen() {
       </View>
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.gamePill}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.gamePill}>
           <MaterialCommunityIcons name="chevron-left" size={20} color="#FFFFFF" />
           <Text style={styles.gamePillText}>MINES</Text>
         </Pressable>
-        <Pressable onPress={() => setRulesOpen(true)} style={styles.helpBtn}>
+        <Pressable onPress={withTapSound(() => setRulesOpen(true))} style={styles.helpBtn}>
           <Text style={styles.helpText}>?</Text>
         </Pressable>
         <View style={styles.bottomSpacer} />
         <Text style={styles.balanceText}>
           {coins.toFixed(2)} <Text style={styles.balanceUnit}>INR</Text>
         </Text>
-        <Pressable onPress={() => setHistoryOpen(true)} style={styles.menuBtn}>
+        <Pressable onPress={withTapSound(() => setHistoryOpen(true))} style={styles.menuBtn}>
           <MaterialCommunityIcons name="menu" size={20} color="#FFFFFF" />
         </Pressable>
       </View>

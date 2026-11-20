@@ -1,7 +1,8 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Text } from './AppText';
 import { colors, spacing, typography } from '../theme';
+import TapPressable from './TapPressable';
 
 type Props = { title: string; actionLabel?: string; onAction?: () => void };
 
@@ -10,9 +11,9 @@ export default function SectionHeader({ title, actionLabel, onAction }: Props) {
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
       {actionLabel ? (
-        <Pressable onPress={onAction} hitSlop={8}>
+        <TapPressable onPress={onAction} hitSlop={8}>
           <Text style={styles.action}>{actionLabel}</Text>
-        </Pressable>
+        </TapPressable>
       ) : null}
     </View>
   );

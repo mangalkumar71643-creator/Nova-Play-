@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { BettingTask, claimBettingTask, fetchBettingTasks } from '../api/backend';
 import { ApiClientError } from '../api/client';
@@ -11,6 +11,7 @@ import AppHeader from '../components/AppHeader';
 import ScreenContainer from '../components/ScreenContainer';
 import { useGameState } from '../state/GameStateContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 // A task's category → the Home category screen its games are on.
 const CATEGORY_SCREENS: Record<string, string> = {
@@ -104,9 +105,9 @@ export default function BettingTasksScreen() {
 
         <View style={styles.tabs}>
           {(['daily', 'weekly'] as const).map((p) => (
-            <Pressable key={p} style={[styles.tab, tab === p && styles.tabOn]} onPress={() => setTab(p)}>
+            <TapPressable key={p} style={[styles.tab, tab === p && styles.tabOn]} onPress={() => setTab(p)}>
               <Text style={[styles.tabText, tab === p && styles.tabTextOn]}>{p === 'daily' ? 'Daily task' : 'Weekly task'}</Text>
-            </Pressable>
+            </TapPressable>
           ))}
         </View>
 
@@ -135,15 +136,15 @@ export default function BettingTasksScreen() {
                 {t.claimed ? (
                   <Text style={styles.claimed}>Claimed</Text>
                 ) : t.complete ? (
-                  <Pressable onPress={() => claim(t)} disabled={claiming === t.id}>
+                  <TapPressable onPress={() => claim(t)} disabled={claiming === t.id}>
                     <LinearGradient colors={gradients.goldButton} style={styles.claimBtn}>
                       {claiming === t.id ? <ActivityIndicator color="#2A1300" /> : <Text style={styles.claimText}>Claim</Text>}
                     </LinearGradient>
-                  </Pressable>
+                  </TapPressable>
                 ) : (
-                  <Pressable onPress={() => goPlay(t)} style={styles.goBtn}>
+                  <TapPressable onPress={() => goPlay(t)} style={styles.goBtn}>
                     <Text style={styles.goText}>Go complete</Text>
-                  </Pressable>
+                  </TapPressable>
                 )}
               </View>
             </View>

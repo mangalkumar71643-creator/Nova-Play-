@@ -3,7 +3,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, Share, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, ScrollView, Share, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
 import { Text } from '../components/AppText';
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
 import { AgentSummary, claimAgentRewards, fetchAgentSummary, JackpotEntry } from '../api/backend';
@@ -26,6 +26,8 @@ import { IconName } from '../data/models';
 import { RootStackParamList } from '../navigation/types';
 import { useGameState } from '../state/GameStateContext';
 import { colors, gradients, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
+import { withTapSound } from '../sound/ui';
 
 type Tab = 'mine' | 'invite' | 'rules';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -103,17 +105,17 @@ export default function EarnScreen() {
   return (
     <ScreenContainer scroll={false}>
       <LinearGradient colors={['#3A0B14', '#1A0508']} style={styles.header}>
-        <Pressable onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })} style={styles.back} hitSlop={8}>
+        <TapPressable onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })} style={styles.back} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={30} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         {tabs.map((t) => {
           const active = tab === t.key;
           return (
-            <Pressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
+            <TapPressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
               {active ? <LinearGradient colors={['#5A0E1B', '#A0122C']} style={StyleSheet.absoluteFill} /> : null}
               <Text style={[styles.tabText, active && styles.tabTextActive]}>{t.label}</Text>
               {active ? <View style={styles.tabUnderline} /> : null}
-            </Pressable>
+            </TapPressable>
           );
         })}
       </LinearGradient>
@@ -157,11 +159,11 @@ export default function EarnScreen() {
             You need to earn <Text style={styles.rankBannerHi}>{(data.jackpot.minCommission - data.jackpot.myCommission).toFixed(2)}</Text> in agency
             commission to participate in the ranking.
           </Text>
-          <Pressable onPress={invite}>
+          <TapPressable onPress={invite}>
             <LinearGradient colors={gradients.goldButton} style={styles.rankBannerBtn}>
               <Text style={styles.rankBannerBtnText}>Go to attend</Text>
             </LinearGradient>
-          </Pressable>
+          </TapPressable>
         </LinearGradient>
       ) : null}
 
@@ -214,18 +216,18 @@ function MyRewards({
         <View style={styles.levelTag}>
           <Text style={styles.levelTagText}>My team level</Text>
         </View>
-        <Pressable onPress={onHelp} style={styles.helpIcon} hitSlop={8}>
+        <TapPressable onPress={onHelp} style={styles.helpIcon} hitSlop={8}>
           <MaterialCommunityIcons name="help-circle-outline" size={26} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         <View style={styles.levelRow}>
           <Text style={styles.levelLabel}>Team level</Text>
           <TeamLevelBadge level={team.level} />
-          <Pressable onPress={onDetail} style={styles.smallBtn}>
+          <TapPressable onPress={onDetail} style={styles.smallBtn}>
             <Text style={styles.smallBtnText}>Detail</Text>
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate('AgentTeam')} style={styles.smallBtn}>
+          </TapPressable>
+          <TapPressable onPress={() => navigation.navigate('AgentTeam')} style={styles.smallBtn}>
             <Text style={styles.smallBtnText}>Team</Text>
-          </Pressable>
+          </TapPressable>
         </View>
         <Text style={styles.levelNote}>
           {team.size >= data.rules.teamLevels[team.level].teamSize
@@ -272,36 +274,36 @@ function MyRewards({
 
       <LinearGradient colors={['#6A1222', '#3A0913']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.claimCard}>
         <View style={{ flex: 1 }}>
-          <Pressable onPress={() => navigation.navigate('AgentRewards', { tab: 'withdrawals' })} style={styles.linkRow}>
+          <TapPressable onPress={() => navigation.navigate('AgentRewards', { tab: 'withdrawals' })} style={styles.linkRow}>
             <Text style={styles.claimLabel}>Withdrawal rewards</Text>
             <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
-          </Pressable>
+          </TapPressable>
           <Text style={styles.claimAmount}>{inr(rewards.claimable)}</Text>
         </View>
-        <Pressable onPress={onClaim} disabled={claiming} style={{ opacity: claiming ? 0.6 : 1 }}>
+        <TapPressable onPress={onClaim} disabled={claiming} style={{ opacity: claiming ? 0.6 : 1 }}>
           <LinearGradient colors={gradients.goldButton} style={styles.claimBtn}>
             <View style={styles.claimGloss} />
             <Text style={styles.claimBtnText}>{claiming ? 'Claiming…' : 'Claim'}</Text>
           </LinearGradient>
-        </Pressable>
+        </TapPressable>
       </LinearGradient>
 
       <View style={styles.totals}>
-        <Pressable style={styles.totalCell} onPress={() => navigation.navigate('AgentRewards', { tab: 'details' })}>
+        <TapPressable style={styles.totalCell} onPress={() => navigation.navigate('AgentRewards', { tab: 'details' })}>
           <View style={styles.linkRow}>
             <Text style={styles.totalLabel}>Total rewards</Text>
             <MaterialCommunityIcons name="chevron-right" size={18} color={colors.textMuted} />
           </View>
           <Text style={styles.totalValue}>{inr(rewards.total)}</Text>
-        </Pressable>
+        </TapPressable>
         <View style={styles.totalDivider} />
-        <Pressable style={styles.totalCell} onPress={() => navigation.navigate('AgentRewards', { tab: 'details' })}>
+        <TapPressable style={styles.totalCell} onPress={() => navigation.navigate('AgentRewards', { tab: 'details' })}>
           <View style={styles.linkRow}>
             <Text style={styles.totalLabel}>Today's rewards</Text>
             <MaterialCommunityIcons name="chevron-right" size={18} color={colors.textMuted} />
           </View>
           <Text style={styles.totalValue}>{inr(rewards.today)}</Text>
-        </Pressable>
+        </TapPressable>
       </View>
 
       <BigRedButton label="Invite friends to get money" onPress={onInvite} />
@@ -314,18 +316,18 @@ function MyRewards({
       <View style={styles.hindiRow}>
         <Text style={styles.hindiLabel}>Refer friends with:</Text>
         <Text style={styles.hindiText}>हिंदी में साझा करें</Text>
-        <Switch value={hindi} onValueChange={setHindi} trackColor={{ false: '#3A0913', true: '#C8173A' }} thumbColor={hindi ? colors.goldLight : '#B0152F'} />
+        <Switch value={hindi} onValueChange={withTapSound(setHindi)} trackColor={{ false: '#3A0913', true: '#C8173A' }} thumbColor={hindi ? colors.goldLight : '#B0152F'} />
       </View>
 
       <View style={styles.shareRow}>
-        <Pressable style={styles.shareBtn} onPress={() => onShare('telegram')}>
+        <TapPressable style={styles.shareBtn} onPress={() => onShare('telegram')}>
           <MaterialCommunityIcons name="send" size={22} color={colors.gold} style={{ transform: [{ rotate: '-30deg' }] }} />
           <Text style={styles.shareText}>Share to Telegram</Text>
-        </Pressable>
-        <Pressable style={styles.shareBtn} onPress={() => onShare('whatsapp')}>
+        </TapPressable>
+        <TapPressable style={styles.shareBtn} onPress={() => onShare('whatsapp')}>
           <MaterialCommunityIcons name="whatsapp" size={22} color={colors.gold} />
           <Text style={styles.shareText}>Share to WhatsApp</Text>
-        </Pressable>
+        </TapPressable>
       </View>
     </View>
   );
@@ -333,12 +335,12 @@ function MyRewards({
 
 function BigRedButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={styles.redWrap}>
+    <TapPressable onPress={onPress} style={styles.redWrap}>
       <LinearGradient colors={RED_BUTTON} style={styles.redBtn}>
         <View style={styles.redGloss} />
         <Text style={styles.redText}>{label}</Text>
       </LinearGradient>
-    </Pressable>
+    </TapPressable>
   );
 }
 
@@ -379,12 +381,12 @@ function Invitation({ data, onInvite, onRules, navigation }: { data: AgentSummar
           <Text style={styles.countdownText}>{countdown}</Text>
         </View>
         <View style={styles.sideTabs}>
-          <Pressable onPress={() => navigation.navigate('AgentJackpot', { tab: 'history' })} style={[styles.sideTab, styles.sideTabLeft]}>
+          <TapPressable onPress={() => navigation.navigate('AgentJackpot', { tab: 'history' })} style={[styles.sideTab, styles.sideTabLeft]}>
             <Text style={styles.sideTabText}>History</Text>
-          </Pressable>
-          <Pressable onPress={onRules} style={[styles.sideTab, styles.sideTabRight]}>
+          </TapPressable>
+          <TapPressable onPress={onRules} style={[styles.sideTab, styles.sideTabRight]}>
             <Text style={styles.sideTabText}>Rules</Text>
-          </Pressable>
+          </TapPressable>
         </View>
 
         <View style={styles.podium}>
@@ -392,12 +394,12 @@ function Invitation({ data, onInvite, onRules, navigation }: { data: AgentSummar
             <PodiumSpot key={i} entry={p} place={i === 1 ? 1 : i === 0 ? 2 : 3} />
           ))}
         </View>
-        <Pressable onPress={() => navigation.navigate('AgentJackpot', { tab: 'ranking' })} style={{ marginHorizontal: spacing.xl, marginTop: spacing.md }}>
+        <TapPressable onPress={() => navigation.navigate('AgentJackpot', { tab: 'ranking' })} style={{ marginHorizontal: spacing.xl, marginTop: spacing.md }}>
           <LinearGradient colors={gradients.goldButton} style={styles.listBtn}>
             <View style={styles.claimGloss} />
             <Text style={styles.listBtnText}>Check the list detail</Text>
           </LinearGradient>
-        </Pressable>
+        </TapPressable>
       </LinearGradient>
 
       <View style={{ paddingHorizontal: spacing.lg }}>
@@ -457,14 +459,14 @@ function Invitation({ data, onInvite, onRules, navigation }: { data: AgentSummar
         </GoldCard>
 
         <View style={styles.statRow}>
-          <Pressable style={styles.statBox} onPress={() => navigation.navigate('AgentRewards', { tab: 'details', kind: 'INVITE' })}>
+          <TapPressable style={styles.statBox} onPress={() => navigation.navigate('AgentRewards', { tab: 'details', kind: 'INVITE' })}>
             <View style={styles.linkRow}>
               <Text style={styles.statLabel}>Rewards</Text>
               <MaterialCommunityIcons name="chevron-right" size={18} color={colors.textMuted} />
             </View>
             <Text style={styles.statValue}>{inr(invite.rewards)}</Text>
-          </Pressable>
-          <Pressable style={styles.statBox} onPress={() => navigation.navigate('AgentTeam')}>
+          </TapPressable>
+          <TapPressable style={styles.statBox} onPress={() => navigation.navigate('AgentTeam')}>
             <View style={styles.linkRow}>
               <Text style={styles.statLabel}>Invitees</Text>
               <MaterialCommunityIcons name="chevron-right" size={18} color={colors.textMuted} />
@@ -473,7 +475,7 @@ function Invitation({ data, onInvite, onRules, navigation }: { data: AgentSummar
               <MaterialCommunityIcons name="account-multiple-outline" size={24} color={colors.textPrimary} />
               <Text style={styles.statValue}> {invite.invitees}</Text>
             </View>
-          </Pressable>
+          </TapPressable>
         </View>
         <Text style={styles.qualifiedNote}>
           {invite.qualified} of {invite.invitees} invitees qualified (deposited {inr(invite.minDeposit)} and played {invite.wagerMultiple}x).
@@ -706,8 +708,8 @@ function TeamDetail({ visible, onClose, data }: { visible: boolean; onClose: () 
   );
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable onPress={() => {}} style={styles.detailCard}>
+      <TapPressable style={styles.backdrop} onPress={onClose}>
+        <TapPressable onPress={() => {}} silent style={styles.detailCard}>
           <LinearGradient colors={['#6A1222', '#3A0913', '#1A0408']} style={styles.detailInner}>
             <Text style={styles.detailTitle}>Team level</Text>
             <View style={{ alignItems: 'center', marginTop: spacing.sm }}>
@@ -747,14 +749,14 @@ function TeamDetail({ visible, onClose, data }: { visible: boolean; onClose: () 
               Bet rebate: L1 {rules.betRebate[team.level][0]}% · L2 {rules.betRebate[team.level][1]}% · L3 {rules.betRebate[team.level][2]}%
             </Text>
             <Text style={styles.detailLine}>Top up rebate (L1 deposits): {rules.topUpRebate[team.level]}%</Text>
-            <Pressable onPress={onClose} style={{ marginTop: spacing.lg }}>
+            <TapPressable onPress={onClose} style={{ marginTop: spacing.lg }}>
               <LinearGradient colors={gradients.goldButton} style={styles.listBtn}>
                 <Text style={styles.listBtnText}>OK</Text>
               </LinearGradient>
-            </Pressable>
+            </TapPressable>
           </LinearGradient>
-        </Pressable>
-      </Pressable>
+        </TapPressable>
+      </TapPressable>
     </Modal>
   );
 }

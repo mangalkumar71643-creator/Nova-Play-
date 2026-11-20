@@ -2,7 +2,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Image, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Text } from '../components/AppText';
 import CategoryCard from '../components/CategoryCard';
 import HomePopups from '../components/HomePopups';
@@ -15,6 +15,7 @@ import { BottomTabParamList } from '../navigation/types';
 import { useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
 import { fonts } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 const TOP_BAR_HEIGHT = 69;
 
@@ -106,7 +107,7 @@ export default function HomeScreen() {
           }}
           resizeMode="contain"
         />
-        <Pressable
+        <TapPressable
           onPress={() => navigation.navigate('Wallet')}
           style={{
             position: 'absolute',
@@ -137,8 +138,8 @@ export default function HomeScreen() {
           >
             {coins.toLocaleString('en-IN')}
           </Text>
-        </Pressable>
-        <Pressable
+        </TapPressable>
+        <TapPressable
           onPress={() => (navigation as any).navigate('GiftCode')}
           accessibilityRole="button"
           accessibilityLabel="Gift code"
@@ -153,8 +154,8 @@ export default function HomeScreen() {
             style={{ width: GIFT_ICON_SIZE, height: GIFT_ICON_SIZE }}
             resizeMode="contain"
           />
-        </Pressable>
-        <Pressable
+        </TapPressable>
+        <TapPressable
           onPress={() => (navigation as any).navigate('Profile')}
           style={{
             position: 'absolute',
@@ -175,7 +176,7 @@ export default function HomeScreen() {
               <Text style={{ fontFamily: fonts.black, fontSize: 8, color: '#3A2204', letterSpacing: 0.3 }}>VIP {vipLevel}</Text>
             </LinearGradient>
           ) : null}
-        </Pressable>
+        </TapPressable>
         {/* A gold line under the bar. */}
         <LinearGradient
           colors={['rgba(240,185,61,0)', 'rgba(255,233,168,0.9)', 'rgba(240,185,61,0)']}

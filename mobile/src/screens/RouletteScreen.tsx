@@ -25,7 +25,7 @@ import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { playChipBet } from '../sound/ui';
+import { playChipBet, withTapSound } from '../sound/ui';
 
 // ---------- table ----------
 
@@ -1106,7 +1106,7 @@ export default function RouletteScreen() {
 
       {/* Top bar */}
       <View style={[styles.topBar, { height: topH, paddingLeft: padL, paddingRight: padR }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={26} color="#FFFFFF" />
           <View>
             <Text style={styles.title}>ROULETTE</Text>
@@ -1143,7 +1143,7 @@ export default function RouletteScreen() {
             <MaterialCommunityIcons name="wallet" size={14} color={GOLD} />
             <Text style={styles.balanceText}>₹{displayBalance.toFixed(2)}</Text>
           </View>
-          <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.depositBtn}>
+          <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.depositBtn}>
             <MaterialCommunityIcons name="plus" size={18} color="#1A1200" />
           </Pressable>
         </View>

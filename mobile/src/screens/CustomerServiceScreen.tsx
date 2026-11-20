@@ -3,7 +3,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { fetchSupportConfig, SupportConfig } from '../api/backend';
 import AppHeader from '../components/AppHeader';
@@ -11,6 +11,7 @@ import ScreenContainer from '../components/ScreenContainer';
 import { RootStackParamList, SupportFormKind } from '../navigation/types';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 import { openLiveChat } from '../utils/liveChat';
+import TapPressable from '../components/TapPressable';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -79,7 +80,7 @@ export default function CustomerServiceScreen() {
 
         <Text style={styles.sectionTitle}>Self service</Text>
         {rows.map((r) => (
-          <Pressable key={r.key} style={({ pressed }) => [styles.row, pressed && { opacity: 0.8 }]} onPress={r.onPress} disabled={r.key === 'chat' && chatOpening}>
+          <TapPressable key={r.key} style={({ pressed }) => [styles.row, pressed && { opacity: 0.8 }]} onPress={r.onPress} disabled={r.key === 'chat' && chatOpening}>
             <LinearGradient colors={r.tint} style={styles.rowIcon}>
               <MaterialCommunityIcons name={r.icon} size={26} color="#fff" />
             </LinearGradient>
@@ -89,7 +90,7 @@ export default function CustomerServiceScreen() {
             ) : (
               <MaterialCommunityIcons name="chevron-right" size={24} color={colors.textMuted} />
             )}
-          </Pressable>
+          </TapPressable>
         ))}
 
         <Text style={styles.sectionTitle}>Kind tips</Text>
@@ -97,11 +98,11 @@ export default function CustomerServiceScreen() {
         <Text style={styles.tip}>2. After submitting, use [Progress query] to see the status and our reply.</Text>
         <Text style={styles.tip}>3. NovaPlay staff will never ask for your OTP or password.</Text>
 
-        <Pressable onPress={() => navigation.navigate('SupportProgress')}>
+        <TapPressable onPress={() => navigation.navigate('SupportProgress')}>
           <LinearGradient colors={gradients.goldButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.progressBtn}>
             <Text style={styles.progressText}>Progress query</Text>
           </LinearGradient>
-        </Pressable>
+        </TapPressable>
       </ScrollView>
     </ScreenContainer>
   );

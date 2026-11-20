@@ -12,7 +12,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const GOLD = '#FFD166';
 const GOLD_DEEP = '#B8860B';
@@ -945,7 +945,7 @@ export default function FishermansCatchScreen() {
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color="#FFFFFF" />
           <MaterialCommunityIcons name="fish" size={20} color={GOLD} />
           <Text style={styles.title}>FISHERMAN'S CATCH</Text>
@@ -1095,7 +1095,7 @@ export default function FishermansCatchScreen() {
 
             {/* Tackle crates */}
             <View style={{ gap: 8 }}>
-              <Pressable onPress={() => setPanel('pay')} style={styles.crate} hitSlop={4}>
+              <Pressable onPress={withTapSound(() => setPanel('pay'))} style={styles.crate} hitSlop={4}>
                 <MaterialCommunityIcons name="toolbox" size={18} color="#FFE9B0" />
                 <Text style={styles.crateText}>PAYS</Text>
               </Pressable>

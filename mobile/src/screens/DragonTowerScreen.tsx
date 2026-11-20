@@ -12,7 +12,7 @@ import { TowerConfig, TowerDifficulty, TowerRound, cashOutTower, fetchActiveTowe
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const JADE = '#2FE0A8';
 const GOLD = '#FFD66B';
@@ -501,7 +501,7 @@ export default function DragonTowerScreen() {
       <Background w={W} h={H} />
 
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.headBtn} hitSlop={8} accessibilityLabel="Back">
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.headBtn} hitSlop={8} accessibilityLabel="Back">
           <MaterialCommunityIcons name="chevron-left" size={26} color={GOLD} />
         </Pressable>
         <View style={styles.headBalance}>
@@ -511,13 +511,13 @@ export default function DragonTowerScreen() {
           </Text>
         </View>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={toggleSound} style={styles.headBtn} hitSlop={6} accessibilityLabel="Sound">
+        <Pressable onPress={withTapSound(toggleSound)} style={styles.headBtn} hitSlop={6} accessibilityLabel="Sound">
           <MaterialCommunityIcons name={soundOn ? 'volume-high' : 'volume-off'} size={20} color={GOLD} />
         </Pressable>
-        <Pressable onPress={() => openPanel('history')} style={styles.headBtn} hitSlop={6} accessibilityLabel="My climbs">
+        <Pressable onPress={withTapSound(() => openPanel('history'))} style={styles.headBtn} hitSlop={6} accessibilityLabel="My climbs">
           <MaterialCommunityIcons name="history" size={20} color={GOLD} />
         </Pressable>
-        <Pressable onPress={() => openPanel('rules')} style={styles.headBtn} hitSlop={6} accessibilityLabel="Rules">
+        <Pressable onPress={withTapSound(() => openPanel('rules'))} style={styles.headBtn} hitSlop={6} accessibilityLabel="Rules">
           <MaterialCommunityIcons name="information-variant" size={22} color={GOLD} />
         </Pressable>
       </View>
@@ -667,7 +667,7 @@ export default function DragonTowerScreen() {
                   ['rules', 'RULES'],
                 ] as const
               ).map(([id, label]) => (
-                <Pressable key={id} onPress={() => openPanel(id)} style={[styles.tab, panel === id && styles.tabOn]}>
+                <Pressable key={id} onPress={withTapSound(() => openPanel(id))} style={[styles.tab, panel === id && styles.tabOn]}>
                   <Text style={[styles.tabText, panel === id && styles.tabTextOn]}>{label}</Text>
                 </Pressable>
               ))}

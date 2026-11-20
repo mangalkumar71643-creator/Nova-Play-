@@ -46,8 +46,9 @@ import { BookOfPharaohTileArt } from '../screens/BookOfPharaohScreen';
 import { MoneyComingTileArt } from '../screens/MoneyComingScreen';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { Image, ImageSourcePropType, Pressable, View } from 'react-native';
+import { Image, ImageSourcePropType, View } from 'react-native';
 import { Text } from './AppText';
+import TapPressable from './TapPressable';
 
 /** Size of a game tile, the same on the home grid and the category pages. */
 export const GAME_ICON_SIZE = 150;
@@ -197,14 +198,14 @@ export function GameTile({ id, size = GAME_ICON_SIZE }: { id: GameId; size?: num
     // The icon pictures are not all the same shape (some are a little taller than wide): each is drawn at the
     // tile's full width in a slightly taller box, so a row of tiles lines up edge to edge.
     return (
-      <Pressable
+      <TapPressable
         onPress={() => (navigation as any).navigate(id)}
         style={({ pressed }) => ({ width: size, height: Math.round(size * ICON_BOX_ASPECT), transform: [{ scale: pressed ? 0.95 : 1 }] })}
         accessibilityRole="button"
         accessibilityLabel={id}
       >
         <Image source={icon} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
-      </Pressable>
+      </TapPressable>
     );
   }
   // The built-in tiles are laid out at GAME_ICON_SIZE; shrink or grow them as a whole.
@@ -223,7 +224,7 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
   switch (id) {
     case 'WinGo':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('WinGo')}
           style={{
             width: GAME_ICON_SIZE,
@@ -236,11 +237,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
             style={{ width: '100%', height: '100%' }}
             resizeMode="contain"
           />
-        </Pressable>
+        </TapPressable>
       );
     case 'SevenUpDown':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('SevenUpDown')}
           style={{
             width: GAME_ICON_SIZE,
@@ -255,11 +256,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <Text style={{ fontSize: GAME_ICON_SIZE * 0.36 }}>🎲</Text>
           <Text style={{ color: '#FFD66B', fontSize: 18, fontWeight: '900', marginTop: 2 }}>7 UP DOWN</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Plinko':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Plinko')}
           style={{
             width: GAME_ICON_SIZE,
@@ -282,11 +283,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
           ))}
           <View style={{ position: 'absolute', top: 22, right: 44, width: 14, height: 14, borderRadius: 7, backgroundColor: '#FF3D9A' }} />
           <Text style={{ color: '#FFD66B', fontSize: 20, fontWeight: '900', marginTop: 2, letterSpacing: 2 }}>PLINKO</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'DragonTiger':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('DragonTiger')}
           style={{
             width: GAME_ICON_SIZE,
@@ -307,11 +308,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
           <View style={{ position: 'absolute', bottom: 8, left: 0, right: 0, alignItems: 'center' }}>
             <Text style={{ color: '#FFD66B', fontSize: 15, fontWeight: '900', letterSpacing: 1 }}>DRAGON TIGER</Text>
           </View>
-        </Pressable>
+        </TapPressable>
       );
     case 'AndarBahar':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('AndarBahar')}
           style={{
             width: GAME_ICON_SIZE,
@@ -334,11 +335,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
             </View>
           </View>
           <Text style={{ color: '#FFD66B', fontSize: 15, fontWeight: '900', letterSpacing: 1, marginTop: 8 }}>ANDAR BAHAR</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'TeenPatti':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('TeenPatti')}
           style={{
             width: GAME_ICON_SIZE,
@@ -373,11 +374,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
             ))}
           </View>
           <Text style={{ color: '#FFD66B', fontSize: 15, fontWeight: '900', letterSpacing: 1, marginTop: 6 }}>TEEN PATTI</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'CricketX':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('CricketX')}
           style={{
             width: GAME_ICON_SIZE,
@@ -396,11 +397,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
           <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '900', fontStyle: 'italic', letterSpacing: 2, marginTop: 2 }}>
             CRICKET <Text style={{ color: '#FF4F6D' }}>X</Text>
           </Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'JhandiMunda':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('JhandiMunda')}
           style={{
             width: GAME_ICON_SIZE,
@@ -438,11 +439,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
           <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '900', letterSpacing: 1, marginTop: 8 }}>
             JHANDI <Text style={{ color: '#FFD66B' }}>MUNDA</Text>
           </Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Roulette':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Roulette')}
           style={{
             width: GAME_ICON_SIZE,
@@ -458,11 +459,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <RouletteTileArt size={GAME_ICON_SIZE * 0.62} />
           <Text style={{ color: '#E9C46A', fontSize: 15, fontWeight: '900', letterSpacing: 2, marginTop: 4 }}>ROULETTE</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'K3Lottery':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('K3Lottery')}
           style={{
             width: GAME_ICON_SIZE,
@@ -480,11 +481,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
           <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '900', letterSpacing: 1, marginTop: 8 }}>
             K3 <Text style={{ color: '#F4CF6A' }}>LOTTERY</Text>
           </Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'FiveDLottery':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('FiveDLottery')}
           style={{
             width: GAME_ICON_SIZE,
@@ -502,11 +503,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
           <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '900', letterSpacing: 1, marginTop: 10 }}>
             5D <Text style={{ color: '#F4CF6A' }}>LOTTERY</Text>
           </Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'TrxWin':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('TrxWin')}
           style={{
             width: GAME_ICON_SIZE,
@@ -524,11 +525,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
           <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '900', letterSpacing: 1, marginTop: 14 }}>
             TRX <Text style={{ color: '#F4CF6A' }}>WIN GO</Text>
           </Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Baccarat':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Baccarat')}
           style={{
             width: GAME_ICON_SIZE,
@@ -545,11 +546,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '42%', backgroundColor: '#4A0B1E', borderTopWidth: 2, borderTopColor: '#E9B949' }} />
           <BaccaratTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD66B', fontSize: 15, fontWeight: '900', letterSpacing: 2, marginTop: 10, fontFamily: 'serif' }}>BACCARAT</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Slot':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Slot')}
           style={{
             width: GAME_ICON_SIZE,
@@ -566,11 +567,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
           <SlotTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD66B', fontSize: 15, fontWeight: '900', letterSpacing: 1.5, marginTop: 8, fontFamily: 'serif' }}>ROYAL GEMS</Text>
           <Text style={{ color: 'rgba(235,220,255,0.75)', fontSize: 10, fontWeight: '800', letterSpacing: 2 }}>SLOT</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Aces':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Aces')}
           style={{
             width: GAME_ICON_SIZE,
@@ -587,11 +588,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
           <AcesTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD66B', fontSize: 15, fontWeight: '900', letterSpacing: 1.5, marginTop: 6, fontFamily: 'serif' }}>GOLDEN ACES</Text>
           <Text style={{ color: 'rgba(255,225,215,0.75)', fontSize: 10, fontWeight: '800', letterSpacing: 2 }}>SLOT</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Dice':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Dice')}
           style={{
             width: GAME_ICON_SIZE,
@@ -608,11 +609,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <DiceTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#E9FBFF', fontSize: 22, fontWeight: '900', letterSpacing: 6, fontFamily: 'serif', textShadowColor: '#0E7490', textShadowRadius: 8 }}>DICE</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Limbo':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Limbo')}
           style={{
             width: GAME_ICON_SIZE,
@@ -629,11 +630,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <LimboTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#F5EEFF', fontSize: 22, fontWeight: '900', letterSpacing: 6, fontFamily: 'serif', textShadowColor: '#C026D3', textShadowRadius: 8 }}>LIMBO</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Blackjack':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Blackjack')}
           style={{
             width: GAME_ICON_SIZE,
@@ -650,11 +651,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <BlackjackTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#F4CF6B', fontSize: 18, fontWeight: '900', letterSpacing: 3, fontFamily: 'serif', textShadowColor: '#000', textShadowRadius: 6 }}>BLACKJACK</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Keno':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Keno')}
           style={{
             width: GAME_ICON_SIZE,
@@ -671,11 +672,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <KenoTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD08A', fontSize: 24, fontWeight: '900', letterSpacing: 7, fontFamily: 'serif', textShadowColor: '#B45309', textShadowRadius: 8 }}>KENO</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Hilo':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Hilo')}
           style={{
             width: GAME_ICON_SIZE,
@@ -696,11 +697,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
             <Text style={{ color: '#FFD66B' }}>·</Text>
             <Text style={{ color: '#FF9C84' }}>LO</Text>
           </Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'DragonTower':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('DragonTower')}
           style={{
             width: GAME_ICON_SIZE,
@@ -717,11 +718,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <DragonTowerTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD66B', fontSize: 15, fontWeight: '900', letterSpacing: 2, fontFamily: 'serif', textAlign: 'center', lineHeight: 17, textShadowColor: '#000', textShadowRadius: 6 }}>{'DRAGON\nTOWER'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'VideoPoker':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('VideoPoker')}
           style={{
             width: GAME_ICON_SIZE,
@@ -738,11 +739,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <VideoPokerTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFE58A', fontSize: 15, fontWeight: '900', letterSpacing: 2, fontFamily: 'serif', textAlign: 'center', lineHeight: 17, textShadowColor: '#000', textShadowRadius: 6 }}>{'VIDEO\nPOKER'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Diamonds':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Diamonds')}
           style={{
             width: GAME_ICON_SIZE,
@@ -759,11 +760,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <DiamondsTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#F5EEFF', fontSize: 19, fontWeight: '900', letterSpacing: 3, fontFamily: 'serif', textShadowColor: '#A855F7', textShadowRadius: 10 }}>DIAMONDS</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Pump':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Pump')}
           style={{
             width: GAME_ICON_SIZE,
@@ -780,11 +781,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <PumpTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FDF2F8', fontSize: 24, fontWeight: '900', letterSpacing: 6, textShadowColor: '#EC4899', textShadowRadius: 10 }}>PUMP</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'CoinFlip':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('CoinFlip')}
           style={{
             width: GAME_ICON_SIZE,
@@ -801,11 +802,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <CoinFlipTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFE58A', fontSize: 16, fontWeight: '900', letterSpacing: 2, fontFamily: 'serif', textAlign: 'center', lineHeight: 18, textShadowColor: '#000', textShadowRadius: 6 }}>{'COIN\nFLIP'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'CasinoHoldem':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('CasinoHoldem')}
           style={{
             width: GAME_ICON_SIZE,
@@ -822,11 +823,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <CasinoHoldemTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFF6DF', fontSize: 15, fontWeight: '900', letterSpacing: 2, fontFamily: 'serif', textAlign: 'center', lineHeight: 17, textShadowColor: '#000', textShadowRadius: 6 }}>{"CASINO\nHOLD'EM"}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'ThreeCardPoker':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('ThreeCardPoker')}
           style={{
             width: GAME_ICON_SIZE,
@@ -843,11 +844,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <ThreeCardPokerTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFF6DF', fontSize: 14, fontWeight: '900', letterSpacing: 1.5, fontFamily: 'serif', textAlign: 'center', lineHeight: 16, textShadowColor: '#000', textShadowRadius: 6 }}>{'THREE CARD\nPOKER'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'CandyBlast':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('CandyBlast')}
           style={{
             width: GAME_ICON_SIZE,
@@ -864,11 +865,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <CandyBlastTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '900', letterSpacing: 2, textAlign: 'center', lineHeight: 18, textShadowColor: '#B0105E', textShadowRadius: 6 }}>{'CANDY\nBLAST'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Neon777':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Neon777')}
           style={{
             width: GAME_ICON_SIZE,
@@ -885,11 +886,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <Neon777TileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '900', fontStyle: 'italic', letterSpacing: 2, textAlign: 'center', lineHeight: 19, textShadowColor: '#FF2D95', textShadowRadius: 8 }}>{'NEON\n777'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Rocket':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Rocket')}
           style={{
             width: GAME_ICON_SIZE,
@@ -906,11 +907,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <RocketTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 19, fontWeight: '900', fontStyle: 'italic', letterSpacing: 3, textShadowColor: '#FF3DA6', textShadowRadius: 8 }}>ROCKET</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'GoalRush':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('GoalRush')}
           style={{
             width: GAME_ICON_SIZE,
@@ -927,11 +928,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <GoalRushTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '900', fontStyle: 'italic', letterSpacing: 2, textAlign: 'center', lineHeight: 19, textShadowColor: '#2FE07A', textShadowRadius: 8 }}>{'GOAL\nRUSH'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'BigCatch':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('BigCatch')}
           style={{
             width: GAME_ICON_SIZE,
@@ -948,11 +949,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <BigCatchTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '900', fontStyle: 'italic', letterSpacing: 2, textAlign: 'center', lineHeight: 19, textShadowColor: '#3CF0D0', textShadowRadius: 8 }}>{'BIG\nCATCH'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Cosmonaut':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Cosmonaut')}
           style={{
             width: GAME_ICON_SIZE,
@@ -969,11 +970,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <CosmonautTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900', fontStyle: 'italic', letterSpacing: 1, textShadowColor: '#9B7BFF', textShadowRadius: 8 }}>COSMONAUT</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'SkyJet':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('SkyJet')}
           style={{
             width: GAME_ICON_SIZE,
@@ -990,11 +991,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <SkyJetTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 19, fontWeight: '900', fontStyle: 'italic', letterSpacing: 2, textShadowColor: '#FFB23F', textShadowRadius: 8 }}>SKY JET</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'NightRacer':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('NightRacer')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1011,11 +1012,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <NightRacerTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '900', fontStyle: 'italic', letterSpacing: 2, textAlign: 'center', lineHeight: 19, textShadowColor: '#FF2E88', textShadowRadius: 8 }}>{'NIGHT\nRACER'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'Airship':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('Airship')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1032,11 +1033,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <AirshipTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFE2A0', fontSize: 19, fontWeight: '900', letterSpacing: 3, fontFamily: 'serif', textShadowColor: '#000', textShadowRadius: 6 }}>AIRSHIP</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'FruitMachine':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('FruitMachine')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1053,11 +1054,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <FruitMachineTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900', fontStyle: 'italic', letterSpacing: 2, textAlign: 'center', lineHeight: 19, textShadowColor: '#FF3B4E', textShadowRadius: 8 }}>{'FRUIT\nMACHINE'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'FishermansCatch':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('FishermansCatch')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1074,11 +1075,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <FishermansCatchTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '900', fontStyle: 'italic', letterSpacing: 2, textAlign: 'center', lineHeight: 19, textShadowColor: '#1E88E5', textShadowRadius: 8 }}>{"FISHERMAN'S\nCATCH"}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'BookOfPharaoh':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('BookOfPharaoh')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1095,11 +1096,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <BookOfPharaohTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '900', fontStyle: 'italic', letterSpacing: 2, textAlign: 'center', lineHeight: 19, textShadowColor: '#9A6A10', textShadowRadius: 8 }}>{'BOOK OF\nPHARAOH'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'GatesOfZeus':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('GatesOfZeus')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1116,11 +1117,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <GatesOfZeusTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFF4C8', fontSize: 13, fontWeight: '900', letterSpacing: 2, textAlign: 'center', lineHeight: 16, fontFamily: 'serif', textShadowColor: '#000', textShadowRadius: 6 }}>{'GATES OF\nZEUS'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'WolfMoon':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('WolfMoon')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1137,11 +1138,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <WolfMoonTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFF1D6', fontSize: 14, fontWeight: '900', letterSpacing: 2, textAlign: 'center', lineHeight: 17, textShadowColor: '#000', textShadowRadius: 6 }}>{'WOLF\nMOON'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'PenaltyHero':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('PenaltyHero')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1158,11 +1159,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <PenaltyHeroTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '900', fontStyle: 'italic', letterSpacing: 1.5, textAlign: 'center', lineHeight: 16, textShadowColor: '#000', textShadowRadius: 6 }}>{'PENALTY\nHERO'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'LuckyCups':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('LuckyCups')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1179,11 +1180,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <LuckyCupsTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFF4DC', fontSize: 14, fontWeight: '900', letterSpacing: 2, textAlign: 'center', lineHeight: 16, fontFamily: 'serif', textShadowColor: '#000', textShadowRadius: 6 }}>{'LUCKY\nCUPS'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'BombSquad':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('BombSquad')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1200,11 +1201,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <BombSquadTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFC21A', fontSize: 14, fontWeight: '900', letterSpacing: 2, textAlign: 'center', lineHeight: 16, textShadowColor: '#000', textShadowRadius: 6 }}>{'BOMB\nSQUAD'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'VaultHeist':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('VaultHeist')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1221,11 +1222,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <VaultHeistTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#E4ECF4', fontSize: 14, fontWeight: '900', letterSpacing: 2, textAlign: 'center', lineHeight: 16, textShadowColor: '#000', textShadowRadius: 6 }}>{'VAULT\nHEIST'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'TreasureDig':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('TreasureDig')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1242,11 +1243,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <TreasureDigTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD66B', fontSize: 14, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center', lineHeight: 16, fontFamily: 'serif', textShadowColor: '#2A1404', textShadowRadius: 6 }}>{'TREASURE\nDIG'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'LuckyWheel':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('LuckyWheel')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1263,11 +1264,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <LuckyWheelTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD66B', fontSize: 14, fontWeight: '900', letterSpacing: 2, textAlign: 'center', lineHeight: 16, textShadowColor: '#000', textShadowRadius: 6 }}>{'LUCKY WHEEL'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'ScratchCard':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('ScratchCard')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1284,11 +1285,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <ScratchCardTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD66B', fontSize: 14, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center', lineHeight: 16, textShadowColor: '#000', textShadowRadius: 6 }}>{'SCRATCH\nCARD'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'DiceDuel':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('DiceDuel')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1305,11 +1306,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <DiceDuelTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD66B', fontSize: 14, fontWeight: '900', letterSpacing: 2, textAlign: 'center', lineHeight: 16, textShadowColor: '#000', textShadowRadius: 6 }}>{'DICE DUEL'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'ColorBall':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('ColorBall')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1326,11 +1327,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <ColorBallTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD66B', fontSize: 14, fontWeight: '900', letterSpacing: 2, textAlign: 'center', lineHeight: 16, textShadowColor: '#000', textShadowRadius: 6 }}>{'COLOR BALL'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'FortuneSix':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('FortuneSix')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1347,11 +1348,11 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <FortuneSixTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFD66B', fontSize: 14, fontWeight: '900', letterSpacing: 2, textAlign: 'center', lineHeight: 16, textShadowColor: '#000', textShadowRadius: 6 }}>{'FORTUNE 6'}</Text>
-        </Pressable>
+        </TapPressable>
       );
     case 'MoneyComing':
       return (
-        <Pressable
+        <TapPressable
           onPress={() => (navigation as any).navigate('MoneyComing')}
           style={{
             width: GAME_ICON_SIZE,
@@ -1368,7 +1369,7 @@ function builtInTile(id: GameId, navigation: ReturnType<typeof useNavigation>) {
         >
           <MoneyComingTileArt size={GAME_ICON_SIZE} />
           <Text style={{ color: '#FFE58A', fontSize: 16, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center', lineHeight: 18, textShadowColor: '#000', textShadowRadius: 6 }}>{'MONEY\nCOMING'}</Text>
-        </Pressable>
+        </TapPressable>
       );
   }
 }

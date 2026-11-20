@@ -12,7 +12,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -543,7 +543,7 @@ export default function LuckyCupsScreen() {
       <GameBackdrop theme="ruby" />
 
       <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={CREAM} />
           <MaterialCommunityIcons name="cup" size={18} color={GOLD} style={{ transform: [{ rotate: '180deg' }] }} />
           <Text style={styles.title}>LUCKY CUPS</Text>
@@ -687,7 +687,7 @@ export default function LuckyCupsScreen() {
 
         {/* Controls: no autoplay */}
         <View style={[styles.controls, { width: S }]}>
-          <Pressable onPress={() => setPanel('info')} style={styles.sideBtn} hitSlop={6}>
+          <Pressable onPress={withTapSound(() => setPanel('info'))} style={styles.sideBtn} hitSlop={6}>
             <MaterialCommunityIcons name="information-outline" size={20} color={GOLD} />
             <Text style={styles.sideText}>RULES</Text>
           </Pressable>

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Image, Linking, Platform, Pressable, StyleSheet, TextStyle, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Image, Linking, Platform, StyleSheet, TextStyle, View, useWindowDimensions } from 'react-native';
 import { Text, TextInput } from '../components/AppText';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { showAlert } from '../components/AppAlert';
 import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
 import { useAuth } from '../state/AuthContext';
 import { colors, fonts, spacing } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 type Mode = 'login' | 'register' | 'reset';
 
@@ -149,10 +150,10 @@ function Field({
 
 function Check({ on, onPress, children }: { on: boolean; onPress: () => void; children: React.ReactNode }) {
   return (
-    <Pressable style={styles.checkRow} onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+    <TapPressable style={styles.checkRow} onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
       <View style={[styles.box, on && styles.boxOn]}>{on ? <MaterialCommunityIcons name="check" size={15} color="#2A1300" /> : null}</View>
       <Text style={styles.checkText}>{children}</Text>
-    </Pressable>
+    </TapPressable>
   );
 }
 
@@ -172,9 +173,9 @@ function Segmented({ value, onChange }: { value: 'login' | 'register'; onChange:
         </Animated.View>
       ) : null}
       {(['login', 'register'] as const).map((m) => (
-        <Pressable key={m} style={styles.segBtn} onPress={() => onChange(m)} accessibilityRole="tab" accessibilityState={{ selected: value === m }} testID={`tab-${m}`}>
+        <TapPressable key={m} style={styles.segBtn} onPress={() => onChange(m)} accessibilityRole="tab" accessibilityState={{ selected: value === m }} testID={`tab-${m}`}>
           <Text style={[styles.segText, value === m && styles.segTextOn]}>{m === 'login' ? 'Log in' : 'Register'}</Text>
-        </Pressable>
+        </TapPressable>
       ))}
     </View>
   );
@@ -196,7 +197,7 @@ function Cta({ label, busy, onPress, testID }: { label: string; busy: boolean; o
     return () => loop.stop();
   }, [sweep]);
   return (
-    <Pressable onPress={onPress} disabled={busy} testID={testID} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.ctaWrap, { transform: [{ scale: pressed ? 0.98 : 1 }], opacity: busy ? 0.75 : 1 }]}>
+    <TapPressable onPress={onPress} disabled={busy} testID={testID} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.ctaWrap, { transform: [{ scale: pressed ? 0.98 : 1 }], opacity: busy ? 0.75 : 1 }]}>
       <LinearGradient colors={GOLD_EDGE} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaEdge}>
         <LinearGradient colors={RED_BUTTON} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cta} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
           <LinearGradient colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']} style={styles.ctaGloss} pointerEvents="none" />
@@ -215,7 +216,7 @@ function Cta({ label, busy, onPress, testID }: { label: string; busy: boolean; o
           )}
         </LinearGradient>
       </LinearGradient>
-    </Pressable>
+    </TapPressable>
   );
 }
 
@@ -417,9 +418,9 @@ export default function LoginScreen() {
   }
 
   const eye = (
-    <Pressable onPress={() => setShow((v) => !v)} hitSlop={10} accessibilityLabel={show ? 'Hide password' : 'Show password'} style={styles.eye}>
+    <TapPressable onPress={() => setShow((v) => !v)} hitSlop={10} accessibilityLabel={show ? 'Hide password' : 'Show password'} style={styles.eye}>
       <MaterialCommunityIcons name={show ? 'eye-outline' : 'eye-off-outline'} size={22} color={colors.goldLight} />
-    </Pressable>
+    </TapPressable>
   );
 
   const title = mode === 'login' ? 'Welcome back' : mode === 'register' ? 'Create your account' : 'Reset password';
@@ -540,16 +541,16 @@ export default function LoginScreen() {
                         keyboardType="number-pad"
                         maxLength={6}
                         right={
-                          <Pressable style={[styles.codeBtn, (cooldown > 0 || busy) && { opacity: 0.5 }]} onPress={onAskCode} disabled={cooldown > 0 || busy} accessibilityRole="button">
+                          <TapPressable style={[styles.codeBtn, (cooldown > 0 || busy) && { opacity: 0.5 }]} onPress={onAskCode} disabled={cooldown > 0 || busy} accessibilityRole="button">
                             <Text style={styles.codeBtnText}>{cooldown > 0 ? `${cooldown}s` : codeSent ? 'Resend' : 'Send'}</Text>
-                          </Pressable>
+                          </TapPressable>
                         }
                         onSubmitEditing={onReset}
                         testID="field-code"
                       />
-                      <Pressable onPress={() => contactSupport('SMS did not arrive? Customer service will check it is you and give you the code.')} hitSlop={8}>
+                      <TapPressable onPress={() => contactSupport('SMS did not arrive? Customer service will check it is you and give you the code.')} hitSlop={8}>
                         <Text style={styles.link}>SMS did not arrive? Contact customer service</Text>
-                      </Pressable>
+                      </TapPressable>
                     </>
                   ) : null}
 
@@ -577,9 +578,9 @@ export default function LoginScreen() {
                       <Check on={remember} onPress={() => setRemember((v) => !v)}>
                         Remember number
                       </Check>
-                      <Pressable onPress={() => switchTo('reset')} hitSlop={8} testID="forgot">
+                      <TapPressable onPress={() => switchTo('reset')} hitSlop={8} testID="forgot">
                         <Text style={[styles.link, { marginTop: spacing.md }]}>Forgot password?</Text>
-                      </Pressable>
+                      </TapPressable>
                     </View>
                   ) : null}
 
@@ -587,10 +588,10 @@ export default function LoginScreen() {
                     <Cta label={mode === 'login' ? 'Log in' : mode === 'register' ? 'Register' : 'Reset password'} busy={busy} onPress={submit} testID="submit" />
                   </View>
 
-                  <Pressable style={styles.switchRow} onPress={() => switchTo(mode === 'login' ? 'register' : 'login')} hitSlop={8} testID="switch-mode">
+                  <TapPressable style={styles.switchRow} onPress={() => switchTo(mode === 'login' ? 'register' : 'login')} hitSlop={8} testID="switch-mode">
                     {mode !== 'reset' ? <Text style={styles.switchText}>{mode === 'login' ? 'New to NovaPlay?' : 'Already have an account?'}</Text> : null}
                     <Text style={styles.switchLink}>{mode === 'login' ? 'Register' : mode === 'register' ? 'Log in' : 'Back to log in'}</Text>
-                  </Pressable>
+                  </TapPressable>
                 </Animated.View>
               </LinearGradient>
             </LinearGradient>

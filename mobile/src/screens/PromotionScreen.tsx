@@ -2,12 +2,13 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { fetchPromotionPage, PromoBanner, PromoTile } from '../api/backend';
 import { API_BASE_URL } from '../api/client';
 import ScreenContainer from '../components/ScreenContainer';
 import { colors, gradients, radius, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -101,23 +102,23 @@ export default function PromotionScreen() {
           {(tiles ?? []).map((t, i) => {
             const [a, b] = TILE_GRADIENTS[i % TILE_GRADIENTS.length];
             return (
-              <Pressable key={t.key} style={styles.tile} onPress={() => open(t.key)}>
+              <TapPressable key={t.key} style={styles.tile} onPress={() => open(t.key)}>
                 <LinearGradient colors={[a, b]} style={styles.tileIcon}>
                   <MaterialCommunityIcons name={t.icon as IconName} size={30} color="#FFFFFF" />
                 </LinearGradient>
                 <Text style={styles.tileLabel} numberOfLines={2}>
                   {t.label}
                 </Text>
-              </Pressable>
+              </TapPressable>
             );
           })}
         </View>
 
         {banners.map((b) => (
-          <Pressable key={b.id} style={styles.banner} onPress={() => openBanner(b)}>
+          <TapPressable key={b.id} style={styles.banner} onPress={() => openBanner(b)}>
             <Image source={{ uri: `${API_BASE_URL}${b.imageUrl}` }} style={{ width: '100%', aspectRatio: b.width / b.height }} resizeMode="cover" />
             <Text style={styles.bannerTitle}>{b.title}</Text>
-          </Pressable>
+          </TapPressable>
         ))}
       </ScrollView>
     </ScreenContainer>

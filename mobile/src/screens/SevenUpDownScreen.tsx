@@ -35,7 +35,7 @@ import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { playChipBet, withPopupSound } from '../sound/ui';
+import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
 
 const W = Dimensions.get('window').width;
 const BOARD_PAD = 8;
@@ -935,11 +935,11 @@ export default function SevenUpDownScreen() {
       <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="7 Up Down" />
       {/* Header */}
       <LinearGradient colors={['#4A1119', '#2A070C']} style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={30} color="#F5B942" />
           <Text style={styles.title}>7 UP DOWN</Text>
         </Pressable>
-        <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.depositPill}>
+        <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.depositPill}>
           <MaterialCommunityIcons name="wallet-plus" size={20} color="#F5B942" />
           <Text style={styles.depositText}>Deposit</Text>
         </Pressable>

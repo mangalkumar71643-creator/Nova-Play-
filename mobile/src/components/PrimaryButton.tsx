@@ -1,8 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Pressable, StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import { Text } from './AppText';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
+import TapPressable from './TapPressable';
 
 type Props = {
   label: string;
@@ -17,7 +18,7 @@ export default function PrimaryButton({ label, onPress, disabled, variant = 'cri
   const textColor = variant === 'gold' ? colors.background : colors.textPrimary;
 
   return (
-    <Pressable
+    <TapPressable
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [{ opacity: disabled ? 0.5 : pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }, style]}
@@ -25,7 +26,7 @@ export default function PrimaryButton({ label, onPress, disabled, variant = 'cri
       <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
         <Text style={[styles.label, { color: textColor }]}>{label}</Text>
       </LinearGradient>
-    </Pressable>
+    </TapPressable>
   );
 }
 

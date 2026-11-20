@@ -28,7 +28,7 @@ import { useAuth } from '../state/AuthContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { playChipBet, withPopupSound } from '../sound/ui';
+import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500, 1000];
 const CHIP_COLORS: Record<number, string> = {
@@ -854,7 +854,7 @@ export default function AndarBaharScreen() {
 
       {/* Top bar */}
       <View style={[styles.topBar, { height: topH, paddingLeft: padX, paddingRight: padX }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={26} color="#F5B942" />
           <Text style={styles.title}>ANDAR BAHAR</Text>
         </Pressable>
@@ -865,7 +865,7 @@ export default function AndarBaharScreen() {
             </View>
           ))}
         </View>
-        <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.depositPill}>
+        <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.depositPill}>
           <MaterialCommunityIcons name="wallet-plus" size={16} color="#F5B942" />
           <Text style={styles.depositText}>Deposit</Text>
         </Pressable>

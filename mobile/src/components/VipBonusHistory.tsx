@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Image, ImageSourcePropType, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image, ImageSourcePropType, Modal, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import { VipStatus } from '../api/backend';
 import { IconName } from '../data/models';
@@ -9,6 +9,7 @@ import { colors, gradients, radius, spacing, typography } from '../theme';
 import { nextMonthLabel } from './VipBonusPopup';
 import { VipEmblem, vipTier } from './VipEmblem';
 import { withPopupSound } from '../sound/ui';
+import TapPressable from './TapPressable';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -99,8 +100,8 @@ export default function VipBonusHistory({
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable onPress={() => {}} style={{ width, maxHeight: screenHeight * 0.9 }}>
+      <TapPressable style={styles.backdrop} onPress={onClose}>
+        <TapPressable onPress={() => {}} silent style={{ width, maxHeight: screenHeight * 0.9 }}>
           <LinearGradient colors={['#6A1222', '#3A0913', '#1A0408']} locations={[0, 0.45, 1]} style={styles.card}>
             <View pointerEvents="none" style={styles.innerFrame} />
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -134,7 +135,7 @@ export default function VipBonusHistory({
                   const active = tab === t;
                   const label = t === 'month' ? `This Month (${monthItems.length})` : `All Time (${vip.history.length})`;
                   return (
-                    <Pressable key={t} style={styles.tab} onPress={() => setTab(t)}>
+                    <TapPressable key={t} style={styles.tab} onPress={() => setTab(t)}>
                       {active ? (
                         <LinearGradient colors={gradients.goldButton} style={styles.tabActive}>
                           <Text style={styles.tabTextActive}>{label}</Text>
@@ -142,7 +143,7 @@ export default function VipBonusHistory({
                       ) : (
                         <Text style={styles.tabText}>{label}</Text>
                       )}
-                    </Pressable>
+                    </TapPressable>
                   );
                 })}
               </View>
@@ -239,13 +240,13 @@ export default function VipBonusHistory({
             </ScrollView>
           </LinearGradient>
 
-          <Pressable onPress={withPopupSound(onClose)} hitSlop={10} style={styles.close}>
+          <TapPressable onPress={withPopupSound(onClose)} hitSlop={10} style={styles.close}>
             <LinearGradient colors={gradients.goldButton} style={styles.closeInner}>
               <MaterialCommunityIcons name="close" size={18} color="#3A2006" />
             </LinearGradient>
-          </Pressable>
-        </Pressable>
-      </Pressable>
+          </TapPressable>
+        </TapPressable>
+      </TapPressable>
     </Modal>
   );
 }

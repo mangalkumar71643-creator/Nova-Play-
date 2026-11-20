@@ -12,7 +12,7 @@ import { ZeusCell, ZeusConfig, ZeusOutcome, ZeusRound, ZeusSpinRow, ZeusStep, Ze
 import GameInfoButton from '../components/GameInfoButton';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const GOLD = '#FFD66B';
 const GOLD_LIGHT = '#FFF4C8';
@@ -916,7 +916,7 @@ export default function GatesOfZeusScreen() {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.headBtn} hitSlop={8} accessibilityLabel="Back">
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.headBtn} hitSlop={8} accessibilityLabel="Back">
           <MaterialCommunityIcons name="chevron-left" size={26} color={GOLD_LIGHT} />
         </Pressable>
         <View style={styles.headBalance}>
@@ -926,13 +926,13 @@ export default function GatesOfZeusScreen() {
           </Text>
         </View>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={toggleSound} style={styles.headBtn} hitSlop={6} accessibilityLabel="Sound">
+        <Pressable onPress={withTapSound(toggleSound)} style={styles.headBtn} hitSlop={6} accessibilityLabel="Sound">
           <MaterialCommunityIcons name={soundOn ? 'volume-high' : 'volume-off'} size={20} color={GOLD_LIGHT} />
         </Pressable>
-        <Pressable onPress={() => openPanel('history')} style={styles.headBtn} hitSlop={6} accessibilityLabel="My history">
+        <Pressable onPress={withTapSound(() => openPanel('history'))} style={styles.headBtn} hitSlop={6} accessibilityLabel="My history">
           <MaterialCommunityIcons name="history" size={20} color={GOLD_LIGHT} />
         </Pressable>
-        <Pressable onPress={() => openPanel('pay')} style={styles.headBtn} hitSlop={6} accessibilityLabel="Paytable">
+        <Pressable onPress={withTapSound(() => openPanel('pay'))} style={styles.headBtn} hitSlop={6} accessibilityLabel="Paytable">
           <MaterialCommunityIcons name="information-variant" size={22} color={GOLD_LIGHT} />
         </Pressable>
       </View>
@@ -1147,7 +1147,7 @@ export default function GatesOfZeusScreen() {
                   ['history', 'MY HISTORY'],
                 ] as const
               ).map(([id, label]) => (
-                <Pressable key={id} onPress={() => openPanel(id)} style={[styles.tab, panel === id && styles.tabOn]}>
+                <Pressable key={id} onPress={withTapSound(() => openPanel(id))} style={[styles.tab, panel === id && styles.tabOn]}>
                   <Text style={[styles.tabText, panel === id && styles.tabTextOn]}>{label}</Text>
                 </Pressable>
               ))}

@@ -12,7 +12,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const HAZARD = '#FFC21A';
 const LED_RED = '#FF2A2A';
@@ -566,7 +566,7 @@ export default function BombSquadScreen() {
       <GameBackdrop theme="steel" />
 
       <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={TEXT} />
           <MaterialCommunityIcons name="bomb" size={18} color={HAZARD} />
           <Text style={styles.title}>BOMB SQUAD</Text>
@@ -736,7 +736,7 @@ export default function BombSquadScreen() {
 
         {/* Controls: no autoplay */}
         <View style={[styles.controls, { width: S }]}>
-          <Pressable onPress={() => setPanel('info')} style={styles.sideBtn} hitSlop={6}>
+          <Pressable onPress={withTapSound(() => setPanel('info'))} style={styles.sideBtn} hitSlop={6}>
             <MaterialCommunityIcons name="information-outline" size={20} color={HAZARD} />
             <Text style={styles.sideText}>RULES</Text>
           </Pressable>

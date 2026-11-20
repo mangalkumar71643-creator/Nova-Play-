@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, AppState, Linking, Pressable, View } from 'react-native';
+import { Animated, AppState, Linking, View } from 'react-native';
 import { Text, TextInput } from '../components/AppText';
 import { showAlert } from '../components/AppAlert';
 import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
@@ -15,6 +15,7 @@ import { RootStackParamList } from '../navigation/types';
 import { KYC_REQUIRED, useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 const CARD_TEXT_COLOR = '#5C3A0E';
 const MIN_DEPOSIT = 100;
@@ -155,17 +156,17 @@ export default function DepositScreen() {
   return (
     <ScreenContainer scroll={false} contentStyle={{ paddingHorizontal: 0 }}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.headerButton} testID="deposit-back-button">
+        <TapPressable onPress={() => navigation.goBack()} style={styles.headerButton} testID="deposit-back-button">
           <MaterialCommunityIcons name="chevron-left" size={28} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         <Text style={styles.headerTitle}>Deposit</Text>
         <View style={styles.headerRight}>
-          <Pressable onPress={() => navigation.navigate('Help')} style={styles.headerButton} testID="deposit-help-button">
+          <TapPressable onPress={() => navigation.navigate('Help')} style={styles.headerButton} testID="deposit-help-button">
             <MaterialCommunityIcons name="headset" size={24} color={colors.gold} />
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate('History', { kind: 'deposit' })} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="History" testID="deposit-history-button">
+          </TapPressable>
+          <TapPressable onPress={() => navigation.navigate('History', { kind: 'deposit' })} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="History" testID="deposit-history-button">
             <MaterialCommunityIcons name="clock-time-four-outline" size={24} color={colors.gold} />
-          </Pressable>
+          </TapPressable>
         </View>
       </View>
 
@@ -182,13 +183,13 @@ export default function DepositScreen() {
             <Text style={styles.balanceValue} testID="deposit-cash-balance">₹{Math.floor(coins)}</Text>
           </LinearGradient>
 
-          <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Withdraw')} accessibilityRole="button" accessibilityLabel="Withdraw" testID="deposit-withdraw-card">
+          <TapPressable style={{ flex: 1 }} onPress={() => navigation.navigate('Withdraw')} accessibilityRole="button" accessibilityLabel="Withdraw" testID="deposit-withdraw-card">
             <LinearGradient colors={gradients.peachCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
               <MaterialCommunityIcons name="chevron-right" size={22} color={CARD_TEXT_COLOR} style={styles.balanceCardArrow} />
               <Text style={styles.balanceLabel}>Withdrawable</Text>
               <Text style={styles.balanceValue}>₹{Math.floor(withdrawable)}</Text>
             </LinearGradient>
-          </Pressable>
+          </TapPressable>
         </View>
 
         {!kycApproved ? (
@@ -226,7 +227,7 @@ export default function DepositScreen() {
               const selected = amount === value;
               const chipBonus = previewBonus(bonusInfo, value);
               return (
-                <Pressable
+                <TapPressable
                   key={value}
                   style={[styles.quickChip, selected && styles.quickChipSelected]}
                   onPress={() => setAmountText(String(value))}
@@ -240,7 +241,7 @@ export default function DepositScreen() {
                   <Text style={[styles.quickChipText, selected && styles.quickChipTextSelected]}>
                     ₹{value.toLocaleString('en-IN')}
                   </Text>
-                </Pressable>
+                </TapPressable>
               );
             })}
           </View>
@@ -298,7 +299,7 @@ export default function DepositScreen() {
             Pay by UPI with {upi.gatewayName}{upi.testMode ? ' · TEST MODE (no real money)' : ''}
           </Text>
         ) : null}
-        <Pressable
+        <TapPressable
           onPress={handlePayNow}
           disabled={!isValidAmount || !kycApproved || busy}
           style={{ opacity: !isValidAmount || !kycApproved || busy ? 0.5 : 1 }}
@@ -312,7 +313,7 @@ export default function DepositScreen() {
           >
             <Text style={styles.payButtonText}>{busy ? 'Processing…' : 'Pay Now'}</Text>
           </LinearGradient>
-        </Pressable>
+        </TapPressable>
       </View>
 
       {successInfo ? (
@@ -332,7 +333,7 @@ export default function DepositScreen() {
               </View>
             ) : null}
             <Text style={styles.successNote}>Your wallet balance has been updated.</Text>
-            <Pressable
+            <TapPressable
               onPress={() => setSuccessInfo(null)}
               testID="deposit-success-done-button"
               style={styles.successButtonOuter}
@@ -345,7 +346,7 @@ export default function DepositScreen() {
               >
                 <Text style={styles.successButtonText}>Done</Text>
               </LinearGradient>
-            </Pressable>
+            </TapPressable>
           </Animated.View>
         </View>
       ) : null}

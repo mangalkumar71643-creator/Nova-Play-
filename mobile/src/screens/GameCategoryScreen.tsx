@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, Easing, Image, ImageBackground, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, AppState, Easing, Image, ImageBackground, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, PanResponder, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchHotGames } from '../api/backend';
@@ -11,6 +11,7 @@ import { GAME_CATEGORIES, GameId, GameTile } from '../components/GameTile';
 import { RootStackParamList } from '../navigation/types';
 import { useGameState } from '../state/GameStateContext';
 import { fonts } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 const SIDE = 12;
 const TILE_GAP = 10;
@@ -139,7 +140,7 @@ function CategoryBanners({ width }: { width: number }) {
       <View style={[styles.bannerFrame, { width, height }]} {...(n > 1 ? pan.panHandlers : {})}>
         <Animated.View style={{ flexDirection: 'row', width: width * pages.length, height, transform: [{ translateX: offset }] }}>
           {pages.map((b, i) => (
-            <Pressable key={`${b.id}-${i}`} onPress={() => open(b)} disabled={!b.buttonTarget} style={{ width, height }} accessibilityLabel={b.title}>
+            <TapPressable key={`${b.id}-${i}`} onPress={() => open(b)} disabled={!b.buttonTarget} style={{ width, height }} accessibilityLabel={b.title}>
               <Image source={{ uri: `${API_BASE_URL}${b.imageUrl}` }} style={{ width, height }} resizeMode="cover" />
               {!!b.buttonText && (
                 <LinearGradient colors={['#FF5A5A', RED, '#9A0A1A']} style={styles.bannerButton}>
@@ -148,7 +149,7 @@ function CategoryBanners({ width }: { width: number }) {
                   </Text>
                 </LinearGradient>
               )}
-            </Pressable>
+            </TapPressable>
           ))}
         </Animated.View>
       </View>
@@ -300,14 +301,14 @@ export default function GameCategoryScreen() {
     <ImageBackground source={require('../../assets/home-background.webp')} style={styles.fill} resizeMode="cover">
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={8} accessibilityLabel="Back">
+        <TapPressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={8} accessibilityLabel="Back">
           <MaterialCommunityIcons name="chevron-left" size={26} color={GOLD} />
-        </Pressable>
+        </TapPressable>
         <Text style={styles.topTitle}>GAMES</Text>
-        <Pressable onPress={() => (navigation as any).navigate('MainTabs', { screen: 'Wallet' })} style={styles.balance} accessibilityLabel="Wallet">
+        <TapPressable onPress={() => (navigation as any).navigate('MainTabs', { screen: 'Wallet' })} style={styles.balance} accessibilityLabel="Wallet">
           <MaterialCommunityIcons name="wallet" size={16} color={GOLD} />
           <Text style={styles.balanceText}>₹{coins.toLocaleString('en-IN')}</Text>
-        </Pressable>
+        </TapPressable>
       </View>
 
       <ScrollView nestedScrollEnabled
@@ -331,7 +332,7 @@ export default function GameCategoryScreen() {
             {categories.map((c) => {
               const on = c.id === activeId;
               return (
-                <Pressable
+                <TapPressable
                   key={c.id}
                   onPress={() => jumpTo(c.id)}
                   onLayout={(e) => (tabX.current[c.id] = { x: e.nativeEvent.layout.x, w: e.nativeEvent.layout.width })}
@@ -346,7 +347,7 @@ export default function GameCategoryScreen() {
                     {c.hot ? <MaterialCommunityIcons name="fire" size={20} color={on ? '#FFF3C4' : '#FF8A3D'} /> : null}
                     <Text style={[styles.tabText, on && styles.tabTextOn]}>{c.title}</Text>
                   </LinearGradient>
-                </Pressable>
+                </TapPressable>
               );
             })}
           </ScrollView>
@@ -363,10 +364,10 @@ export default function GameCategoryScreen() {
                   {c.hot ? 'Hot Games' : c.title}
                   {c.hot ? <Text style={styles.hotSub}>{'  '}Most played</Text> : null}
                 </Text>
-                <Pressable onPress={() => setExpanded((e) => ({ ...e, [c.id]: !open }))} hitSlop={8} style={styles.allBtn} accessibilityLabel={`${open ? 'Show fewer' : 'Show all'} ${c.title}`}>
+                <TapPressable onPress={() => setExpanded((e) => ({ ...e, [c.id]: !open }))} hitSlop={8} style={styles.allBtn} accessibilityLabel={`${open ? 'Show fewer' : 'Show all'} ${c.title}`}>
                   <Text style={styles.allText}>{open ? 'Less' : `All ${c.games.length}`}</Text>
                   <MaterialCommunityIcons name={open ? 'chevron-up' : 'chevron-right'} size={20} color={GOLD} />
-                </Pressable>
+                </TapPressable>
               </View>
               {open ? (
                 <View style={[styles.grid, { paddingHorizontal: SIDE }]}>

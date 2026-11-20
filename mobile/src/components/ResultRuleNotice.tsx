@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
+import TapPressable from './TapPressable';
 
 type Props = {
   /** True when the server reports the least-payout rule for this game. */
@@ -32,9 +33,9 @@ export default function ResultRuleNotice({ active, game }: Props) {
           <Text style={styles.body}>
             The result is not a random deal or spin: the more money is on a bet, the less likely it is to win.
           </Text>
-          <Pressable onPress={() => setOpen(false)} style={({ pressed }) => [styles.ok, pressed && { opacity: 0.7 }]} accessibilityRole="button">
+          <TapPressable onPress={() => setOpen(false)} style={({ pressed }) => [styles.ok, pressed && { opacity: 0.7 }]} accessibilityRole="button">
             <Text style={styles.okText}>I understand</Text>
-          </Pressable>
+          </TapPressable>
         </View>
       </View>
     </Modal>

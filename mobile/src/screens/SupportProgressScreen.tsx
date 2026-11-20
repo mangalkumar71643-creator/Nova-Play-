@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { fetchMySupportRequests, SupportRequestItem } from '../api/backend';
 import { ApiClientError } from '../api/client';
@@ -9,6 +9,7 @@ import AppHeader from '../components/AppHeader';
 import ScreenContainer from '../components/ScreenContainer';
 import { colors, radius, spacing, typography } from '../theme';
 import { openLiveChat } from '../utils/liveChat';
+import TapPressable from '../components/TapPressable';
 
 const when = (iso: string) => new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -64,7 +65,7 @@ export default function SupportProgressScreen() {
           const statusColor = t.status === 'RESOLVED' ? colors.positive : lastReply ? colors.gold : colors.textSecondary;
           const expanded = open === t.id;
           return (
-            <Pressable key={t.id} style={styles.card} onPress={() => setOpen(expanded ? null : t.id)}>
+            <TapPressable key={t.id} style={styles.card} onPress={() => setOpen(expanded ? null : t.id)}>
               <View style={styles.top}>
                 <Text style={styles.title}>{t.topic}</Text>
                 <View style={[styles.badge, { borderColor: statusColor }]}>
@@ -89,13 +90,13 @@ export default function SupportProgressScreen() {
                       <Text style={styles.bubbleMeta}>{m.sender === 'USER' ? 'You' : 'Support'} · {when(m.createdAt)}</Text>
                     </View>
                   ))}
-                  <Pressable style={styles.chatBtn} onPress={openLiveChat}>
+                  <TapPressable style={styles.chatBtn} onPress={openLiveChat}>
                     <MaterialCommunityIcons name="chat-processing-outline" size={18} color={colors.gold} />
                     <Text style={styles.chatText}>Reply in LiveChat</Text>
-                  </Pressable>
+                  </TapPressable>
                 </View>
               ) : null}
-            </Pressable>
+            </TapPressable>
           );
         })}
       </ScrollView>

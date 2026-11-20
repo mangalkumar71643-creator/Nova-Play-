@@ -1,9 +1,10 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Modal, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
+import TapPressable from './TapPressable';
 
 /**
  * The app's own popup, in place of the plain system dialog (Alert.alert):
@@ -150,7 +151,7 @@ function AlertButton({ button, stacked, onPress }: { button: AppAlertButton; sta
   const cancel = button.style === 'cancel';
   const destructive = button.style === 'destructive';
   return (
-    <Pressable
+    <TapPressable
       onPress={onPress}
       style={({ pressed }) => [stacked ? styles.buttonStacked : styles.buttonFlex, { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}
     >
@@ -168,7 +169,7 @@ function AlertButton({ button, stacked, onPress }: { button: AppAlertButton; sta
           <Text style={[styles.buttonText, { color: destructive ? colors.textPrimary : colors.background }]}>{button.text}</Text>
         </LinearGradient>
       )}
-    </Pressable>
+    </TapPressable>
   );
 }
 

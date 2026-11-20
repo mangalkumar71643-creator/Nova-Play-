@@ -25,6 +25,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { HouseBall, HousePill, NumberBall, pctText } from './WinGoScreen';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import { withTapSound } from '../sound/ui';
 
 // ---------- theme ----------
 
@@ -696,17 +697,17 @@ export default function TrxWinScreen() {
         <LinearGradient colors={[G1, G2, G3]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + 4, height: insets.top + 60 + 130 }]}>
           <View pointerEvents="none" style={[styles.headerArc, { width: W * 1.4, height: W * 1.4, borderRadius: W * 0.7, right: -W * 0.9, top: -W * 0.55 }]} />
           <View style={styles.headerRow}>
-            <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.headerBtn}>
+            <Pressable onPress={withTapSound(() => navigation.goBack())} hitSlop={10} style={styles.headerBtn}>
               <MaterialCommunityIcons name="chevron-left" size={30} color="#FFFFFF" />
             </Pressable>
             <Text style={styles.headerTitle}>
               Trx <Text style={{ color: GOLD }}>Win Go</Text>
             </Text>
             <View style={styles.headerRight}>
-              <Pressable onPress={() => navigation.navigate('Help')} hitSlop={8} style={styles.headerIcon}>
+              <Pressable onPress={withTapSound(() => navigation.navigate('Help'))} hitSlop={8} style={styles.headerIcon}>
                 <MaterialCommunityIcons name="headset" size={20} color="#FFFFFF" />
               </Pressable>
-              <Pressable onPress={() => setShowRules(true)} hitSlop={8} style={styles.headerIcon}>
+              <Pressable onPress={withTapSound(() => setShowRules(true))} hitSlop={8} style={styles.headerIcon}>
                 <MaterialCommunityIcons name="information-variant" size={20} color="#FFFFFF" />
               </Pressable>
             </View>
@@ -726,10 +727,10 @@ export default function TrxWinScreen() {
             <Text style={styles.walletLabel}>Wallet balance</Text>
           </View>
           <View style={styles.walletBtns}>
-            <Pressable onPress={() => navigation.navigate('Withdraw')} style={[styles.walletBtn, styles.walletBtnOutline]}>
+            <Pressable onPress={withTapSound(() => navigation.navigate('Withdraw'))} style={[styles.walletBtn, styles.walletBtnOutline]}>
               <Text style={[styles.walletBtnText, { color: G2 }]}>Withdraw</Text>
             </Pressable>
-            <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.walletBtn}>
+            <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.walletBtn}>
               <LinearGradient colors={[G2, G3]} style={[StyleSheet.absoluteFill, { borderRadius: 22 }]} />
               <Text style={[styles.walletBtnText, { color: '#FFFFFF' }]}>Deposit</Text>
             </Pressable>
@@ -760,7 +761,7 @@ export default function TrxWinScreen() {
           <View style={[styles.notch, { top: -9 }]} />
           <View style={[styles.notch, { bottom: -9 }]} />
           <View style={styles.ticketLeft}>
-            <Pressable onPress={() => setShowRules(true)} style={styles.howBtn}>
+            <Pressable onPress={withTapSound(() => setShowRules(true))} style={styles.howBtn}>
               <MaterialCommunityIcons name="file-document-outline" size={14} color="#FFFFFF" />
               <Text style={styles.howText}>How to play</Text>
             </Pressable>

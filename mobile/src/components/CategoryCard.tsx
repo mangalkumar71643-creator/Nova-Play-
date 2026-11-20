@@ -1,11 +1,12 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Text } from './AppText';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { fonts } from '../theme';
 import { GAME_ICONS, GameCategory } from './GameTile';
+import TapPressable from './TapPressable';
 
 export const CATEGORY_CARD_HEIGHT = 92;
 const ICON = 56;
@@ -21,7 +22,7 @@ const FAN_TILT = ['-9deg', '0deg', '9deg'];
 export default function CategoryCard({ category, width, onPress }: { category: GameCategory; width: number; onPress: () => void }) {
   const icons = category.games.map((id) => GAME_ICONS[id]).filter(Boolean).slice(0, 3);
   return (
-    <Pressable
+    <TapPressable
       onPress={onPress}
       style={({ pressed }) => ({ width, transform: [{ scale: pressed ? 0.98 : 1 }] })}
       accessibilityRole="button"
@@ -75,7 +76,7 @@ export default function CategoryCard({ category, width, onPress }: { category: G
           </LinearGradient>
         </LinearGradient>
       </LinearGradient>
-    </Pressable>
+    </TapPressable>
   );
 }
 

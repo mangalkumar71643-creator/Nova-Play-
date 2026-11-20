@@ -25,7 +25,7 @@ import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
 import SoundToggle from '../components/SoundToggle';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const MIN_STAKE = 10;
 const STAKE_STEP = 10;
@@ -1421,7 +1421,7 @@ export default function AviatorScreen() {
   return (
     <View style={styles.screenRoot}>
       <Pressable
-        onPress={() => navigation.goBack()}
+        onPress={withTapSound(() => navigation.goBack())}
         hitSlop={10}
         style={[styles.backBtn, { top: insets.top + 8 }]}
       >

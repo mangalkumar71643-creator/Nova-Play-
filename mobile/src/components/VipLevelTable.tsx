@@ -1,12 +1,13 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Modal, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import { VipStatus, withdrawalFeeLabel } from '../api/backend';
 import { IconName } from '../data/models';
 import { colors, gradients, spacing, typography } from '../theme';
 import { withPopupSound } from '../sound/ui';
+import TapPressable from './TapPressable';
 
 const LEVEL_COL = 62;
 const ROW_H = 46;
@@ -53,8 +54,8 @@ export default function VipLevelTable({ visible, onClose, vip }: { visible: bool
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable onPress={() => {}} style={{ width, maxHeight: screenHeight * 0.9 }}>
+      <TapPressable style={styles.backdrop} onPress={onClose}>
+        <TapPressable onPress={() => {}} silent style={{ width, maxHeight: screenHeight * 0.9 }}>
           <LinearGradient colors={['#5E1020', '#34080F', '#1A0408']} locations={[0, 0.4, 1]} style={styles.card}>
             <View pointerEvents="none" style={styles.innerFrame} />
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -132,13 +133,13 @@ export default function VipLevelTable({ visible, onClose, vip }: { visible: bool
             </ScrollView>
           </LinearGradient>
 
-          <Pressable onPress={withPopupSound(onClose)} hitSlop={10} style={styles.close}>
+          <TapPressable onPress={withPopupSound(onClose)} hitSlop={10} style={styles.close}>
             <LinearGradient colors={gradients.goldButton} style={styles.closeInner}>
               <MaterialCommunityIcons name="close" size={18} color="#3A2006" />
             </LinearGradient>
-          </Pressable>
-        </Pressable>
-      </Pressable>
+          </TapPressable>
+        </TapPressable>
+      </TapPressable>
     </Modal>
   );
 }

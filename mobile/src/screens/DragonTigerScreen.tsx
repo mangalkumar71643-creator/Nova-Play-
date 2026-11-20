@@ -39,7 +39,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { winLimit } from '../utils/limits';
-import { playChipBet, withPopupSound } from '../sound/ui';
+import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500, 1000];
 const CHIP_COLORS: Record<number, string> = {
@@ -1226,7 +1226,7 @@ export default function DragonTigerScreen() {
       </View>
 
       {/* Top corners and status */}
-      <Pressable onPress={() => navigation.goBack()} style={[styles.abs, styles.backBtn, { left: Math.max(X(14), leftEdge), top: Y(10) }]} hitSlop={8}>
+      <Pressable onPress={withTapSound(() => navigation.goBack())} style={[styles.abs, styles.backBtn, { left: Math.max(X(14), leftEdge), top: Y(10) }]} hitSlop={8}>
         <MaterialCommunityIcons name="chevron-left" size={26 * k} color="#F5B942" />
         <Text style={[styles.title, { fontSize: 15 * k }]}>DRAGON TIGER</Text>
       </Pressable>
@@ -1236,7 +1236,7 @@ export default function DragonTigerScreen() {
         </Text>
       </View>
       <Pressable
-        onPress={() => navigation.navigate('Deposit')}
+        onPress={withTapSound(() => navigation.navigate('Deposit'))}
         style={[styles.abs, styles.depositPill, { right: Math.max(W - X(1836), rightInset), top: Y(12) }]}
       >
         <MaterialCommunityIcons name="wallet-plus" size={15 * k} color="#F5B942" />

@@ -2,10 +2,11 @@ import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useEffect, useState } from 'react';
-import { Linking, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Modal, Platform, StyleSheet, View } from 'react-native';
 import { Text } from './AppText';
 import { API_BASE_URL } from '../api/client';
 import { colors, gradients, radius, spacing, typography } from '../theme';
+import TapPressable from './TapPressable';
 
 /** "1.0.3" < "1.1.0" — plain dotted-number compare, missing parts count as 0. */
 function isOlderVersion(current: string, latest: string): boolean {
@@ -61,7 +62,7 @@ export default function AppUpdateCheck() {
             NovaPlay {update.latestVersion} is out. Update for the latest games, fixes and improvements.
           </Text>
           {update.downloadUrl ? (
-            <Pressable
+            <TapPressable
               onPress={() => Linking.openURL(update.downloadUrl!)}
               testID="app-update-download-button"
               style={styles.downloadOuter}
@@ -70,11 +71,11 @@ export default function AppUpdateCheck() {
                 <MaterialCommunityIcons name="download" size={18} color={colors.textPrimary} />
                 <Text style={styles.downloadText}>Download update</Text>
               </LinearGradient>
-            </Pressable>
+            </TapPressable>
           ) : null}
-          <Pressable onPress={() => setUpdate(null)} testID="app-update-later-button" style={styles.laterButton}>
+          <TapPressable onPress={() => setUpdate(null)} testID="app-update-later-button" style={styles.laterButton}>
             <Text style={styles.laterText}>Later</Text>
-          </Pressable>
+          </TapPressable>
         </View>
       </View>
     </Modal>

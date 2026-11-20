@@ -1,10 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleProp, StyleSheet, Switch, View, ViewStyle, useWindowDimensions } from 'react-native';
+import { Modal, StyleProp, StyleSheet, Switch, View, ViewStyle, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 
 import { setSoundEnabled, useSoundEnabled } from '../sound/engine';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
+import TapPressable from './TapPressable';
 
 type Props = {
   /** The game's info line(s): RTP, bet range, max win and fairness notes. */
@@ -24,7 +25,7 @@ export default function GameInfoButton({ children, compact, style }: Props) {
   const { width } = useWindowDimensions();
   return (
     <>
-      <Pressable
+      <TapPressable
         onPress={() => setOpen(true)}
         hitSlop={8}
         accessibilityRole="button"
@@ -35,24 +36,24 @@ export default function GameInfoButton({ children, compact, style }: Props) {
           <MaterialCommunityIcons name="help" size={compact ? 13 : 15} color="#1A0A00" />
         </View>
         {!compact && <Text style={styles.label}>GAME INFO</Text>}
-      </Pressable>
+      </TapPressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.back} onPress={() => setOpen(false)}>
-          <Pressable style={[styles.card, { width: Math.min(width - 32, 400) }]} onPress={() => {}}>
+        <TapPressable style={styles.back} onPress={() => setOpen(false)}>
+          <TapPressable style={[styles.card, { width: Math.min(width - 32, 400) }]} onPress={() => {}} silent>
             <View style={styles.head}>
               <Text style={styles.title}>GAME INFO</Text>
-              <Pressable onPress={withPopupSound(() => setOpen(false))} hitSlop={8} accessibilityLabel="Close">
+              <TapPressable onPress={withPopupSound(() => setOpen(false))} hitSlop={8} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={22} color="#FFF4E4" />
-              </Pressable>
+              </TapPressable>
             </View>
             <Text style={styles.body}>{children}</Text>
             <View style={styles.soundRow}>
               <MaterialCommunityIcons name={soundOn ? 'volume-high' : 'volume-off'} size={18} color="#FFD66B" />
               <Text style={styles.soundLabel}>Game sounds</Text>
-              <Switch value={soundOn} onValueChange={setSoundEnabled} trackColor={{ false: '#4A3A55', true: '#B8860B' }} thumbColor={soundOn ? '#FFD66B' : '#CFC3D6'} accessibilityLabel="Game sounds" />
+              <Switch value={soundOn} onValueChange={withTapSound(setSoundEnabled)} trackColor={{ false: '#4A3A55', true: '#B8860B' }} thumbColor={soundOn ? '#FFD66B' : '#CFC3D6'} accessibilityLabel="Game sounds" />
             </View>
-          </Pressable>
-        </Pressable>
+          </TapPressable>
+        </TapPressable>
       </Modal>
     </>
   );

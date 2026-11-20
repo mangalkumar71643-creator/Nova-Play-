@@ -329,7 +329,7 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
 {
   const APP = path.resolve(SRC, '..');
   const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith('.tsx') ? [path.join(dir, e.name)] : []));
-  const files = [...walk(path.join(APP, 'screens')), ...walk(path.join(APP, 'components'))];
+  const files = [...walk(path.join(APP, 'screens')), ...walk(path.join(APP, 'components')), ...walk(path.join(APP, 'navigation'))];
   // A cross that clears something (a bet, the picks, a value) instead of closing a popup makes no popup sound.
   const CLEARS = /clearPicks|clearAll|setBet\(0\)|onChangeCashOutValue/;
   const balanced = (str: string, open: number) => {
@@ -352,8 +352,9 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
       const own = src.slice(iconStart, src.indexOf('/>', idx) + 2);
       let tag = own;
       if (!/onPress=\{/.test(own)) {
-        const j = Math.max(src.lastIndexOf('<Pressable', idx), src.lastIndexOf('<TouchableOpacity', idx));
-        if (j < 0 || src.slice(j, idx).includes('</Pressable>') || src.slice(j, idx).includes('</TouchableOpacity>')) continue; // a picture, not a button
+        const j = Math.max(src.lastIndexOf('<Pressable', idx), src.lastIndexOf('<TapPressable', idx), src.lastIndexOf('<TouchableOpacity', idx));
+        const between = src.slice(Math.max(j, 0), idx);
+        if (j < 0 || between.includes('</Pressable>') || between.includes('</TapPressable>') || between.includes('</TouchableOpacity>')) continue; // a picture, not a button
         let depth = 0, k = j;
         for (; k < idx; k++) {
           const c = src[k];
@@ -391,6 +392,38 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
   if (!/playChipBet\(\);\s*setBet\(next\);/.test(addChip) || /play\('tick'\)/.test(addChip)) noChip.push('screens/BlackjackScreen.tsx (addChip)');
   check(`ui: the ${chipGames} chip table games and Blackjack play the chip sound when a chip is put on a bet`, noChip, []);
   check('ui: the chip sound is a real game feature (more than the 7 table games found)', [chipGames >= 7], [true]);
+
+  // The touch sound. The menus (every screen and component that is not a game) use TapPressable, which plays it; the interface
+  // buttons of the game screens (Back, Deposit, Rules, History, the sound switch ...) play it through withTapSound, and the buttons
+  // that are part of the play keep the game's own sounds.
+  const gameScreens = new Set([...gamesSource.matchAll(/^ {2}(?:crash|steps|instant|table|lottery|screen)\('\w+', '(\w+)'/gm)].map((m) => `${m[1]}Screen.tsx`));
+  const menuFiles = files.filter((f) => !gameScreens.has(path.basename(f)) && path.basename(f) !== 'TapPressable.tsx');
+  const read = (f: string) => fs.readFileSync(f, 'utf8');
+  const rel = (f: string) => path.relative(APP, f);
+  check(
+    `ui: the ${menuFiles.length} menu screens, components and tabs use TapPressable and not the plain Pressable`,
+    menuFiles.filter((f) => /import\s*\{[^}]*\bPressable\b[^}]*\}\s*from\s*'react-native'/.test(read(f))).map(rel),
+    []
+  );
+  // A card that only keeps a tap from reaching the popup's backdrop (onPress does nothing) makes no sound.
+  const loudAbsorbers: string[] = [];
+  for (const f of menuFiles) read(f).split('\n').forEach((line, i) => { if (/<TapPressable\b/.test(line) && /onPress=\{\(\) => \{\}\}/.test(line) && !/\bsilent\b/.test(line)) loudAbsorbers.push(`${rel(f)}:${i + 1}`); });
+  check('ui: a popup card that only absorbs taps (onPress does nothing) is silent', loudAbsorbers, []);
+  const loudSwitches: string[] = [];
+  for (const f of menuFiles) for (const m of read(f).matchAll(/<Switch\b[\s\S]*?\/>/g)) if (!/onValueChange=\{withTapSound\(/.test(m[0])) loudSwitches.push(`${rel(f)}:${read(f).slice(0, m.index).split('\n').length}`);
+  check('ui: every switch in the menus makes the touch sound (onValueChange={withTapSound(...)})', loudSwitches, []);
+  // The interface buttons of the game screens, as they are written there.
+  const NAV = `(?:\\(navigation as any\\)|rootNavigation|navigation)\\.navigate\\('(?:Deposit|Withdraw|Wallet|Settings|Profile|Notifications|Help|Home|History)'\\)`;
+  const IFACE = new RegExp(`onPress=\\{(?:\\(\\) => (?:navigation\\.goBack\\(\\)|${NAV}|openPanel\\('(?:history|rules|pay|bets)'\\)|openPanel\\(id\\)|setPanel\\('(?:info|pay)'\\)|setShowRules\\(true\\)|setSheet\\('rules'\\)|setHistoryOpen\\(true\\)|setRulesOpen\\(true\\))|toggleSound)\\}`, 'g');
+  const silentGameButtons: string[] = [];
+  let wrappedButtons = 0;
+  for (const f of files.filter((x) => gameScreens.has(path.basename(x)))) {
+    const src = read(f);
+    for (const m of src.matchAll(IFACE)) silentGameButtons.push(`${rel(f)}:${src.slice(0, m.index).split('\n').length}`);
+    wrappedButtons += [...src.matchAll(/onPress=\{withTapSound\(/g)].length;
+  }
+  check(`ui: ${wrappedButtons} interface buttons of the game screens (Back, Deposit, Rules, History, sound ...) make the touch sound`, silentGameButtons, []);
+  check('ui: the touch sound has a file and a TapPressable', [fs.existsSync(path.join(APP, '..', 'assets/sounds/ui/tap.mp3')), fs.existsSync(path.join(APP, 'components/TapPressable.tsx'))], [true, true]);
 }
 
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed');

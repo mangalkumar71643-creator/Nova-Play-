@@ -2,13 +2,14 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Text } from './AppText';
 import { AVATARS } from '../data/avatars';
 import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../state/AuthContext';
 import { colors, fonts, radius, spacing, typography } from '../theme';
 import CoinPill from './CoinPill';
+import TapPressable from './TapPressable';
 
 type Props = {
   title?: string;
@@ -36,9 +37,9 @@ export default function AppHeader({
     <View style={styles.row}>
       <View style={styles.left}>
         {showBack ? (
-          <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.iconButton}>
+          <TapPressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.iconButton}>
             <MaterialCommunityIcons name="chevron-left" size={26} color={colors.textPrimary} />
-          </Pressable>
+          </TapPressable>
         ) : (
           <View style={styles.brand}>
             <MaterialCommunityIcons name="crown" size={18} color={colors.gold} />
@@ -53,15 +54,15 @@ export default function AppHeader({
 
       <View style={styles.right}>
         {showNotifications ? (
-          <Pressable onPress={() => navigation.navigate('Notifications')} hitSlop={10} style={styles.iconButton}>
+          <TapPressable onPress={() => navigation.navigate('Notifications')} hitSlop={10} style={styles.iconButton}>
             <MaterialCommunityIcons name="bell-outline" size={20} color={colors.textPrimary} />
             {hasUnreadNotifications ? <View style={styles.dot} /> : null}
-          </Pressable>
+          </TapPressable>
         ) : null}
         {showProfile ? (
-          <Pressable onPress={() => navigation.navigate('Profile')} hitSlop={10} style={styles.avatar}>
+          <TapPressable onPress={() => navigation.navigate('Profile')} hitSlop={10} style={styles.avatar}>
             <Image source={AVATARS[avatarId - 1]} style={styles.avatarImage} resizeMode="cover" />
-          </Pressable>
+          </TapPressable>
         ) : null}
       </View>
     </View>

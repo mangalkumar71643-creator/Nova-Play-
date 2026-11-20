@@ -26,7 +26,7 @@ import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
 import ChipStrip, { CHIP_HEIGHT } from '../components/ChipStrip';
 import { NARROW } from '../utils/narrow';
-import { playChipBet } from '../sound/ui';
+import { playChipBet, withTapSound } from '../sound/ui';
 
 const GOLD = '#FFD66B';
 const SYMBOLS: JhandiSymbol[] = ['HEART', 'SPADE', 'DIAMOND', 'CLUB', 'FLAG', 'CROWN'];
@@ -783,7 +783,7 @@ export default function JhandiMundaScreen() {
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color="#FFFFFF" />
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             JHANDI <Text style={{ color: GOLD }}>MUNDA</Text>
@@ -794,7 +794,7 @@ export default function JhandiMundaScreen() {
             <MaterialCommunityIcons name="wallet" size={15} color={GOLD} />
             <Text style={styles.balanceText}>₹{displayBalance.toFixed(2)}</Text>
           </View>
-          <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.depositBtn}>
+          <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.depositBtn}>
             <MaterialCommunityIcons name="plus" size={18} color="#1A1200" />
           </Pressable>
         </View>

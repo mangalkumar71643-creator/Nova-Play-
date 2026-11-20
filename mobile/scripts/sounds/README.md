@@ -71,7 +71,16 @@ part that is still to come.
 
 Sounds of the interface itself (not of a game) live in `supplied/ui/<name>.<ext>`; `build.py` trims and levels them like the games' sounds
 and writes `assets/sounds/ui/<name>.mp3`. `src/sound/ui.ts` lists them and plays them (`playUi('popupClose')`); they follow the same
-Sound Effects switch as the games' sounds. So far there are two:
+Sound Effects switch as the games' sounds. So far there are three:
+
+- the touch sound (`tap`), heard when a button, tab, tile, row or switch of the interface is tapped. In every screen and component
+  that is not a game it comes from `components/TapPressable.tsx`, used in place of the React Native `Pressable` (it plays the sound
+  after the button's own handler has run, only when the press does something, and not when the handler makes a sound of its own:
+  a popup's cross makes the popup sound; `silent` switches it off for one button, as for a popup card that only absorbs taps).
+  A switch uses `onValueChange={withTapSound(onChange)}`. In a game screen only the interface buttons make it (Back, Deposit,
+  Withdraw, Help, the Rules / History / pay-table / My bets buttons and the tabs of that panel, the sound switch), through
+  `onPress={withTapSound(...)}`; the buttons that are part of the play keep the game's own sounds. The check script fails if a
+  menu file imports `Pressable` from react-native or one of those game-screen buttons is not wrapped.
 
 - the popup-closing sound, played by the cross of every popup in the app (games, the Home popups added from the admin panel, VIP,
   Profile ...) through `onPress={withPopupSound(() => setPanel(null))}`. A new popup cross needs the same wrapper
@@ -82,6 +91,9 @@ Sound Effects switch as the games' sounds. So far there are two:
   heard at the tap and not when the server answers. It is these games' only bet sound: their packs have no `start` (`NOT_IN_PACK` in
   `build.py`) and `apiHook.ts` plays nothing for a table game's `/bet` reply. A new chip game puts `playChipBet()` in the same place
   (the check script fails if a screen with `type PlacedChip` has none). Four players take turns, so quick taps overlap and do not cut each other off.
+
+A very quiet file (the touch sound's peak is -21 dBFS) is brought up to a normal level before the silence around it is trimmed
+(`UI_BRING_UP_FIRST` in `build.py`), because the trimming works on absolute levels and would cut off the faint end of its ring.
 
 A sound is levelled by what a phone speaker reproduces (300 Hz to 7 kHz). One that has almost nothing there (the chip sound is a low thump
 and a high hiss) would come out about twice as loud as the rest, so those are listed in `UI_LEVEL_BY_WHOLE` in `build.py` and levelled by the whole sound.

@@ -2,13 +2,14 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { fetchAgentTeam } from '../api/backend';
 import { inr } from '../components/agent/AgentParts';
 import ScreenContainer from '../components/ScreenContainer';
 import { AVATARS } from '../data/avatars';
 import { colors, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 /** EARN → Team: my subordinates, one level (1-6) at a time. */
 export default function AgentTeamScreen() {
@@ -30,9 +31,9 @@ export default function AgentTeamScreen() {
   return (
     <ScreenContainer scroll={false}>
       <LinearGradient colors={['#3A0B14', '#1A0508']} style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={8}>
+        <TapPressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={30} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         <Text style={styles.title}>My Team</Text>
         <View style={styles.back} />
       </LinearGradient>
@@ -54,14 +55,14 @@ export default function AgentTeamScreen() {
           const active = d === depth;
           const count = team?.counts.find((c) => c.depth === d)?.count;
           return (
-            <Pressable key={d} onPress={() => setDepth(d)}>
+            <TapPressable key={d} onPress={() => setDepth(d)}>
               <LinearGradient colors={active ? ['#FF4A63', '#A0122C'] : ['#3A0913', '#22060C']} style={styles.levelChip}>
                 <Text style={[styles.levelChipText, active && { color: '#FFFFFF' }]}>
                   Level {d}
                   {count !== undefined ? ` (${count})` : ''}
                 </Text>
               </LinearGradient>
-            </Pressable>
+            </TapPressable>
           );
         })}
       </ScrollView>

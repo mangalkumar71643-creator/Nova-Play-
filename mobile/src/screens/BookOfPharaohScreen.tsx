@@ -12,7 +12,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const GOLD = '#F5C542';
 const GOLD_LIGHT = '#FFF1B0';
@@ -939,7 +939,7 @@ export default function BookOfPharaohScreen() {
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={GOLD} />
           <Text style={styles.title}>BOOK OF PHARAOH</Text>
         </Pressable>
@@ -1062,7 +1062,7 @@ export default function BookOfPharaohScreen() {
             <Rect x={4} y={116} width={cabW - 8} height={48} rx={4} fill="none" stroke={GOLD_DEEP} strokeWidth={1} />
           </Svg>
           <View style={styles.altarTop}>
-            <Obelisk icon="script-text-outline" label="PAYS" onPress={() => setPanel('pay')} />
+            <Obelisk icon="script-text-outline" label="PAYS" onPress={withTapSound(() => setPanel('pay'))} />
             <Pressable onPress={spin} disabled={busy || !config} style={({ pressed }) => [{ alignItems: 'center' }, pressed && { transform: [{ scale: 0.94 }] }]}>
               <PyramidButton size={96} lit={!busy && !!config} glow={glow} rays={rays} />
               <Text style={[styles.spinText, (busy || !config) && { color: '#8A7A60' }]}>{busy ? '…' : 'SPIN'}</Text>

@@ -1,11 +1,12 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Modal, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 import { VipEmblem, vipTier } from './VipEmblem';
+import TapPressable from './TapPressable';
 
 export type VipBonusResult =
   | { kind: 'success'; bonus: 'upgrade' | 'monthly'; level: number; amount: number; nextMonthly?: string }
@@ -186,13 +187,13 @@ export default function VipBonusPopup({ result, onClose }: { result: VipBonusRes
               </>
             )}
 
-            <Pressable onPress={onClose} style={styles.buttonWrap}>
+            <TapPressable onPress={onClose} style={styles.buttonWrap}>
               <LinearGradient colors={gradients.goldButton} style={styles.button}>
                 <View style={styles.buttonGloss} />
                 <Animated.View pointerEvents="none" style={[styles.buttonShine, { transform: [{ translateX: shineX }, { skewX: '-20deg' }] }]} />
                 <Text style={styles.buttonText}>{success ? 'Collect' : 'OK'}</Text>
               </LinearGradient>
-            </Pressable>
+            </TapPressable>
           </LinearGradient>
 
           <Animated.View

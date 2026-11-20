@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, ImageBackground, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient as SvgGradient, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
@@ -10,6 +10,7 @@ import { fetchRanking, Ranking, RankingPeriod } from '../api/backend';
 import { AVATARS } from '../data/avatars';
 import { useAuth } from '../state/AuthContext';
 import { colors, fonts, gradients, tabBar } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 const PERIODS: { id: RankingPeriod; tab: string; caption: string; empty: string }[] = [
   { id: 'day', tab: 'Day Rank', caption: 'Won by all players today', empty: 'No winners yet today.' },
@@ -218,12 +219,12 @@ export default function RankingScreen() {
         {PERIODS.map((p) => {
           const on = p.id === period;
           return (
-            <Pressable key={p.id} onPress={() => setPeriod(p.id)} style={styles.tab} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={p.tab}>
+            <TapPressable key={p.id} onPress={() => setPeriod(p.id)} style={styles.tab} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={p.tab}>
               {on ? <LinearGradient colors={['#8A1626', '#4A0C16']} style={StyleSheet.absoluteFill} /> : null}
               <Text style={[styles.tabText, on && styles.tabTextOn]}>{p.tab}</Text>
               <Countdown period={p.id} active={on} />
               {on ? <LinearGradient colors={['#FFE9A8', '#F0B93D']} style={styles.tabLine} /> : null}
-            </Pressable>
+            </TapPressable>
           );
         })}
       </LinearGradient>
@@ -256,9 +257,9 @@ export default function RankingScreen() {
             {failed ? (
               <>
                 <Text style={styles.emptyTitle}>Could not load the ranking.</Text>
-                <Pressable onPress={() => load(period)} style={styles.retry}>
+                <TapPressable onPress={() => load(period)} style={styles.retry}>
                   <Text style={styles.retryText}>TRY AGAIN</Text>
-                </Pressable>
+                </TapPressable>
               </>
             ) : (
               <ActivityIndicator color={colors.gold} size="large" />
@@ -305,13 +306,13 @@ export default function RankingScreen() {
             {ranking?.me.rank ? `#${ranking.me.rank}  ·  Won ${money(ranking.me.won)}` : 'Not ranked yet'}
           </Text>
         </View>
-        <Pressable onPress={() => (navigation as any).navigate('GameCategory')} accessibilityRole="button" accessibilityLabel="Play now">
+        <TapPressable onPress={() => (navigation as any).navigate('GameCategory')} accessibilityRole="button" accessibilityLabel="Play now">
           {({ pressed }) => (
             <LinearGradient colors={gradients.goldButton} style={[styles.mePlay, { transform: [{ scale: pressed ? 0.95 : 1 }] }]}>
               <Text style={styles.mePlayText}>PLAY NOW</Text>
             </LinearGradient>
           )}
-        </Pressable>
+        </TapPressable>
       </LinearGradient>
     </ImageBackground>
   );

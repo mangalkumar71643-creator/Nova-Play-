@@ -12,7 +12,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const SILVER = '#E8EEF8';
 const MOONLIGHT = '#FFF6D8';
@@ -661,7 +661,7 @@ export default function WolfMoonScreen() {
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={SILVER} />
           <MaterialCommunityIcons name="moon-full" size={18} color={MOONLIGHT} />
           <Text style={styles.title}>WOLF MOON</Text>
@@ -839,7 +839,7 @@ export default function WolfMoonScreen() {
 
         {/* Controls: no autoplay or turbo (UK) */}
         <View style={[styles.controls, { width: cabW }]}>
-          <Pressable onPress={() => setPanel('pay')} style={styles.sideBtn} hitSlop={6}>
+          <Pressable onPress={withTapSound(() => setPanel('pay'))} style={styles.sideBtn} hitSlop={6}>
             <MaterialCommunityIcons name="information-outline" size={20} color={TURQ} />
             <Text style={styles.sideText}>PAYS</Text>
           </Pressable>

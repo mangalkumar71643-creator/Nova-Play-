@@ -42,7 +42,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { NO_LIMIT, winLimit } from '../utils/limits';
-import { playChipBet, withPopupSound } from '../sound/ui';
+import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500];
 const CHIP_COLORS: Record<number, string> = {
@@ -1121,7 +1121,7 @@ export default function BaccaratScreen() {
 
       {/* Top bar */}
       <View style={[styles.topBar, { left: L, right: W - R, height: topH }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.row} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.row} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={26 * k} color={GOLD} />
           <View>
             <Text style={[styles.title, { fontSize: 18 * k, letterSpacing: 3 * k }]}>BACCARAT</Text>
@@ -1134,10 +1134,10 @@ export default function BaccaratScreen() {
           </Text>
         </View>
         <View style={[styles.row, { gap: 6 * k }]}>
-          <Pressable onPress={() => openPanel('rules')} style={[styles.iconBtn, { width: 32 * k, height: 32 * k }]} hitSlop={4}>
+          <Pressable onPress={withTapSound(() => openPanel('rules'))} style={[styles.iconBtn, { width: 32 * k, height: 32 * k }]} hitSlop={4}>
             <MaterialCommunityIcons name="information-variant" size={20 * k} color={GOLD} />
           </Pressable>
-          <Pressable onPress={() => openPanel('bets')} style={[styles.iconBtn, { width: 32 * k, height: 32 * k }]} hitSlop={4}>
+          <Pressable onPress={withTapSound(() => openPanel('bets'))} style={[styles.iconBtn, { width: 32 * k, height: 32 * k }]} hitSlop={4}>
             <MaterialCommunityIcons name="history" size={18 * k} color={GOLD} />
           </Pressable>
           <View style={[styles.balancePill, { height: 32 * k, paddingHorizontal: 10 * k }]}>
@@ -1151,7 +1151,7 @@ export default function BaccaratScreen() {
               </Text>
             </View>
           </View>
-          <Pressable onPress={() => navigation.navigate('Deposit')} style={[styles.depositBtn, { width: 32 * k, height: 32 * k }]} hitSlop={4}>
+          <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={[styles.depositBtn, { width: 32 * k, height: 32 * k }]} hitSlop={4}>
             <MaterialCommunityIcons name="plus" size={20 * k} color="#2A1600" />
           </Pressable>
         </View>
@@ -1483,7 +1483,7 @@ export default function BaccaratScreen() {
                   ['rules', 'HOW TO PLAY'],
                 ] as const
               ).map(([id, label]) => (
-                <Pressable key={id} onPress={() => openPanel(id)} style={[styles.panelTab, panel === id && styles.panelTabActive]}>
+                <Pressable key={id} onPress={withTapSound(() => openPanel(id))} style={[styles.panelTab, panel === id && styles.panelTabActive]}>
                   <Text style={[styles.panelTabText, panel === id && styles.panelTabTextActive]}>{label}</Text>
                 </Pressable>
               ))}

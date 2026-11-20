@@ -1,6 +1,6 @@
 import { BottomTabBarHeightCallbackContext, BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React, { useContext, useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Ellipse, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
@@ -13,6 +13,7 @@ import WalletScreen from '../screens/WalletScreen';
 import PromotionScreen from '../screens/PromotionScreen';
 import { fonts, tabBar } from '../theme';
 import { BottomTabParamList } from './types';
+import TapPressable from '../components/TapPressable';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
@@ -84,7 +85,7 @@ function SideTab({ name, focused, onPress, onLongPress }: { name: SideName; focu
     Animated.timing(lift, { toValue: focused ? 1 : 0, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
   }, [focused, lift]);
   return (
-    <Pressable
+    <TapPressable
       onPress={onPress}
       onLongPress={onLongPress}
       style={styles.sideTab}
@@ -109,7 +110,7 @@ function SideTab({ name, focused, onPress, onLongPress }: { name: SideName; focu
       <Text style={[styles.label, focused && styles.labelOn]} numberOfLines={1}>
         {TAB_LABELS[name]}
       </Text>
-    </Pressable>
+    </TapPressable>
   );
 }
 
@@ -127,7 +128,7 @@ function CenterTab({ focused, onPress, onLongPress }: { focused: boolean; onPres
     return () => loop.stop();
   }, [pulse]);
   return (
-    <Pressable
+    <TapPressable
       onPress={onPress}
       onLongPress={onLongPress}
       style={styles.centerTab}
@@ -153,7 +154,7 @@ function CenterTab({ focused, onPress, onLongPress }: { focused: boolean; onPres
           </Text>
         </>
       )}
-    </Pressable>
+    </TapPressable>
   );
 }
 

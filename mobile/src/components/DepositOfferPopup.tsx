@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import { Modal, ScrollView, useWindowDimensions, View } from 'react-native';
 import { Text } from './AppText';
 import { DepositOffer, fetchDepositOffer } from '../api/backend';
 import { RootStackParamList } from '../navigation/types';
@@ -12,6 +12,7 @@ import { useAuth } from '../state/AuthContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 import { homePopupsDone } from './HomePopups';
 import { withPopupSound } from '../sound/ui';
+import TapPressable from './TapPressable';
 
 const HIDE_KEY = 'novaplay:depositOffer:hiddenDay:v1';
 const ORDINALS = ['First', 'Second', 'Third'];
@@ -93,7 +94,7 @@ export default function DepositOfferPopup() {
               {offer.stages.map((s, i) => {
                 const on = i === tab;
                 return (
-                  <Pressable
+                  <TapPressable
                     key={s.number}
                     onPress={() => setTab(i)}
                     style={{
@@ -110,7 +111,7 @@ export default function DepositOfferPopup() {
                   >
                     {s.deposited != null ? <MaterialCommunityIcons name="check-circle" size={14} color={colors.positive} /> : null}
                     <Text style={{ color: on ? colors.gold : colors.textSecondary, fontWeight: '800', fontSize: typography.xs }}>{ordinal(s.number)} deposit</Text>
-                  </Pressable>
+                  </TapPressable>
                 );
               })}
             </ScrollView>
@@ -155,7 +156,7 @@ export default function DepositOfferPopup() {
                         <Text style={{ color: colors.positive, fontWeight: '800' }}>Received ✓</Text>
                       </View>
                     ) : (
-                      <Pressable
+                      <TapPressable
                         onPress={() => deposit(t.min)}
                         disabled={!isCurrent}
                         style={{
@@ -170,7 +171,7 @@ export default function DepositOfferPopup() {
                         }}
                       >
                         <Text style={{ color: isCurrent ? colors.gold : colors.textMuted, fontWeight: '800' }}>{done ? 'Done' : 'Deposit'}</Text>
-                      </Pressable>
+                      </TapPressable>
                     )}
                   </View>
                 </View>
@@ -179,7 +180,7 @@ export default function DepositOfferPopup() {
           </ScrollView>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border }}>
-            <Pressable
+            <TapPressable
               onPress={() => setHideToday((v) => !v)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: hideToday }}
@@ -187,15 +188,15 @@ export default function DepositOfferPopup() {
             >
               <MaterialCommunityIcons name={hideToday ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'} size={22} color={hideToday ? colors.gold : colors.textMuted} />
               <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>No more reminders today</Text>
-            </Pressable>
-            <Pressable onPress={() => deposit(offer.stages[currentIndex]?.tiers[0]?.min)}>
+            </TapPressable>
+            <TapPressable onPress={() => deposit(offer.stages[currentIndex]?.tiers[0]?.min)}>
               <LinearGradient colors={gradients.goldButton} style={{ borderRadius: 999, paddingVertical: 10, paddingHorizontal: 22 }}>
                 <Text style={{ color: '#2A1300', fontWeight: '900', fontSize: typography.md }}>Deposit now</Text>
               </LinearGradient>
-            </Pressable>
+            </TapPressable>
           </View>
         </View>
-        <Pressable
+        <TapPressable
           onPress={withPopupSound(close)}
           accessibilityRole="button"
           accessibilityLabel="Close"
@@ -203,7 +204,7 @@ export default function DepositOfferPopup() {
           style={{ marginTop: spacing.md, width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' }}
         >
           <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
-        </Pressable>
+        </TapPressable>
       </View>
     </Modal>
   );

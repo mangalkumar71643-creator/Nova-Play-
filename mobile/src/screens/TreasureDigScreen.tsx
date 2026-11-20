@@ -12,7 +12,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const SAND = '#F2D49A';
 const SEA = '#1AA8C8';
@@ -631,7 +631,7 @@ export default function TreasureDigScreen() {
       <GameBackdrop theme="ocean" />
 
       <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={TEXT} />
           <MaterialCommunityIcons name="treasure-chest" size={18} color={GOLD} />
           <Text style={styles.title}>TREASURE DIG</Text>
@@ -779,7 +779,7 @@ export default function TreasureDigScreen() {
 
         {/* Controls: no autoplay */}
         <View style={[styles.controls, { width: S }]}>
-          <Pressable onPress={() => setPanel('info')} style={styles.sideBtn} hitSlop={6}>
+          <Pressable onPress={withTapSound(() => setPanel('info'))} style={styles.sideBtn} hitSlop={6}>
             <MaterialCommunityIcons name="information-outline" size={20} color={GOLD} />
             <Text style={styles.sideText}>RULES</Text>
           </Pressable>

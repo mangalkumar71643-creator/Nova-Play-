@@ -12,7 +12,7 @@ import { Neon777Config, Neon777Outcome, Neon777Result, Neon777Special, Neon777Sp
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const NEON_PINK = '#FF2D95';
 const NEON_CYAN = '#22E5FF';
@@ -750,7 +750,7 @@ export default function Neon777Screen() {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.headBtn} hitSlop={8} accessibilityLabel="Back">
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.headBtn} hitSlop={8} accessibilityLabel="Back">
           <MaterialCommunityIcons name="chevron-left" size={26} color={NEON_CYAN} />
         </Pressable>
         <View style={styles.headBalance}>
@@ -760,13 +760,13 @@ export default function Neon777Screen() {
           </Text>
         </View>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={toggleSound} style={styles.headBtn} hitSlop={6} accessibilityLabel="Sound">
+        <Pressable onPress={withTapSound(toggleSound)} style={styles.headBtn} hitSlop={6} accessibilityLabel="Sound">
           <MaterialCommunityIcons name={soundOn ? 'volume-high' : 'volume-off'} size={20} color={NEON_CYAN} />
         </Pressable>
-        <Pressable onPress={() => openPanel('history')} style={styles.headBtn} hitSlop={6} accessibilityLabel="My history">
+        <Pressable onPress={withTapSound(() => openPanel('history'))} style={styles.headBtn} hitSlop={6} accessibilityLabel="My history">
           <MaterialCommunityIcons name="history" size={20} color={NEON_CYAN} />
         </Pressable>
-        <Pressable onPress={() => openPanel('pay')} style={styles.headBtn} hitSlop={6} accessibilityLabel="Paytable">
+        <Pressable onPress={withTapSound(() => openPanel('pay'))} style={styles.headBtn} hitSlop={6} accessibilityLabel="Paytable">
           <MaterialCommunityIcons name="information-variant" size={22} color={NEON_CYAN} />
         </Pressable>
       </View>
@@ -999,7 +999,7 @@ export default function Neon777Screen() {
                   ['history', 'MY HISTORY'],
                 ] as const
               ).map(([id, label]) => (
-                <Pressable key={id} onPress={() => openPanel(id)} style={[styles.tab, panel === id && styles.tabOn]}>
+                <Pressable key={id} onPress={withTapSound(() => openPanel(id))} style={[styles.tab, panel === id && styles.tabOn]}>
                   <Text style={[styles.tabText, panel === id && styles.tabTextOn]}>{label}</Text>
                 </Pressable>
               ))}

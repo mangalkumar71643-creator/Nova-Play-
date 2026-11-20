@@ -45,7 +45,7 @@ import { useGameState } from '../state/GameStateContext';
 import { fonts } from '../theme';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 // Same rings as the server (vortexService.ts); the server's own settings
 // replace this as soon as they load.
@@ -879,11 +879,11 @@ export default function VortexScreen() {
       {/* Top bar */}
       <LinearGradient colors={['#3B1119', '#22090E']} style={{ paddingTop: insets.top }}>
         <View style={[styles.topBar, { height: topH }]}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+          <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
             <MaterialCommunityIcons name="chevron-left" size={30} color="#F0B93D" />
             <Text style={styles.brand}>NOVAPLAY</Text>
           </Pressable>
-          <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.deposit} accessibilityRole="button" accessibilityLabel="Deposit">
+          <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.deposit} accessibilityRole="button" accessibilityLabel="Deposit">
             <MaterialCommunityIcons name="wallet-plus" size={18} color={GOLD} />
             <Text style={styles.depositText}>Deposit</Text>
           </Pressable>
@@ -899,13 +899,13 @@ export default function VortexScreen() {
           </Text>
         </View>
         <View style={styles.switches}>
-          <Pressable onPress={() => setSheet('rules')} hitSlop={8} accessibilityRole="button" accessibilityLabel="How to play">
+          <Pressable onPress={withTapSound(() => setSheet('rules'))} hitSlop={8} accessibilityRole="button" accessibilityLabel="How to play">
             <MaterialCommunityIcons name="help-circle-outline" size={25} color="#FFFFFF" />
           </Pressable>
           <Pressable onPress={toggleFast} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fast spins">
             <MaterialCommunityIcons name={fast ? 'lightning-bolt' : 'lightning-bolt-outline'} size={25} color={fast ? GOLD : '#FFFFFF'} />
           </Pressable>
-          <Pressable onPress={toggleSound} hitSlop={8} accessibilityRole="button" accessibilityLabel="Sound">
+          <Pressable onPress={withTapSound(toggleSound)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Sound">
             <MaterialCommunityIcons name={soundOn ? 'volume-high' : 'volume-off'} size={25} color="#FFFFFF" />
           </Pressable>
           <Pressable
@@ -976,7 +976,7 @@ export default function VortexScreen() {
             <View style={styles.toastTip} />
           </View>
         )}
-        <Pressable onPress={() => setSheet('rules')} style={styles.betLabelRow} hitSlop={6}>
+        <Pressable onPress={withTapSound(() => setSheet('rules'))} style={styles.betLabelRow} hitSlop={6}>
           <Text style={styles.betLabel}>Bet Amount</Text>
           <MaterialCommunityIcons name="information" size={14} color="#7C8296" />
         </Pressable>

@@ -4,7 +4,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from '../components/AppText';
 import {
   createSupportRequest,
@@ -22,6 +22,7 @@ import { RootStackParamList, SupportFormKind } from '../navigation/types';
 import * as walletService from '../services/walletService';
 import { useGameState } from '../state/GameStateContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -149,9 +150,9 @@ export default function SupportFormScreen() {
         {needsBank ? (
           <View style={styles.card}>
             <Text style={styles.body}>You have no bank account saved yet. Add it on the Withdraw screen first.</Text>
-            <Pressable style={styles.linkBtn} onPress={() => navigation.replace('Withdraw')}>
+            <TapPressable style={styles.linkBtn} onPress={() => navigation.replace('Withdraw')}>
               <Text style={styles.linkText}>Open Withdraw</Text>
-            </Pressable>
+            </TapPressable>
           </View>
         ) : null}
 
@@ -164,14 +165,14 @@ export default function SupportFormScreen() {
             {shownOrders.map((o) => {
               const selected = o.orderNo === orderRef.trim();
               return (
-                <Pressable key={o.orderNo} style={[styles.order, selected && styles.orderSelected]} onPress={() => setOrderRef(o.orderNo)}>
+                <TapPressable key={o.orderNo} style={[styles.order, selected && styles.orderSelected]} onPress={() => setOrderRef(o.orderNo)}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.orderNo} numberOfLines={1}>{o.orderNo}</Text>
                     <Text style={styles.muted}>{shortDate(o.createdAt)} · {o.status.toLowerCase()}</Text>
                   </View>
                   <Text style={styles.orderAmount}>₹{o.amount.toLocaleString('en-IN')}</Text>
                   <MaterialCommunityIcons name={selected ? 'radiobox-marked' : 'radiobox-blank'} size={20} color={selected ? colors.gold : colors.textMuted} />
-                </Pressable>
+                </TapPressable>
               );
             })}
             <Text style={styles.label}>Order number</Text>
@@ -214,7 +215,7 @@ export default function SupportFormScreen() {
               maxLength={1000}
             />
             <Text style={styles.label}>Screenshot{kind === 'withdraw' ? ' (optional)' : ''}</Text>
-            <Pressable style={styles.upload} onPress={pickImage}>
+            <TapPressable style={styles.upload} onPress={pickImage}>
               {image ? (
                 <Image source={{ uri: image.uri }} style={styles.preview} resizeMode="contain" />
               ) : (
@@ -223,11 +224,11 @@ export default function SupportFormScreen() {
                   <Text style={styles.muted}>Tap to attach a screenshot</Text>
                 </>
               )}
-            </Pressable>
+            </TapPressable>
             {image ? (
-              <Pressable onPress={() => setImage(null)}>
+              <TapPressable onPress={() => setImage(null)}>
                 <Text style={[styles.muted, { textAlign: 'center' }]}>Remove screenshot</Text>
-              </Pressable>
+              </TapPressable>
             ) : null}
           </>
         ) : null}
@@ -239,15 +240,15 @@ export default function SupportFormScreen() {
             </Text>
             <Text style={styles.body}>{result.message}</Text>
             {result.status !== 'COMPLETED' && result.status !== 'VERIFIED' ? (
-              <Pressable style={styles.linkBtn} onPress={() => navigation.replace('SupportForm', { kind: 'deposit' })}>
+              <TapPressable style={styles.linkBtn} onPress={() => navigation.replace('SupportForm', { kind: 'deposit' })}>
                 <Text style={styles.linkText}>Report: Deposit Not Receive</Text>
-              </Pressable>
+              </TapPressable>
             ) : null}
           </View>
         ) : null}
 
         {!needsBank ? (
-          <Pressable onPress={submit} disabled={busy}>
+          <TapPressable onPress={submit} disabled={busy}>
             <LinearGradient colors={gradients.goldButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.submit, busy && { opacity: 0.6 }]}>
               {busy ? (
                 <ActivityIndicator color="#2A1300" />
@@ -255,7 +256,7 @@ export default function SupportFormScreen() {
                 <Text style={styles.submitText}>{kind === 'verify' ? 'Verify' : kind === 'ifsc' || kind === 'bankName' ? 'Save' : 'Submit'}</Text>
               )}
             </LinearGradient>
-          </Pressable>
+          </TapPressable>
         ) : null}
       </KeyboardAwareScrollView>
     </ScreenContainer>

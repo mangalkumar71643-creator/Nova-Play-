@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { fetchJackpotHistory, fetchJackpotRanking, JackpotEntry } from '../api/backend';
 import { inr, useCountdown } from '../components/agent/AgentParts';
@@ -10,6 +10,7 @@ import ScreenContainer from '../components/ScreenContainer';
 import { AVATARS } from '../data/avatars';
 import { RootStackParamList } from '../navigation/types';
 import { colors, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 const MEDALS = ['#FFC93D', '#D9DEF2', '#F0A060'];
 
@@ -76,15 +77,15 @@ export default function AgentJackpotScreen() {
   return (
     <ScreenContainer scroll={false}>
       <LinearGradient colors={['#3A0B14', '#1A0508']} style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={8}>
+        <TapPressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={30} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         {(['ranking', 'history'] as const).map((t) => (
-          <Pressable key={t} style={styles.tab} onPress={() => setTab(t)}>
+          <TapPressable key={t} style={styles.tab} onPress={() => setTab(t)}>
             {tab === t ? <LinearGradient colors={['#5A0E1B', '#A0122C']} style={StyleSheet.absoluteFill} /> : null}
             <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t === 'ranking' ? 'This week' : 'History'}</Text>
             {tab === t ? <View style={styles.tabUnderline} /> : null}
-          </Pressable>
+          </TapPressable>
         ))}
       </LinearGradient>
 

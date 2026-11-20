@@ -1,10 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import { lockOrientation, onOrientationRequest, Orientation, requestedOrientation } from '../utils/orientation';
 import { colors, fonts, gradients } from '../theme';
+import TapPressable from './TapPressable';
 
 /**
  * Website only. The sideways games (Teen Patti, Andar Bahar, Dragon Tiger, Baccarat, Roulette) need a wide
@@ -23,11 +24,11 @@ export default function RotateNotice() {
       <MaterialCommunityIcons name="phone-rotate-landscape" size={64} color={colors.gold} />
       <Text style={styles.title}>Turn your phone sideways</Text>
       <Text style={styles.text}>This game is played in landscape. Rotate your phone (switch on auto-rotate if it does not turn).</Text>
-      <Pressable onPress={() => lockOrientation('landscape')} accessibilityRole="button">
+      <TapPressable onPress={() => lockOrientation('landscape')} accessibilityRole="button">
         <LinearGradient colors={gradients.goldButton} style={styles.button}>
           <Text style={styles.buttonText}>TRY FULL SCREEN</Text>
         </LinearGradient>
-      </Pressable>
+      </TapPressable>
     </View>
   );
 }

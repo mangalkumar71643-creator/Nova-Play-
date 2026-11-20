@@ -2,12 +2,13 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { BalanceRecord, BalanceRecordFilter, fetchBalanceRecords } from '../api/backend';
 import ScreenContainer from '../components/ScreenContainer';
 import { RootStackParamList } from '../navigation/types';
 import { colors, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 function recordLabel(r: BalanceRecord): string {
   switch (r.type) {
@@ -97,20 +98,20 @@ export default function BalanceRecordsScreen() {
   return (
     <ScreenContainer scroll={false}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TapPressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         <Text style={styles.headerTitle}>Detail</Text>
         <View style={styles.backButton} />
       </View>
 
       <View style={styles.tabRow}>
         {(['all', 'income', 'expense'] as const).map((t) => (
-          <Pressable key={t} style={styles.tab} onPress={() => setTab(t)}>
+          <TapPressable key={t} style={styles.tab} onPress={() => setTab(t)}>
             <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>
               {t === 'all' ? 'All' : t === 'income' ? 'Income' : 'Expense'}
             </Text>
-          </Pressable>
+          </TapPressable>
         ))}
       </View>
 

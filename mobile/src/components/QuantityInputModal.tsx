@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from './AppText';
 import KeyboardAvoidingOverlay from './KeyboardAvoidingOverlay';
+import TapPressable from './TapPressable';
 
 /**
  * The lottery games' bet sheet (Win Go, TRX Win, K3, 5D): tap the Quantity
@@ -46,8 +47,8 @@ export default function QuantityInputModal({ visible, value, unit, mult, maxTota
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingOverlay style={styles.fill}>
-        <Pressable style={styles.overlay} onPress={onClose}>
-          <Pressable style={styles.card} onPress={() => {}}>
+        <TapPressable style={styles.overlay} onPress={onClose}>
+          <TapPressable style={styles.card} onPress={() => {}} silent>
             <Text style={styles.title}>Quantity</Text>
             <TextInput
               value={text}
@@ -68,15 +69,15 @@ export default function QuantityInputModal({ visible, value, unit, mult, maxTota
               {tooBig ? `Too much — at most ${money(maxTotal)} per bet (quantity up to ${maxQty.toLocaleString('en-IN')} here)` : `At most ${money(maxTotal)} per bet`}
             </Text>
             <View style={styles.row}>
-              <Pressable onPress={onClose} style={[styles.btn, styles.cancel]}>
+              <TapPressable onPress={onClose} style={[styles.btn, styles.cancel]}>
                 <Text style={styles.cancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable onPress={confirm} disabled={!valid} style={[styles.btn, { backgroundColor: color }, !valid && { opacity: 0.45 }]}>
+              </TapPressable>
+              <TapPressable onPress={confirm} disabled={!valid} style={[styles.btn, { backgroundColor: color }, !valid && { opacity: 0.45 }]}>
                 <Text style={styles.confirmText}>OK</Text>
-              </Pressable>
+              </TapPressable>
             </View>
-          </Pressable>
-        </Pressable>
+          </TapPressable>
+        </TapPressable>
       </KeyboardAvoidingOverlay>
     </Modal>
   );

@@ -29,6 +29,7 @@ import { usePullToRefresh } from '../components/PullToRefresh';
 import GameBackdrop from '../components/GameBackdrop';
 import ChipStrip, { CHIP_HEIGHT } from '../components/ChipStrip';
 import { NARROW } from '../utils/narrow';
+import { withTapSound } from '../sound/ui';
 
 // How far the live number may run past the server's latest reply.
 const MAX_AHEAD_OF_SERVER_MS = 1200;
@@ -669,7 +670,7 @@ export default function CosmonautScreen() {
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={28} color="#FFFFFF" />
           <MaterialCommunityIcons name="rocket-launch" size={20} color={CYAN} />
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>COSMONAUT</Text>
@@ -679,7 +680,7 @@ export default function CosmonautScreen() {
             <MaterialCommunityIcons name="wallet" size={15} color={GOLD} />
             <Text style={styles.balanceText}>₹{coins.toFixed(2)}</Text>
           </View>
-          <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.depositBtn}>
+          <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.depositBtn}>
             <MaterialCommunityIcons name="plus" size={18} color="#1A1200" />
           </Pressable>
         </View>

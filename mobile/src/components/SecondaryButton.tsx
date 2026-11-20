@@ -1,9 +1,10 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
-import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Text } from './AppText';
 import { IconName } from '../data/models';
 import { colors, radius, spacing, typography } from '../theme';
+import TapPressable from './TapPressable';
 
 type Props = {
   label: string;
@@ -14,7 +15,7 @@ type Props = {
 
 export default function SecondaryButton({ label, onPress, icon, style }: Props) {
   return (
-    <Pressable
+    <TapPressable
       onPress={onPress}
       style={({ pressed }) => [styles.button, { opacity: pressed ? 0.8 : 1 }, style]}
     >
@@ -22,7 +23,7 @@ export default function SecondaryButton({ label, onPress, icon, style }: Props) 
         {icon ? <MaterialCommunityIcons name={icon} size={18} color={colors.gold} style={styles.icon} /> : null}
         <Text style={styles.label}>{label}</Text>
       </View>
-    </Pressable>
+    </TapPressable>
   );
 }
 

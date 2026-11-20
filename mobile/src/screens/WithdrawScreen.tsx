@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { Modal, View } from 'react-native';
 import { Text, TextInput } from '../components/AppText';
 import { showAlert } from '../components/AppAlert';
 import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
@@ -17,6 +17,7 @@ import { useGameState } from '../state/GameStateContext';
 import * as walletService from '../services/walletService';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
 import { withPopupSound } from '../sound/ui';
+import TapPressable from '../components/TapPressable';
 
 const CARD_TEXT_COLOR = '#5C3A0E';
 const MIN_WITHDRAW = 100;
@@ -145,17 +146,17 @@ export default function WithdrawScreen() {
   return (
     <ScreenContainer scroll={false} contentStyle={{ paddingHorizontal: 0 }}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.headerButton}>
+        <TapPressable onPress={() => navigation.goBack()} style={styles.headerButton}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         <Text style={styles.headerTitle}>Withdraw</Text>
         <View style={styles.headerRight}>
-          <Pressable onPress={() => navigation.navigate('Help')} style={styles.headerButton}>
+          <TapPressable onPress={() => navigation.navigate('Help')} style={styles.headerButton}>
             <MaterialCommunityIcons name="headset" size={24} color={colors.gold} />
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate('History', { kind: 'withdraw' })} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="History">
+          </TapPressable>
+          <TapPressable onPress={() => navigation.navigate('History', { kind: 'withdraw' })} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="History">
             <MaterialCommunityIcons name="clock-time-four-outline" size={24} color={colors.gold} />
-          </Pressable>
+          </TapPressable>
         </View>
       </View>
 
@@ -215,14 +216,14 @@ export default function WithdrawScreen() {
         ) : null}
 
         <Text style={styles.sectionLabel}>Bank Account</Text>
-        <Pressable style={styles.bankRow} onPress={openBankModal}>
+        <TapPressable style={styles.bankRow} onPress={openBankModal}>
           <MaterialCommunityIcons name={hasPayoutAccount ? 'bank-outline' : 'plus-circle'} size={20} color={colors.gold} />
           <Text style={styles.bankRowText}>
             {hasPayoutAccount
               ? `${payoutAccountHolderName} · •••• ${payoutAccountNumber?.slice(-4)}`
               : 'Add Bank'}
           </Text>
-        </Pressable>
+        </TapPressable>
 
         <View style={styles.amountCard}>
           <View style={styles.amountLabelRow}>
@@ -248,7 +249,7 @@ export default function WithdrawScreen() {
             {QUICK_AMOUNTS.map((value) => {
               const selected = amount === value;
               return (
-                <Pressable
+                <TapPressable
                   key={value}
                   style={[styles.quickChip, selected && styles.quickChipSelected]}
                   onPress={() => setAmountText(String(value))}
@@ -256,7 +257,7 @@ export default function WithdrawScreen() {
                   <Text style={[styles.quickChipText, selected && styles.quickChipTextSelected]}>
                     ₹{value.toLocaleString('en-IN')}
                   </Text>
-                </Pressable>
+                </TapPressable>
               );
             })}
           </View>
@@ -335,7 +336,7 @@ export default function WithdrawScreen() {
       </KeyboardAwareScrollView>
 
       <View style={[styles.payBar, { paddingBottom: spacing.lg + bottomInset }]}>
-        <Pressable
+        <TapPressable
           onPress={handleWithdraw}
           disabled={(!isValidAmount && hasPayoutAccount) || !kycApproved || busy}
           style={{ opacity: (!isValidAmount && hasPayoutAccount) || !kycApproved || busy ? 0.5 : 1 }}
@@ -348,7 +349,7 @@ export default function WithdrawScreen() {
           >
             <Text style={styles.payButtonText}>{busy ? 'Withdrawing…' : 'Withdraw'}</Text>
           </LinearGradient>
-        </Pressable>
+        </TapPressable>
       </View>
 
       <Modal visible={bankModalOpen} transparent animationType="fade" onRequestClose={() => setBankModalOpen(false)}>
@@ -356,9 +357,9 @@ export default function WithdrawScreen() {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Bank account</Text>
-              <Pressable onPress={withPopupSound(() => setBankModalOpen(false))} hitSlop={10}>
+              <TapPressable onPress={withPopupSound(() => setBankModalOpen(false))} hitSlop={10}>
                 <MaterialCommunityIcons name="close" size={22} color={colors.gold} />
-              </Pressable>
+              </TapPressable>
             </View>
 
             <Text style={styles.modalLabel}>Account Holder Name</Text>
@@ -399,7 +400,7 @@ export default function WithdrawScreen() {
               </Text>
             </View>
 
-            <Pressable onPress={handleSaveBankAccount} disabled={savingBank}>
+            <TapPressable onPress={handleSaveBankAccount} disabled={savingBank}>
               <LinearGradient
                 colors={gradients.crimsonButton}
                 start={{ x: 0, y: 0 }}
@@ -408,7 +409,7 @@ export default function WithdrawScreen() {
               >
                 <Text style={styles.modalSaveButtonText}>{savingBank ? 'Saving…' : 'Save & Continue'}</Text>
               </LinearGradient>
-            </Pressable>
+            </TapPressable>
           </View>
         </View>
       </Modal>

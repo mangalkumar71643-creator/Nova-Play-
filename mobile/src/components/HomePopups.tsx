@@ -1,10 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, Pressable, View, useWindowDimensions } from 'react-native';
+import { Image, Modal, View, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import { API_BASE_URL } from '../api/client';
 import { withPopupSound } from '../sound/ui';
+import TapPressable from './TapPressable';
 
 type HomePopup = { id: string; title: string; width: number; height: number; imageUrl: string };
 
@@ -102,7 +103,7 @@ export default function HomePopups() {
     <Modal visible transparent animationType="fade" onRequestClose={close} statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center' }}>
         <View style={{ width: imageW }}>
-          <Pressable
+          <TapPressable
             onPress={withPopupSound(close)}
             hitSlop={10}
             accessibilityRole="button"
@@ -121,7 +122,7 @@ export default function HomePopups() {
             }}
           >
             <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
-          </Pressable>
+          </TapPressable>
           <Image
             key={current.id}
             source={{ uri: `${API_BASE_URL}${current.imageUrl}` }}
@@ -129,7 +130,7 @@ export default function HomePopups() {
             style={{ width: imageW, height: imageH, borderRadius: 14, backgroundColor: '#1A1012' }}
             resizeMode="cover"
           />
-          <Pressable
+          <TapPressable
             onPress={() => setDontShow((v) => !v)}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: dontShow }}
@@ -161,7 +162,7 @@ export default function HomePopups() {
               {dontShow && <MaterialCommunityIcons name="check-bold" size={16} color="#5A0E0A" />}
             </View>
             <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>Don't show again today</Text>
-          </Pressable>
+          </TapPressable>
         </View>
       </View>
     </Modal>

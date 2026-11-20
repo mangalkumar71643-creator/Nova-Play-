@@ -12,7 +12,7 @@ import { SlotConfig, SlotSpin, SlotSymbol, fetchSlotConfig, fetchSlotHistory, sp
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { withPopupSound } from '../sound/ui';
+import { withPopupSound, withTapSound } from '../sound/ui';
 
 const GOLD = '#FFD66B';
 const GOLD_DEEP = '#B8862B';
@@ -713,7 +713,7 @@ export default function SlotScreen() {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 6, height: headerH }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.headBtn} hitSlop={8}>
+        <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.headBtn} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={26} color={GOLD} />
         </Pressable>
         <View style={styles.headBalance}>
@@ -723,13 +723,13 @@ export default function SlotScreen() {
           </Text>
         </View>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={toggleSound} style={styles.headBtn} hitSlop={6} accessibilityLabel="Sound">
+        <Pressable onPress={withTapSound(toggleSound)} style={styles.headBtn} hitSlop={6} accessibilityLabel="Sound">
           <MaterialCommunityIcons name={soundOn ? 'volume-high' : 'volume-off'} size={20} color={GOLD} />
         </Pressable>
-        <Pressable onPress={() => openPanel('history')} style={styles.headBtn} hitSlop={6} accessibilityLabel="My history">
+        <Pressable onPress={withTapSound(() => openPanel('history'))} style={styles.headBtn} hitSlop={6} accessibilityLabel="My history">
           <MaterialCommunityIcons name="history" size={20} color={GOLD} />
         </Pressable>
-        <Pressable onPress={() => openPanel('pay')} style={styles.headBtn} hitSlop={6} accessibilityLabel="Paytable">
+        <Pressable onPress={withTapSound(() => openPanel('pay'))} style={styles.headBtn} hitSlop={6} accessibilityLabel="Paytable">
           <MaterialCommunityIcons name="information-variant" size={22} color={GOLD} />
         </Pressable>
       </View>
@@ -981,7 +981,7 @@ export default function SlotScreen() {
                   ['history', 'MY HISTORY'],
                 ] as const
               ).map(([id, label]) => (
-                <Pressable key={id} onPress={() => openPanel(id)} style={[styles.tab, panel === id && styles.tabOn]}>
+                <Pressable key={id} onPress={withTapSound(() => openPanel(id))} style={[styles.tab, panel === id && styles.tabOn]}>
                   <Text style={[styles.tabText, panel === id && styles.tabTextOn]}>{label}</Text>
                 </Pressable>
               ))}

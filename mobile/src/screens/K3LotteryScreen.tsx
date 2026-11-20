@@ -24,6 +24,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import { withTapSound } from '../sound/ui';
 
 // ---------- theme ----------
 
@@ -555,11 +556,11 @@ export default function K3LotteryScreen() {
             </View>
           </View>
           <View style={styles.headerRow}>
-            <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.headerBtn}>
+            <Pressable onPress={withTapSound(() => navigation.goBack())} hitSlop={10} style={styles.headerBtn}>
               <MaterialCommunityIcons name="chevron-left" size={28} color="#FFFFFF" />
             </Pressable>
             <Text style={styles.headerTitle}>K3 Lottery</Text>
-            <Pressable onPress={() => setShowRules(true)} hitSlop={10} style={styles.headerBtn}>
+            <Pressable onPress={withTapSound(() => setShowRules(true))} hitSlop={10} style={styles.headerBtn}>
               <MaterialCommunityIcons name="information-outline" size={22} color="#FFFFFF" />
             </Pressable>
           </View>
@@ -578,10 +579,10 @@ export default function K3LotteryScreen() {
             <Text style={styles.walletLabel}>Wallet balance</Text>
           </View>
           <View style={styles.walletBtns}>
-            <Pressable onPress={() => navigation.navigate('Withdraw')} style={[styles.walletBtn, styles.walletBtnOutline]}>
+            <Pressable onPress={withTapSound(() => navigation.navigate('Withdraw'))} style={[styles.walletBtn, styles.walletBtnOutline]}>
               <Text style={[styles.walletBtnText, { color: G2 }]}>Withdraw</Text>
             </Pressable>
-            <Pressable onPress={() => navigation.navigate('Deposit')} style={styles.walletBtn}>
+            <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.walletBtn}>
               <LinearGradient colors={[G1, G2]} style={[StyleSheet.absoluteFill, { borderRadius: 20 }]} />
               <Text style={[styles.walletBtnText, { color: '#FFFFFF' }]}>Deposit</Text>
             </Pressable>
@@ -611,7 +612,7 @@ export default function K3LotteryScreen() {
           <View style={[styles.notch, { top: -9 }]} />
           <View style={[styles.notch, { bottom: -9 }]} />
           <View style={styles.ticketLeft}>
-            <Pressable onPress={() => setShowRules(true)} style={styles.howBtn}>
+            <Pressable onPress={withTapSound(() => setShowRules(true))} style={styles.howBtn}>
               <MaterialCommunityIcons name="file-document-outline" size={14} color="#FFFFFF" />
               <Text style={styles.howText}>How to play</Text>
             </Pressable>

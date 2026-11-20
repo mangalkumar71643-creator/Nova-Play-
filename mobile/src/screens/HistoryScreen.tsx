@@ -2,12 +2,13 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { fetchWalletHistory, WalletHistory, WalletHistoryKind } from '../api/backend';
 import ScreenContainer from '../components/ScreenContainer';
 import { RootStackParamList } from '../navigation/types';
 import { colors, radius, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 type Range = 0 | 1 | 7 | 30;
 
@@ -53,9 +54,9 @@ export default function HistoryScreen() {
   return (
     <ScreenContainer scroll={false}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TapPressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         <Text style={styles.headerTitle}>{fixedKind ? (isDeposit ? 'Deposit History' : 'Withdraw History') : 'History'}</Text>
         <View style={styles.backButton} />
       </View>
@@ -63,9 +64,9 @@ export default function HistoryScreen() {
       {!fixedKind && (
         <View style={styles.switchRow}>
           {(['deposit', 'withdraw'] as const).map((k) => (
-            <Pressable key={k} onPress={() => setPickedKind(k)} style={[styles.switchItem, kind === k && styles.switchItemActive]}>
+            <TapPressable key={k} onPress={() => setPickedKind(k)} style={[styles.switchItem, kind === k && styles.switchItemActive]}>
               <Text style={[styles.switchLabel, kind === k && styles.switchLabelActive]}>{k === 'deposit' ? 'Deposit' : 'Withdraw'}</Text>
-            </Pressable>
+            </TapPressable>
           ))}
         </View>
       )}
@@ -83,9 +84,9 @@ export default function HistoryScreen() {
 
       <View style={styles.tabRow}>
         {RANGES.map((r) => (
-          <Pressable key={r.days} style={styles.tab} onPress={() => setRange(r.days)}>
+          <TapPressable key={r.days} style={styles.tab} onPress={() => setRange(r.days)}>
             <Text style={[styles.tabLabel, range === r.days && styles.tabLabelActive]}>{r.label}</Text>
-          </Pressable>
+          </TapPressable>
         ))}
       </View>
 

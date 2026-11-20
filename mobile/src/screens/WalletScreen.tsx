@@ -4,13 +4,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import ScreenContainer from '../components/ScreenContainer';
 import { BottomTabParamList, RootStackParamList } from '../navigation/types';
 import { KYC_REQUIRED, useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 const CARD_TEXT_COLOR = '#5C3A0E';
 
@@ -25,17 +26,17 @@ export default function WalletScreen() {
   return (
     <ScreenContainer contentStyle={styles.content}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.navigate('Home')} style={styles.headerButton}>
+        <TapPressable onPress={() => navigation.navigate('Home')} style={styles.headerButton}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         <Text style={styles.headerTitle}>Wallet</Text>
         <View style={styles.headerRight}>
-          <Pressable onPress={() => rootNavigation.navigate('Help')} style={styles.headerButton}>
+          <TapPressable onPress={() => rootNavigation.navigate('Help')} style={styles.headerButton}>
             <MaterialCommunityIcons name="headset" size={24} color={colors.gold} />
-          </Pressable>
-          <Pressable onPress={() => rootNavigation.navigate('History')} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="History">
+          </TapPressable>
+          <TapPressable onPress={() => rootNavigation.navigate('History')} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="History">
             <MaterialCommunityIcons name="clock-time-four-outline" size={24} color={colors.gold} />
-          </Pressable>
+          </TapPressable>
         </View>
       </View>
 
@@ -75,7 +76,7 @@ export default function WalletScreen() {
       </View>
 
       <View style={styles.actionRow}>
-        <Pressable style={{ flex: 1 }} onPress={() => rootNavigation.navigate('Withdraw')} disabled={!kycApproved}>
+        <TapPressable style={{ flex: 1 }} onPress={() => rootNavigation.navigate('Withdraw')} disabled={!kycApproved}>
           <LinearGradient
             colors={gradients.crimsonButton}
             start={{ x: 0, y: 0 }}
@@ -84,8 +85,8 @@ export default function WalletScreen() {
           >
             <Text style={[styles.actionButtonText, { color: colors.textPrimary }]}>Withdraw</Text>
           </LinearGradient>
-        </Pressable>
-        <Pressable style={{ flex: 1 }} onPress={() => rootNavigation.navigate('Deposit')} disabled={!kycApproved}>
+        </TapPressable>
+        <TapPressable style={{ flex: 1 }} onPress={() => rootNavigation.navigate('Deposit')} disabled={!kycApproved}>
           <LinearGradient
             colors={gradients.goldButton}
             start={{ x: 0, y: 0 }}
@@ -94,7 +95,7 @@ export default function WalletScreen() {
           >
             <Text style={styles.actionButtonText}>Deposit</Text>
           </LinearGradient>
-        </Pressable>
+        </TapPressable>
       </View>
     </ScreenContainer>
   );

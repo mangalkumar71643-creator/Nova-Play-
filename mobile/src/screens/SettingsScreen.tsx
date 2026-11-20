@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { showAlert } from '../components/AppAlert';
 import AmountInputModal from '../components/AmountInputModal';
@@ -16,6 +16,8 @@ import { useAuth } from '../state/AuthContext';
 import { ApiClientError } from '../api/client';
 import { fetchFairnessStatus, rotateFairnessSeed } from '../api/backend';
 import { setMusicEnabled, setSoundEnabled, useMusicEnabled, useSoundEnabled } from '../sound/engine';
+import TapPressable from '../components/TapPressable';
+import { withTapSound } from '../sound/ui';
 
 function truncateHash(hash: string): string {
   return `${hash.slice(0, 10)}…${hash.slice(-6)}`;
@@ -173,10 +175,10 @@ export default function SettingsScreen() {
         process is fair; it is not the same as accredited RNG certification.
       </Text>
 
-      <Pressable onPress={handleLogout} style={styles.logoutButton}>
+      <TapPressable onPress={handleLogout} style={styles.logoutButton}>
         <MaterialCommunityIcons name="logout" size={18} color={colors.negative} />
         <Text style={styles.logoutText}>Log Out</Text>
-      </Pressable>
+      </TapPressable>
 
       <Text style={styles.footerNote}>
         NovaPlay is an 18+ real-money gaming app. Coins are backed 1:1 by real money — please gamble
@@ -216,7 +218,7 @@ function ToggleRow({
       <Text style={styles.rowLabel}>{label}</Text>
       <Switch
         value={value}
-        onValueChange={onChange}
+        onValueChange={withTapSound(onChange)}
         trackColor={{ false: colors.surfaceAlt, true: colors.goldDark }}
         thumbColor={value ? colors.gold : colors.textMuted}
         style={styles.switch}
@@ -237,11 +239,11 @@ function InfoRow({ icon, label, value, last }: { icon: IconName; label: string; 
 
 function NavRow({ icon, label, onPress, last }: { icon: IconName; label: string; onPress: () => void; last?: boolean }) {
   return (
-    <Pressable onPress={onPress} style={[styles.row, last && styles.rowLast]}>
+    <TapPressable onPress={onPress} style={[styles.row, last && styles.rowLast]}>
       <MaterialCommunityIcons name={icon} size={19} color={colors.gold} />
       <Text style={styles.rowLabel}>{label}</Text>
       <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} style={styles.chevron} />
-    </Pressable>
+    </TapPressable>
   );
 }
 

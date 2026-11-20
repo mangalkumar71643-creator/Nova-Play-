@@ -12,26 +12,27 @@ const UI_SOURCES = {
   popupClose: require('../../assets/sounds/ui/popup_close.mp3'),
   /** A chip goes from the player's chips onto a bet (a tap on a betting area, Rebet, Double ...). */
   chipBet: require('../../assets/sounds/ui/chip_bet.mp3'),
+  /** The touch sound: a button, tab, tile or row of the interface is tapped. */
+  tap: require('../../assets/sounds/ui/tap.mp3'),
 } as const;
 
 export type UiSound = keyof typeof UI_SOURCES;
 
 /**
  * How many players a sound gets, taken in turns, so quick taps do not cut each other off. A sound that is tapped many times in
- * a second (the chips) needs more than one that is not (a popup being closed). A sound's length times its taps per second is
- * about how many it needs.
+ * a second (the chips, the touch sound) needs more than one that is not (a popup being closed).
  */
-const VOICES: Record<UiSound, number> = { popupClose: 2, chipBet: 4 };
+const VOICES: Record<UiSound, number> = { popupClose: 2, chipBet: 4, tap: 3 };
 
 const players = new Map<UiSound, { list: AudioPlayer[]; turn: number } | null>();
 
-/** The players of a sound, taken in turns (VOICES). Made on the first use (or at start-up, see preloadUiSounds), kept for good. */
+/** A sound's players. The first is made on the first use (or at start-up, see preloadUiSounds); the others by growVoices. */
 function playersOf(name: UiSound) {
   let entry = players.get(name);
   if (entry === undefined) {
     try {
       ensureAudioMode();
-      entry = { list: Array.from({ length: VOICES[name] }, () => createAudioPlayer(UI_SOURCES[name])), turn: 0 };
+      entry = { list: [createAudioPlayer(UI_SOURCES[name])], turn: 0 };
     } catch {
       entry = null; // this sound stays silent
     }
@@ -40,12 +41,39 @@ function playersOf(name: UiSound) {
   return entry;
 }
 
+let growing = false;
+
 /**
- * Makes the players now (called when the app starts), so the very first tap is not the one that has to load the file: a player
- * that has just been made is not ready for a moment, and a sound as short as these could be missed.
+ * Makes the rest of the players, one every quarter of a second, once the app is up: every player is a native audio player, and
+ * making them all at once would hold up the start of the app. They only matter when taps come faster than a sound plays.
+ */
+function growVoices(): void {
+  if (growing) return;
+  growing = true;
+  const step = () => {
+    for (const name of Object.keys(UI_SOURCES) as UiSound[]) {
+      const entry = playersOf(name);
+      if (!entry || entry.list.length >= VOICES[name]) continue;
+      try {
+        entry.list.push(createAudioPlayer(UI_SOURCES[name]));
+      } catch {
+        // No more players for this sound.
+        VOICES[name] = entry.list.length;
+      }
+      setTimeout(step, 250);
+      return;
+    }
+  };
+  setTimeout(step, 600);
+}
+
+/**
+ * Makes the first player of every sound now (called when the app starts), so the very first tap is not the one that has to load
+ * the file: a player that has just been made is not ready for a moment, and a sound as short as these could be missed.
  */
 export function preloadUiSounds(): void {
   for (const name of Object.keys(UI_SOURCES) as UiSound[]) playersOf(name);
+  growVoices();
 }
 
 /** Plays an interface sound (nothing if the sound effects are switched off). It can never throw into the screen. */
@@ -53,7 +81,8 @@ export function playUi(name: UiSound): void {
   if (!isSoundEnabled()) return;
   const entry = playersOf(name);
   if (!entry) return;
-  const p = entry.list[entry.turn];
+  growVoices();
+  const p = entry.list[entry.turn % entry.list.length];
   entry.turn = (entry.turn + 1) % entry.list.length;
   try {
     p.volume = 1;
@@ -65,15 +94,42 @@ export function playUi(name: UiSound): void {
   }
 }
 
+// A handler that makes its own interface sound is marked, so the touch sound is not played on top of it (a popup's cross
+// makes the popup sound, not the touch sound).
+const OWN_SOUND = '__playsUiSound';
+
+function marked<A extends unknown[]>(fn: (...args: A) => void): (...args: A) => void {
+  (fn as unknown as Record<string, boolean>)[OWN_SOUND] = true;
+  return fn;
+}
+
+/** Whether a press handler makes an interface sound of its own (see withPopupSound and withTapSound). */
+export function hasOwnSound(fn: unknown): boolean {
+  return typeof fn === 'function' && (fn as unknown as Record<string, unknown>)[OWN_SOUND] === true;
+}
+
 /**
  * For a popup's cross: `onPress={withPopupSound(() => setPanel(null))}` plays the popup-closing sound, then does what the
  * button did before.
  */
 export function withPopupSound<A extends unknown[]>(fn?: (...args: A) => unknown): (...args: A) => void {
-  return (...args: A) => {
+  return marked((...args: A) => {
     playUi('popupClose');
     fn?.(...args);
-  };
+  });
+}
+
+/**
+ * The touch sound for a control that is not a TapPressable (see components/TapPressable.tsx): a switch
+ * (`onValueChange={withTapSound(onChange)}`), or a button of a game's screen that is not part of the play (Back, Deposit, the
+ * Rules and History buttons). It does what the control did first and then plays the sound, so a switch that turns the sound off
+ * is silent, and one that turns it on is heard.
+ */
+export function withTapSound<A extends unknown[]>(fn?: (...args: A) => unknown): (...args: A) => void {
+  return marked((...args: A) => {
+    fn?.(...args);
+    playUi('tap');
+  });
 }
 
 /**

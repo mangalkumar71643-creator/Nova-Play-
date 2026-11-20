@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, Keyboard, Pressable, View } from 'react-native';
+import { ActivityIndicator, Image, Keyboard, View } from 'react-native';
 import { Text, TextInput } from '../components/AppText';
 import { redeemGiftCode } from '../api/backend';
 import { ApiClientError } from '../api/client';
@@ -10,6 +10,7 @@ import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
 import ScreenContainer from '../components/ScreenContainer';
 import { useGameState } from '../state/GameStateContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 const RULES = [
   'The bonus is added to your balance as soon as the code is accepted.',
@@ -50,9 +51,9 @@ export default function GiftCodeScreen() {
   return (
     <ScreenContainer scroll={false} contentStyle={{ paddingHorizontal: 0 }}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="Back">
+        <TapPressable onPress={() => navigation.goBack()} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="Back">
           <MaterialCommunityIcons name="chevron-left" size={28} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         <Text style={styles.headerTitle}>Gift Code</Text>
         <View style={styles.headerButton} />
       </View>
@@ -85,7 +86,7 @@ export default function GiftCodeScreen() {
             accessibilityLabel="Gift code"
           />
           {result && <Text style={[styles.result, { color: result.ok ? colors.positive : colors.negative }]}>{result.text}</Text>}
-          <Pressable
+          <TapPressable
             onPress={confirm}
             disabled={busy}
             style={({ pressed }) => ({ alignSelf: 'center', marginTop: spacing.lg, transform: [{ scale: pressed ? 0.97 : 1 }] })}
@@ -95,7 +96,7 @@ export default function GiftCodeScreen() {
             <LinearGradient colors={gradients.crimsonButton} style={styles.confirm}>
               {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Confirm</Text>}
             </LinearGradient>
-          </Pressable>
+          </TapPressable>
         </View>
 
         <View style={styles.rules}>

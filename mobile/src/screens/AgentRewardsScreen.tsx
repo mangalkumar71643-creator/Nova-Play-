@@ -2,13 +2,14 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { AgentRewardKind, fetchAgentClaims, fetchAgentRewards } from '../api/backend';
 import { inr } from '../components/agent/AgentParts';
 import ScreenContainer from '../components/ScreenContainer';
 import { RootStackParamList } from '../navigation/types';
 import { colors, spacing, typography } from '../theme';
+import TapPressable from '../components/TapPressable';
 
 const KINDS: { key: AgentRewardKind | 'ALL'; label: string }[] = [
   { key: 'ALL', label: 'All' },
@@ -87,15 +88,15 @@ export default function AgentRewardsScreen() {
   return (
     <ScreenContainer scroll={false}>
       <LinearGradient colors={['#3A0B14', '#1A0508']} style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={8}>
+        <TapPressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={8}>
           <MaterialCommunityIcons name="chevron-left" size={30} color={colors.gold} />
-        </Pressable>
+        </TapPressable>
         {(['details', 'withdrawals'] as const).map((t) => (
-          <Pressable key={t} style={styles.tab} onPress={() => setTab(t)}>
+          <TapPressable key={t} style={styles.tab} onPress={() => setTab(t)}>
             {tab === t ? <LinearGradient colors={['#5A0E1B', '#A0122C']} style={StyleSheet.absoluteFill} /> : null}
             <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t === 'details' ? 'Reward details' : 'Withdrawal History'}</Text>
             {tab === t ? <View style={styles.tabUnderline} /> : null}
-          </Pressable>
+          </TapPressable>
         ))}
       </LinearGradient>
 
@@ -103,17 +104,17 @@ export default function AgentRewardsScreen() {
         <>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kindBar} contentContainerStyle={styles.kindRow}>
             {KINDS.map((k) => (
-              <Pressable key={k.key} onPress={() => setKind(k.key)} style={styles.kind}>
+              <TapPressable key={k.key} onPress={() => setKind(k.key)} style={styles.kind}>
                 <Text style={[styles.kindText, kind === k.key && styles.kindTextActive]}>{k.label}</Text>
                 {kind === k.key ? <View style={styles.kindUnderline} /> : null}
-              </Pressable>
+              </TapPressable>
             ))}
           </ScrollView>
           <View style={styles.monthRow}>
-            <Pressable onPress={() => setMonthOpen(true)} style={styles.monthBtn}>
+            <TapPressable onPress={() => setMonthOpen(true)} style={styles.monthBtn}>
               <Text style={styles.monthText}>{month}</Text>
               <MaterialCommunityIcons name="menu-down" size={26} color="#FF6B86" />
-            </Pressable>
+            </TapPressable>
             <Text style={styles.totalText}>Total commission:{inr(rewards?.total ?? 0)}</Text>
           </View>
           <View style={styles.thead}>
@@ -169,10 +170,10 @@ export default function AgentRewardsScreen() {
       )}
 
       <Modal visible={monthOpen} transparent animationType="fade" onRequestClose={() => setMonthOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setMonthOpen(false)}>
+        <TapPressable style={styles.backdrop} onPress={() => setMonthOpen(false)}>
           <View style={styles.monthSheet}>
             {Array.from({ length: 12 }, (_, i) => monthKey(-i)).map((m) => (
-              <Pressable
+              <TapPressable
                 key={m}
                 onPress={() => {
                   setMonth(m);
@@ -181,10 +182,10 @@ export default function AgentRewardsScreen() {
                 style={[styles.monthOption, m === month && styles.monthOptionActive]}
               >
                 <Text style={[styles.monthOptionText, m === month && { color: colors.goldLight }]}>{m}</Text>
-              </Pressable>
+              </TapPressable>
             ))}
           </View>
-        </Pressable>
+        </TapPressable>
       </Modal>
     </ScreenContainer>
   );

@@ -1,8 +1,9 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
-import { Pressable, StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 
 import { setSoundEnabled, useSoundEnabled } from '../sound/engine';
+import TapPressable from './TapPressable';
 
 type Props = {
   style?: StyleProp<ViewStyle>;
@@ -14,7 +15,7 @@ type Props = {
 export default function SoundToggle({ style, color = '#FFFFFF', size = 20 }: Props) {
   const on = useSoundEnabled();
   return (
-    <Pressable
+    <TapPressable
       onPress={() => setSoundEnabled(!on)}
       hitSlop={10}
       accessibilityRole="button"
@@ -22,7 +23,7 @@ export default function SoundToggle({ style, color = '#FFFFFF', size = 20 }: Pro
       style={[styles.button, style]}
     >
       <MaterialCommunityIcons name={on ? 'volume-high' : 'volume-off'} size={size} color={color} />
-    </Pressable>
+    </TapPressable>
   );
 }
 

@@ -3,7 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Image, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Modal, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from '../components/AppText';
 import { changePassword } from '../api/backend';
 import { showAlert } from '../components/AppAlert';
@@ -14,6 +14,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../state/AuthContext';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
 import { withPopupSound } from '../sound/ui';
+import TapPressable from '../components/TapPressable';
 
 function comingSoon(label: string) {
   showAlert(label, 'Coming soon.');
@@ -86,22 +87,22 @@ export default function ProfileScreen() {
   return (
     <ScreenContainer backgroundImage={require('../../assets/profile-background.jpg')}>
       <View style={styles.titleRow}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TapPressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={colors.textPrimary} />
-        </Pressable>
+        </TapPressable>
         <Text style={styles.screenTitle}>Profile</Text>
         <View style={styles.backButton} />
       </View>
 
       <LinearGradient colors={gradients.balanceCard} style={styles.profilePanel}>
-        <Pressable onPress={() => setPickerVisible(true)}>
+        <TapPressable onPress={() => setPickerVisible(true)}>
           <View style={styles.avatarRing}>
             <Image source={AVATARS[avatarId - 1]} style={styles.avatar} />
             <View style={styles.editBadge}>
               <MaterialCommunityIcons name="pencil" size={14} color={colors.background} />
             </View>
           </View>
-        </Pressable>
+        </TapPressable>
         <View style={styles.playerInfo}>
           <Text style={styles.playerName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             {playerName}
@@ -123,14 +124,14 @@ export default function ProfileScreen() {
       </View>
 
       <Modal visible={pickerVisible} transparent animationType="fade" onRequestClose={() => setPickerVisible(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setPickerVisible(false)}>
-          <Pressable style={styles.modalCard} onPress={() => {}}>
+        <TapPressable style={styles.modalBackdrop} onPress={() => setPickerVisible(false)}>
+          <TapPressable style={styles.modalCard} onPress={() => {}} silent>
             <Text style={styles.modalTitle}>Choose Avatar</Text>
             <View style={styles.avatarGrid}>
               {AVATARS.map((source, index) => {
                 const selected = avatarId === index + 1;
                 return (
-                  <Pressable
+                  <TapPressable
                     key={index}
                     onPress={() => {
                       setAvatarId(index + 1);
@@ -139,12 +140,12 @@ export default function ProfileScreen() {
                     style={[styles.avatarOption, selected && styles.avatarOptionSelected]}
                   >
                     <Image source={source} style={styles.avatarOptionImage} />
-                  </Pressable>
+                  </TapPressable>
                 );
               })}
             </View>
-          </Pressable>
-        </Pressable>
+          </TapPressable>
+        </TapPressable>
       </Modal>
 
       <Modal visible={logoutVisible} transparent animationType="fade" onRequestClose={() => setLogoutVisible(false)}>
@@ -157,7 +158,7 @@ export default function ProfileScreen() {
             <View style={styles.warningDivider} />
             <Text style={styles.warningMessage}>Are you sure you want to log out?</Text>
             <View style={styles.warningButtonRow}>
-              <Pressable
+              <TapPressable
                 style={styles.warningButtonWrap}
                 onPress={() => {
                   setLogoutVisible(false);
@@ -167,12 +168,12 @@ export default function ProfileScreen() {
                 <LinearGradient colors={gradients.crimsonButton} style={styles.warningButton}>
                   <Text style={styles.warningButtonLabel}>Confirm</Text>
                 </LinearGradient>
-              </Pressable>
-              <Pressable style={styles.warningButtonWrap} onPress={() => setLogoutVisible(false)}>
+              </TapPressable>
+              <TapPressable style={styles.warningButtonWrap} onPress={() => setLogoutVisible(false)}>
                 <LinearGradient colors={gradients.crimsonButton} style={styles.warningButton}>
                   <Text style={styles.warningButtonLabel}>Cancel</Text>
                 </LinearGradient>
-              </Pressable>
+              </TapPressable>
             </View>
           </LinearGradient>
         </View>
@@ -185,9 +186,9 @@ export default function ProfileScreen() {
             <View style={styles.caretModalCard}>
               <View style={styles.caretModalHeader}>
                 <Text style={styles.caretModalTitle}>Account & Security</Text>
-                <Pressable onPress={withPopupSound(() => setSecurityVisible(false))} hitSlop={10}>
+                <TapPressable onPress={withPopupSound(() => setSecurityVisible(false))} hitSlop={10}>
                   <MaterialCommunityIcons name="close" size={22} color={colors.gold} />
-                </Pressable>
+                </TapPressable>
               </View>
 
               <View style={styles.securityRow}>
@@ -196,7 +197,7 @@ export default function ProfileScreen() {
                 <Text style={styles.securityRowValue}>{maskPhone(phone)}</Text>
               </View>
 
-              <Pressable
+              <TapPressable
                 style={styles.securityRow}
                 onPress={() => {
                   setSecurityVisible(false);
@@ -206,7 +207,7 @@ export default function ProfileScreen() {
                 <MaterialCommunityIcons name="lock-outline" size={20} color={colors.gold} />
                 <Text style={styles.securityRowLabel}>Login password</Text>
                 <MaterialCommunityIcons name="chevron-right" size={20} color={colors.crimsonLight} />
-              </Pressable>
+              </TapPressable>
             </View>
           </View>
         </View>
@@ -227,7 +228,7 @@ export default function ProfileScreen() {
             <View style={styles.caretModalCard}>
               <View style={styles.caretModalHeader}>
                 <Text style={styles.caretModalTitle}>Change Password</Text>
-                <Pressable
+                <TapPressable
                   onPress={withPopupSound(() => {
                     resetPasswordForm();
                     setPasswordModalVisible(false);
@@ -235,7 +236,7 @@ export default function ProfileScreen() {
                   hitSlop={10}
                 >
                   <MaterialCommunityIcons name="close" size={22} color={colors.gold} />
-                </Pressable>
+                </TapPressable>
               </View>
 
               <View style={styles.passwordPhoneRow}>
@@ -257,9 +258,9 @@ export default function ProfileScreen() {
                   maxLength={72}
                   style={styles.passwordFieldInput}
                 />
-                <Pressable onPress={() => setShowCurrentPassword((v) => !v)} hitSlop={10}>
+                <TapPressable onPress={() => setShowCurrentPassword((v) => !v)} hitSlop={10}>
                   <MaterialCommunityIcons name={showCurrentPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textMuted} />
-                </Pressable>
+                </TapPressable>
               </View>
 
               <View style={styles.passwordFieldRow}>
@@ -274,9 +275,9 @@ export default function ProfileScreen() {
                   autoCapitalize="none"
                   style={styles.passwordFieldInput}
                 />
-                <Pressable onPress={() => setShowNewPassword((v) => !v)} hitSlop={10}>
+                <TapPressable onPress={() => setShowNewPassword((v) => !v)} hitSlop={10}>
                   <MaterialCommunityIcons name={showNewPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textMuted} />
-                </Pressable>
+                </TapPressable>
               </View>
 
               <View style={styles.passwordFieldRow}>
@@ -291,16 +292,16 @@ export default function ProfileScreen() {
                   autoCapitalize="none"
                   style={styles.passwordFieldInput}
                 />
-                <Pressable onPress={() => setShowConfirmPassword((v) => !v)} hitSlop={10}>
+                <TapPressable onPress={() => setShowConfirmPassword((v) => !v)} hitSlop={10}>
                   <MaterialCommunityIcons name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textMuted} />
-                </Pressable>
+                </TapPressable>
               </View>
 
-              <Pressable onPress={handleCompletePassword} style={styles.completeButtonWrap}>
+              <TapPressable onPress={handleCompletePassword} style={styles.completeButtonWrap}>
                 <LinearGradient colors={gradients.crimsonButton} style={styles.completeButton}>
                   <Text style={styles.completeButtonText}>{savingPassword ? '...' : 'Complete'}</Text>
                 </LinearGradient>
-              </Pressable>
+              </TapPressable>
             </View>
           </View>
         </KeyboardAwareScrollView>
@@ -319,7 +320,7 @@ function MenuRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress}>
+    <TapPressable onPress={onPress}>
       <LinearGradient colors={gradients.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.menuRow}>
         <LinearGradient colors={gradients.goldButton} style={styles.iconBadge}>
           <MaterialCommunityIcons name={icon} size={24} color={colors.background} />
@@ -327,7 +328,7 @@ function MenuRow({
         <Text style={styles.menuLabel}>{label}</Text>
         <MaterialCommunityIcons name="chevron-right" size={26} color={colors.gold} style={{ marginLeft: 'auto' }} />
       </LinearGradient>
-    </Pressable>
+    </TapPressable>
   );
 }
 

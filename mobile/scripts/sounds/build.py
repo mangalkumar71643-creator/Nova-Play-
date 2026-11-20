@@ -12,8 +12,10 @@ Inputs: the CC0 "Casino Audio" pack from Kenney (https://kenney.nl/assets/casino
 chip / dice foley, everything else is synthesised in lib.py / common.py. See README.md.
 """
 import argparse
+import io
 import os
 import shutil
+import subprocess
 import sys
 from multiprocessing import Pool
 
@@ -44,6 +46,9 @@ UI_OUT = os.path.join(ROOT, "assets", "sounds", "ui")
 # between 300 Hz and 7 kHz). Levelled by that band they come out about twice as loud as every other sound, so these are
 # levelled by the whole sound instead.
 UI_LEVEL_BY_WHOLE = {"chip_bet"}
+# Interface sounds that are brought up to a normal level before the silence around them is trimmed (the file is very quiet, and its
+# faint ring would be taken for silence otherwise). The popup sound is not in it: it was accepted as it was made.
+UI_BRING_UP_FIRST = {"tap"}
 
 ALL = {**games_a.GAMES_A, **games_b.GAMES_B}
 
@@ -220,6 +225,18 @@ def render_game(args):
     return game, files, info
 
 
+def load_ui_sample(path, bring_up=False):
+    """Decodes a supplied interface sound. With bring_up (UI_BRING_UP_FIRST) it is made loud first: the trimming of silence works on
+    absolute levels, and would take the faint end of a very quiet file's ring for silence and cut it off."""
+    if not bring_up:
+        return L.load_sample(path, gain_norm=False)
+    import soundfile as sf
+
+    p = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", str(L.SR), "-f", "wav", "pipe:1"], capture_output=True, check=True)
+    raw, _ = sf.read(io.BytesIO(p.stdout), dtype="float32")
+    return L.norm(raw, 0.8)
+
+
 def build_ui():
     """The interface sounds the owner supplied, trimmed and levelled like every other sound (the file is kept as it is otherwise)."""
     if not os.path.isdir(UI_SUPPLIED):
@@ -230,7 +247,7 @@ def build_ui():
         name, ext = os.path.splitext(fn)
         if ext.lower() not in AUDIO_EXT:
             continue
-        x, _ = finish("ui", L.load_sample(os.path.join(UI_SUPPLIED, fn), gain_norm=False), faithful=True, whole=name in UI_LEVEL_BY_WHOLE)
+        x, _ = finish("ui", load_ui_sample(os.path.join(UI_SUPPLIED, fn), name in UI_BRING_UP_FIRST), faithful=True, whole=name in UI_LEVEL_BY_WHOLE)
         L.to_mp3(x, os.path.join(UI_OUT, name + ".mp3"), "96k")
         done.append((name, len(x) / L.SR))
     return done
