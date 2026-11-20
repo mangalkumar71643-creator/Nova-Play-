@@ -12,6 +12,7 @@ import { HiloAction, HiloChoice, HiloConfig, HiloRound, HiloStep, fetchActiveHil
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const CORAL = '#FF6B4A';
 const MINT = '#34E3A0';
@@ -642,7 +643,7 @@ export default function HiloScreen() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => setPanel(null)} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={20} color={CORAL} />
               </Pressable>
             </View>

@@ -11,6 +11,7 @@ import { ApiClientError } from '../api/client';
 import { BlackjackAction, BlackjackConfig, BlackjackHand, BlackjackOutcome, blackjackAction, dealBlackjack, fetchActiveBlackjack, fetchBlackjackConfig, fetchBlackjackHistory } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
+import { withPopupSound } from '../sound/ui';
 
 const GOLD = '#F4CF6B';
 const GOLD_DEEP = '#B8862B';
@@ -914,7 +915,7 @@ export default function BlackjackScreen() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => setPanel(null)} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={20} color={GOLD} />
               </Pressable>
             </View>

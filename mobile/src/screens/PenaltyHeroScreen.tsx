@@ -23,6 +23,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const PITCH = '#1F8A3A';
 const LIME = '#C6FF3A';
@@ -1299,7 +1300,7 @@ export default function PenaltyHeroScreen() {
           <Pressable style={[styles.modalCard, { width: Math.min(W - 24, 440) }]} onPress={() => {}}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>{panel === 'info' ? 'HOW TO PLAY' : 'MY SHOOT-OUTS'}</Text>
-              <Pressable onPress={() => setPanel(null)} hitSlop={8}>
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={8}>
                 <MaterialCommunityIcons name="close" size={22} color={WHITE} />
               </Pressable>
             </View>

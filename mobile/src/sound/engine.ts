@@ -125,7 +125,7 @@ let modeSet = false;
 /** Resolves once the audio mode is in force. On Android, playing before that makes the phone treat the game as the one app that
  *  owns the speaker, and a ping from another app could then pause the game's music. */
 let modeReady: Promise<void> = Promise.resolve();
-function ensureAudioMode() {
+export function ensureAudioMode() {
   if (modeSet) return;
   modeSet = true;
   try {

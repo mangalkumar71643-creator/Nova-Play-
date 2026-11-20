@@ -12,6 +12,7 @@ import { HoldemConfig, HoldemHand, HoldemHandClass, dealHoldem, fetchActiveHolde
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const GOLD = '#F5C84C';
 const CREAM = '#FFF6DF';
@@ -753,7 +754,7 @@ export default function CasinoHoldemScreen() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => setPanel(null)} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={20} color={GOLD} />
               </Pressable>
             </View>

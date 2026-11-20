@@ -45,6 +45,7 @@ import { useGameState } from '../state/GameStateContext';
 import { fonts } from '../theme';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 // Same rings as the server (vortexService.ts); the server's own settings
 // replace this as soon as they load.
@@ -1087,7 +1088,7 @@ export default function VortexScreen() {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{sheet === 'history' ? 'MY BETS' : 'HOW TO PLAY'}</Text>
-              <Pressable onPress={() => setSheet(null)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setSheet(null))} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>

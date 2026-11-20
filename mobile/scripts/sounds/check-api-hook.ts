@@ -324,5 +324,40 @@ check(`packs: all ${defs.length} games have the sounds their kind needs`, missin
 const packKeys = Object.keys(packEvents).sort();
 check('packs: every pack belongs to a game and every game has a pack', packKeys.filter((k) => !defs.some((d) => d.key === k)).concat(defs.filter((d) => !packKeys.includes(d.key)).map((d) => d.key)), []);
 
+// ------------------------------------------------------------ interface sounds: every popup cross in a game plays the popup-closing sound
+{
+  const APP = path.resolve(SRC, '..');
+  const files = fs.readdirSync(path.join(APP, 'screens')).filter((f) => f.endsWith('Screen.tsx')).map((f) => path.join(APP, 'screens', f));
+  files.push(path.join(APP, 'components', 'GameInfoButton.tsx'));
+  // Screens that are not games, and crosses that clear something (a bet, picks, a value) instead of closing a popup.
+  const NOT_GAMES = /(Profile|Withdraw|Deposit|Settings|Earn|Vip|Agent|Wallet|History|Notifications|Help|CustomerService|Support|Betting|Ranking|Promotion|GiftCode|Login|GameCategory|Home)Screen\.tsx$/;
+  const CLEARS = /clearPicks|clearAll|setBet\(0\)|onChangeCashOutValue/;
+  const bad: string[] = [];
+  let wired = 0;
+  for (const f of files) {
+    if (NOT_GAMES.test(f)) continue;
+    const src = fs.readFileSync(f, 'utf8');
+    for (const m of src.matchAll(/name=["']close["']/g)) {
+      const idx = m.index ?? 0;
+      const j = Math.max(src.lastIndexOf('<Pressable', idx), src.lastIndexOf('<TouchableOpacity', idx));
+      if (j < 0 || src.slice(j, idx).includes('</Pressable>')) { bad.push(`${path.basename(f)}: a close icon outside a button`); continue; }
+      let depth = 0, k = j;
+      for (; k < idx; k++) {
+        const c = src[k];
+        if (c === '{') depth++;
+        else if (c === '}') depth--;
+        else if (c === '>' && depth === 0 && src[k - 1] !== '=') break;
+      }
+      const tag = src.slice(j, k + 1);
+      if (/onPress=\{withPopupSound\(/.test(tag)) wired++;
+      else if (!CLEARS.test(tag)) bad.push(`${path.basename(f)}:${src.slice(0, idx).split('\n').length}`);
+    }
+  }
+  check(`ui: all ${wired} popup crosses in the games play the popup-closing sound (and the clear-type crosses do not)`, bad, []);
+  const ui = fs.readFileSync(path.join(SRC, 'ui.ts'), 'utf8');
+  const uiFiles = [...ui.matchAll(/require\('\.\.\/\.\.\/(assets\/sounds\/ui\/[\w.-]+)'\)/g)].map((m) => m[1]);
+  check('ui: every interface sound file exists', uiFiles.filter((f) => !fs.existsSync(path.join(APP, '..', f))), []);
+}
+
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed');
 process.exit(failed ? 1 : 0);

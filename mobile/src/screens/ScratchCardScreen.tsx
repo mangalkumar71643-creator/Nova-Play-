@@ -15,6 +15,7 @@ import { NO_LIMIT, winLimit } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
 import GameBackdrop from '../components/GameBackdrop';
 import { NARROW } from '../utils/narrow';
+import { withPopupSound } from '../sound/ui';
 
 const GOLD = '#FFD66B';
 const DEEP_GOLD = '#B8860B';
@@ -896,7 +897,7 @@ export default function ScratchCardScreen() {
           <Pressable style={[styles.modalCard, { width: Math.min(W - 24, 440) }]} onPress={() => {}}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>{panel === 'info' ? 'HOW TO PLAY' : 'MY TICKETS'}</Text>
-              <Pressable onPress={() => setPanel(null)} hitSlop={8}>
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={8}>
                 <MaterialCommunityIcons name="close" size={22} color={TEXT} />
               </Pressable>
             </View>

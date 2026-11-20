@@ -12,6 +12,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const SILVER = '#E8EEF8';
 const MOONLIGHT = '#FFF6D8';
@@ -894,7 +895,7 @@ export default function WolfMoonScreen() {
           <Pressable style={[styles.modalCard, { width: Math.min(W - 24, 440) }]} onPress={() => {}}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>{panel === 'pay' ? 'PAYTABLE' : 'MY SPINS'}</Text>
-              <Pressable onPress={() => setPanel(null)} hitSlop={8}>
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={8}>
                 <MaterialCommunityIcons name="close" size={22} color={SILVER} />
               </Pressable>
             </View>

@@ -12,6 +12,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const GOLD = '#FFD166';
 const GOLD_DEEP = '#B8860B';
@@ -1148,7 +1149,7 @@ export default function FishermansCatchScreen() {
           <Pressable style={[styles.modalCard, { width: Math.min(W - 24, 440) }]} onPress={() => {}}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>{panel === 'pay' ? 'PAYTABLE' : 'CATCH LOG'}</Text>
-              <Pressable onPress={() => setPanel(null)} hitSlop={8}>
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={8}>
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>

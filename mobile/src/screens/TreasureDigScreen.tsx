@@ -12,6 +12,7 @@ import { useGameState } from '../state/GameStateContext';
 import GameInfoButton from '../components/GameInfoButton';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const SAND = '#F2D49A';
 const SEA = '#1AA8C8';
@@ -848,7 +849,7 @@ export default function TreasureDigScreen() {
           <Pressable style={[styles.modalCard, { width: Math.min(W - 24, 440) }]} onPress={() => {}}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>{panel === 'info' ? 'HOW TO PLAY' : 'MY DIGS'}</Text>
-              <Pressable onPress={() => setPanel(null)} hitSlop={8}>
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={8}>
                 <MaterialCommunityIcons name="close" size={22} color={TEXT} />
               </Pressable>
             </View>

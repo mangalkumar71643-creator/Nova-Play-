@@ -22,6 +22,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const TILE_COUNT = 25;
 const COLUMNS = 5;
@@ -466,7 +467,7 @@ export default function MinesScreen() {
               <Text style={styles.winPayout}>₹{result.payout.toFixed(2)}</Text>
               {result.payout >= maxPayout && <Text style={styles.winNote}>Max win reached</Text>}
             </View>
-            <Pressable onPress={() => setResult(null)} style={styles.winClose} hitSlop={10}>
+            <Pressable onPress={withPopupSound(() => setResult(null))} style={styles.winClose} hitSlop={10}>
               <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
             </Pressable>
           </View>
@@ -660,7 +661,7 @@ export default function MinesScreen() {
           >
             <View style={styles.rulesHeader}>
               <Text style={styles.rulesTitle}>How to Play</Text>
-              <Pressable onPress={() => setRulesOpen(false)} style={styles.rulesClose} hitSlop={8}>
+              <Pressable onPress={withPopupSound(() => setRulesOpen(false))} style={styles.rulesClose} hitSlop={8}>
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>

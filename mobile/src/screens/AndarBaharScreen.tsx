@@ -28,6 +28,7 @@ import { useAuth } from '../state/AuthContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500, 1000];
 const CHIP_COLORS: Record<number, string> = {
@@ -1065,7 +1066,7 @@ export default function AndarBaharScreen() {
             <Text style={styles.winTitle}>YOU WIN</Text>
             <Text style={styles.winAmount}>₹{win.toFixed(2)}</Text>
           </LinearGradient>
-          <Pressable onPress={() => setWin(null)} style={styles.winClose} hitSlop={10}>
+          <Pressable onPress={withPopupSound(() => setWin(null))} style={styles.winClose} hitSlop={10}>
             <MaterialCommunityIcons name="close" size={20} color="#FFE08A" />
           </Pressable>
         </View>

@@ -4,6 +4,7 @@ import { Modal, Pressable, StyleProp, StyleSheet, Switch, View, ViewStyle, useWi
 import { Text } from './AppText';
 
 import { setSoundEnabled, useSoundEnabled } from '../sound/engine';
+import { withPopupSound } from '../sound/ui';
 
 type Props = {
   /** The game's info line(s): RTP, bet range, max win and fairness notes. */
@@ -40,7 +41,7 @@ export default function GameInfoButton({ children, compact, style }: Props) {
           <Pressable style={[styles.card, { width: Math.min(width - 32, 400) }]} onPress={() => {}}>
             <View style={styles.head}>
               <Text style={styles.title}>GAME INFO</Text>
-              <Pressable onPress={() => setOpen(false)} hitSlop={8} accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setOpen(false))} hitSlop={8} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={22} color="#FFF4E4" />
               </Pressable>
             </View>

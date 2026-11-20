@@ -12,6 +12,7 @@ import { Neon777Config, Neon777Outcome, Neon777Result, Neon777Special, Neon777Sp
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const NEON_PINK = '#FF2D95';
 const NEON_CYAN = '#22E5FF';
@@ -1003,7 +1004,7 @@ export default function Neon777Screen() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => setPanel(null)} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={20} color={NEON_CYAN} />
               </Pressable>
             </View>

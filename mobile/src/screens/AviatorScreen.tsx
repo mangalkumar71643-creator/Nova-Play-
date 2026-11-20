@@ -25,6 +25,7 @@ import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT } from '../utils/limits';
 import { usePullToRefresh } from '../components/PullToRefresh';
 import SoundToggle from '../components/SoundToggle';
+import { withPopupSound } from '../sound/ui';
 
 const MIN_STAKE = 10;
 const STAKE_STEP = 10;
@@ -1470,7 +1471,7 @@ export default function AviatorScreen() {
           <Pressable style={styles.historyModalCard} onPress={() => {}}>
             <View style={styles.historyModalHeader}>
               <Text style={styles.historyModalTitle}>Round History</Text>
-              <Pressable onPress={() => setHistoryModalVisible(false)} hitSlop={10}>
+              <Pressable onPress={withPopupSound(() => setHistoryModalVisible(false))} hitSlop={10}>
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>

@@ -12,6 +12,7 @@ import { ZeusCell, ZeusConfig, ZeusOutcome, ZeusRound, ZeusSpinRow, ZeusStep, Ze
 import GameInfoButton from '../components/GameInfoButton';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
+import { withPopupSound } from '../sound/ui';
 
 const GOLD = '#FFD66B';
 const GOLD_LIGHT = '#FFF4C8';
@@ -1151,7 +1152,7 @@ export default function GatesOfZeusScreen() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => setPanel(null)} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={20} color={GOLD_DEEP} />
               </Pressable>
             </View>

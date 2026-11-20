@@ -11,6 +11,7 @@ import { ApiClientError } from '../api/client';
 import { CandyCell, CandyConfig, CandyOutcome, CandyRound, CandySpinRow, CandyStep, CandySym, CandySymbol, fetchCandyConfig, fetchCandyHistory, spinCandy } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { winLimit } from '../utils/limits';
+import { withPopupSound } from '../sound/ui';
 
 const PINK = '#FF4FA3';
 const PINK_DEEP = '#C2185B';
@@ -1150,7 +1151,7 @@ export default function CandyBlastScreen() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => setPanel(null)} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={20} color={PINK} />
               </Pressable>
             </View>

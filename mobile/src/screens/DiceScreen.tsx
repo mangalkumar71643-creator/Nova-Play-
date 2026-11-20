@@ -12,6 +12,7 @@ import { DiceBet, DiceConfig, fetchDiceConfig, fetchDiceHistory, rollDice } from
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const CYAN = '#3DF2FF';
 const TEAL = '#14B8C4';
@@ -790,7 +791,7 @@ export default function DiceScreen() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => setPanel(null)} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={20} color={CYAN} />
               </Pressable>
             </View>

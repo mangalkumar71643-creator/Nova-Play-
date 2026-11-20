@@ -12,6 +12,7 @@ import { DiamondsBet, DiamondsConfig, DiamondsResult, fetchDiamondsConfig, fetch
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const GOLD = '#FFD66B';
 const LILAC = '#D8B4FE';
@@ -560,7 +561,7 @@ export default function DiamondsScreen() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => setPanel(null)} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={20} color={GOLD} />
               </Pressable>
             </View>

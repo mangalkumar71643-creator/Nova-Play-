@@ -42,6 +42,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice from '../components/ResultRuleNotice';
 import { NO_LIMIT, winLimit } from '../utils/limits';
+import { withPopupSound } from '../sound/ui';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500];
 const CHIP_COLORS: Record<number, string> = {
@@ -1465,7 +1466,7 @@ export default function BaccaratScreen() {
               </>
             )}
           </LinearGradient>
-          <Pressable onPress={() => setWin(null)} style={styles.winClose} hitSlop={10}>
+          <Pressable onPress={withPopupSound(() => setWin(null))} style={styles.winClose} hitSlop={10}>
             <MaterialCommunityIcons name="close" size={20} color={GOLD} />
           </Pressable>
         </View>
@@ -1486,7 +1487,7 @@ export default function BaccaratScreen() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => setPanel(null)} hitSlop={10} style={styles.panelClose}>
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={10} style={styles.panelClose}>
                 <MaterialCommunityIcons name="close" size={20} color={GOLD} />
               </Pressable>
             </View>

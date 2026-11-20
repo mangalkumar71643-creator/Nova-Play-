@@ -26,6 +26,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameCue, GamePlayers, createGamePlayers, loadSoundEnabled, setSoundEnabled } from '../sound/engine';
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 // The three risk levels are played as coloured tile rows, top to bottom.
 const COLORS: { risk: PlinkoRisk; label: string; tile: [string, string]; button: [string, string]; border: string; ball: [string, string, string] }[] = [
@@ -642,7 +643,7 @@ export default function PlinkoScreen() {
               <Text style={styles.bigWinMult}>x{formatMult(bigWin.m)}</Text>
               <Text style={styles.bigWinAmount}>₹{bigWin.amount.toFixed(2)}</Text>
             </LinearGradient>
-            <Pressable onPress={() => setBigWin(null)} style={styles.bigWinClose} hitSlop={10}>
+            <Pressable onPress={withPopupSound(() => setBigWin(null))} style={styles.bigWinClose} hitSlop={10}>
               <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
             </Pressable>
           </View>
@@ -865,7 +866,7 @@ export default function PlinkoScreen() {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{sheet === 'limits' ? t.limitsTitle : t.howToPlay}</Text>
-              <Pressable onPress={() => setSheet(null)} style={styles.sheetClose} hitSlop={8}>
+              <Pressable onPress={withPopupSound(() => setSheet(null))} style={styles.sheetClose} hitSlop={8}>
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>
@@ -932,7 +933,7 @@ export default function PlinkoScreen() {
           <View style={[styles.sheet, { maxHeight: '70%' }]}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{t.myBets}</Text>
-              <Pressable onPress={() => setHistoryOpen(false)} style={styles.sheetClose} hitSlop={8}>
+              <Pressable onPress={withPopupSound(() => setHistoryOpen(false))} style={styles.sheetClose} hitSlop={8}>
                 <MaterialCommunityIcons name="close" size={22} color="#FFFFFF" />
               </Pressable>
             </View>

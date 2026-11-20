@@ -12,6 +12,7 @@ import { LimboBet, LimboConfig, fetchLimboConfig, fetchLimboHistory, playLimbo }
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import { withPopupSound } from '../sound/ui';
 
 const PINK = '#FF5FD2';
 const VIOLET = '#A78BFA';
@@ -675,7 +676,7 @@ export default function LimboScreen() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => setPanel(null)} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
+              <Pressable onPress={withPopupSound(() => setPanel(null))} hitSlop={10} style={{ padding: 6 }} accessibilityLabel="Close">
                 <MaterialCommunityIcons name="close" size={20} color={PINK} />
               </Pressable>
             </View>
