@@ -8,6 +8,7 @@ import { IconName } from '../data/models';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 import { nextMonthLabel } from './VipBonusPopup';
 import { VipEmblem, vipTier } from './VipEmblem';
+import { withPopupSound } from '../sound/ui';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -238,7 +239,7 @@ export default function VipBonusHistory({
             </ScrollView>
           </LinearGradient>
 
-          <Pressable onPress={onClose} hitSlop={10} style={styles.close}>
+          <Pressable onPress={withPopupSound(onClose)} hitSlop={10} style={styles.close}>
             <LinearGradient colors={gradients.goldButton} style={styles.closeInner}>
               <MaterialCommunityIcons name="close" size={18} color="#3A2006" />
             </LinearGradient>

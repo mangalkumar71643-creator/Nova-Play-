@@ -5,6 +5,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from './AppText';
 import KeyboardAvoidingOverlay from './KeyboardAvoidingOverlay';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
+import { withPopupSound } from '../sound/ui';
 
 type Props = {
   visible: boolean;
@@ -41,7 +42,7 @@ export default function AmountInputModal({
       <KeyboardAvoidingOverlay style={styles.overlay}>
         <View style={styles.card}>
           <LinearGradient colors={gradients.vipCard} style={styles.cardInner}>
-            <MaterialCommunityIcons name="close" size={20} color={colors.textMuted} style={styles.close} onPress={onClose} />
+            <MaterialCommunityIcons name="close" size={20} color={colors.textMuted} style={styles.close} onPress={withPopupSound(onClose)} />
             <Text style={styles.title}>{title}</Text>
             {helperText ? <Text style={styles.helper}>{helperText}</Text> : null}
             <TextInput

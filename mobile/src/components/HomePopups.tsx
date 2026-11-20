@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Image, Modal, Pressable, View, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import { API_BASE_URL } from '../api/client';
+import { withPopupSound } from '../sound/ui';
 
 type HomePopup = { id: string; title: string; width: number; height: number; imageUrl: string };
 
@@ -102,7 +103,7 @@ export default function HomePopups() {
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center' }}>
         <View style={{ width: imageW }}>
           <Pressable
-            onPress={close}
+            onPress={withPopupSound(close)}
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Close"

@@ -6,6 +6,7 @@ import { Text } from './AppText';
 import { VipStatus, withdrawalFeeLabel } from '../api/backend';
 import { IconName } from '../data/models';
 import { colors, gradients, spacing, typography } from '../theme';
+import { withPopupSound } from '../sound/ui';
 
 const LEVEL_COL = 62;
 const ROW_H = 46;
@@ -131,7 +132,7 @@ export default function VipLevelTable({ visible, onClose, vip }: { visible: bool
             </ScrollView>
           </LinearGradient>
 
-          <Pressable onPress={onClose} hitSlop={10} style={styles.close}>
+          <Pressable onPress={withPopupSound(onClose)} hitSlop={10} style={styles.close}>
             <LinearGradient colors={gradients.goldButton} style={styles.closeInner}>
               <MaterialCommunityIcons name="close" size={18} color="#3A2006" />
             </LinearGradient>

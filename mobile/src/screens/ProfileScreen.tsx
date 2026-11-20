@@ -13,6 +13,7 @@ import { AVATARS } from '../data/avatars';
 import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../state/AuthContext';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
+import { withPopupSound } from '../sound/ui';
 
 function comingSoon(label: string) {
   showAlert(label, 'Coming soon.');
@@ -184,7 +185,7 @@ export default function ProfileScreen() {
             <View style={styles.caretModalCard}>
               <View style={styles.caretModalHeader}>
                 <Text style={styles.caretModalTitle}>Account & Security</Text>
-                <Pressable onPress={() => setSecurityVisible(false)} hitSlop={10}>
+                <Pressable onPress={withPopupSound(() => setSecurityVisible(false))} hitSlop={10}>
                   <MaterialCommunityIcons name="close" size={22} color={colors.gold} />
                 </Pressable>
               </View>
@@ -227,10 +228,10 @@ export default function ProfileScreen() {
               <View style={styles.caretModalHeader}>
                 <Text style={styles.caretModalTitle}>Change Password</Text>
                 <Pressable
-                  onPress={() => {
+                  onPress={withPopupSound(() => {
                     resetPasswordForm();
                     setPasswordModalVisible(false);
-                  }}
+                  })}
                   hitSlop={10}
                 >
                   <MaterialCommunityIcons name="close" size={22} color={colors.gold} />

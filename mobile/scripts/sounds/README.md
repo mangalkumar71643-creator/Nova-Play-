@@ -71,6 +71,6 @@ part that is still to come.
 
 Sounds of the interface itself (not of a game) live in `supplied/ui/<name>.<ext>`; `build.py` trims and levels them like the games' sounds
 and writes `assets/sounds/ui/<name>.mp3`. `src/sound/ui.ts` lists them and plays them (`playUi('popupClose')`); they follow the same
-Sound Effects switch as the games' sounds. So far there is one: the popup-closing sound, played by every popup's cross in a game
-through `onPress={withPopupSound(() => setPanel(null))}`. A new popup cross in a game needs the same wrapper
+Sound Effects switch as the games' sounds. So far there is one: the popup-closing sound, played by the cross of every popup in the app
+(games, the Home popups added from the admin panel, VIP, Profile ...) through `onPress={withPopupSound(() => setPanel(null))}`. A new popup cross needs the same wrapper
 (`npx tsx scripts/sounds/check-api-hook.ts` fails if one is missing; a cross that clears something, like "clear picks", has none).

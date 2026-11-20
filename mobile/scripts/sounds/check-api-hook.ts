@@ -324,36 +324,52 @@ check(`packs: all ${defs.length} games have the sounds their kind needs`, missin
 const packKeys = Object.keys(packEvents).sort();
 check('packs: every pack belongs to a game and every game has a pack', packKeys.filter((k) => !defs.some((d) => d.key === k)).concat(defs.filter((d) => !packKeys.includes(d.key)).map((d) => d.key)), []);
 
-// ------------------------------------------------------------ interface sounds: every popup cross in a game plays the popup-closing sound
+// ------------------------------------------------------------ interface sounds: every popup cross plays the popup-closing sound
 {
   const APP = path.resolve(SRC, '..');
-  const files = fs.readdirSync(path.join(APP, 'screens')).filter((f) => f.endsWith('Screen.tsx')).map((f) => path.join(APP, 'screens', f));
-  files.push(path.join(APP, 'components', 'GameInfoButton.tsx'));
-  // Screens that are not games, and crosses that clear something (a bet, picks, a value) instead of closing a popup.
-  const NOT_GAMES = /(Profile|Withdraw|Deposit|Settings|Earn|Vip|Agent|Wallet|History|Notifications|Help|CustomerService|Support|Betting|Ranking|Promotion|GiftCode|Login|GameCategory|Home)Screen\.tsx$/;
+  const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith('.tsx') ? [path.join(dir, e.name)] : []));
+  const files = [...walk(path.join(APP, 'screens')), ...walk(path.join(APP, 'components'))];
+  // A cross that clears something (a bet, the picks, a value) instead of closing a popup makes no popup sound.
   const CLEARS = /clearPicks|clearAll|setBet\(0\)|onChangeCashOutValue/;
+  const balanced = (str: string, open: number) => {
+    let depth = 0;
+    for (let k = open; k < str.length; k++) {
+      if (str[k] === '{') depth++;
+      else if (str[k] === '}' && --depth === 0) return k + 1;
+    }
+    return -1;
+  };
   const bad: string[] = [];
   let wired = 0;
   for (const f of files) {
-    if (NOT_GAMES.test(f)) continue;
     const src = fs.readFileSync(f, 'utf8');
     for (const m of src.matchAll(/name=["']close["']/g)) {
       const idx = m.index ?? 0;
-      const j = Math.max(src.lastIndexOf('<Pressable', idx), src.lastIndexOf('<TouchableOpacity', idx));
-      if (j < 0 || src.slice(j, idx).includes('</Pressable>')) { bad.push(`${path.basename(f)}: a close icon outside a button`); continue; }
-      let depth = 0, k = j;
-      for (; k < idx; k++) {
-        const c = src[k];
-        if (c === '{') depth++;
-        else if (c === '}') depth--;
-        else if (c === '>' && depth === 0 && src[k - 1] !== '=') break;
+      const lineNo = src.slice(0, idx).split('\n').length;
+      // the press handler: the icon's own, or else the button around it
+      const iconStart = src.lastIndexOf('<MaterialCommunityIcons', idx);
+      const own = src.slice(iconStart, src.indexOf('/>', idx) + 2);
+      let tag = own;
+      if (!/onPress=\{/.test(own)) {
+        const j = Math.max(src.lastIndexOf('<Pressable', idx), src.lastIndexOf('<TouchableOpacity', idx));
+        if (j < 0 || src.slice(j, idx).includes('</Pressable>') || src.slice(j, idx).includes('</TouchableOpacity>')) continue; // a picture, not a button
+        let depth = 0, k = j;
+        for (; k < idx; k++) {
+          const c = src[k];
+          if (c === '{') depth++;
+          else if (c === '}') depth--;
+          else if (c === '>' && depth === 0 && src[k - 1] !== '=') break;
+        }
+        tag = src.slice(j, k + 1);
       }
-      const tag = src.slice(j, k + 1);
-      if (/onPress=\{withPopupSound\(/.test(tag)) wired++;
-      else if (!CLEARS.test(tag)) bad.push(`${path.basename(f)}:${src.slice(0, idx).split('\n').length}`);
+      const at = tag.search(/onPress=\{/);
+      if (at < 0) continue;
+      const handler = tag.slice(at, balanced(tag, tag.indexOf('{', at)));
+      if (/^onPress=\{withPopupSound\(/.test(handler)) wired++;
+      else if (!CLEARS.test(handler)) bad.push(`${path.relative(APP, f)}:${lineNo}`);
     }
   }
-  check(`ui: all ${wired} popup crosses in the games play the popup-closing sound (and the clear-type crosses do not)`, bad, []);
+  check(`ui: all ${wired} popup crosses in the app play the popup-closing sound (and the clear-type crosses do not)`, bad, []);
   const ui = fs.readFileSync(path.join(SRC, 'ui.ts'), 'utf8');
   const uiFiles = [...ui.matchAll(/require\('\.\.\/\.\.\/(assets\/sounds\/ui\/[\w.-]+)'\)/g)].map((m) => m[1]);
   check('ui: every interface sound file exists', uiFiles.filter((f) => !fs.existsSync(path.join(APP, '..', f))), []);

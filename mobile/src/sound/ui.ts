@@ -31,6 +31,14 @@ function playersOf(name: UiSound) {
   return entry;
 }
 
+/**
+ * Makes the players now (called when the app starts), so the very first tap is not the one that has to load the file: a player
+ * that has just been made is not ready for a moment, and a sound as short as these could be missed.
+ */
+export function preloadUiSounds(): void {
+  for (const name of Object.keys(UI_SOURCES) as UiSound[]) playersOf(name);
+}
+
 /** Plays an interface sound (nothing if the sound effects are switched off). It can never throw into the screen. */
 export function playUi(name: UiSound): void {
   if (!isSoundEnabled()) return;

@@ -16,6 +16,7 @@ import { KYC_REQUIRED, useAuth } from '../state/AuthContext';
 import { useGameState } from '../state/GameStateContext';
 import * as walletService from '../services/walletService';
 import { colors, gradients, radius, shadow, spacing, typography } from '../theme';
+import { withPopupSound } from '../sound/ui';
 
 const CARD_TEXT_COLOR = '#5C3A0E';
 const MIN_WITHDRAW = 100;
@@ -355,7 +356,7 @@ export default function WithdrawScreen() {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Bank account</Text>
-              <Pressable onPress={() => setBankModalOpen(false)} hitSlop={10}>
+              <Pressable onPress={withPopupSound(() => setBankModalOpen(false))} hitSlop={10}>
                 <MaterialCommunityIcons name="close" size={22} color={colors.gold} />
               </Pressable>
             </View>

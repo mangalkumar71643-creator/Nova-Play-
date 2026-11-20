@@ -11,6 +11,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../state/AuthContext';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 import { homePopupsDone } from './HomePopups';
+import { withPopupSound } from '../sound/ui';
 
 const HIDE_KEY = 'novaplay:depositOffer:hiddenDay:v1';
 const ORDINALS = ['First', 'Second', 'Third'];
@@ -195,7 +196,7 @@ export default function DepositOfferPopup() {
           </View>
         </View>
         <Pressable
-          onPress={close}
+          onPress={withPopupSound(close)}
           accessibilityRole="button"
           accessibilityLabel="Close"
           hitSlop={10}

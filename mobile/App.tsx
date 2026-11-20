@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppAlertHost } from './src/components/AppAlert';
@@ -8,6 +8,7 @@ import AppUpdateCheck from './src/components/AppUpdateCheck';
 import NotificationWatcher from './src/components/NotificationWatcher';
 import RotateNotice from './src/components/RotateNotice';
 import RootNavigator from './src/navigation/RootNavigator';
+import { preloadUiSounds } from './src/sound/ui';
 import { AuthProvider } from './src/state/AuthContext';
 import { GameStateProvider } from './src/state/GameStateContext';
 
@@ -21,6 +22,11 @@ export default function App() {
     'Montserrat-Black': require('./assets/fonts/Montserrat_900Black.ttf'),
     'Montserrat-ExtraBoldItalic': require('./assets/fonts/Montserrat_800ExtraBold_Italic.ttf'),
   });
+  // The interface sounds (a popup being closed ...) are made ahead, so the first tap is heard.
+  useEffect(() => {
+    preloadUiSounds();
+  }, []);
+
   if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: '#170709' }} />;
 
   return (
