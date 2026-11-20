@@ -272,6 +272,23 @@ post('/k3/60/bet', { periodNumber: 'k1', bets: [{ id: 'k-a', area: 'SMALL', amou
 get('/k3/my-bets?limit=50', [{ id: 'k-a', amount: '10', status: 'WON', payout: '300', periodNumber: 'k1' }]);
 check('lottery: 30x is a big win', calls, ['0 k3.start', '0 k3.bigwin']);
 
+// K3, 5D and Trx Win play the very same countdown sound as Win Go: 5.1 s before the end, for everyone watching, then the draw.
+for (const [key, api] of [['k3', '/k3/60'], ['fived', '/5d/60'], ['trxwin', '/trx/60']] as const) {
+  fresh(key);
+  post(`${api}/bet`, { periodNumber: `${key}-1`, bets: [{ id: `${key}-a`, area: 'SMALL', amount: '10', status: 'PENDING' }] });
+  get(`${api}/current`, { periodNumber: `${key}-1`, serverTime: iso(0), endTime: iso(9000), locked: false });
+  advance(10000);
+  check(`lottery: ${key} plays Win Go's one countdown sound 5.1 s before the end (not beats), then the draw`, calls, [`0 ${key}.start`, `3900 ${key}.countdown`, `9000 ${key}.reveal`]);
+  fresh(key);
+  get(`${api}/current`, { periodNumber: `${key}-2`, serverTime: iso(0), endTime: iso(30000), locked: false });
+  advance(31000);
+  check(`lottery: ${key} plays the countdown for everyone watching, with or without a bet`, calls, [`24900 ${key}.countdown`]);
+  fresh(key);
+  get(`${api}/current`, { periodNumber: `${key}-3`, serverTime: iso(0), endTime: iso(3000), locked: false });
+  advance(10);
+  check(`lottery: ${key}, joining with 3 s left, starts the countdown from where it is (2.1 s in)`, calls, [`0 ${key}.countdown+2.1s`]);
+}
+
 // ------------------------------------------------------------ screens that play their own cues
 fresh('dice');
 post('/dice/roll', { id: 'd1', stake: '10', payout: '25', multiplier: '2.5' });

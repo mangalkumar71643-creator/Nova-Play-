@@ -31,6 +31,9 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 # Sounds the app's owner supplied: supplied/<game>/<event>.<mp3|wav|ogg|m4a|...> replaces that event's synthesised sound.
 SUPPLIED = os.path.join(HERE, "supplied")
 AUDIO_EXT = (".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac")
+# A supplied sound that more than one game plays: (the folder it is kept in, the event) -> the other games that use it too.
+# (The owner asked for Win Go's last-5-seconds countdown in K3, 5D and Trx Win as well.)
+SUPPLIED_SHARED = {("wingo", "countdown"): ["k3", "fived", "trxwin"]}
 OUT = os.path.join(ROOT, "assets", "sounds", "games")
 PACKS_TS = os.path.join(ROOT, "src", "sound", "packs.ts")
 
@@ -152,20 +155,36 @@ def fingerprint(x):
     return (B / (n + 1e-9)).ravel()
 
 
+def supplied_files(game):
+    """event -> file of the sounds the owner supplied for this game (its own folder, plus the ones it shares)."""
+    out = {}
+
+    def scan(folder, only=None):
+        d = os.path.join(SUPPLIED, folder)
+        if not os.path.isdir(d):
+            return
+        for fn in sorted(os.listdir(d)):
+            ev, ext = os.path.splitext(fn)
+            if ext.lower() in AUDIO_EXT and ev in EVENTS and ev != "loop" and (only is None or ev == only):
+                out.setdefault(ev, os.path.join(d, fn))
+
+    scan(game)  # its own files win over a shared one
+    for (src, ev), users in SUPPLIED_SHARED.items():
+        if game in users:
+            scan(src, only=ev)
+    return out
+
+
 def render_game(args):
     game, kenney = args
     C.KENNEY["dir"] = kenney
     rng = L.rng_for(game)
     raw = ALL[game](rng)
-    sup = os.path.join(SUPPLIED, game)
     supplied = set()
-    if os.path.isdir(sup):
-        for fn in sorted(os.listdir(sup)):
-            ev, ext = os.path.splitext(fn)
-            if ext.lower() in AUDIO_EXT and ev in EVENTS and ev != "loop":
-                # Decoded by ffmpeg only (it is untrusted input), then levelled like every other sound.
-                raw[ev] = L.load_sample(os.path.join(sup, fn), gain_norm=False)
-                supplied.add(ev)
+    for ev, path in supplied_files(game).items():
+        # Decoded by ffmpeg only (it is untrusted input), then levelled like every other sound.
+        raw[ev] = L.load_sample(path, gain_norm=False)
+        supplied.add(ev)
     files, info = {}, {}
     for ev, arr in raw.items():
         if ev not in EVENTS:

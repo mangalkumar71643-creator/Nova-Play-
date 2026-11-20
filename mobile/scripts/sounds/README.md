@@ -63,5 +63,6 @@ in the background, and it has its own switch (Settings → Music) besides the ma
 `supplied/<game>/<event>.<mp3|wav|flac|...>` replaces the synthesised sound of that event when the packs are built (see
 `supplied/README.md` for where each one comes from). A sound that is mostly bass (a phone speaker cannot play it) is cut from ~110 Hz up and
 levelled without a limiter; every other supplied sound is only trimmed, levelled and encoded. `countdown` is one sound for the last seconds
-of a timed round: Win Go plays it from 5.1 s before the round ends (`countdownMs` in `src/sound/games.ts`), for everyone watching, and if a
-player joins late it starts from the part that is still to come.
+of a timed round: Win Go, K3, 5D and Trx Win play it from 5.1 s before the round ends (`countdownMs` in `src/sound/games.ts`; the three
+last ones share Win Go's file through `SUPPLIED_SHARED` in `build.py`), for everyone watching, and if a player joins late it starts from the
+part that is still to come.

@@ -96,9 +96,9 @@ export const GAMES: GameDef[] = [
   table('baccarat', 'Baccarat', '/baccarat'),
 
   lottery('wingo', 'WinGo', '/wingo', 5100),
-  lottery('k3', 'K3Lottery', '/k3'),
-  lottery('fived', 'FiveDLottery', '/5d'),
-  lottery('trxwin', 'TrxWin', '/trx'),
+  lottery('k3', 'K3Lottery', '/k3', 5100),
+  lottery('fived', 'FiveDLottery', '/5d', 5100),
+  lottery('trxwin', 'TrxWin', '/trx', 5100),
 
   // The screens below already play their own cues at the right moments; the sound here only picks the pack.
   screen('scratchcard', 'ScratchCard', '/scratch-card', { land: 'start' }),
