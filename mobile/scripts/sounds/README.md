@@ -46,7 +46,7 @@ full build.
 
 ## Background music
 
-A game can have a background music loop on top of its sound effects (Aviator has one). Give `music.py` the track and the game's key:
+A game can have a background music loop on top of its sound effects (Aviator, Chicken Road and Seven Up Down have one). Give `music.py` the track and the game's key:
 
 ```bash
 python3 -I mobile/scripts/sounds/music.py aviator /path/to/track.mp3 --volume 0.4

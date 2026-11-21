@@ -4,4 +4,5 @@
 export const MUSIC: Record<string, { src: number; volume: number }> = {
   aviator: { src: require('../../assets/sounds/music/aviator.mp3'), volume: 0.4 },
   chickenroad: { src: require('../../assets/sounds/music/chickenroad.mp3'), volume: 0.4 },
+  sevenupdown: { src: require('../../assets/sounds/music/sevenupdown.mp3'), volume: 0.4 },
 };
