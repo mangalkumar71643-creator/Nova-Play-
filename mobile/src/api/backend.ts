@@ -2613,6 +2613,44 @@ export function fetchLimboHistory(limit = 30) {
   return apiFetch<LimboBet[]>(`/limbo/my-history?limit=${limit}`);
 }
 
+// ---- Red Button (a control panel: pick one of four switches, set the bet, push the red button) ----
+export interface RedButtonSwitchInfo {
+  multiplier: number;
+  chancePercent: number;
+  /** The highest bet this switch allows (its win can never be more than the max payout). */
+  maxStake: number;
+}
+export interface RedButtonConfig {
+  minStake: number;
+  maxStake: number;
+  maxPayout: number;
+  switches: RedButtonSwitchInfo[];
+  rtpPercent: number;
+}
+export interface RedButtonPlay {
+  id: string;
+  stake: string;
+  /** The switch that was on: the win multiplier. */
+  multiplier: number;
+  /** The push's fair draw in [0, 1): it wins when it is under rtp / multiplier. */
+  draw: number;
+  won: boolean;
+  payout: string;
+  serverSeedHash: string;
+  clientSeed: string;
+  nonce: number;
+  createdAt: string;
+}
+export function fetchRedButtonConfig() {
+  return apiFetch<RedButtonConfig>('/red-button/config');
+}
+export function playRedButton(stake: number, multiplier: number) {
+  return apiFetch<RedButtonPlay>('/red-button/play', { method: 'POST', body: JSON.stringify({ stake, multiplier }) });
+}
+export function fetchRedButtonHistory(limit = 30) {
+  return apiFetch<RedButtonPlay[]>(`/red-button/my-history?limit=${limit}`);
+}
+
 // ---- Blackjack ----
 
 export type BlackjackAction = 'hit' | 'stand' | 'double' | 'split' | 'insurance' | 'noInsurance';

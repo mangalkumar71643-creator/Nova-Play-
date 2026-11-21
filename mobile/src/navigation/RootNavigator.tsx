@@ -50,6 +50,7 @@ import SlotScreen from '../screens/SlotScreen';
 import AcesScreen from '../screens/AcesScreen';
 import DiceScreen from '../screens/DiceScreen';
 import LimboScreen from '../screens/LimboScreen';
+import RedButtonScreen from '../screens/RedButtonScreen';
 import BlackjackScreen from '../screens/BlackjackScreen';
 import KenoScreen from '../screens/KenoScreen';
 import HiloScreen from '../screens/HiloScreen';
@@ -130,6 +131,7 @@ const SlotScreenWithRefresh = withPullToRefresh(SlotScreen);
 const AcesScreenWithRefresh = withPullToRefresh(AcesScreen);
 const DiceScreenWithRefresh = withPullToRefresh(DiceScreen);
 const LimboScreenWithRefresh = withPullToRefresh(LimboScreen);
+const RedButtonScreenWithRefresh = withPullToRefresh(RedButtonScreen);
 const BlackjackScreenWithRefresh = withPullToRefresh(BlackjackScreen);
 const KenoScreenWithRefresh = withPullToRefresh(KenoScreen);
 const HiloScreenWithRefresh = withPullToRefresh(HiloScreen);
@@ -230,6 +232,7 @@ function MainNavigator() {
       <Stack.Screen name="Aces" component={AcesScreenWithRefresh} />
       <Stack.Screen name="Dice" component={DiceScreenWithRefresh} />
       <Stack.Screen name="Limbo" component={LimboScreenWithRefresh} />
+      <Stack.Screen name="RedButton" component={RedButtonScreenWithRefresh} />
       <Stack.Screen name="Blackjack" component={BlackjackScreenWithRefresh} />
       <Stack.Screen name="Keno" component={KenoScreenWithRefresh} />
       <Stack.Screen name="Hilo" component={HiloScreenWithRefresh} />

@@ -1,7 +1,7 @@
 import type { SoundEvent } from './types';
 
 /** The generic cues the screens that already trigger their own sounds use. */
-export type GameCue = 'tick' | 'win' | 'land' | 'big' | 'lose';
+export type GameCue = 'tick' | 'win' | 'land' | 'big' | 'lose' | 'start' | 'step';
 
 export type GameKind =
   /** Aviator-style: the sound follows the round (take-off, flight, crash) and your bet. */
@@ -116,6 +116,7 @@ export const GAMES: GameDef[] = [
   screen('hilo', 'Hilo', '/hilo', { tick: 'step', land: 'lose' }),
   screen('keno', 'Keno', '/keno'),
   screen('limbo', 'Limbo', '/limbo', { tick: 'start', land: 'land' }),
+  screen('redbutton', 'RedButton', '/red-button'),
   screen('moneycoming', 'MoneyComing', '/money-coming'),
   screen('neon777', 'Neon777', '/neon-777'),
   screen('plinko', 'Plinko', '/plinko'),

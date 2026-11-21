@@ -75,6 +75,7 @@ export const SOURCES: Source[] = [
   // Dice & Instant
   { key: "Dice", name: "Dice", category: "Dice & Instant", table: "DiceBet", stake: "stake", paid: "payout" },
   { key: "Limbo", name: "Limbo", category: "Dice & Instant", table: "LimboBet", stake: "stake", paid: "payout" },
+  { key: "RedButton", name: "Red Button", category: "Dice & Instant", table: "RedButtonPlay", stake: "stake", paid: "payout" },
   { key: "Plinko", name: "Plinko", category: "Dice & Instant", table: "PlinkoBet", stake: "stake", paid: "payout" },
   { key: "SevenUpDown", name: "7 Up Down", category: "Dice & Instant", table: "SevenUpDownBet", stake: "amount", paid: "payout", where: NOT_VOID },
   { key: "Diamonds", name: "Diamonds", category: "Dice & Instant", table: "DiamondsBet", stake: "stake", paid: "payout" },
@@ -161,7 +162,7 @@ export async function getGameReport() {
     if (category === "Crash") return env.games.crashHouseEdge;
     if (["AndarBahar", "TeenPatti", "DragonTiger", "Baccarat", "Roulette"].includes(key)) return 1 - env.games.tableRtp;
     if (key === "SevenUpDown") return 1 - env.games.sevenUpDownRtp;
-    if (["Dice", "Limbo", "Plinko", "Keno", "Hilo", "Mines", "ChickenRoad", "DragonTower", "Pump", "CoinFlip"].includes(key)) return 1 - env.games.rtp;
+    if (["Dice", "Limbo", "RedButton", "Plinko", "Keno", "Hilo", "Mines", "ChickenRoad", "DragonTower", "Pump", "CoinFlip"].includes(key)) return 1 - env.games.rtp;
     return null;
   };
   const targetEdge = (key: string, category: string) => {

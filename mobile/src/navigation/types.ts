@@ -82,6 +82,7 @@ export type RootStackParamList = {
   Aces: undefined;
   Dice: undefined;
   Limbo: undefined;
+  RedButton: undefined;
   Blackjack: undefined;
   Keno: undefined;
   Hilo: undefined;

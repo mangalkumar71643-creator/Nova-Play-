@@ -77,6 +77,7 @@ export type GameId =
   | 'Aces'
   | 'Dice'
   | 'Limbo'
+  | 'RedButton'
   | 'Blackjack'
   | 'Keno'
   | 'Hilo'
@@ -123,7 +124,7 @@ export type GameCategory = {
 
 export const GAME_CATEGORIES: GameCategory[] = [
   { id: 'card-table', title: 'Card & Table', tagline: 'Teen Patti · Blackjack', games: ['AndarBahar', 'TeenPatti', 'DragonTiger', 'Baccarat', 'Blackjack', 'Roulette', 'Hilo', 'VideoPoker', 'CasinoHoldem', 'ThreeCardPoker'] },
-  { id: 'dice-instant', title: 'Dice & Instant', tagline: 'Roll · Win · Instant', games: ['Dice', 'Limbo', 'Plinko', 'SevenUpDown', 'Diamonds', 'Keno', 'LuckyWheel', 'ScratchCard', 'DiceDuel', 'ColorBall'] },
+  { id: 'dice-instant', title: 'Dice & Instant', tagline: 'Roll · Win · Instant', games: ['Dice', 'Limbo', 'RedButton', 'Plinko', 'SevenUpDown', 'Diamonds', 'Keno', 'LuckyWheel', 'ScratchCard', 'DiceDuel', 'ColorBall'] },
   { id: 'lottery', title: 'Lottery', tagline: 'Win Go · K3 · 5D', games: ['WinGo', 'K3Lottery', 'FiveDLottery', 'TrxWin', 'JhandiMunda', 'FortuneSix'] },
   { id: 'mines-cashout', title: 'Mines & Cash-out', tagline: 'Pick · Climb · Cash out', games: ['Mines', 'ChickenRoad', 'DragonTower', 'Pump', 'CoinFlip', 'PenaltyHero', 'LuckyCups', 'BombSquad', 'VaultHeist', 'TreasureDig'] },
   { id: 'slots', title: 'Slots', tagline: 'Spin · Win · Jackpot', games: ['Slot', 'Aces', 'CandyBlast', 'Neon777', 'MoneyComing', 'FruitMachine', 'FishermansCatch', 'BookOfPharaoh', 'GatesOfZeus', 'WolfMoon'] },
@@ -159,6 +160,7 @@ export const GAME_ICONS: Partial<Record<GameId, ImageSourcePropType>> = {
   DiceDuel: require('../../assets/icons/dice-duel.webp'),
   ColorBall: require('../../assets/icons/color-ball.webp'),
   Limbo: require('../../assets/icons/limbo.webp'),
+  RedButton: require('../../assets/icons/red-button.webp'),
   Plinko: require('../../assets/icons/plinko.webp'),
   SevenUpDown: require('../../assets/icons/seven-up-down.webp'),
   Keno: require('../../assets/icons/keno.webp'),

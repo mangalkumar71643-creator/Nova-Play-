@@ -445,6 +445,8 @@ const FALLBACKS: Record<GameCue, SoundEvent[]> = {
   win: ['win'],
   big: ['bigwin', 'win'],
   lose: ['lose', 'land'],
+  start: ['start', 'tick'],
+  step: ['step', 'tick'],
 };
 
 /**
@@ -471,5 +473,5 @@ export function createGamePlayers(game: string): GamePlayers {
     },
     remove: () => set.release(),
   });
-  return { tick: handle('tick'), land: handle('land'), win: handle('win'), big: handle('big'), lose: handle('lose') };
+  return { tick: handle('tick'), land: handle('land'), win: handle('win'), big: handle('big'), lose: handle('lose'), start: handle('start'), step: handle('step') };
 }

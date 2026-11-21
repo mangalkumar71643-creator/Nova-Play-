@@ -508,6 +508,35 @@ def neon777(r):
     return d
 
 
+def redbutton(r):
+    """Red Button, a retro control panel: the big button going down, a toggle switch clicking, LCD beeps and a relay when the digits lock."""
+    push = L.mix([
+        (L.thud(68, 0.24, r, 0.09, 0.9), 0, 1.0),  # the heavy body of the button
+        (L.click(r, 0.03, 1700, 4.0, 0.006) * 1.7, 0.0, 0.9),  # the clack on top
+        (L.click(r, 0.02, 3800, 7.0, 0.004) * 1.2, 0.05, 0.6),  # the relay
+        (L.sweep(160, 1100, 0.55, "saw") * L.env_swell(L.N(0.55), 0.85) * 0.2, 0.07, 1.0),  # the panel powering up
+        (L.whoosh(0.5, 400, 3200, r) * 0.22, 0.1, 1.0),
+    ])
+    toggle = L.mix([
+        (L.click(r, 0.02, 2300, 6.0, 0.004) * 2.2, 0.0, 1.0),
+        (L.click(r, 0.025, 1500, 5.0, 0.005) * 1.7, 0.05, 0.9),
+        (L.thud(190, 0.07, r, 0.02, 0.4), 0.0, 0.5),
+    ])
+    d = {
+        "start": push,
+        "step": toggle,
+        "tick": C.blip(1760, 0.05, "square", 0.03, 0.1) * 0.8,
+        "land": L.mix([(L.thud(105, 0.22, r, 0.08), 0, 1.0), (C.blip(660, 0.1, "square", 0.06), 0, 0.5), (C.blip(990, 0.18, "square", 0.1), 0.07, 0.5)]),
+    }
+    arp = lambda root, n: C.jingle(r, root, L.MAJOR_PENT, C.voice("synth", d=0.3, cut=4200, tau=0.22), n, 0.07, "up", tail=0.4, rev=(0.45, 0.2))
+    d.update({
+        "win": L.mix([(arp(64, 6), 0, 1.0), (L.coin_shower(r, 8, 0.6), 0.1, 0.5)]),
+        "bigwin": L.mix([(arp(55, 9), 0, 1.0), (arp(67, 8), 0.6, 0.8), (L.coin_shower(r, 24, 1.5), 0.15, 0.8), (L.gong(110, 1.8) * 0.8, 0.0, 0.6)]),
+        "lose": L.mix([(C.lose_sound(r, "slide", 260, 0.55, -10), 0, 1.0), (L.sweep(150, 70, 0.4, "saw") * L.env_swell(L.N(0.4), 0.2) * 0.18, 0.02, 1.0)]),
+    })
+    return d
+
+
 GAMES_B = {
     "sevenupdown": sevenupdown, "dragontiger": dragontiger, "andarbahar": andarbahar, "teenpatti": teenpatti,
     "jhandimunda": jhandimunda, "roulette": roulette, "baccarat": baccarat,
@@ -517,5 +546,5 @@ GAMES_B = {
     "bookofpharaoh": bookofpharaoh,
     "plinko": plinko, "dice": dice, "limbo": limbo, "keno": keno, "diamonds": diamonds, "blackjack": blackjack,
     "casinoholdem": casinoholdem, "threecardpoker": threecardpoker, "videopoker": videopoker, "slot": slot,
-    "aces": aces, "candyblast": candyblast, "gatesofzeus": gatesofzeus, "moneycoming": moneycoming, "neon777": neon777,
+    "aces": aces, "candyblast": candyblast, "gatesofzeus": gatesofzeus, "moneycoming": moneycoming, "neon777": neon777, "redbutton": redbutton,
 }

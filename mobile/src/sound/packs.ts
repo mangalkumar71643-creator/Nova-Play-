@@ -349,6 +349,15 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     bigwin: require('../../assets/sounds/games/pump/bigwin.mp3'),
     lose: require('../../assets/sounds/games/pump/lose.mp3'),
   },
+  redbutton: {
+    start: require('../../assets/sounds/games/redbutton/start.mp3'),
+    step: require('../../assets/sounds/games/redbutton/step.mp3'),
+    tick: require('../../assets/sounds/games/redbutton/tick.mp3'),
+    land: require('../../assets/sounds/games/redbutton/land.mp3'),
+    win: require('../../assets/sounds/games/redbutton/win.mp3'),
+    bigwin: require('../../assets/sounds/games/redbutton/bigwin.mp3'),
+    lose: require('../../assets/sounds/games/redbutton/lose.mp3'),
+  },
   rocket: {
     start: require('../../assets/sounds/games/rocket/start.mp3'),
     launch: require('../../assets/sounds/games/rocket/launch.mp3'),

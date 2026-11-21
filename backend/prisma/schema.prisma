@@ -293,6 +293,7 @@ model User {
   CandyBlastSpin     CandyBlastSpin[]
   Neon777Spin        Neon777Spin[]
   MoneyComingSpin    MoneyComingSpin[]
+  RedButtonPlay      RedButtonPlay[]
   GiftCodeRedemption GiftCodeRedemption[]
   VipBonusClaim      VipBonusClaim[]
 
@@ -1292,6 +1293,26 @@ model LimboBet {
   stake          Decimal  @db.Decimal(12, 2)
   target         Decimal  @db.Decimal(12, 2)
   result         Decimal  @db.Decimal(14, 2)
+  won            Boolean
+  payout         Decimal  @db.Decimal(12, 2)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model RedButtonPlay {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  stake          Decimal  @db.Decimal(12, 2)
+  /// The switch that was on: the win multiplier (2, 10, 100 or 250).
+  multiplier     Int
+  /// The push's fair draw in [0, 1): it wins when it is under rtp / multiplier.
+  draw           Float
   won            Boolean
   payout         Decimal  @db.Decimal(12, 2)
   serverSeed     String
