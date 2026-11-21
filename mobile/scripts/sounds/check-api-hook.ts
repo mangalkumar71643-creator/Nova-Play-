@@ -431,6 +431,30 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
   // The result-rule card opens by itself once for a player; the "?" button of the game's top bar opens it again whenever they want.
   check('ui: every game with the result-rule card has its "?" button', files.filter((f) => /<ResultRuleNotice\b/.test(read(f)) && !/<ResultRuleButton\b/.test(read(f))).map(rel), []);
   check("ui: Win Go's bet sheet has the Result rule button", [/accessibilityLabel="Result rule"/.test(read(path.join(APP, 'screens', 'WinGoScreen.tsx')))], [true]);
+  // The voice calls of the table games: "Bet now" when betting opens and "Bet stop" when it closes (the owner asked for them in Seven Up Down).
+  {
+    const sevenUp = read(path.join(APP, 'screens/SevenUpDownScreen.tsx'));
+    const uiSource = read(path.join(APP, 'sound/ui.ts'));
+    check(
+      'ui: Seven Up Down shows the Start / Stop Betting banner and speaks "Bet now" / "Bet stop" with it (each once for a round)',
+      [
+        /showBanner\('Start Betting', true\);\s*playBetCall\('now'\)/.test(sevenUp),
+        /showBanner\('Stop Betting', false\);\s*playBetCall\('stop'\)/.test(sevenUp),
+        /callsRef\.current\.now !== /.test(sevenUp) && /callsRef\.current\.stop !== /.test(sevenUp),
+      ],
+      [true, true, true]
+    );
+    check(
+      'ui: the voice calls have their files, follow the sound switch and are silent while the app is not in front',
+      [
+        fs.existsSync(path.join(APP, '..', 'assets/sounds/ui/bet_now.mp3')),
+        fs.existsSync(path.join(APP, '..', 'assets/sounds/ui/bet_stop.mp3')),
+        /export function playBetCall[\s\S]*AppState\.currentState !== 'active'[\s\S]*playUi\(/.test(uiSource),
+        /export function playUi[\s\S]*isSoundEnabled\(\)/.test(uiSource),
+      ],
+      [true, true, true, true]
+    );
+  }
   check('ui: the touch sound has a file and a TapPressable', [fs.existsSync(path.join(APP, '..', 'assets/sounds/ui/tap.mp3')), fs.existsSync(path.join(APP, 'components/TapPressable.tsx'))], [true, true]);
 }
 

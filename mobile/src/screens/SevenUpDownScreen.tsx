@@ -35,9 +35,10 @@ import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice, { ResultRuleButton } from '../components/ResultRuleNotice';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
+import { playBetCall, playChipBet, withPopupSound, withTapSound } from '../sound/ui';
 
 const W = Dimensions.get('window').width;
+const H = Dimensions.get('window').height;
 const BOARD_PAD = 8;
 
 const CHIP_VALUES = [1, 5, 10, 50, 100, 500];
@@ -116,6 +117,8 @@ const ORBIT_STEPS = Array.from({ length: 13 }, (_, i) => i / 12);
 
 const HISTORY_COLUMNS = 14;
 const WIN_CARD_MS = 3000;
+/** How long the Start / Stop Betting banner stays. */
+const BANNER_MS = 1400;
 const TOAST_MS = 1600;
 
 function areaWins(area: SevenUpDownArea, total: number): boolean {
@@ -525,6 +528,7 @@ export default function SevenUpDownScreen() {
   const [chipPickerOpen, setChipPickerOpen] = useState(false);
   const [win, setWin] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [banner, setBanner] = useState<{ text: string; start: boolean } | null>(null);
   const [rollFaces, setRollFaces] = useState<[number, number]>([3, 5]);
   const [, setPhaseTick] = useState(0);
 
@@ -539,7 +543,11 @@ export default function SevenUpDownScreen() {
   const queueRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The round each voice call ("Bet now", "Bet stop") was last made for, so a round gets each call once. */
+  const callsRef = useRef<{ now?: string; stop?: string }>({});
 
+  const bannerAnim = useRef(new Animated.Value(0)).current;
   const shake = useRef(new Animated.Value(0)).current;
   const rollMode = useRef(new Animated.Value(0)).current;
   const orbit = useRef(new Animated.Value(0)).current;
@@ -558,6 +566,22 @@ export default function SevenUpDownScreen() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
+
+  /** The sweeping banner of the start (blue) and the end (red) of betting, the same as Dragon Tiger's. */
+  const showBanner = useCallback(
+    (text: string, start: boolean) => {
+      setBanner({ text, start });
+      bannerAnim.setValue(0);
+      Animated.timing(bannerAnim, { toValue: 1, duration: 420, easing: Easing.out(Easing.back(1.4)), useNativeDriver: true }).start();
+      if (bannerTimer.current) clearTimeout(bannerTimer.current);
+      bannerTimer.current = setTimeout(() => {
+        Animated.timing(bannerAnim, { toValue: 2, duration: 320, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(
+          () => mountedRef.current && setBanner(null)
+        );
+      }, BANNER_MS);
+    },
+    [bannerAnim]
+  );
 
   const enqueue = useCallback((op: () => Promise<void>) => {
     queueRef.current = queueRef.current.then(op).catch(() => {});
@@ -592,6 +616,7 @@ export default function SevenUpDownScreen() {
     return () => {
       mountedRef.current = false;
       if (toastTimer.current) clearTimeout(toastTimer.current);
+      if (bannerTimer.current) clearTimeout(bannerTimer.current);
     };
   }, [loadHistory]);
 
@@ -641,20 +666,37 @@ export default function SevenUpDownScreen() {
       if (placed.length > 0) lastRoundRef.current = placed.map((c) => ({ area: c.area, amount: c.amount }));
       setChips([]);
       idMapRef.current.clear();
+      // Betting opens on a new round: the blue banner and the voice say so.
+      if (callsRef.current.now !== view.periodNumber) {
+        callsRef.current.now = view.periodNumber;
+        showBanner('Start Betting', true);
+        playBetCall('now');
+      }
     }
     periodRef.current = view.periodNumber;
-  }, [view]);
+  }, [view, showBanner]);
 
   // Re-render exactly when betting closes / the dice are due locally.
   useEffect(() => {
     if (!view) return;
     const srvNow = Date.now() + offsetRef.current;
-    const ids = [view.betEndTime, view.resultTime].map((t) => {
+    const period = view.periodNumber;
+    const ids = [view.betEndTime, view.resultTime].map((t, i) => {
       const wait = new Date(t).getTime() - srvNow;
-      return wait > 0 ? setTimeout(() => setPhaseTick((x) => x + 1), wait + 20) : null;
+      return wait > 0
+        ? setTimeout(() => {
+            setPhaseTick((x) => x + 1);
+            // Betting closes: the red banner and the voice say so (once for each round).
+            if (i === 0 && callsRef.current.stop !== period) {
+              callsRef.current.stop = period;
+              showBanner('Stop Betting', false);
+              playBetCall('stop');
+            }
+          }, wait + 20)
+        : null;
     });
     return () => ids.forEach((id) => id && clearTimeout(id));
-  }, [view]);
+  }, [view, showBanner]);
 
   const srvNow = Date.now() + offsetRef.current;
   const betEndMs = view ? new Date(view.betEndTime).getTime() : 0;
@@ -1204,6 +1246,70 @@ export default function SevenUpDownScreen() {
         </>
       )}
 
+      {/* Start / Stop Betting */}
+      {banner && (
+        <View pointerEvents="none" style={styles.bannerLayer}>
+          <Animated.View
+            style={[
+              styles.bannerBar,
+              {
+                top: H * 0.3,
+                height: H * 0.26,
+                width: W * 0.75,
+                left: -W * 0.1,
+                opacity: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [0, 0.95, 0] }),
+                transform: [
+                  { translateX: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [-W * 0.8, 0, -W * 0.2] }) },
+                  { skewX: '-22deg' },
+                ],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={banner.start ? ['rgba(40,90,230,0)', 'rgba(40,90,230,0.85)', 'rgba(120,170,255,0.9)'] : ['rgba(90,20,20,0)', 'rgba(120,30,30,0.85)', 'rgba(200,80,40,0.9)']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.bannerBar,
+              {
+                top: H * 0.3,
+                height: H * 0.26,
+                width: W * 0.75,
+                right: -W * 0.1,
+                opacity: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [0, 0.95, 0] }),
+                transform: [
+                  { translateX: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [W * 0.8, 0, W * 0.2] }) },
+                  { skewX: '-22deg' },
+                ],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={banner.start ? ['rgba(255,110,110,0.9)', 'rgba(220,40,40,0.85)', 'rgba(220,40,40,0)'] : ['rgba(200,80,40,0.9)', 'rgba(120,30,30,0.85)', 'rgba(90,20,20,0)']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
+          <Animated.Text
+            style={[
+              styles.bannerText,
+              {
+                top: H * 0.3 + H * 0.13 - 30,
+                opacity: bannerAnim.interpolate({ inputRange: [0, 0.6, 1, 2], outputRange: [0, 1, 1, 0] }),
+                transform: [{ scale: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [2.2, 1, 1.15] }) }],
+              },
+            ]}
+          >
+            {banner.text}
+          </Animated.Text>
+        </View>
+      )}
+
       {toast && (
         <View style={styles.toast} pointerEvents="none">
           <Text style={styles.toastText}>{toast}</Text>
@@ -1217,6 +1323,21 @@ const GOLD = '#FFD66B';
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#083A21' },
+  bannerLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  bannerBar: { position: 'absolute', overflow: 'hidden' },
+  bannerText: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    color: '#FFD66B',
+    fontSize: 48,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    textShadowColor: '#6A3000',
+    textShadowRadius: 8,
+    textShadowOffset: { width: 0, height: 4 },
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

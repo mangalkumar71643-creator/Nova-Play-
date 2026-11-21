@@ -52,6 +52,9 @@ UI_LEVEL_BY_WHOLE = {"chip_bet"}
 # Interface sounds that are brought up to a normal level before the silence around them is trimmed (the file is very quiet, and its
 # faint ring would be taken for silence otherwise). The popup sound is not in it: it was accepted as it was made.
 UI_BRING_UP_FIRST = {"tap"}
+# Interface sounds made louder than the rest after levelling (the table games' voice calls, "Bet now" and "Bet stop", have to be heard
+# over the game's music and the dice; speech has a lower peak than a click at the same loudness).
+UI_GAIN = {"bet_now": 1.5, "bet_stop": 1.5}
 
 ALL = {**games_a.GAMES_A, **games_b.GAMES_B}
 
@@ -265,6 +268,11 @@ def build_ui():
         if ext.lower() not in AUDIO_EXT:
             continue
         x, _ = finish("ui", load_ui_sample(os.path.join(UI_SUPPLIED, fn), name in UI_BRING_UP_FIRST), faithful=True, whole=name in UI_LEVEL_BY_WHOLE)
+        if name in UI_GAIN:
+            x = soft_limit(x * UI_GAIN[name])
+            p = float(np.max(np.abs(x)))
+            if p > 0.97:
+                x = x * (0.97 / p)
         L.to_mp3(x, os.path.join(UI_OUT, name + ".mp3"), "96k")
         done.append((name, len(x) / L.SR))
     return done

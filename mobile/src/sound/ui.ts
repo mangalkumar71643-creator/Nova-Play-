@@ -1,4 +1,5 @@
 import { AudioPlayer, createAudioPlayer } from 'expo-audio';
+import { AppState } from 'react-native';
 
 import { ensureAudioMode, isSoundEnabled } from './engine';
 
@@ -14,6 +15,10 @@ const UI_SOURCES = {
   chipBet: require('../../assets/sounds/ui/chip_bet.mp3'),
   /** The touch sound: a button, tab, tile or row of the interface is tapped. */
   tap: require('../../assets/sounds/ui/tap.mp3'),
+  /** The voice call "Bet now" when a round of a table game opens for betting. */
+  betNow: require('../../assets/sounds/ui/bet_now.mp3'),
+  /** The voice call "Bet stop" when betting closes. */
+  betStop: require('../../assets/sounds/ui/bet_stop.mp3'),
 } as const;
 
 export type UiSound = keyof typeof UI_SOURCES;
@@ -22,7 +27,7 @@ export type UiSound = keyof typeof UI_SOURCES;
  * How many players a sound gets, taken in turns, so quick taps do not cut each other off. A sound that is tapped many times in
  * a second (the chips, the touch sound) needs more than one that is not (a popup being closed).
  */
-const VOICES: Record<UiSound, number> = { popupClose: 2, chipBet: 4, tap: 3 };
+const VOICES: Record<UiSound, number> = { popupClose: 2, chipBet: 4, tap: 3, betNow: 1, betStop: 1 };
 
 const players = new Map<UiSound, { list: AudioPlayer[]; turn: number } | null>();
 
@@ -74,6 +79,16 @@ function growVoices(): void {
 export function preloadUiSounds(): void {
   for (const name of Object.keys(UI_SOURCES) as UiSound[]) playersOf(name);
   growVoices();
+}
+
+/**
+ * The voice call of a table game: "Bet now" when its betting opens (a new round has begun), "Bet stop" when it closes. It follows
+ * the sound switch like every other sound, and is heard only while the app is in front (a timer that fires with the phone locked
+ * or the app in the background must not speak).
+ */
+export function playBetCall(call: 'now' | 'stop'): void {
+  if (AppState.currentState !== 'active') return;
+  playUi(call === 'now' ? 'betNow' : 'betStop');
 }
 
 /** Plays an interface sound (nothing if the sound effects are switched off). It can never throw into the screen. */

@@ -29,6 +29,9 @@ mp3 (loops are wav so they repeat without a gap), rewrites `packs.ts` and prints
 near-identical sounds of the same kind (the build reports any pair above 0.95 similarity; the current worst is about 0.95).
 Output is deterministic: the same inputs always give the same files.
 
+The spoken calls ("Bet now", "Bet stop") are made by `voice.py` (Piper text-to-speech, CC0 voice; `pip install piper-tts`), which writes
+`supplied/ui/bet_now.flac` and `bet_stop.flac` for `build.py` to turn into interface sounds.
+
 To change one game's sound, edit its function in `games_a.py` (crash and step games) or `games_b.py` (tables, lotteries, slots,
 instant games), then run the build with `--only <game>` to hear just that game (this does not rewrite `packs.ts`), and finally a
 full build.
