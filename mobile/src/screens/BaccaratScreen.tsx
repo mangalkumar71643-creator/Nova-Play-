@@ -40,7 +40,7 @@ import {
   placeBaccaratBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
-import ResultRuleNotice from '../components/ResultRuleNotice';
+import ResultRuleNotice, { ResultRuleButton } from '../components/ResultRuleNotice';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
 
@@ -1134,6 +1134,7 @@ export default function BaccaratScreen() {
           </Text>
         </View>
         <View style={[styles.row, { gap: 6 * k }]}>
+          <ResultRuleButton active={config?.resultRule === 'LEAST_PAYOUT'} game="Baccarat" size={32 * k} />
           <Pressable onPress={withTapSound(() => openPanel('rules'))} style={[styles.iconBtn, { width: 32 * k, height: 32 * k }]} hitSlop={4}>
             <MaterialCommunityIcons name="information-variant" size={20 * k} color={GOLD} />
           </Pressable>

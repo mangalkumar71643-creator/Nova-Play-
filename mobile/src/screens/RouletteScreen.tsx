@@ -22,7 +22,7 @@ import {
   placeRouletteBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
-import ResultRuleNotice from '../components/ResultRuleNotice';
+import ResultRuleNotice, { ResultRuleButton } from '../components/ResultRuleNotice';
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
 import { playChipBet, withTapSound } from '../sound/ui';
@@ -1143,6 +1143,7 @@ export default function RouletteScreen() {
             <MaterialCommunityIcons name="wallet" size={14} color={GOLD} />
             <Text style={styles.balanceText}>₹{displayBalance.toFixed(2)}</Text>
           </View>
+          <ResultRuleButton active={config?.resultRule === 'LEAST_PAYOUT'} game="Roulette" size={28} />
           <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.depositBtn}>
             <MaterialCommunityIcons name="plus" size={18} color="#1A1200" />
           </Pressable>

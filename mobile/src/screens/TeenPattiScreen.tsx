@@ -25,7 +25,7 @@ import {
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
 import { useAuth } from '../state/AuthContext';
-import ResultRuleNotice from '../components/ResultRuleNotice';
+import ResultRuleNotice, { ResultRuleButton } from '../components/ResultRuleNotice';
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
 import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
@@ -840,6 +840,7 @@ export default function TeenPattiScreen() {
             <MaterialCommunityIcons name="wallet" size={15} color={GOLD} />
             <Text style={styles.topBalanceText}>₹{displayBalance.toFixed(2)}</Text>
           </View>
+          <ResultRuleButton active={config?.resultRule === 'LEAST_PAYOUT'} game="Teen Patti" size={26} />
           <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.depositPill}>
             <MaterialCommunityIcons name="wallet-plus" size={16} color="#F5B942" />
             <Text style={styles.depositText}>Deposit</Text>

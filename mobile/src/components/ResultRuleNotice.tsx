@@ -1,7 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useEffect, useState } from 'react';
-import { Modal, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, StyleProp, StyleSheet, View, ViewStyle, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import TapPressable from './TapPressable';
+
+import { useAuth } from '../state/AuthContext';
 
 type Props = {
   /** True when the server reports the least-payout rule for this game. */
@@ -10,20 +14,56 @@ type Props = {
   game: string;
 };
 
+// What a player has been shown already: one flag per player and game, kept on the phone.
+const SEEN_KEY = 'novaplay.resultRuleSeen';
+
+// The "?" buttons of the top bars find the card of their game through here.
+const openers = new Set<{ game: string; open: () => void }>();
+
 /**
- * The shared-table games (7 Up Down, Dragon Tiger, Andar Bahar, Teen Patti,
- * Roulette, Baccarat) have no rules page of their own, so while the
- * least-payout rule is on this card states it every time the game opens,
- * before the player can bet.
+ * The shared-table games (7 Up Down, Dragon Tiger, Andar Bahar, Teen Patti, Roulette, Baccarat) have no rules page of their own
+ * for how the result is decided, so while the least-payout rule is on this card states it.
+ *
+ * It opens by itself the first time a player enters the game (once, until they tap "I understand"), so nobody plays without having
+ * been told; after that it stays out of the way and the small "?" button of the game's top bar (ResultRuleButton) opens it.
  */
 export default function ResultRuleNotice({ active, game }: Props) {
   const [open, setOpen] = useState(false);
   const { width } = useWindowDimensions();
+  const { backendUser } = useAuth();
+  const key = `${SEEN_KEY}:${backendUser?.uid ?? 'guest'}:${game}`;
+
   useEffect(() => {
-    if (active) setOpen(true);
-  }, [active]);
+    const entry = { game, open: () => setOpen(true) };
+    openers.add(entry);
+    return () => {
+      openers.delete(entry);
+    };
+  }, [game]);
+
+  useEffect(() => {
+    if (!active) return;
+    let gone = false;
+    // If it cannot be read whether the player has seen it, they are shown it.
+    AsyncStorage.getItem(key)
+      .then((seen) => {
+        if (!gone && seen !== '1') setOpen(true);
+      })
+      .catch(() => {
+        if (!gone) setOpen(true);
+      });
+    return () => {
+      gone = true;
+    };
+  }, [active, key]);
+
+  const close = () => {
+    setOpen(false);
+    AsyncStorage.setItem(key, '1').catch(() => {});
+  };
+
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)} supportedOrientations={['portrait', 'landscape']}>
+    <Modal visible={open && active} transparent animationType="fade" onRequestClose={close} supportedOrientations={['portrait', 'landscape']}>
       <View style={styles.back}>
         <View style={[styles.card, { width: Math.min(width - 32, 420) }]}>
           <Text style={styles.title}>{game}: how the result is decided</Text>
@@ -33,12 +73,31 @@ export default function ResultRuleNotice({ active, game }: Props) {
           <Text style={styles.body}>
             The result is not a random deal or spin: the more money is on a bet, the less likely it is to win.
           </Text>
-          <TapPressable onPress={() => setOpen(false)} style={({ pressed }) => [styles.ok, pressed && { opacity: 0.7 }]} accessibilityRole="button">
+          <TapPressable onPress={close} style={({ pressed }) => [styles.ok, pressed && { opacity: 0.7 }]} accessibilityRole="button">
             <Text style={styles.okText}>I understand</Text>
           </TapPressable>
         </View>
       </View>
     </Modal>
+  );
+}
+
+/**
+ * The small "?" for a game's top bar (next to Deposit): one tap shows how the result is decided, whenever the player wants it.
+ * Nothing is drawn while the rule is not on.
+ */
+export function ResultRuleButton({ active, game, size = 30, style }: Props & { size?: number; style?: StyleProp<ViewStyle> }) {
+  if (!active) return null;
+  return (
+    <TapPressable
+      onPress={() => openers.forEach((o) => o.game === game && o.open())}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel="How the result is decided"
+      style={[styles.help, { width: size, height: size, borderRadius: size / 2 }, style]}
+    >
+      <MaterialCommunityIcons name="help" size={Math.round(size * 0.62)} color="#F5B942" />
+    </TapPressable>
   );
 }
 
@@ -49,4 +108,5 @@ const styles = StyleSheet.create({
   body: { color: '#FFF4E4', fontSize: 13.5, lineHeight: 19 },
   ok: { marginTop: 4, alignSelf: 'stretch', alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: '#F5B942' },
   okText: { color: '#1A0A00', fontSize: 14, fontWeight: '900' },
+  help: { alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(245,185,66,0.9)', backgroundColor: 'rgba(0,0,0,0.4)' },
 });

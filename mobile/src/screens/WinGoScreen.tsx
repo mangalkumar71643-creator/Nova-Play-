@@ -897,9 +897,10 @@ export default function WinGoScreen() {
             </Text>
           )}
           {leastStaked && (
-            <Text style={[styles.rulesText, { color: C_RED, marginTop: 6 }]}>
-              Result rule: the number, colour and Big/Small with the least money bet on them win.
-            </Text>
+            <Pressable onPress={withTapSound(() => setShowRules(true))} hitSlop={8} accessibilityRole="button" accessibilityLabel="Result rule" style={styles.ruleBtn}>
+              <MaterialCommunityIcons name="help-circle-outline" size={17} color={C_RED} />
+              <Text style={styles.ruleBtnText}>Result rule</Text>
+            </Pressable>
           )}
           <View style={styles.agreeRow}>
             <Pressable onPress={() => setAgree(!agree)} style={styles.agreeTick} hitSlop={8} accessibilityRole="checkbox" accessibilityState={{ checked: agree }}>
@@ -1150,6 +1151,8 @@ const styles = StyleSheet.create({
   rulesHead: { paddingVertical: 12, alignItems: 'center' },
   rulesTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '900' },
   rulesText: { color: INK, fontSize: 13, lineHeight: 19 },
+  ruleBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, marginTop: 6 },
+  ruleBtnText: { color: C_RED, fontSize: 13, fontWeight: '800' },
   toastWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 1001, elevation: 41 },
   toastText: { color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.85)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, overflow: 'hidden', fontWeight: '700' },
 });

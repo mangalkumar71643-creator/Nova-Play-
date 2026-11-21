@@ -37,7 +37,7 @@ import {
   placeDragonTigerBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
-import ResultRuleNotice from '../components/ResultRuleNotice';
+import ResultRuleNotice, { ResultRuleButton } from '../components/ResultRuleNotice';
 import { winLimit } from '../utils/limits';
 import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
 
@@ -1235,13 +1235,13 @@ export default function DragonTigerScreen() {
           #{view?.periodNumber.slice(-5) ?? '-----'} · {statusText}
         </Text>
       </View>
-      <Pressable
-        onPress={withTapSound(() => navigation.navigate('Deposit'))}
-        style={[styles.abs, styles.depositPill, { right: Math.max(W - X(1836), rightInset), top: Y(12) }]}
-      >
-        <MaterialCommunityIcons name="wallet-plus" size={15 * k} color="#F5B942" />
-        <Text style={[styles.depositText, { fontSize: 13 * k }]}>Deposit</Text>
-      </Pressable>
+      <View style={[styles.abs, { flexDirection: 'row', alignItems: 'center', gap: 8 * k, right: Math.max(W - X(1836), rightInset), top: Y(12) }]}>
+        <ResultRuleButton active={config?.resultRule === 'LEAST_PAYOUT'} game="Dragon Tiger" size={Math.round(26 * k)} />
+        <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.depositPill}>
+          <MaterialCommunityIcons name="wallet-plus" size={15 * k} color="#F5B942" />
+          <Text style={[styles.depositText, { fontSize: 13 * k }]}>Deposit</Text>
+        </Pressable>
+      </View>
 
       {/* Limits and rules in the left end of the table */}
       <View pointerEvents="none" style={[styles.abs, styles.sidePanel, leftPanel]}>

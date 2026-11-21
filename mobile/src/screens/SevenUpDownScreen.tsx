@@ -32,7 +32,7 @@ import {
   placeSevenUpDownBets,
 } from '../api/backend';
 import { useGameState } from '../state/GameStateContext';
-import ResultRuleNotice from '../components/ResultRuleNotice';
+import ResultRuleNotice, { ResultRuleButton } from '../components/ResultRuleNotice';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
 import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
@@ -939,10 +939,13 @@ export default function SevenUpDownScreen() {
           <MaterialCommunityIcons name="chevron-left" size={30} color="#F5B942" />
           <Text style={styles.title}>7 UP DOWN</Text>
         </Pressable>
-        <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.depositPill}>
-          <MaterialCommunityIcons name="wallet-plus" size={20} color="#F5B942" />
-          <Text style={styles.depositText}>Deposit</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <ResultRuleButton active={config?.resultRule === 'LEAST_PAYOUT'} game="7 Up Down" size={30} />
+          <Pressable onPress={withTapSound(() => navigation.navigate('Deposit'))} style={styles.depositPill}>
+            <MaterialCommunityIcons name="wallet-plus" size={20} color="#F5B942" />
+            <Text style={styles.depositText}>Deposit</Text>
+          </Pressable>
+        </View>
       </LinearGradient>
 
       {/* Table */}

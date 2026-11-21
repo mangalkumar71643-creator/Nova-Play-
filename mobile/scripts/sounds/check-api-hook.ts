@@ -423,6 +423,9 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
     wrappedButtons += [...src.matchAll(/onPress=\{withTapSound\(/g)].length;
   }
   check(`ui: ${wrappedButtons} interface buttons of the game screens (Back, Deposit, Rules, History, sound ...) make the touch sound`, silentGameButtons, []);
+  // The result-rule card opens by itself once for a player; the "?" button of the game's top bar opens it again whenever they want.
+  check('ui: every game with the result-rule card has its "?" button', files.filter((f) => /<ResultRuleNotice\b/.test(read(f)) && !/<ResultRuleButton\b/.test(read(f))).map(rel), []);
+  check("ui: Win Go's bet sheet has the Result rule button", [/accessibilityLabel="Result rule"/.test(read(path.join(APP, 'screens', 'WinGoScreen.tsx')))], [true]);
   check('ui: the touch sound has a file and a TapPressable', [fs.existsSync(path.join(APP, '..', 'assets/sounds/ui/tap.mp3')), fs.existsSync(path.join(APP, 'components/TapPressable.tsx'))], [true, true]);
 }
 
