@@ -58,6 +58,10 @@ loop start, cross-fades the join (so the repeat has no jump), levels the loop to
 in the background, and it has its own switch (Settings → Music) besides the main sound switch. Where a track comes from is written down in
 `mobile/assets/sounds/music/README.md`.
 
+A track that already loops is kept whole with `--as-is` (Chicken Road). A clip of only a few seconds that is not a loop has no loop end to look
+for: `--short --from 0 --to <its length> --xfade 0.15` cross-fades its last 0.15 s into its first (Seven Up Down's 3 s clip, which therefore
+repeats about every 3 s).
+
 ## Sounds the owner supplies
 
 `supplied/<game>/<event>.<mp3|wav|flac|...>` replaces the synthesised sound of that event when the packs are built (see

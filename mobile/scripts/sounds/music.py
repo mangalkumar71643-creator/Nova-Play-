@@ -4,8 +4,11 @@ Turns a music track into a seamless background loop for one game and updates the
 
   python3 -I mobile/scripts/sounds/music.py aviator /path/to/track.mp3 [--volume 0.4] [--xfade 2.0] [--lufs -20] [--kbps 80]
   python3 -I mobile/scripts/sounds/music.py chickenroad /path/to/loop.mp3 --as-is     (the track already loops: keep it whole)
+  python3 -I mobile/scripts/sounds/music.py sevenupdown /path/to/clip.mp3 --short --xfade 0.15     (a short clip, a few seconds)
 
 * (--as-is: the track is already a seamless loop made by its owner, so it is kept whole and only levelled and encoded.)
+* (--short: a clip of a few seconds that is not a loop. There is no loop end to look for: the clip is the loop, and its last --xfade seconds
+  are cross-faded into its first, so it comes round without a jump. The loop is --xfade seconds shorter than the clip.)
 * finds where the track's fade-in ends and its fade-out begins (or use --from / --to, in seconds),
 * picks the loop end where the music lines up best with the part just before the loop start (so the repeat has no jump),
   and cross-fades the last --xfade seconds into that earlier part,
@@ -112,7 +115,10 @@ def make_loop(y, a):
     s0 = a.start if a.start is not None else s0
     s1 = a.end if a.end is not None else s1
     start = s0 + a.xfade  # the loop starts after a pre-roll of xfade seconds
-    b, score = best_loop_end(m, start, s1, a.xfade, a.search)
+    if a.short:
+        b, score = s1, float("nan")  # the clip ends where it ends
+    else:
+        b, score = best_loop_end(m, start, s1, a.xfade, a.search)
     print(f"track {len(y) / SR:.1f}s, steady {s0:.1f}-{s1:.1f}s -> loop {start:.2f}-{b:.2f}s ({b - start:.1f}s), line-up {score:.2f}")
 
     X = int(a.xfade * SR)
@@ -140,6 +146,7 @@ def main():
     ap.add_argument("--to", dest="end", type=float)
     ap.add_argument("--search", type=float, default=6.0, help="seconds before the end to look for the best loop end")
     ap.add_argument("--as-is", action="store_true", help="the track is already a seamless loop: keep it whole, only level and encode it")
+    ap.add_argument("--short", action="store_true", help="a short clip that is not a loop: cross-fade its end into its start (no loop end is searched for)")
     a = ap.parse_args()
 
     y = decode(a.track)
