@@ -95,7 +95,6 @@ const SEVEN_BOX_W = ((W - BOARD_PAD * 2 - 12) * 26) / 96;
 function watermarkSize(text: string): number {
   return Math.min(BIG_H * 0.3, (SEVEN_BOX_W - 8) / (text.length * 0.72));
 }
-const CELL_W = (W - BOARD_PAD * 2) / 5;
 const CELL_H = W * 0.165;
 
 const CUP_W = Math.min(W * 0.58, 260);
@@ -1126,21 +1125,27 @@ export default function SevenUpDownScreen() {
             </View>
           ))}
         </View>
+        {/* Two rows of five, each cell a fifth of its row. (Cells given a computed width and left to wrap could come out a hair too wide for the
+            row on a phone, and the fifth of each row dropped to the next one: four to a row, three rows, and a gap at the right.) */}
         <View style={styles.grid}>
-          {NUMBER_CELLS.map((c) => (
-            <View key={c.area} style={styles.cellWrap}>
-              <BetBox
-                area={c.area}
-                label={String(c.n)}
-                multiplier={multipliers[c.area]}
-                colors={c.colors}
-                border="#FFD98A"
-                total={areaTotals[c.area] ?? 0}
-                state={areaState(c.area)}
-                big={false}
-                onPress={onAreaPress}
-                glow={glow}
-              />
+          {[NUMBER_CELLS.slice(0, 5), NUMBER_CELLS.slice(5)].map((row, r) => (
+            <View key={r} style={styles.gridRow}>
+              {row.map((c) => (
+                <View key={c.area} style={styles.cellWrap}>
+                  <BetBox
+                    area={c.area}
+                    label={String(c.n)}
+                    multiplier={multipliers[c.area]}
+                    colors={c.colors}
+                    border="#FFD98A"
+                    total={areaTotals[c.area] ?? 0}
+                    state={areaState(c.area)}
+                    big={false}
+                    onPress={onAreaPress}
+                    glow={glow}
+                  />
+                </View>
+              ))}
             </View>
           ))}
         </View>
@@ -1352,8 +1357,9 @@ const styles = StyleSheet.create({
   bigRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
   bigSide: { flex: 35, height: BIG_H },
   bigSeven: { flex: 26, height: BIG_H },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 6, overflow: 'hidden' },
-  cellWrap: { width: CELL_W, height: CELL_H, padding: 2 },
+  grid: { borderRadius: 6, overflow: 'hidden' },
+  gridRow: { flexDirection: 'row' },
+  cellWrap: { flex: 1, height: CELL_H, padding: 2 },
   boxOuter: { width: '100%', height: '100%' },
   bigOuter: {},
   cellOuter: {},
