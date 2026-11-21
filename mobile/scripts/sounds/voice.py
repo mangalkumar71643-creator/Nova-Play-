@@ -1,20 +1,24 @@
-"""Makes the voice calls of the table games ("Bet now" when betting opens, "Bet stop" when it closes) with Kokoro, an open-weight
-text-to-speech model (82 M parameters, Apache-2.0 licence, "trained exclusively on permissive / non-copyrighted audio data"), run
-offline through onnxruntime, and its female voice "af_bella".
+"""Makes the voice calls of the table games ("Please bet now" when betting opens, "Please bet stop" when it closes) with Kokoro, an
+open-weight text-to-speech model (82 M parameters, Apache-2.0 licence, "trained exclusively on permissive / non-copyrighted audio
+data"), run offline through onnxruntime, and its female voice "af_heart".
 (Model card: https://huggingface.co/hexgrad/Kokoro-82M, ONNX files: https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX)
 
     pip install onnxruntime soundfile scipy numpy
-    python3 mobile/scripts/sounds/voice.py [--model-dir DIR] [--voice af_bella]    # downloads the model (326 MB) into DIR the first time
+    python3 mobile/scripts/sounds/voice.py [--model-dir DIR] [--voice af_heart]    # downloads the model (326 MB) into DIR the first time
 
 writes supplied/ui/bet_now.flac and supplied/ui/bet_stop.flac; build.py then turns them into assets/sounds/ui/bet_now.mp3 and
 bet_stop.mp3 like the other interface sounds (src/sound/ui.ts plays them). The same settings always give the same words.
 
 The words are written as Kokoro's own phonemes (one character each, see tokenizer.json), not as text, so that nothing is guessed:
-"bˈɛt" (bet), "nˈW" (now: W is the sound of "ow"), "stˈɑp" (stop); ˈ puts the stress on the vowel, and "…" is a pause. The owner asked
-for them drawn out, "Bet... Now...": speed 0.72 (1.0 is normal) slows the words down and the "…" leaves a gap between them.
-Different voices and settings were tried and the finished clips checked with an offline speech recognizer (heard as "bet now" and
-"bet stop"): this voice at this speed was understood every time; the other voices and Piper's voices dropped the "b" of "bet"
-(heard as "that now", "let's stop").
+"plˈiz" (please), "bˈɛt" (bet), "nˈW" (now: W is the sound of "ow"), "stˈɑp" (stop); ˈ puts the stress on the vowel and ː draws a
+sound out. Speed 0.72 (1.0 is normal) gives the delivery the owner wanted: unhurried, with the last word drawn out, about 1.4 s.
+
+Why "Please bet now" and not "Bet now": a bare "Bet now" / "Bet stop" is misheard even by good voices (a speech recognizer heard
+"that now", "let's stop": the soft "b" of "bet" is lost at the start of a sound); with "Please" before it every voice tried was heard
+right ("please bet now", "please bet stop"). The owner's reference clip, another app's announcer saying "Please bet now" in about
+1.5 s with "now" drawn out, shows the same thing. That recording's voice was NOT copied (a recording of someone else's voice and of
+another company's product is not ours to clone); only its delivery was matched, with an ordinary voice from the open model that has
+about the same pitch (a clear female voice around 200-230 Hz). To try another voice: --voice af_bella, af_sarah, hf_alpha, bf_emma ...
 """
 import argparse
 import json
@@ -28,11 +32,11 @@ from scipy import signal
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "supplied", "ui")
 BASE = "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/"
-VOICE = "af_bella"
+VOICE = "af_heart"
 SPEED = 0.72
 
 # file name -> what is said, as Kokoro phonemes
-LINES = {"bet_now": "bˈɛt… nˈW…", "bet_stop": "bˈɛt… stˈɑp…"}
+LINES = {"bet_now": "plˈiz bˈɛt nˈWː", "bet_stop": "plˈiz bˈɛt stˈɑːp"}
 
 
 def fetch(model_dir, voice):
@@ -74,7 +78,7 @@ def shape(x, sr):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model-dir", default=os.path.join(os.path.expanduser("~"), ".cache", "novaplay-kokoro"))
-    ap.add_argument("--voice", default=VOICE, help="a Kokoro voice, e.g. af_bella, af_heart, am_adam, am_michael")
+    ap.add_argument("--voice", default=VOICE, help="a Kokoro voice, e.g. af_heart, af_bella, af_sarah, hf_alpha, bf_emma")
     args = ap.parse_args()
     model_dir = fetch(args.model_dir, args.voice)
     os.makedirs(OUT, exist_ok=True)
