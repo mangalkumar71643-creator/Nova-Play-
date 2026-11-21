@@ -24,7 +24,7 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'novaplay-art-'));
 function pieces(filters) {
   const found = [];
   for (const game of fs.readdirSync(__dirname, { withFileTypes: true }).filter((d) => d.isDirectory())) {
-    for (const file of fs.readdirSync(path.join(__dirname, game.name)).filter((f) => f.endsWith('.js'))) {
+    for (const file of fs.readdirSync(path.join(__dirname, game.name)).filter((f) => f.endsWith('.js') && !f.startsWith('_'))) {
       const id = `${game.name}/${file.replace(/\.js$/, '')}`;
       if (filters.length && !filters.some((f) => id === f || id.startsWith(f + '/'))) continue;
       found.push({ id, file: path.join(__dirname, game.name, file) });

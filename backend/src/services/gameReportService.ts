@@ -59,6 +59,7 @@ export const SOURCES: Source[] = [
   { key: "FruitMachine", name: "Fruit Machine", category: "Slots", table: "FruitMachineSpin", stake: "stake", paid: "payout" },
   { key: "FishermansCatch", name: "Fisherman's Catch", category: "Slots", table: "FishermanSpin", stake: "stake", paid: "payout" },
   { key: "BookOfPharaoh", name: "Book of Pharaoh", category: "Slots", table: "BookOfPharaohSpin", stake: "stake", paid: "payout" },
+  { key: "JaguarTemple", name: "Jaguar Temple", category: "Slots", table: "JaguarTempleSpin", stake: "cost", paid: "payout" },
   { key: "GatesOfZeus", name: "Gates of Zeus", category: "Slots", table: "ZeusSpin", stake: "stake", paid: "payout" },
   { key: "WolfMoon", name: "Wolf Moon", category: "Slots", table: "WolfMoonSpin", stake: "stake", paid: "payout" },
   // Card & Table

@@ -537,6 +537,22 @@ def redbutton(r):
     return d
 
 
+def jaguartemple(r):
+    """Jaguar Temple, a jungle-temple slot: stone slabs dropping on the reels, drums, a temple gong and marimba."""
+    marimba = lambda root, n: C.jingle(r, root, L.MAJOR_PENT, C.voice("mallet", d=0.55, tau=0.4), n, 0.075, "up", tail=0.45, rev=(0.55, 0.22))
+    d = {
+        "start": L.mix([(L.rumble(0.9, 100, r, 0.35) * 0.55, 0, 1.0), (L.whoosh(0.8, 300, 3000, r) * 0.3, 0.02, 1.0), (C.tom(r, 150, 0.25), 0, 0.5), (L.rattle(r, 0.6, 30, 1800, 0.5) * 0.5, 0.1, 0.8)]),
+        "tick": L.mix([(L.coin(r, 2900, 0.12, 0.05), 0, 0.9)]),
+        "land": L.mix([(L.thud(85, 0.2, r, 0.07), 0, 1.0), (L.click(r, 0.02, 1500, 4.0, 0.006) * 1.4, 0, 0.8), (L.bell(float(hz(84)), 0.35, 0.12) * 0.5, 0.01, 0.6)]),
+        "step": L.mix([(L.click(r, 0.02, 2100, 6.0, 0.004) * 2.0, 0, 1.0), (L.thud(220, 0.05, r, 0.02, 0.4), 0, 0.4)]),
+        "special": L.mix([(L.gong(98, 2.2) * 0.9, 0, 1.0), (C.tom(r, 90, 0.5), 0.05, 0.9), (C.tom(r, 90, 0.5), 0.4, 0.8), (marimba(62, 8), 0.5, 0.9), (L.coin_shower(r, 12, 0.9), 0.6, 0.5)]),
+        "win": L.mix([(marimba(67, 6), 0, 1.0), (L.coin_shower(r, 8, 0.6), 0.08, 0.5)]),
+        "bigwin": L.mix([(C.tom(r, 100, 0.5), 0, 0.9), (C.tom(r, 120, 0.4), 0.18, 0.8), (marimba(60, 9), 0.1, 1.0), (marimba(72, 8), 0.65, 0.8), (L.coin_shower(r, 26, 1.5), 0.15, 0.8), (L.gong(110, 2.0) * 0.8, 0.0, 0.7)]),
+        "lose": L.mix([(C.tom(r, 80, 0.4), 0, 0.8), (C.lose_sound(r, "slide", 240, 0.5, -11), 0.04, 0.7)]),
+    }
+    return d
+
+
 GAMES_B = {
     "sevenupdown": sevenupdown, "dragontiger": dragontiger, "andarbahar": andarbahar, "teenpatti": teenpatti,
     "jhandimunda": jhandimunda, "roulette": roulette, "baccarat": baccarat,
@@ -546,5 +562,5 @@ GAMES_B = {
     "bookofpharaoh": bookofpharaoh,
     "plinko": plinko, "dice": dice, "limbo": limbo, "keno": keno, "diamonds": diamonds, "blackjack": blackjack,
     "casinoholdem": casinoholdem, "threecardpoker": threecardpoker, "videopoker": videopoker, "slot": slot,
-    "aces": aces, "candyblast": candyblast, "gatesofzeus": gatesofzeus, "moneycoming": moneycoming, "neon777": neon777, "redbutton": redbutton,
+    "aces": aces, "candyblast": candyblast, "gatesofzeus": gatesofzeus, "moneycoming": moneycoming, "neon777": neon777, "redbutton": redbutton, "jaguartemple": jaguartemple,
 }

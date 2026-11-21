@@ -2651,6 +2651,79 @@ export function fetchRedButtonHistory(limit = 30) {
   return apiFetch<RedButtonPlay[]>(`/red-button/my-history?limit=${limit}`);
 }
 
+// ---- Jaguar Temple (3x3 jungle-temple slot: five lines, jaguar wilds with multipliers, free games with the Jaguar Spirit, buy bonus) ----
+export type JaguarSymbol = 'VASE' | 'DAGGER' | 'COIN' | 'RING' | 'HEAD' | 'CHEST' | 'WILD2' | 'WILD3' | 'WILD5' | 'SUN';
+export interface JaguarLineWin {
+  line: number;
+  symbol: JaguarSymbol | 'WILD';
+  /** The wilds' multipliers on the line, added up (1 without wilds). */
+  mult: number;
+  /** What the line pays, in stakes. */
+  pays: number;
+}
+export interface JaguarFreeGame {
+  stops: number[];
+  lines: JaguarLineWin[];
+  /** The lines' win in stakes, before the Jaguar Spirit. */
+  lineWin: number;
+  /** The Jaguar Spirit's multiplier on this free game. */
+  spirit: number;
+  win: number;
+}
+export interface JaguarOutcome {
+  stops: number[];
+  lines: JaguarLineWin[];
+  lineWin: number;
+  feature: boolean;
+  scatterWin: number;
+  bought: boolean;
+  freeGames: JaguarFreeGame[];
+  /** What the whole spin pays, in stakes. */
+  totalWin: number;
+}
+export interface JaguarSpinRow {
+  id: string;
+  stake: string;
+  cost: string;
+  bought: boolean;
+  totalWin: string;
+  payout: string;
+  freeGames: number;
+  serverSeedHash: string;
+  clientSeed: string;
+  nonce: number;
+  createdAt: string;
+}
+export interface JaguarConfig {
+  minStake: number;
+  maxStake: number;
+  maxPayout: number;
+  symbols: JaguarSymbol[];
+  strips: JaguarSymbol[][];
+  freeStrips: JaguarSymbol[][];
+  lines: number[][];
+  pays: Record<string, number>;
+  wildValues: Record<string, number>;
+  wildLinePay: number;
+  scatterPay: number;
+  freeGames: number;
+  spiritMax: number;
+  buyPrice: number;
+  hitRatePercent: number;
+  featureChanceOneIn: number;
+  rtpPercent: number;
+  buyRtpPercent: number;
+}
+export function fetchJaguarTempleConfig() {
+  return apiFetch<JaguarConfig>('/jaguar-temple/config');
+}
+export function spinJaguarTemple(stake: number, buy = false) {
+  return apiFetch<{ spin: JaguarSpinRow; outcome: JaguarOutcome }>('/jaguar-temple/spin', { method: 'POST', body: JSON.stringify({ stake, buy }) });
+}
+export function fetchJaguarTempleHistory(limit = 30) {
+  return apiFetch<JaguarSpinRow[]>(`/jaguar-temple/my-history?limit=${limit}`);
+}
+
 // ---- Blackjack ----
 
 export type BlackjackAction = 'hit' | 'stand' | 'double' | 'split' | 'insurance' | 'noInsurance';

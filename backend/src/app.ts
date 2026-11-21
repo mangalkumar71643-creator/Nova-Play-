@@ -74,6 +74,7 @@ import fruitMachineRoutes from "./routes/fruitMachine.routes";
 import fishermanRoutes from "./routes/fisherman.routes";
 import bookOfPharaohRoutes from "./routes/bookOfPharaoh.routes";
 import moneyComingRoutes from "./routes/moneyComing.routes";
+import jaguarTempleRoutes from "./routes/jaguarTemple.routes";
 import { closeOutRetiredGames } from "./services/retiredGamesCloseout";
 import { refreshSettingsIfStale } from "./services/settingsService";
 import { sweepRupayex } from "./services/rupayexService";
@@ -205,6 +206,7 @@ app.use("/fruit-machine", fruitMachineRoutes);
 app.use("/fishermans-catch", fishermanRoutes);
 app.use("/book-of-pharaoh", bookOfPharaohRoutes);
 app.use("/money-coming", moneyComingRoutes);
+app.use("/jaguar-temple", jaguarTempleRoutes);
 
 app.use(errorHandler);
 

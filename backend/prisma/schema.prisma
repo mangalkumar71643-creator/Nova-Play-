@@ -294,6 +294,7 @@ model User {
   Neon777Spin        Neon777Spin[]
   MoneyComingSpin    MoneyComingSpin[]
   RedButtonPlay      RedButtonPlay[]
+  JaguarTempleSpin   JaguarTempleSpin[]
   GiftCodeRedemption GiftCodeRedemption[]
   VipBonusClaim      VipBonusClaim[]
 
@@ -1652,6 +1653,29 @@ model BookOfPharaohSpin {
   freeSpins      Int
   /// The free spins' expanding special symbol, if they started.
   special        String?
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model JaguarTempleSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  /// The bet the win is counted in.
+  stake          Decimal  @db.Decimal(12, 2)
+  /// What the spin took from the wallet: the stake, or stake x the bonus price when the bonus was bought.
+  cost           Decimal  @db.Decimal(14, 2)
+  bought         Boolean
+  /// Whole spin's win in stakes (free games included), before the payout cap.
+  totalWin       Decimal  @db.Decimal(12, 4)
+  payout         Decimal  @db.Decimal(12, 2)
+  /// Free games played (0 when the sun stones didn't start them).
+  freeGames      Int
   serverSeed     String
   serverSeedHash String
   clientSeed     String

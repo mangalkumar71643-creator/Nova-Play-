@@ -236,6 +236,16 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     bigwin: require('../../assets/sounds/games/hilo/bigwin.mp3'),
     lose: require('../../assets/sounds/games/hilo/lose.mp3'),
   },
+  jaguartemple: {
+    start: require('../../assets/sounds/games/jaguartemple/start.mp3'),
+    step: require('../../assets/sounds/games/jaguartemple/step.mp3'),
+    tick: require('../../assets/sounds/games/jaguartemple/tick.mp3'),
+    land: require('../../assets/sounds/games/jaguartemple/land.mp3'),
+    special: require('../../assets/sounds/games/jaguartemple/special.mp3'),
+    win: require('../../assets/sounds/games/jaguartemple/win.mp3'),
+    bigwin: require('../../assets/sounds/games/jaguartemple/bigwin.mp3'),
+    lose: require('../../assets/sounds/games/jaguartemple/lose.mp3'),
+  },
   jhandimunda: {
     tick: require('../../assets/sounds/games/jhandimunda/tick.mp3'),
     land: require('../../assets/sounds/games/jhandimunda/land.mp3'),
