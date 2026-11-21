@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
+import { assertAppAtLeast } from "./leastPayout";
 
 export type VortexElement = "WATER" | "EARTH" | "FIRE";
 export type VortexSymbol = VortexElement | "WIND" | "SKULL";
@@ -15,12 +16,16 @@ export type VortexSymbol = VortexElement | "WIND" | "SKULL";
  * spin lands one symbol —
  *   Water / Earth / Fire  fills the next section of its ring;
  *   Wind                  does nothing (the next spin is free as well);
- *   Skull                 takes one section off every ring.
+ *   Skull                 takes everything off the board: the round is lost (CRASH).
  * A ring is worth its last filled section's multiplier x the bet. CASH OUT
  * pays all three rings and ends the round; PART PAYOUT pays, for each ring
  * with two or more sections, the step between its last two sections and
- * moves that ring back one (the round goes on). The round is lost (CRASH)
- * when a Skull leaves the board empty, a Skull on the first spin included.
+ * moves that ring back one (the round goes on). One Skull ends the round,
+ * however much is on the board and on the first spin too; what was already
+ * paid (part payouts, the bonus of a full ring) stays the player's. Until app
+ * 1.0.106 a Skull took only one section off every ring and the round went
+ * on unless the board was left empty; spins from those apps are turned away
+ * (VORTEX_SKULL_MIN_APP).
  *
  * `ladder` is what each section is worth. A hit on a full ring pays its
  * `bonus` x the bet at once and the ring stays full; a hit on the full Fire
@@ -41,6 +46,8 @@ const WIND_CHANCE = 0.3;
 /** A round is cashed out by itself after this many spins (it also keeps
  * each round's spins inside its own `nonce * 1000 + spin` slice). */
 export const MAX_SPINS = 1000;
+/** First app version whose rules text says a Skull takes everything off the board. */
+export const VORTEX_SKULL_MIN_APP = [1, 0, 107];
 
 /** Codes kept in `segments`, one per thing that happened in the round. */
 const EVENT_CODE: Record<VortexSymbol | "PART_PAYOUT", number> = { WATER: 0, EARTH: 1, FIRE: 2, WIND: 3, SKULL: 4, PART_PAYOUT: 5 };
@@ -84,13 +91,14 @@ function gainOnHit(element: VortexElement, level: number): number {
   return element === "FIRE" ? FIRE_PREMIUMS.reduce((a, b) => a + b, 0) / FIRE_PREMIUMS.length : bonus;
 }
 
-function lossOnSkull(element: VortexElement, level: number): number {
+/** The step between a ring's last two sections (what PART PAYOUT pays for it); a ring's first section is a step from nothing. */
+function stepDown(element: VortexElement, level: number): number {
   return level > 0 ? ringValue(element, level) - ringValue(element, level - 1) : 0;
 }
 
-/** What a Skull takes off this board (each ring's last step), as a multiple of the bet. */
+/** What a Skull takes off this board: all of it, as a multiple of the bet. */
 function skullLoss(fill: Fill): number {
-  return ELEMENT_ORDER.reduce((sum, el) => sum + lossOnSkull(el, fill[FILL_KEY[el]]), 0);
+  return boardMultiplier(fill);
 }
 
 export type Chances = Record<VortexSymbol, number>;
@@ -107,8 +115,8 @@ export type Chances = Record<VortexSymbol, number>;
  *   That is set to rtp.
  * - Once something is on the board, every free spin is a fair one: what the
  *   elements add (a ring's next section, or a full ring's bonus) on average
- *   equals what a Skull takes off on average —
- *       sum(element chance x gain) = Skull chance x skullLoss(board).
+ *   equals what a Skull takes off on average, which is the whole board —
+ *       sum(element chance x gain) = Skull chance x boardMultiplier(board).
  *
  * So the board is always worth, on average, exactly what it shows: cashing
  * out, part payouts, stopping or going on — no way of playing returns more
@@ -156,7 +164,7 @@ export function applySymbol(fill: Fill, symbol: VortexSymbol, premiumRoll: numbe
   const next = { ...fill };
   if (symbol === "WIND") return { fill: next, instant: 0, premium: null };
   if (symbol === "SKULL") {
-    for (const el of ELEMENT_ORDER) next[FILL_KEY[el]] = Math.max(0, next[FILL_KEY[el]] - 1);
+    for (const el of ELEMENT_ORDER) next[FILL_KEY[el]] = 0;
     return { fill: next, instant: 0, premium: null };
   }
   const key = FILL_KEY[symbol];
@@ -179,7 +187,7 @@ export function partPayout(fill: Fill): { fill: Fill; multiplier: number } | nul
   for (const el of ELEMENT_ORDER) {
     const key = FILL_KEY[el];
     if (next[key] >= 2) {
-      multiplier += lossOnSkull(el, next[key]);
+      multiplier += stepDown(el, next[key]);
       next[key] -= 1;
     }
   }
@@ -293,7 +301,9 @@ function spinRoll(round: Pick<VortexRoundRow, "serverSeed" | "clientSeed" | "non
  * the Fire bonus leaves it empty (BONUS), at the payout limit, or after
  * MAX_SPINS (the last two pay what is on the board).
  */
-export async function spinVortex(userId: string, stake: number) {
+export async function spinVortex(userId: string, stake: number, appVersion?: string) {
+  // The rules text of older apps says a Skull takes one section off every ring.
+  assertAppAtLeast(appVersion, VORTEX_SKULL_MIN_APP);
   if (Math.abs(stake * 100 - Math.round(stake * 100)) > 1e-6) throw new ApiError(400, "Bet can have at most two decimal places.");
   await assertCanTransact(userId);
   // A new round needs the player's next nonce, which is taken outside the transaction.

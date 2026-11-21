@@ -49,7 +49,7 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { stake } = spinSchema.parse(req.body);
-    res.json(await spinVortex(req.user!.userId, stake));
+    res.json(await spinVortex(req.user!.userId, stake, req.header("X-App-Version")));
   })
 );
 

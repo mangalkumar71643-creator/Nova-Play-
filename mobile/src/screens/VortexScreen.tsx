@@ -627,8 +627,8 @@ export default function VortexScreen() {
       if (symbol === 'WIND') {
         await wait(quick ? 0 : 60);
       } else if (symbol === 'SKULL') {
-        // Every ring loses the section it stood on.
-        const lost = ELEMENTS.filter((el) => res.before[FILL_KEY[el]] > 0).map((el) => ({ element: el, index: res.before[FILL_KEY[el]] - 1 }));
+        // Everything on the board is lost: every filled section flashes, and the round is over.
+        const lost = filledSections(cfg, res.before);
         glowNow(DANGER);
         shakeNow();
         flashNow(lost, DANGER, 800);
@@ -679,7 +679,14 @@ export default function VortexScreen() {
         // Auto plays out one round: it stops once the round is over.
         putAuto(false);
         if (res.round.endReason === 'CRASH') {
-          setWin({ loss: true, title: 'CRASHED', headline: 'Round over', amount: 0, note: `Next spin takes a new ${money(Number(res.round.stake))} bet` });
+          const lostValue = round2(Number(res.round.stake) * boardMultiplier(cfg, res.before));
+          setWin({
+            loss: true,
+            title: 'CRASHED',
+            headline: lostValue > 0 ? `${money(lostValue)} lost` : 'Round over',
+            amount: 0,
+            note: `A Skull takes everything on the board. Next spin takes a new ${money(Number(res.round.stake))} bet`,
+          });
         }
       }
       putShown(next);
@@ -897,6 +904,11 @@ export default function VortexScreen() {
           <Text style={styles.balanceText} numberOfLines={1} testID="vortex-balance">
             {money(balance)}
           </Text>
+          {!!round && Number(round.payout) > 0 && (
+            <Text style={styles.paidText} numberOfLines={1} testID="vortex-paid">
+              paid {money(Number(round.payout))}
+            </Text>
+          )}
         </View>
         <View style={styles.switches}>
           <Pressable onPress={withTapSound(() => setSheet('rules'))} hitSlop={8} accessibilityRole="button" accessibilityLabel="How to play">
@@ -1135,9 +1147,9 @@ const Rules = memo(function Rules({ config, chances, inRound, seedHash }: { conf
   const maxPremium = Math.max(...config.firePremiums);
   const lines = [
     'Choose your bet and tap the purple button. The bet is taken only on the first spin of a round — every spin after it is FREE until the round ends.',
-    'Each spin lands one symbol in the middle. Water, Earth and Fire fill the next section of their own ring. Wind changes nothing. A Skull takes one section off every ring.',
+    'Each spin lands one symbol in the middle. Water, Earth and Fire fill the next section of their own ring. Wind changes nothing. A Skull takes EVERYTHING off the board.',
     'A ring is worth the number on its last filled section × your bet. CASH OUT pays all three rings together and ends the round; the next spin starts a new round and takes a new bet.',
-    'If a Skull leaves the board empty (a Skull on the first spin too), the round CRASHES: what was on the board is lost and the next spin takes a new bet.',
+    'One Skull is enough to CRASH the round, however much is on the board (a Skull on the first spin too): everything on the board is lost, and the next spin takes a new bet. What you were already paid in the round (part payouts and the bonus of a full ring) stays yours.',
     'PART PAYOUT needs two or more sections on a ring. It pays the step between the last two sections of each such ring and moves it back one section — the round and its free spins go on.',
     `Land Water on a full Water ring and +${water?.bonus ?? 7}x is paid at once; Earth on a full Earth ring pays +${earth?.bonus ?? 20.5}x. The ring stays full.`,
     `Land Fire on a full Fire ring for the BONUS: x${top(fire)} plus ${config.firePremiums.map((p) => `x${p}`).join(', ')} — up to x${top(fire) + maxPremium}. The Fire ring then starts again (if nothing else is on the board, the round ends there).`,
@@ -1164,7 +1176,7 @@ const Rules = memo(function Rules({ config, chances, inRound, seedHash }: { conf
       </View>
       <View style={styles.ringRow}>
         <SymbolOrb symbol="SKULL" size={26} />
-        <Text style={styles.ringInfo}>Skull — every ring goes back one section; an empty board means CRASH</Text>
+        <Text style={styles.ringInfo}>Skull — takes everything off the board: the round CRASHES</Text>
       </View>
       <Text style={styles.sheetSection}>CHANCES OF THE NEXT SPIN</Text>
       <Text style={styles.ruleText}>
@@ -1212,6 +1224,7 @@ const styles = StyleSheet.create({
   info: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
   balance: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
   balanceText: { fontFamily: fonts.extra, fontSize: 17, color: '#FFFFFF' },
+  paidText: { fontFamily: fonts.semi, fontSize: 12, color: '#7BE0A0', flexShrink: 1 },
   switches: { flexDirection: 'row', alignItems: 'center', gap: 16 },
 
   boardArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
