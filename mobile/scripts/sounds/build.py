@@ -54,7 +54,7 @@ UI_LEVEL_BY_WHOLE = {"chip_bet"}
 UI_BRING_UP_FIRST = {"tap"}
 # Interface sounds made louder than the rest after levelling (the table games' voice calls, "Bet now" and "Bet stop", have to be heard
 # over the game's music and the dice; speech has a lower peak than a click at the same loudness).
-UI_GAIN = {"bet_now": 1.5, "bet_stop": 1.5}
+UI_GAIN = {"bet_now": 1.25, "bet_stop": 1.25}
 
 ALL = {**games_a.GAMES_A, **games_b.GAMES_B}
 
