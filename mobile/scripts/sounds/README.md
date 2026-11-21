@@ -67,6 +67,11 @@ of a timed round: Win Go, K3, 5D and Trx Win play it from 5.1 s before the round
 last ones share Win Go's file through `SUPPLIED_SHARED` in `build.py`), for everyone watching, and if a player joins late it starts from the
 part that is still to come.
 
+A supplied sound that is shorter than the thing it goes with is repeated, each repeat cross-faded into the one before, until it covers the time
+(`SUPPLIED_COVER` in `build.py`: Seven Up Down's dice roll lasts 2 s, from betting closing to the result). A table game's reveal sound is
+normally heard only by players who have bets; `revealForAll` in `src/sound/games.ts` makes it heard by everyone watching (Seven Up Down:
+everybody sees the dice roll).
+
 ## Interface sounds
 
 Sounds of the interface itself (not of a game) live in `supplied/ui/<name>.<ext>`; `build.py` trims and levels them like the games' sounds

@@ -32,6 +32,8 @@ export interface GameDef {
   /** instant: ms after the press when the reels / dice / balls settle, and when the result is shown. */
   landAt?: number;
   resultAt?: number;
+  /** table: the reveal sound (a dice roll everyone sees) is played for everyone watching, not only for a player who has bets. */
+  revealForAll?: boolean;
   /** lottery: how long before the end of a round its 'countdown' sound starts (the sound's last ding falls on the end). */
   countdownMs?: number;
   /** screen: where the screen's generic cues land in the pack. Defaults: tick→tick, land→land, win→win. */
@@ -55,7 +57,7 @@ const instant = (key: string, route: string, path: string, play: string, landAt:
   landAt,
   resultAt,
 });
-const table = (key: string, route: string, path: string): GameDef => ({ key, route, path, kind: 'table' });
+const table = (key: string, route: string, path: string, revealForAll?: boolean): GameDef => ({ key, route, path, kind: 'table', revealForAll });
 const lottery = (key: string, route: string, path: string, countdownMs?: number): GameDef => ({ key, route, path, kind: 'lottery', countdownMs });
 const screen = (key: string, route: string, path: string, cues?: GameDef['cues']): GameDef => ({ key, route, path, kind: 'screen', cues });
 
@@ -87,7 +89,7 @@ export const GAMES: GameDef[] = [
   instant('fishermanscatch', 'FishermansCatch', '/fishermans-catch', '/spin', 1500),
   instant('bookofpharaoh', 'BookOfPharaoh', '/book-of-pharaoh', '/spin', 1500),
 
-  table('sevenupdown', 'SevenUpDown', '/seven-up-down'),
+  table('sevenupdown', 'SevenUpDown', '/seven-up-down', true),
   table('dragontiger', 'DragonTiger', '/dragon-tiger'),
   table('andarbahar', 'AndarBahar', '/andar-bahar'),
   table('teenpatti', 'TeenPatti', '/teen-patti'),

@@ -314,7 +314,7 @@ function scheduleRound(def: GameDef, s: GameState, view: Json) {
     }
   }
   schedule(def, s, `${period}:reveal`, end, () => {
-    if (!hasBets()) return;
+    if (!hasBets() && !def.revealForAll) return;
     s.sawReveal = true;
     playFor(g, 'reveal');
   });

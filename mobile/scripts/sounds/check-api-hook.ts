@@ -241,6 +241,11 @@ post('/seven-up-down/bet', { periodNumber: 's1', bets: [{ id: 'z1', area: 'N7', 
 post('/seven-up-down/cancel', { cancelled: ['z1'], refund: 10 });
 get('/seven-up-down/my-round', { periodNumber: 's1', bets: [{ id: 'z1', amount: '10', status: 'VOID', payout: '10' }] });
 check('table: a cancelled bet is silent', calls, []);
+// Seven Up Down's dice roll is something everyone watching sees, so everyone hears it, bet or not (the countdown beats stay for the players who have bets).
+fresh('sevenupdown');
+get('/seven-up-down/current', { periodNumber: 's7', phase: 'BETTING', serverTime: iso(0), betEndTime: iso(8000), resultTime: iso(10000), endTime: iso(15000) });
+drain();
+check("table: Seven Up Down's dice roll and landing are heard by everyone watching, with no bet", calls, ['8000 sevenupdown.reveal', '10000 sevenupdown.land']);
 
 // ------------------------------------------------------------ lotteries
 fresh('wingo');

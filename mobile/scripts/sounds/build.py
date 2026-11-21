@@ -36,6 +36,9 @@ AUDIO_EXT = (".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac")
 # A supplied sound that more than one game plays: (the folder it is kept in, the event) -> the other games that use it too.
 # (The owner asked for Win Go's last-5-seconds countdown in K3, 5D and Trx Win as well.)
 SUPPLIED_SHARED = {("wingo", "countdown"): ["k3", "fived", "trxwin"]}
+# A supplied sound that is shorter than what it goes with is repeated, each repeat cross-faded into the one before, until it covers this
+# many seconds: (game, event) -> seconds. (Seven Up Down's dice roll for 2 s, from betting closing to the result; the owner's rattle is 1.1 s.)
+SUPPLIED_COVER = {("sevenupdown", "reveal"): 2.0}
 OUT = os.path.join(ROOT, "assets", "sounds", "games")
 PACKS_TS = os.path.join(ROOT, "src", "sound", "packs.ts")
 
@@ -175,6 +178,18 @@ def fingerprint(x):
     return (B / (n + 1e-9)).ravel()
 
 
+def cover_seconds(x, seconds, xfade=0.12):
+    """x repeated, each repeat cross-faded (equal power) into the one before, until it covers `seconds`; cut to exactly that."""
+    n, X = L.N(seconds), L.N(xfade)
+    if len(x) >= n:
+        return x[:n]
+    t = np.linspace(0, np.pi / 2, X).astype(np.float32)
+    out = x.copy()
+    while len(out) < n:
+        out = np.concatenate([out[:-X], out[-X:] * np.cos(t) + x[:X] * np.sin(t), x[X:]])
+    return out[:n]
+
+
 def supplied_files(game):
     """event -> file of the sounds the owner supplied for this game (its own folder, plus the ones it shares)."""
     out = {}
@@ -204,6 +219,8 @@ def render_game(args):
     for ev, path in supplied_files(game).items():
         # Decoded by ffmpeg only (it is untrusted input), then levelled like every other sound.
         raw[ev] = L.load_sample(path, gain_norm=False)
+        if (game, ev) in SUPPLIED_COVER:
+            raw[ev] = cover_seconds(raw[ev], SUPPLIED_COVER[(game, ev)])
         supplied.add(ev)
     files, info = {}, {}
     for ev, arr in raw.items():
