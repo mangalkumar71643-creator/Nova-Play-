@@ -1,4 +1,4 @@
-"""Makes the voice calls of the table games ("Please bet now" when betting opens, "Bet locked" when it closes) with Kokoro, an
+"""Makes the voice calls of the table games ("Bet now" when betting opens, "Bet locked" when it closes) with Kokoro, an
 open-weight text-to-speech model (82 M parameters, Apache-2.0 licence, "trained exclusively on permissive / non-copyrighted audio
 data"), run offline through onnxruntime, in a soft female voice: its "af_bella" with a little of "af_sky" (90 % / 10 %).
 (Model card: https://huggingface.co/hexgrad/Kokoro-82M, ONNX files: https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX)
@@ -10,31 +10,32 @@ writes supplied/ui/bet_now.flac and supplied/ui/bet_stop.flac; build.py then tur
 bet_stop.mp3 like the other interface sounds (src/sound/ui.ts plays them). The same settings always give the same words.
 
 The words are written as Kokoro's own phonemes (one character each, see tokenizer.json), not as text, so that nothing is guessed:
-"plˈiz" (please), "bˈɛt" (bet), "nˈW" (now: W is the sound of "ow"), "lˈɑkt" (locked); ˈ puts the stress on the vowel, ː draws a
-sound out and "," is a short pause.
+"bˈɛt" (bet), "nˈW" (now: W is the sound of "ow"), "lˈɑkt" (locked); ˈ puts the stress on the vowel, ː draws a sound out and ","
+is a short pause. ("plˈiz" is "please": the opening call was "Please bet now" until 2026-11-22.)
 
 What the owner asked for, and how each part is done:
-  * "Bet locked", not "Please bet locked": the closing call has no "Please".
-  * slower and longer: speech at speed 0.60 (the first version, 1.0.113, was 0.72; 1.0 is normal speech) and the pauses between the
-    words drawn out (`widen`): "Please... bet... now" is 1.9 s and "Bet... locked" 1.9 s (they were 1.4 s and 1.5 s). The speed
-    cannot simply be lowered further: below about 0.58 the model blurs the soft "b" that opens "Bet" (a speech recognizer then hears
-    "that locked"), and stretching the finished sound does the same, so the extra length is added as pause.
+  * "Bet now" and "Bet locked", no "Please" in either (the first versions said "Please bet now" and "Please bet stop").
+  * slower and longer: speech at speed 0.60 (the first version, 1.0.113, was 0.72; 1.0 is normal speech) and the pause between the
+    words drawn out (`widen`): "Bet... now" is 1.6 s and "Bet... locked" 1.9 s (as "Please bet now" / "Please bet stop" they were 1.4 s
+    and 1.5 s). The speed cannot simply be lowered further: below about 0.58 the model blurs the soft "b" that opens "Bet" (a speech
+    recognizer then hears "that locked"), and stretching the finished sound does the same, so the extra length is added as pause.
   * softer, "with love": a soft, clear female voice of the model, a little warmth added around 220 Hz, a gentler lift of the consonants
     (3 kHz) than before and the sharp top (above 6.5 kHz) rounded off. More of the very soft voice "af_sky" (a 60/40 mix was tried)
     makes it softer still, but the opening "b" then turns into a thump that a recognizer hears as "ooh bet locked"; a mix is made by
     averaging the voices' style vectors, which is how Kokoro's voices are meant to be combined.
   * checked the way the app plays it: the finished interface sounds (levelled, louder by UI_GAIN, mp3) were run through three speech
-    recognizers (Whisper tiny.en, base.en, small.en), all of which hear "please bet now" and "bet locked" at speeds 0.58 and 0.60.
+    recognizers (Whisper tiny.en, base.en, small.en), all of which hear "bet now" and "bet locked".
 
-Why "Please bet now" and not "Bet now": a bare "Bet now" is misheard even by good voices (a speech recognizer heard "that now": the
-soft "b" at the start of a sound is lost); with "Please" in front every voice tried was heard right. The closing call is the only
-one without it, because the owner wants exactly "Bet locked"; in this voice at this speed the recognizers hear it right too, but
-it is the more fragile of the two (0.62 and a softer voice already fail), so any change of voice, speed or words has to be checked
-again as described above.
+Why "Bet now" is written "bˈɛːːt nˈWː" with a long vowel: spoken plainly ("bˈɛt nˈWː") it is heard as "but now" by most recognizers at
+every speed tried (the soft "b" and the short vowel of "bet" come too close to "but"; with "Please" in front of it, as in the first
+versions, every voice was heard right). With the vowel of "bet" drawn out all three recognizers hear "bet now" at speeds 0.58, 0.60 and
+0.62, and with the pause before "now" drawn out by 0.35-0.45 s at 0.60 (0.55 s already fails); the call uses 0.60 and 0.40 s. "Bet
+locked" is just as fragile (0.62 and a softer voice already fail). Any change of voice, speed, words or pause has to be checked again
+as described above.
 
 The owner's reference clip (another app's announcer saying "Please bet now" in about 1.5 s) was NOT copied: a recording of someone
-else's voice and of another company's product is not ours to clone. Only the way it is delivered (unhurried, "now" drawn out) was
-matched, with an ordinary voice of the open model. To try another voice: --voice af_heart, af_sarah, hf_alpha, bf_emma ... or a mix
+else's voice and of another company's product is not ours to clone. Only the way it is delivered (unhurried, the last word drawn out)
+was matched, with an ordinary voice of the open model. To try another voice: --voice af_heart, af_sarah, hf_alpha, bf_emma ... or a mix
 such as af_bella:0.5,af_heart:0.5.
 """
 import argparse
@@ -53,7 +54,7 @@ VOICE = "af_bella:0.9,af_sky:0.1"  # voice:weight[,voice:weight ...]
 
 # file name -> (what is said, as Kokoro phonemes; speed of speech, 1.0 = normal; seconds added to the last pauses before the final word)
 LINES = {
-    "bet_now": ("plˈiz bˈɛt nˈWː", 0.60, (0.12, 0.18)),  # "Please... bet... now"
+    "bet_now": ("bˈɛːːt nˈWː", 0.60, (0.40,)),  # "Bet... now" (no "Please": the owner wants exactly "Bet now"; the long vowel keeps "bet" from being heard as "but")
     "bet_stop": ("bˈɛt, lˈɑkt", 0.60, (0.25,)),  # "Bet... locked" (no "Please": the owner wants exactly "Bet locked")
 }
 

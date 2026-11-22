@@ -431,7 +431,7 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
   // The result-rule card opens by itself once for a player; the "?" button of the game's top bar opens it again whenever they want.
   check('ui: every game with the result-rule card has its "?" button', files.filter((f) => /<ResultRuleNotice\b/.test(read(f)) && !/<ResultRuleButton\b/.test(read(f))).map(rel), []);
   check("ui: Win Go's bet sheet has the Result rule button", [/accessibilityLabel="Result rule"/.test(read(path.join(APP, 'screens', 'WinGoScreen.tsx')))], [true]);
-  // The voice calls of the table games: "Please bet now" when betting opens and "Bet locked" when it closes, spoken together with the
+  // The voice calls of the table games: "Bet now" when betting opens and "Bet locked" when it closes, spoken together with the
   // games' start / close-of-betting banners (the owner asked for them in Seven Up Down, then for every game that shows such a banner).
   {
     const uiSource = read(path.join(APP, 'sound/ui.ts'));
@@ -452,7 +452,7 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
       if (!new RegExp(`showBanner\\(${stop}\\);[\\s\\S]{0,260}?betCalls\\.close\\(`).test(src)) missing.push(`${name}: the close banner has no betCalls.close`);
       if (!/const betCalls = useBetCalls\(\)/.test(src)) missing.push(`${name}: no useBetCalls()`);
     }
-    check(`ui: the ${BANNER_GAMES.length} table games with a start / close-of-betting banner speak "Please bet now" / "Bet locked" with it`, missing, []);
+    check(`ui: the ${BANNER_GAMES.length} table games with a start / close-of-betting banner speak "Bet now" / "Bet locked" with it`, missing, []);
     const listed = new Set(BANNER_GAMES.map(([name]) => `${name}.tsx`));
     check(
       'ui: no other game shows a start / close-of-betting banner without the voice calls',

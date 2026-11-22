@@ -726,7 +726,7 @@ export default function RouletteScreen() {
   const keyRef = useRef(1);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
-  /** The spoken "Please bet now" / "Bet locked" that go with the banners, once for each round. */
+  /** The spoken "Bet now" / "Bet locked" that go with the banners, once for each round. */
   const betCalls = useBetCalls();
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const winTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

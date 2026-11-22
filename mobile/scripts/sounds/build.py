@@ -52,7 +52,7 @@ UI_LEVEL_BY_WHOLE = {"chip_bet"}
 # Interface sounds that are brought up to a normal level before the silence around them is trimmed (the file is very quiet, and its
 # faint ring would be taken for silence otherwise). The popup sound is not in it: it was accepted as it was made.
 UI_BRING_UP_FIRST = {"tap"}
-# Interface sounds made louder than the rest after levelling (the table games' voice calls, "Please bet now" and "Bet locked", have to be heard
+# Interface sounds made louder than the rest after levelling (the table games' voice calls, "Bet now" and "Bet locked", have to be heard
 # over the game's music and the dice; speech has a lower peak than a click at the same loudness).
 UI_GAIN = {"bet_now": 1.25, "bet_stop": 1.25}
 

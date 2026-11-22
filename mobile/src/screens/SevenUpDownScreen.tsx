@@ -545,7 +545,7 @@ export default function SevenUpDownScreen() {
   const mountedRef = useRef(true);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** The spoken "Please bet now" / "Bet locked" that go with the banners, once for each round. */
+  /** The spoken "Bet now" / "Bet locked" that go with the banners, once for each round. */
   const betCalls = useBetCalls();
 
   const bannerAnim = useRef(new Animated.Value(0)).current;
