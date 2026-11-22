@@ -438,7 +438,7 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
     const hookSource = read(path.join(APP, 'sound/useBetCalls.ts'));
     // game screen, the arguments of its start banner and of its close banner
     const BANNER_GAMES: [string, string, string][] = [
-      ['SevenUpDownScreen', "'Start Betting', true", "'Bet Locked', false"],
+      ['SevenUpDownScreen', "'Bet Now', true", "'Bet Locked', false"],
       ['DragonTigerScreen', "'Start Betting', true", "'Stop Betting', false"],
       ['AndarBaharScreen', "'Start Betting', true", "'Stop Betting', false"],
       ['TeenPattiScreen', "'Start Betting', true", "'Stop Betting', false"],

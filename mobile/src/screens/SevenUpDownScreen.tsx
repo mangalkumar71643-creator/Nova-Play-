@@ -3,7 +3,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Dimensions, Easing, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import Svg, {
   Circle,
@@ -37,9 +37,9 @@ import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
 import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
 import { useBetCalls } from '../sound/useBetCalls';
+import { fonts } from '../theme';
 
 const W = Dimensions.get('window').width;
-const H = Dimensions.get('window').height;
 const BOARD_PAD = 8;
 
 const CHIP_VALUES = [1, 5, 10, 50, 100, 500];
@@ -118,8 +118,22 @@ const ORBIT_STEPS = Array.from({ length: 13 }, (_, i) => i / 12);
 
 const HISTORY_COLUMNS = 14;
 const WIN_CARD_MS = 3000;
-/** How long the "Start Betting" / "Bet Locked" banner stays (before it sweeps out): about as long as the spoken call, 1.9 s, with its sweep in and out. */
-const BANNER_MS = 1700;
+/** How long the "Bet Now" / "Bet Locked" banner stays (before it leaves): with its 0.36 s in and 0.26 s out about as long as the spoken calls (1.6 s and 1.9 s). */
+const BANNER_MS = 1300;
+/**
+ * The "Bet Now" / "Bet Locked" banner is a slim dark band across the screen with a thin gold line on each edge and gold text, laid over the
+ * top of the three big bet areas. Sizes as a share of the screen's width, measured on the reference the owner showed (a 1280 px wide
+ * screenshot: band 152 px high = 11.9 %, text 588 px wide = 45.9 %, gold lines 6-8 px); BANNER_AT is where the middle of the band is
+ * on the big areas (0 = their top edge, 1 = their bottom edge).
+ */
+const BANNER_H = Math.round(W * 0.119);
+const BANNER_LINE = Math.max(2, Math.round(W * 0.0065));
+const BANNER_FONT = W * 0.082;
+const BANNER_AT = 0.4;
+const BOARD_PAD_TOP = 8;
+/** The banner's text: the app's ExtraBold on the web; on the phone SVG text takes the system's black weight (as in the Win Go balls). */
+const BANNER_FONT_FAMILY = Platform.OS === 'web' ? fonts.extra : undefined;
+const BANNER_FONT_WEIGHT = Platform.OS === 'web' ? undefined : '900';
 const TOAST_MS = 1600;
 
 function areaWins(area: SevenUpDownArea, total: number): boolean {
@@ -530,6 +544,8 @@ export default function SevenUpDownScreen() {
   const [win, setWin] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [banner, setBanner] = useState<{ text: string; start: boolean } | null>(null);
+  /** Where the board begins on the screen (the banner lies over its big areas). */
+  const [boardTop, setBoardTop] = useState<number | null>(null);
   const [rollFaces, setRollFaces] = useState<[number, number]>([3, 5]);
   const [, setPhaseTick] = useState(0);
 
@@ -568,15 +584,15 @@ export default function SevenUpDownScreen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  /** The sweeping banner of the start (blue "Start Betting") and the end (red "Bet Locked") of betting, drawn like Dragon Tiger's. */
+  /** The banner of the start ("Bet Now") and the end ("Bet Locked") of betting: it opens over the big bet areas, shows its text, and closes. */
   const showBanner = useCallback(
     (text: string, start: boolean) => {
       setBanner({ text, start });
       bannerAnim.setValue(0);
-      Animated.timing(bannerAnim, { toValue: 1, duration: 420, easing: Easing.out(Easing.back(1.4)), useNativeDriver: true }).start();
+      Animated.timing(bannerAnim, { toValue: 1, duration: 360, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
       if (bannerTimer.current) clearTimeout(bannerTimer.current);
       bannerTimer.current = setTimeout(() => {
-        Animated.timing(bannerAnim, { toValue: 2, duration: 320, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(
+        Animated.timing(bannerAnim, { toValue: 2, duration: 260, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(
           () => mountedRef.current && setBanner(null)
         );
       }, BANNER_MS);
@@ -667,8 +683,8 @@ export default function SevenUpDownScreen() {
       if (placed.length > 0) lastRoundRef.current = placed.map((c) => ({ area: c.area, amount: c.amount }));
       setChips([]);
       idMapRef.current.clear();
-      // Betting opens on a new round: the blue banner and the voice say so.
-      showBanner('Start Betting', true);
+      // Betting opens on a new round: the banner and the voice say so.
+      showBanner('Bet Now', true);
       betCalls.open(view.periodNumber);
     }
     periodRef.current = view.periodNumber;
@@ -684,7 +700,7 @@ export default function SevenUpDownScreen() {
       return wait > 0
         ? setTimeout(() => {
             setPhaseTick((x) => x + 1);
-            // Betting closes: the red "Bet Locked" banner and the voice say so.
+            // Betting closes: the "Bet Locked" banner and the voice say so.
             if (i === 0) {
               showBanner('Bet Locked', false);
               betCalls.close(period);
@@ -1144,7 +1160,7 @@ export default function SevenUpDownScreen() {
       </LinearGradient>
 
       {/* Board */}
-      <LinearGradient colors={['#0C5230', '#083A21']} style={styles.board}>
+      <LinearGradient colors={['#0C5230', '#083A21']} style={styles.board} onLayout={(e) => setBoardTop(e.nativeEvent.layout.y)}>
         <View style={styles.bigRow}>
           {BIG_BOXES.map((b) => (
             <View key={b.area} style={b.area === 'SEVEN' ? styles.bigSeven : styles.bigSide}>
@@ -1243,67 +1259,73 @@ export default function SevenUpDownScreen() {
         </>
       )}
 
-      {/* Start Betting / Bet Locked */}
+      {/* Bet Now / Bet Locked: a slim dark band over the top of the big bet areas, gold lines on its edges, gold text */}
       {banner && (
         <View pointerEvents="none" style={styles.bannerLayer}>
           <Animated.View
             style={[
-              styles.bannerBar,
+              styles.banner,
               {
-                top: H * 0.3,
-                height: H * 0.26,
-                width: W * 0.75,
-                left: -W * 0.1,
-                opacity: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [0, 0.95, 0] }),
-                transform: [
-                  { translateX: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [-W * 0.8, 0, -W * 0.2] }) },
-                  { skewX: '-22deg' },
-                ],
+                top: (boardTop ?? 0) + BOARD_PAD_TOP + BIG_H * BANNER_AT - BANNER_H / 2 - BANNER_LINE,
+                height: BANNER_H + BANNER_LINE * 2,
+                opacity: bannerAnim.interpolate({ inputRange: [0, 0.5, 1, 1.5, 2], outputRange: [0, 1, 1, 1, 0], extrapolate: 'clamp' }),
+                transform: [{ scaleY: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [0.15, 1, 0.15], extrapolate: 'clamp' }) }],
               },
             ]}
           >
             <LinearGradient
-              colors={banner.start ? ['rgba(40,90,230,0)', 'rgba(40,90,230,0.85)', 'rgba(120,170,255,0.9)'] : ['rgba(90,20,20,0)', 'rgba(120,30,30,0.85)', 'rgba(200,80,40,0.9)']}
+              colors={['rgba(0,0,0,0)', 'rgba(8,4,2,0.8)', 'rgba(8,4,2,0.8)', 'rgba(0,0,0,0)']}
+              locations={[0, 0.06, 0.94, 1]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
-              style={StyleSheet.absoluteFill}
+              style={{ position: 'absolute', left: 0, right: 0, top: BANNER_LINE, height: BANNER_H }}
             />
+            {[0, 1].map((edge) => (
+              <React.Fragment key={edge}>
+                {/* the soft glow outside the gold line */}
+                <LinearGradient
+                  colors={edge === 0 ? ['rgba(240,205,120,0)', 'rgba(240,205,120,0.42)'] : ['rgba(240,205,120,0.42)', 'rgba(240,205,120,0)']}
+                  style={{ position: 'absolute', left: W * 0.1, right: W * 0.1, height: BANNER_LINE * 3, ...(edge === 0 ? { top: -BANNER_LINE * 2 } : { bottom: -BANNER_LINE * 2 }) }}
+                />
+                {/* the gold line: brightest in the middle, gone at the sides */}
+                <LinearGradient
+                  colors={['rgba(224,178,92,0)', 'rgba(232,186,98,1)', 'rgba(255,246,216,1)', 'rgba(232,186,98,1)', 'rgba(224,178,92,0)']}
+                  locations={[0, 0.07, 0.5, 0.93, 1]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={{ position: 'absolute', left: 0, right: 0, height: BANNER_LINE, ...(edge === 0 ? { top: 0 } : { bottom: 0 }) }}
+                />
+              </React.Fragment>
+            ))}
           </Animated.View>
           <Animated.View
             style={[
-              styles.bannerBar,
-              {
-                top: H * 0.3,
-                height: H * 0.26,
-                width: W * 0.75,
-                right: -W * 0.1,
-                opacity: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [0, 0.95, 0] }),
-                transform: [
-                  { translateX: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [W * 0.8, 0, W * 0.2] }) },
-                  { skewX: '-22deg' },
-                ],
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={banner.start ? ['rgba(255,110,110,0.9)', 'rgba(220,40,40,0.85)', 'rgba(220,40,40,0)'] : ['rgba(200,80,40,0.9)', 'rgba(120,30,30,0.85)', 'rgba(90,20,20,0)']}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
-          <Animated.Text
-            style={[
               styles.bannerText,
               {
-                top: H * 0.3 + H * 0.13 - 30,
-                opacity: bannerAnim.interpolate({ inputRange: [0, 0.6, 1, 2], outputRange: [0, 1, 1, 0] }),
-                transform: [{ scale: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [2.2, 1, 1.15] }) }],
+                top: (boardTop ?? 0) + BOARD_PAD_TOP + BIG_H * BANNER_AT - BANNER_H / 2,
+                height: BANNER_H,
+                opacity: bannerAnim.interpolate({ inputRange: [0, 0.6, 1, 1.5, 2], outputRange: [0, 1, 1, 1, 0], extrapolate: 'clamp' }),
+                transform: [{ translateX: bannerAnim.interpolate({ inputRange: [0, 1, 2], outputRange: [-W * 0.12, 0, W * 0.12], extrapolate: 'clamp' }) }],
               },
             ]}
           >
-            {banner.text}
-          </Animated.Text>
+            <Svg width={W} height={BANNER_H}>
+              <Defs>
+                <SvgLinearGradient id="banGold" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor="#F9EDB4" />
+                  <Stop offset="0.45" stopColor="#EBD38E" />
+                  <Stop offset="0.72" stopColor="#E0A24C" />
+                  <Stop offset="1" stopColor="#EDBB62" />
+                </SvgLinearGradient>
+              </Defs>
+              <SvgText x={W / 2} y={BANNER_H * 0.47 + BANNER_FONT * 0.37 + 1.5} fontSize={BANNER_FONT} fontFamily={BANNER_FONT_FAMILY} fontWeight={BANNER_FONT_WEIGHT} fill="#1A0B00" fillOpacity={0.55} textAnchor="middle">
+                {banner.text}
+              </SvgText>
+              <SvgText x={W / 2} y={BANNER_H * 0.47 + BANNER_FONT * 0.37} fontSize={BANNER_FONT} fontFamily={BANNER_FONT_FAMILY} fontWeight={BANNER_FONT_WEIGHT} fill="url(#banGold)" textAnchor="middle">
+                {banner.text}
+              </SvgText>
+            </Svg>
+          </Animated.View>
         </View>
       )}
 
@@ -1321,20 +1343,8 @@ const GOLD = '#FFD66B';
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#083A21' },
   bannerLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  bannerBar: { position: 'absolute', overflow: 'hidden' },
-  bannerText: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    color: '#FFD66B',
-    fontSize: 48,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    textShadowColor: '#6A3000',
-    textShadowRadius: 8,
-    textShadowOffset: { width: 0, height: 4 },
-  },
+  banner: { position: 'absolute', left: 0, right: 0 },
+  bannerText: { position: 'absolute', left: 0, right: 0 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1471,7 +1481,7 @@ const styles = StyleSheet.create({
   infoMin: { color: '#4ADE80', fontWeight: '800' },
   infoMax: { color: '#FF5A4E', fontWeight: '800' },
 
-  board: { paddingHorizontal: BOARD_PAD, paddingTop: 8 },
+  board: { paddingHorizontal: BOARD_PAD, paddingTop: BOARD_PAD_TOP },
   bigRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
   bigSide: { flex: 35, height: BIG_H },
   bigSeven: { flex: 26, height: BIG_H },
