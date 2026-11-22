@@ -15,9 +15,9 @@ const UI_SOURCES = {
   chipBet: require('../../assets/sounds/ui/chip_bet.mp3'),
   /** The touch sound: a button, tab, tile or row of the interface is tapped. */
   tap: require('../../assets/sounds/ui/tap.mp3'),
-  /** The voice call "Bet now" when a round of a table game opens for betting. */
+  /** The voice call "Please bet now" (1.9 s) when a round of a table game opens for betting. */
   betNow: require('../../assets/sounds/ui/bet_now.mp3'),
-  /** The voice call "Bet stop" when betting closes. */
+  /** The voice call "Bet locked" (1.9 s) when betting closes (the file is still called bet_stop). */
   betStop: require('../../assets/sounds/ui/bet_stop.mp3'),
 } as const;
 
@@ -82,7 +82,7 @@ export function preloadUiSounds(): void {
 }
 
 /**
- * The voice call of a table game: "Bet now" when its betting opens (a new round has begun), "Bet stop" when it closes. It follows
+ * The voice call of a table game: "Please bet now" when its betting opens (a new round has begun), "Bet locked" when it closes. It follows
  * the sound switch like every other sound, and is heard only while the app is in front (a timer that fires with the phone locked
  * or the app in the background must not speak).
  */

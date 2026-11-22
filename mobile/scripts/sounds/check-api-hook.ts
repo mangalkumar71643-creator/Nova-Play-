@@ -431,15 +431,15 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
   // The result-rule card opens by itself once for a player; the "?" button of the game's top bar opens it again whenever they want.
   check('ui: every game with the result-rule card has its "?" button', files.filter((f) => /<ResultRuleNotice\b/.test(read(f)) && !/<ResultRuleButton\b/.test(read(f))).map(rel), []);
   check("ui: Win Go's bet sheet has the Result rule button", [/accessibilityLabel="Result rule"/.test(read(path.join(APP, 'screens', 'WinGoScreen.tsx')))], [true]);
-  // The voice calls of the table games: "Bet now" when betting opens and "Bet stop" when it closes (the owner asked for them in Seven Up Down).
+  // The voice calls of the table games: "Please bet now" when betting opens and "Bet locked" when it closes (the owner asked for them in Seven Up Down).
   {
     const sevenUp = read(path.join(APP, 'screens/SevenUpDownScreen.tsx'));
     const uiSource = read(path.join(APP, 'sound/ui.ts'));
     check(
-      'ui: Seven Up Down shows the Start / Stop Betting banner and speaks "Bet now" / "Bet stop" with it (each once for a round)',
+      'ui: Seven Up Down shows the "Start Betting" / "Bet Locked" banner and speaks "Please bet now" / "Bet locked" with it (each once for a round)',
       [
         /showBanner\('Start Betting', true\);\s*playBetCall\('now'\)/.test(sevenUp),
-        /showBanner\('Stop Betting', false\);\s*playBetCall\('stop'\)/.test(sevenUp),
+        /showBanner\('Bet Locked', false\);\s*playBetCall\('stop'\)/.test(sevenUp),
         /callsRef\.current\.now !== /.test(sevenUp) && /callsRef\.current\.stop !== /.test(sevenUp),
       ],
       [true, true, true]

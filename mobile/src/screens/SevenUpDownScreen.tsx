@@ -117,8 +117,8 @@ const ORBIT_STEPS = Array.from({ length: 13 }, (_, i) => i / 12);
 
 const HISTORY_COLUMNS = 14;
 const WIN_CARD_MS = 3000;
-/** How long the Start / Stop Betting banner stays. */
-const BANNER_MS = 1400;
+/** How long the "Start Betting" / "Bet Locked" banner stays (before it sweeps out): about as long as the spoken call, 1.9 s, with its sweep in and out. */
+const BANNER_MS = 1700;
 const TOAST_MS = 1600;
 
 function areaWins(area: SevenUpDownArea, total: number): boolean {
@@ -544,7 +544,7 @@ export default function SevenUpDownScreen() {
   const mountedRef = useRef(true);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** The round each voice call ("Bet now", "Bet stop") was last made for, so a round gets each call once. */
+  /** The round each voice call ("Please bet now", "Bet locked") was last made for, so a round gets each call once. */
   const callsRef = useRef<{ now?: string; stop?: string }>({});
 
   const bannerAnim = useRef(new Animated.Value(0)).current;
@@ -567,7 +567,7 @@ export default function SevenUpDownScreen() {
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  /** The sweeping banner of the start (blue) and the end (red) of betting, the same as Dragon Tiger's. */
+  /** The sweeping banner of the start (blue "Start Betting") and the end (red "Bet Locked") of betting, drawn like Dragon Tiger's. */
   const showBanner = useCallback(
     (text: string, start: boolean) => {
       setBanner({ text, start });
@@ -686,10 +686,10 @@ export default function SevenUpDownScreen() {
       return wait > 0
         ? setTimeout(() => {
             setPhaseTick((x) => x + 1);
-            // Betting closes: the red banner and the voice say so (once for each round).
+            // Betting closes: the red "Bet Locked" banner and the voice say so (once for each round).
             if (i === 0 && callsRef.current.stop !== period) {
               callsRef.current.stop = period;
-              showBanner('Stop Betting', false);
+              showBanner('Bet Locked', false);
               playBetCall('stop');
             }
           }, wait + 20)
@@ -1246,7 +1246,7 @@ export default function SevenUpDownScreen() {
         </>
       )}
 
-      {/* Start / Stop Betting */}
+      {/* Start Betting / Bet Locked */}
       {banner && (
         <View pointerEvents="none" style={styles.bannerLayer}>
           <Animated.View
