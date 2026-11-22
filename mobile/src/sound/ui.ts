@@ -82,7 +82,8 @@ export function preloadUiSounds(): void {
 }
 
 /**
- * The voice call of a table game: "Please bet now" when its betting opens (a new round has begun), "Bet locked" when it closes. It follows
+ * The voice call of a table game: "Please bet now" when its betting opens (a new round has begun), "Bet locked" when it closes. The game
+ * screens make it through useBetCalls (useBetCalls.ts), once for each round, with their start / close-of-betting banners. It follows
  * the sound switch like every other sound, and is heard only while the app is in front (a timer that fires with the phone locked
  * or the app in the background must not speak).
  */

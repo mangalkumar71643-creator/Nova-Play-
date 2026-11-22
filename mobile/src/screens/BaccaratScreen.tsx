@@ -43,6 +43,7 @@ import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice, { ResultRuleButton } from '../components/ResultRuleNotice';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
+import { useBetCalls } from '../sound/useBetCalls';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500];
 const CHIP_COLORS: Record<number, string> = {
@@ -509,6 +510,8 @@ export default function BaccaratScreen() {
   const keyRef = useRef(1);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
+  /** The spoken "Please bet now" / "Bet locked" that go with the banners, once for each round. */
+  const betCalls = useBetCalls();
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<View>(null);
@@ -626,9 +629,10 @@ export default function BaccaratScreen() {
       idMapRef.current.clear();
       setReveal(null);
       showBanner('PLACE YOUR BETS', true);
+      betCalls.open(view.periodNumber);
     }
     periodRef.current = view.periodNumber;
-  }, [view, showBanner]);
+  }, [view, showBanner, betCalls]);
 
   // Countdown ring for this round's betting window.
   useEffect(() => {
@@ -649,12 +653,14 @@ export default function BaccaratScreen() {
     if (!view) return;
     const betWait = new Date(view.betEndTime).getTime() - (Date.now() + offsetRef.current);
     if (betWait <= 0) return;
+    const period = view.periodNumber;
     const id = setTimeout(() => {
       setTick((x) => x + 1);
       showBanner('NO MORE BETS', false);
+      betCalls.close(period);
     }, betWait + 20);
     return () => clearTimeout(id);
-  }, [view, showBanner]);
+  }, [view, showBanner, betCalls]);
 
   const srvNow = Date.now() + offsetRef.current;
   const betEndMs = view ? new Date(view.betEndTime).getTime() : 0;

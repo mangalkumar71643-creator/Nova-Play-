@@ -29,6 +29,7 @@ import ResultRuleNotice, { ResultRuleButton } from '../components/ResultRuleNoti
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
 import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
+import { useBetCalls } from '../sound/useBetCalls';
 
 const CHIP_VALUES = [10, 20, 50, 100, 200, 500, 1000];
 const CHIP_COLORS: Record<number, string> = {
@@ -369,6 +370,8 @@ export default function TeenPattiScreen() {
   const keyRef = useRef(1);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
+  /** The spoken "Please bet now" / "Bet locked" that go with the banners, once for each round. */
+  const betCalls = useBetCalls();
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const winTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -488,9 +491,10 @@ export default function TeenPattiScreen() {
       setChips([]);
       idMapRef.current.clear();
       showBanner('Start Betting', true);
+      betCalls.open(view.periodNumber);
     }
     periodRef.current = view.periodNumber;
-  }, [view, showBanner]);
+  }, [view, showBanner, betCalls]);
 
   // Countdown ring for this round's betting window.
   useEffect(() => {
@@ -512,17 +516,19 @@ export default function TeenPattiScreen() {
     const srvNow = Date.now() + offsetRef.current;
     const betWait = new Date(view.betEndTime).getTime() - srvNow;
     const resWait = new Date(view.resultTime).getTime() - srvNow;
+    const period = view.periodNumber;
     const ids: ReturnType<typeof setTimeout>[] = [];
     if (betWait > 0)
       ids.push(
         setTimeout(() => {
           setPhaseTick((x) => x + 1);
           showBanner('Stop Betting', false);
+          betCalls.close(period);
         }, betWait + 20)
       );
     if (resWait > 0) ids.push(setTimeout(() => setPhaseTick((x) => x + 1), resWait + 20));
     return () => ids.forEach(clearTimeout);
-  }, [view, showBanner]);
+  }, [view, showBanner, betCalls]);
 
   const srvNow = Date.now() + offsetRef.current;
   const betEndMs = view ? new Date(view.betEndTime).getTime() : 0;

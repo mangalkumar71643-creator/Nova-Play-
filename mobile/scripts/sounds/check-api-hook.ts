@@ -431,28 +431,45 @@ check('packs: every pack belongs to a game and every game has a pack', packKeys.
   // The result-rule card opens by itself once for a player; the "?" button of the game's top bar opens it again whenever they want.
   check('ui: every game with the result-rule card has its "?" button', files.filter((f) => /<ResultRuleNotice\b/.test(read(f)) && !/<ResultRuleButton\b/.test(read(f))).map(rel), []);
   check("ui: Win Go's bet sheet has the Result rule button", [/accessibilityLabel="Result rule"/.test(read(path.join(APP, 'screens', 'WinGoScreen.tsx')))], [true]);
-  // The voice calls of the table games: "Please bet now" when betting opens and "Bet locked" when it closes (the owner asked for them in Seven Up Down).
+  // The voice calls of the table games: "Please bet now" when betting opens and "Bet locked" when it closes, spoken together with the
+  // games' start / close-of-betting banners (the owner asked for them in Seven Up Down, then for every game that shows such a banner).
   {
-    const sevenUp = read(path.join(APP, 'screens/SevenUpDownScreen.tsx'));
     const uiSource = read(path.join(APP, 'sound/ui.ts'));
+    const hookSource = read(path.join(APP, 'sound/useBetCalls.ts'));
+    // game screen, the arguments of its start banner and of its close banner
+    const BANNER_GAMES: [string, string, string][] = [
+      ['SevenUpDownScreen', "'Start Betting', true", "'Bet Locked', false"],
+      ['DragonTigerScreen', "'Start Betting', true", "'Stop Betting', false"],
+      ['AndarBaharScreen', "'Start Betting', true", "'Stop Betting', false"],
+      ['TeenPattiScreen', "'Start Betting', true", "'Stop Betting', false"],
+      ['BaccaratScreen', "'PLACE YOUR BETS', true", "'NO MORE BETS', false"],
+      ['RouletteScreen', "'PLACE YOUR BETS'", "'NO MORE BETS'"],
+    ];
+    const missing: string[] = [];
+    for (const [name, start, stop] of BANNER_GAMES) {
+      const src = read(path.join(APP, 'screens', `${name}.tsx`));
+      if (!new RegExp(`showBanner\\(${start}\\);\\s*betCalls\\.open\\(`).test(src)) missing.push(`${name}: the start banner has no betCalls.open`);
+      if (!new RegExp(`showBanner\\(${stop}\\);[\\s\\S]{0,260}?betCalls\\.close\\(`).test(src)) missing.push(`${name}: the close banner has no betCalls.close`);
+      if (!/const betCalls = useBetCalls\(\)/.test(src)) missing.push(`${name}: no useBetCalls()`);
+    }
+    check(`ui: the ${BANNER_GAMES.length} table games with a start / close-of-betting banner speak "Please bet now" / "Bet locked" with it`, missing, []);
+    const listed = new Set(BANNER_GAMES.map(([name]) => `${name}.tsx`));
     check(
-      'ui: Seven Up Down shows the "Start Betting" / "Bet Locked" banner and speaks "Please bet now" / "Bet locked" with it (each once for a round)',
-      [
-        /showBanner\('Start Betting', true\);\s*playBetCall\('now'\)/.test(sevenUp),
-        /showBanner\('Bet Locked', false\);\s*playBetCall\('stop'\)/.test(sevenUp),
-        /callsRef\.current\.now !== /.test(sevenUp) && /callsRef\.current\.stop !== /.test(sevenUp),
-      ],
-      [true, true, true]
+      'ui: no other game shows a start / close-of-betting banner without the voice calls',
+      files.filter((f) => !listed.has(path.basename(f)) && /showBanner\(\s*'(?:Start Betting|Stop Betting|Bet Locked|PLACE YOUR BETS|NO MORE BETS)'/.test(read(f))).map(rel),
+      []
     );
     check(
-      'ui: the voice calls have their files, follow the sound switch and are silent while the app is not in front',
+      'ui: the voice calls have their files, are made once for a round, follow the sound switch and are silent while the app is not in front',
       [
         fs.existsSync(path.join(APP, '..', 'assets/sounds/ui/bet_now.mp3')),
         fs.existsSync(path.join(APP, '..', 'assets/sounds/ui/bet_stop.mp3')),
+        /open\(period: string\)[\s\S]*last\.current\.open === period\) return;[\s\S]*playBetCall\('now'\)/.test(hookSource),
+        /close\(period: string\)[\s\S]*last\.current\.close === period\) return;[\s\S]*playBetCall\('stop'\)/.test(hookSource),
         /export function playBetCall[\s\S]*AppState\.currentState !== 'active'[\s\S]*playUi\(/.test(uiSource),
         /export function playUi[\s\S]*isSoundEnabled\(\)/.test(uiSource),
       ],
-      [true, true, true, true]
+      [true, true, true, true, true, true]
     );
   }
   check('ui: the touch sound has a file and a TapPressable', [fs.existsSync(path.join(APP, '..', 'assets/sounds/ui/tap.mp3')), fs.existsSync(path.join(APP, 'components/TapPressable.tsx'))], [true, true]);

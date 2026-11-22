@@ -26,6 +26,7 @@ import ResultRuleNotice, { ResultRuleButton } from '../components/ResultRuleNoti
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
 import { playChipBet, withTapSound } from '../sound/ui';
+import { useBetCalls } from '../sound/useBetCalls';
 
 // ---------- table ----------
 
@@ -725,6 +726,8 @@ export default function RouletteScreen() {
   const keyRef = useRef(1);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
+  /** The spoken "Please bet now" / "Bet locked" that go with the banners, once for each round. */
+  const betCalls = useBetCalls();
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const winTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -843,9 +846,10 @@ export default function RouletteScreen() {
       idMapRef.current.clear();
       setWin(null);
       showBanner('PLACE YOUR BETS');
+      betCalls.open(view.periodNumber);
     }
     periodRef.current = view.periodNumber;
-  }, [view, showBanner]);
+  }, [view, showBanner, betCalls]);
 
   useEffect(() => {
     const id = setInterval(() => setTick((x) => x + 1), 150);
@@ -871,7 +875,11 @@ export default function RouletteScreen() {
   // "No more bets" once, at the close.
   const closedFor = view && !bettingOpen ? view.periodNumber : null;
   useEffect(() => {
-    if (closedFor && srvNow < landMs - 2000) showBanner('NO MORE BETS');
+    if (closedFor && srvNow < landMs - 2000) {
+      showBanner('NO MORE BETS');
+      // The voice only when the betting has just closed in front of the player, not when they open the game in the middle of a spin.
+      if (srvNow - betEndMs < 2500) betCalls.close(closedFor);
+    }
     // Once per round.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [closedFor]);

@@ -35,7 +35,8 @@ import { useGameState } from '../state/GameStateContext';
 import ResultRuleNotice, { ResultRuleButton } from '../components/ResultRuleNotice';
 import { winLimit } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
-import { playBetCall, playChipBet, withPopupSound, withTapSound } from '../sound/ui';
+import { playChipBet, withPopupSound, withTapSound } from '../sound/ui';
+import { useBetCalls } from '../sound/useBetCalls';
 
 const W = Dimensions.get('window').width;
 const H = Dimensions.get('window').height;
@@ -544,8 +545,8 @@ export default function SevenUpDownScreen() {
   const mountedRef = useRef(true);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** The round each voice call ("Please bet now", "Bet locked") was last made for, so a round gets each call once. */
-  const callsRef = useRef<{ now?: string; stop?: string }>({});
+  /** The spoken "Please bet now" / "Bet locked" that go with the banners, once for each round. */
+  const betCalls = useBetCalls();
 
   const bannerAnim = useRef(new Animated.Value(0)).current;
   const shake = useRef(new Animated.Value(0)).current;
@@ -667,14 +668,11 @@ export default function SevenUpDownScreen() {
       setChips([]);
       idMapRef.current.clear();
       // Betting opens on a new round: the blue banner and the voice say so.
-      if (callsRef.current.now !== view.periodNumber) {
-        callsRef.current.now = view.periodNumber;
-        showBanner('Start Betting', true);
-        playBetCall('now');
-      }
+      showBanner('Start Betting', true);
+      betCalls.open(view.periodNumber);
     }
     periodRef.current = view.periodNumber;
-  }, [view, showBanner]);
+  }, [view, showBanner, betCalls]);
 
   // Re-render exactly when betting closes / the dice are due locally.
   useEffect(() => {
@@ -686,17 +684,16 @@ export default function SevenUpDownScreen() {
       return wait > 0
         ? setTimeout(() => {
             setPhaseTick((x) => x + 1);
-            // Betting closes: the red "Bet Locked" banner and the voice say so (once for each round).
-            if (i === 0 && callsRef.current.stop !== period) {
-              callsRef.current.stop = period;
+            // Betting closes: the red "Bet Locked" banner and the voice say so.
+            if (i === 0) {
               showBanner('Bet Locked', false);
-              playBetCall('stop');
+              betCalls.close(period);
             }
           }, wait + 20)
         : null;
     });
     return () => ids.forEach((id) => id && clearTimeout(id));
-  }, [view, showBanner]);
+  }, [view, showBanner, betCalls]);
 
   const srvNow = Date.now() + offsetRef.current;
   const betEndMs = view ? new Date(view.betEndTime).getTime() : 0;
