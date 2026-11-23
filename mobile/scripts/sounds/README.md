@@ -49,7 +49,7 @@ full build.
 
 ## Background music
 
-A game can have a background music loop on top of its sound effects (Aviator, Chicken Road and Seven Up Down have one). Give `music.py` the track and the game's key:
+A game can have a background music loop on top of its sound effects (Aviator, Chicken Road, Seven Up Down and Dragon Tiger have one). Give `music.py` the track and the game's key:
 
 ```bash
 python3 -I mobile/scripts/sounds/music.py aviator /path/to/track.mp3 --volume 0.4
@@ -63,7 +63,16 @@ in the background, and it has its own switch (Settings → Music) besides the ma
 
 A track that already loops is kept whole with `--as-is` (Chicken Road). A clip of only a few seconds that is not a loop has no loop end to look
 for: `--short --from 0 --to <its length> --xfade 0.15` cross-fades its last 0.15 s into its first (Seven Up Down's 3 s clip, which therefore
-repeats about every 3 s).
+repeats about every 3 s; its 51 s replacement is kept whole too).
+
+A recording of a game (a screen recording, say) in which the game's music repeats the same loop over and over (Dragon Tiger's) is turned into one clean
+loop first with `music_loop.py`: it finds the repeat length to the sample, combines the repeats with the median (so a tap, a notification or
+the fade-in of the recording drops out) and starts the loop at its quietest beat; then `music.py <game> loop.wav --as-is` does the rest:
+
+```bash
+python3 -I mobile/scripts/sounds/music_loop.py recording.mp4 loop.wav
+python3 -I mobile/scripts/sounds/music.py dragontiger loop.wav --as-is
+```
 
 ## Sounds the owner supplies
 
