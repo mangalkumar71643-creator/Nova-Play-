@@ -156,6 +156,7 @@ export default function ClubTableView({
   onStart,
   onLeave,
   play,
+  fillWait,
 }: {
   table: ClubTable;
   serverNow: () => number;
@@ -164,6 +165,8 @@ export default function ClubTableView({
   onStart: () => void;
   onLeave: () => void;
   play: Play;
+  /** Seconds a table that is not full waits for more players once its second player has sat down. */
+  fillWait: number;
 }) {
   const [area, setArea] = useState({ w: 0, h: 0 });
   const [, setTick] = useState(0);
@@ -195,29 +198,48 @@ export default function ClubTableView({
   const turnSeconds = table.turnSeconds;
 
   // ---- layout
+  // A table of 4 or 5 is crowded: the other players are drawn smaller, two of them at the sides of the table.
+  const crowded = n >= 4;
   const k = area.w > 0 ? clamp(Math.min(area.h / 560, area.w / 400), 0.7, 1.12) : 1;
-  const A = Math.round(56 * k); // an opponent's portrait
+  const A = Math.round((crowded ? 46 : 56) * k); // an opponent's portrait
   const myA = Math.round(50 * k);
   const cw = Math.round(clamp(area.h * 0.15, 62, 104)); // my cards
-  const mw = Math.round(clamp(area.w * 0.085, 27, 38)); // an opponent's cards
+  const mw = Math.round(clamp(area.w * (crowded ? 0.07 : 0.085), crowded ? 22 : 27, crowded ? 30 : 38)); // an opponent's cards
   const rowH = Math.round(56 * k);
   const cardsTop = area.h - rowH - cw * 1.4 - 12 * k;
   const rowTop = cardsTop + cw * 1.4 + 8 * k;
-  // The opponents' block (portrait, name, tags, cards, hand name) ends here; the middle of the table starts below it.
-  const oppBottom = area.h * 0.025 + Math.round(56 * k) + 4 + 16 + 22 + clamp(area.w * 0.085, 27, 38) * 1.4 + 22;
-  const potTop = Math.max(area.h * 0.325, oppBottom + 6);
-  const compact = cardsTop - potTop < 250;
-  const slot = useCallback((seat: number) => (me === null ? seat : (seat - me + n) % n), [me, n]);
-  const slotX = useCallback((s: number) => (n === 2 ? 0.5 : s === 1 ? 0.2 : 0.8) * area.w, [n, area.w]);
   const oppTop = area.h * 0.025;
+  // The height of an opponent's block (portrait, name, tags, cards, hand name): the middle of the table starts below the top row of them.
+  const blockH = A + 4 + 16 + 22 + mw * 1.4 + 22;
+  const oppBottom = oppTop + blockH;
+  const potTop = Math.max(area.h * 0.325, oppBottom + (crowded ? 14 : 6));
+  const compact = cardsTop - potTop < 250;
+  // The sides of the table sit lower than its top: x is a share of the width, `row` says top or side.
+  const sideTop = Math.max(area.h * 0.3, oppTop + A + 26);
+  const slot = useCallback((seat: number) => (me === null ? seat : (seat - me + n) % n), [me, n]);
+  /** Where the player `s` places after me in turn order (1 = the next to move, on my left) sits. */
+  const spot = useCallback(
+    (s: number): { x: number; top: number } => {
+      const SPOTS: Record<number, { x: number; side: boolean }[]> = {
+        2: [{ x: 0.5, side: false }],
+        3: [{ x: 0.2, side: false }, { x: 0.8, side: false }],
+        4: [{ x: 0.12, side: true }, { x: 0.5, side: false }, { x: 0.88, side: true }],
+        5: [{ x: 0.12, side: true }, { x: 0.34, side: false }, { x: 0.66, side: false }, { x: 0.88, side: true }],
+      };
+      const p = (SPOTS[n] ?? SPOTS[3])[Math.min(s, n - 1) - 1] ?? { x: 0.5, side: false };
+      return { x: p.x * area.w, top: p.side ? sideTop : oppTop };
+    },
+    [n, area.w, sideTop, oppTop]
+  );
   /** The centre of a seat's portrait, where its chips start from and the pot's chips arrive. */
   const anchor = useCallback(
     (seat: number) => {
       const s = slot(seat);
       if (s === 0) return { x: 10 + myA / 2, y: rowTop + rowH / 2 };
-      return { x: slotX(s), y: oppTop + A / 2 };
+      const sp = spot(s);
+      return { x: sp.x, y: sp.top + A / 2 };
     },
-    [slot, slotX, rowTop, rowH, oppTop, A, myA]
+    [slot, spot, rowTop, rowH, A, myA]
   );
   const potCenter = { x: area.w / 2, y: potTop + 40 * k };
   const deckPos = { x: area.w / 2, y: potTop + 30 * k };
@@ -458,16 +480,17 @@ export default function ClubTableView({
     const s = slot(seat);
     const info = table.seatsInfo.find((x) => x.seat === seat);
     const p = hand ? hand.players.find((x) => x.seat === seat && !x.left) : undefined;
-    const bw = Math.max(A * 1.9, 104 * k);
-    const left = clamp(slotX(s) - bw / 2, 2, area.w - bw - 2);
+    const sp = spot(s);
+    const bw = Math.max(A * 1.9, (crowded ? 84 : 104) * k);
+    const left = clamp(sp.x - bw / 2, 2, area.w - bw - 2);
     const isTurn = live && !!hand && ((hand.turnSeat === seat && !hand.sideShow) || hand.sideShow?.toSeat === seat);
     const empty = !info || info.empty;
     const dim = !!p?.packed;
     const isWinner = winners.includes(seat);
     const dx = deckPos.x - (left + bw / 2);
-    const dy = deckPos.y - (oppTop + A + 30);
+    const dy = deckPos.y - (sp.top + A + 30);
     return (
-      <View key={seat} style={{ position: 'absolute', left, top: oppTop, width: bw, alignItems: 'center' }}>
+      <View key={seat} style={{ position: 'absolute', left, top: sp.top, width: bw, alignItems: 'center' }}>
         {empty ? (
           <View style={{ alignItems: 'center', opacity: 0.8 }}>
             <View style={[styles.emptySeat, { width: A, height: A, borderRadius: A / 2 }]}>
@@ -490,8 +513,8 @@ export default function ClubTableView({
                 </View>
               ) : null}
             </View>
-            <Text style={[styles.name, dim && { opacity: 0.5 }]} numberOfLines={1}>
-              {short(info.name)}
+            <Text style={[styles.name, crowded && { fontSize: 11.5 }, dim && { opacity: 0.5 }]} numberOfLines={1}>
+              {short(info.name, crowded ? 12 : 14)}
             </Text>
             <View style={styles.tagRow}>
               {!p ? (
@@ -566,11 +589,19 @@ export default function ClubTableView({
         <Text style={styles.centerBig}>
           {joined} <Text style={styles.centerSmall}>/ {n}</Text>
         </Text>
-        <Text style={styles.centerNote}>{table.isPrivate ? 'Share the code with your friends' : table.handNo > 0 ? 'The next hand starts when another player sits down' : `The hand starts when ${n} players are here`}</Text>
+        <Text style={styles.centerNote}>
+          {table.isPrivate
+            ? 'Share the code with your friends'
+            : table.handNo > 0
+            ? 'The next hand starts when another player sits down'
+            : n === 2
+            ? 'The hand starts as soon as a second player sits down'
+            : `The cards are dealt ${fillWait} seconds after a second player sits down (at once when all ${n} seats are taken)`}
+        </Text>
         {table.isPrivate && table.code ? (
           <View style={styles.codeBox}>
             <Text style={styles.codeLabel}>TABLE CODE</Text>
-            <Text style={styles.code} selectable>
+            <Text style={[styles.code, crowded && { fontSize: 26, letterSpacing: 4 }]} selectable>
               {table.code}
             </Text>
             <TapPressable onPress={share} style={styles.shareBtn} accessibilityRole="button" accessibilityLabel="Share the table code">
@@ -583,10 +614,10 @@ export default function ClubTableView({
       </View>
     ) : table.phase === 'STARTING' ? (
       <View style={styles.centerCard}>
-        <Text style={styles.centerTitle}>GET READY</Text>
+        <Text style={styles.centerTitle}>{table.filling ? 'STARTING SOON' : 'GET READY'}</Text>
         <Text style={styles.centerBig}>{countdown}</Text>
         <Text style={styles.centerNote}>
-          {money(table.boot)} boot each · {rake > 0 ? '' : `house cut ${table.rakePercent}%`}
+          {table.filling ? `${joined} of ${n} seated. More can still sit down; the cards are dealt when the time is up, or when all ${n} seats are taken.` : `${money(table.boot)} boot each`}
         </Text>
       </View>
     ) : hand?.over && result ? (
@@ -623,7 +654,7 @@ export default function ClubTableView({
     if (table.phase === 'WAITING' || table.phase === 'STARTING') {
       return (
         <View style={styles.barRow}>
-          <Text style={styles.barNote}>{table.phase === 'STARTING' ? 'Cards are about to be dealt…' : 'Waiting for the table to fill…'}</Text>
+          <Text style={styles.barNote}>{table.phase === 'STARTING' ? (table.filling ? 'Waiting for more players to sit down…' : 'Cards are about to be dealt…') : 'Waiting for the table to fill…'}</Text>
           <ActionButton label="LEAVE" tone="dark" flex={0} height={44} style={{ width: 96 }} onPress={onLeave} icon="exit-run" />
         </View>
       );
@@ -697,7 +728,7 @@ export default function ClubTableView({
             {opponentSeats.map(renderOpp)}
 
             {/* the middle of the table */}
-            <View style={{ position: 'absolute', left: area.w * 0.1, right: area.w * 0.1, top: potTop, alignItems: 'center' }} pointerEvents="box-none">
+            <View style={{ position: 'absolute', left: area.w * (crowded ? 0.23 : 0.1), right: area.w * (crowded ? 0.23 : 0.1), top: potTop, alignItems: 'center' }} pointerEvents="box-none">
               {phaseCard}
             </View>
             {toast ? (
@@ -815,7 +846,7 @@ const styles = StyleSheet.create({
   potLabel: { color: '#BFE6D2', fontSize: 11, fontWeight: '900', letterSpacing: 2, marginTop: 2 },
   potAmount: { color: '#FFE9A0', fontWeight: '900', textShadowColor: '#000', textShadowRadius: 6, textShadowOffset: { width: 0, height: 2 } },
   stakeLine: { color: '#CFE8DB', fontSize: 11.5, fontWeight: '700', marginTop: 2, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
-  toast: { position: 'absolute', alignSelf: 'center', maxWidth: '88%', backgroundColor: 'rgba(5,24,17,0.92)', borderRadius: 14, borderWidth: 1.2, paddingHorizontal: 14, paddingVertical: 6 },
+  toast: { position: 'absolute', alignSelf: 'center', maxWidth: '70%', backgroundColor: 'rgba(5,24,17,0.92)', borderRadius: 14, borderWidth: 1.2, paddingHorizontal: 14, paddingVertical: 6 },
   toastText: { color: '#FFFFFF', fontSize: 12.5, fontWeight: '800', textAlign: 'center' },
   seeWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   seeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 22, paddingHorizontal: 18, paddingVertical: 9, borderWidth: 1.5, borderColor: '#C6E0FF', shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 },

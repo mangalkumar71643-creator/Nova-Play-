@@ -2489,6 +2489,8 @@ model TeenPattiClubTable {
   seats       Int
   /// A friends' table: joined with `code`, never matched with strangers.
   isPrivate   Boolean             @default(false)
+  /// Made by a player with their own boot amount and size ("Make your own table"); an open one shows in the lobby's list.
+  custom      Boolean             @default(false)
   code        String?             @unique
   /// Who made a private table (can start it with fewer players than seats).
   hostId      String?

@@ -5,7 +5,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ClubConfig, ClubLobby as LobbyData, ClubTableResponse, createPrivateClub, fetchClubConfig, fetchClubLobby, fetchMyClubTable, joinClub, joinClubByCode } from '../api/backend';
+import { ClubConfig, ClubLobby as LobbyData, ClubTableResponse, createClub, fetchClubConfig, fetchClubLobby, fetchMyClubTable, joinClub, joinClubByCode, joinOpenClub } from '../api/backend';
 import { showAlert } from '../components/AppAlert';
 import { Text } from '../components/AppText';
 import GameBackdrop from '../components/GameBackdrop';
@@ -217,7 +217,7 @@ export default function TeenPattiClubScreen() {
         {!club.checked ? (
           <ActivityIndicator color={GOLD} style={{ marginTop: 80 }} />
         ) : table ? (
-          <ClubTableView table={table} serverNow={club.serverNow} busy={club.busy} onAct={club.act} onStart={onStart} onLeave={askLeave} play={play} />
+          <ClubTableView table={table} serverNow={club.serverNow} busy={club.busy} onAct={club.act} onStart={onStart} onLeave={askLeave} play={play} fillWait={config?.fillWaitSeconds ?? 15} />
         ) : (
           <ClubLobby
             config={config}
@@ -227,6 +227,7 @@ export default function TeenPattiClubScreen() {
             refreshing={refreshing}
             onRefresh={refresh}
             onJoin={onJoin}
+            onJoinOpen={(id) => void enter(() => joinOpenClub(id))}
             onResume={() => void enter(() => fetchMyClubTable())}
             onCreate={() => setCreate(true)}
             onCode={() => setCode(true)}
@@ -238,7 +239,7 @@ export default function TeenPattiClubScreen() {
 
       <RulesSheet visible={rules} config={config} onClose={() => setRules(false)} />
       <HistorySheet visible={history} onClose={() => setHistory(false)} />
-      <CreateSheet visible={create} config={config} balance={balance} onClose={() => setCreate(false)} onCreate={(boot, seats) => void enter(() => createPrivateClub(boot, seats))} />
+      <CreateSheet visible={create} config={config} balance={balance} onClose={() => setCreate(false)} onCreate={(boot, seats, isPrivate) => void enter(() => createClub(boot, seats, isPrivate))} />
       <CodeSheet visible={code} onClose={() => setCode(false)} onJoin={(c) => void enter(() => joinClubByCode(c))} />
     </View>
   );

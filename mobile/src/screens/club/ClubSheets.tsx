@@ -61,6 +61,7 @@ export function RulesSheet({ visible, config, onClose }: { visible: boolean; con
   const maxStake = config?.maxStakeTimes ?? 16;
   const potLimit = config?.potLimitTimes ?? 250;
   const minBal = config?.minBalanceTimes ?? 60;
+  const wait = config?.fillWaitSeconds ?? 15;
   return (
     <Shell visible={visible} title="HOW TO PLAY" onClose={onClose}>
       <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -71,7 +72,7 @@ export function RulesSheet({ visible, config, onClose }: { visible: boolean; con
           </Text>
         </View>
         <Para title="The hand">
-          2 or 3 real players sit at a table (no computer players). Everyone puts the boot in the pot and gets 3 cards face down. Turns go round the table. On your turn you play Blind (you have not looked at your cards) or Seen (you have). The last player left wins the pot, or the better hand wins a Show.
+          2 to 5 real players sit at a table (no computer players). Everyone puts the boot in the pot and gets 3 cards face down. Turns go round the table. On your turn you play Blind (you have not looked at your cards) or Seen (you have). The last player left wins the pot, or the better hand wins a Show.
         </Para>
         <Para title="What a move costs">
           The "stake" starts at the boot.{'\n'}Blind: Chaal = the stake, Raise = 2× the stake.{'\n'}Seen: Chaal = 2× the stake, Raise = 4× the stake. A raise doubles the stake.{'\n'}The stake can grow to {maxStake}× the boot, so no single bet is more than {maxStake * 2}× the boot.{'\n'}Pack (fold) any time: what you put in stays in the pot.
@@ -79,8 +80,11 @@ export function RulesSheet({ visible, config, onClose }: { visible: boolean; con
         <Para title="Show">
           When only two players are left, a player can pay a chaal and ask for a Show: both hands are turned over and the better hand wins. If the hands are equal, the player who asked for the Show loses.
         </Para>
+        <Para title="Starting a table">
+          A table starts when all its seats are taken, or {wait} seconds after the second player sits: others can still sit down while it counts, and between hands. A table you make for friends starts when it is full or when you, the host, start it. A player's own table has the boot and size they chose.
+        </Para>
         <Para title="Side show">
-          With three players in, a Seen player can ask the player just before them (who must be Seen too) to compare cards. It costs nothing. If that player says yes, they look at each other's cards and the lower hand packs (equal hands: the player who asked). If they say no, or do not answer in {side} seconds, play goes on.
+          With three or more players in, a Seen player can ask the player just before them (who must be Seen too) to compare cards. It costs nothing. If that player says yes, they look at each other's cards and the lower hand packs (equal hands: the player who asked). If they say no, or do not answer in {side} seconds, play goes on.
         </Para>
         <Para title="Pot limit">
           When the pot reaches {potLimit}× the boot, everyone still in is shown and the best hand wins (equal best hands share the pot).
@@ -216,39 +220,92 @@ export function CreateSheet({
   config: ClubConfig | null;
   balance: number;
   onClose: () => void;
-  onCreate: (boot: number, seats: number) => void;
+  onCreate: (boot: number, seats: number, isPrivate: boolean) => void;
 }) {
-  const boots = config?.boots ?? [];
-  const [boot, setBoot] = useState(10);
-  const [seats, setSeats] = useState(3);
-  const info = boots.find((b) => b.boot === boot);
-  const short = info && balance < info.minBalance;
+  const cb = config?.customBoot ?? { min: 5, max: 5000, step: 5 };
+  const sizes = config?.seats ?? [2, 3, 4, 5];
+  const [text, setText] = useState('20');
+  const [seats, setSeats] = useState(5);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const boot = Number(text);
+  const valid = text !== '' && Number.isFinite(boot) && boot >= cb.min && boot <= cb.max && boot % cb.step === 0;
+  const need = valid ? boot * (config?.minBalanceTimes ?? 60) : 0;
+  const short = valid && balance < need;
+  const nudge = (dir: 1 | -1) => {
+    const base = valid ? boot : Math.max(cb.min, Math.round((Number(text) || cb.min) / cb.step) * cb.step);
+    setText(String(Math.min(cb.max, Math.max(cb.min, base + dir * cb.step))));
+  };
+  const presets = [10, 20, 50, 100, 500];
   return (
-    <Shell visible={visible} title="PLAY WITH FRIENDS" onClose={onClose}>
-      <View style={styles.form}>
-        <Text style={styles.label}>Boot amount</Text>
+    <Shell visible={visible} title="MAKE YOUR OWN TABLE" onClose={onClose}>
+      <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={styles.form} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <Text style={styles.label}>Boot amount (what each player puts in first)</Text>
+        <View style={styles.bootRow}>
+          <TapPressable onPress={() => nudge(-1)} accessibilityRole="button" accessibilityLabel="Less boot" style={styles.stepBtn}>
+            <MaterialCommunityIcons name="minus" size={24} color={GOLD} />
+          </TapPressable>
+          <View style={[styles.bootBox, !valid && text !== '' && { borderColor: '#FF6B6B' }]}>
+            <Text style={styles.rupee}>₹</Text>
+            <TextInput
+              value={text}
+              onChangeText={(t) => setText(t.replace(/[^0-9]/g, '').slice(0, 5))}
+              keyboardType="number-pad"
+              maxLength={5}
+              style={styles.bootInput}
+              accessibilityLabel="Boot amount"
+              placeholder="20"
+              placeholderTextColor="#5E7A6E"
+            />
+          </View>
+          <TapPressable onPress={() => nudge(1)} accessibilityRole="button" accessibilityLabel="More boot" style={styles.stepBtn}>
+            <MaterialCommunityIcons name="plus" size={24} color={GOLD} />
+          </TapPressable>
+        </View>
         <View style={styles.wrap}>
-          {boots.map((b) => (
-            <TapPressable key={b.boot} onPress={() => setBoot(b.boot)} style={[styles.choice, boot === b.boot && styles.choiceOn]} accessibilityRole="button" accessibilityState={{ selected: boot === b.boot }}>
-              <Text style={[styles.choiceText, boot === b.boot && styles.choiceTextOn]}>{money(b.boot)}</Text>
+          {presets.map((v) => (
+            <TapPressable key={v} onPress={() => setText(String(v))} accessibilityRole="button" accessibilityLabel={`Boot ${v}`} style={[styles.choiceSmall, boot === v && styles.choiceOn]}>
+              <Text style={[styles.choiceText, boot === v && styles.choiceTextOn]}>{money(v)}</Text>
             </TapPressable>
           ))}
         </View>
-        <Text style={styles.label}>Players</Text>
-        <View style={styles.wrap}>
-          {[2, 3].map((n) => (
-            <TapPressable key={n} onPress={() => setSeats(n)} style={[styles.choice, { flex: 1 }, seats === n && styles.choiceOn]} accessibilityRole="button" accessibilityState={{ selected: seats === n }}>
-              <Text style={[styles.choiceText, seats === n && styles.choiceTextOn]}>{n} players</Text>
-            </TapPressable>
-          ))}
-        </View>
-        <Text style={styles.hint}>
-          You get a code to send to your friends. They join with it, nobody else is matched with your table, and as host you can start with fewer players than seats.
-          {info ? `\nYou need ${money(info.minBalance)} in your wallet to sit at this table.` : ''}
+        <Text style={[styles.hint, !valid && { color: '#FF9B9B' }]}>
+          {valid ? `Any amount in steps of ${money(cb.step)}, from ${money(cb.min)} to ${money(cb.max)}.` : `Use a whole amount in steps of ${money(cb.step)}, from ${money(cb.min)} to ${money(cb.max)}.`}
         </Text>
+
+        <Text style={styles.label}>Players at the table</Text>
+        <View style={styles.wrap}>
+          {sizes.map((n) => (
+            <TapPressable key={n} onPress={() => setSeats(n)} style={[styles.choice, { flex: 1 }, seats === n && styles.choiceOn]} accessibilityRole="button" accessibilityLabel={`${n} players`} accessibilityState={{ selected: seats === n }}>
+              <Text style={[styles.choiceText, seats === n && styles.choiceTextOn]}>{n}</Text>
+            </TapPressable>
+          ))}
+        </View>
+
+        <Text style={styles.label}>Who can sit</Text>
+        <View style={{ gap: 8 }}>
+          {[
+            { priv: false, title: 'Open to everybody', note: 'It shows in the lobby, anybody can join' },
+            { priv: true, title: 'Friends only', note: 'You get a code to send; only they can join' },
+          ].map((o) => (
+            <TapPressable key={o.title} onPress={() => setIsPrivate(o.priv)} accessibilityRole="button" accessibilityLabel={o.title} accessibilityState={{ selected: isPrivate === o.priv }} style={[styles.option, isPrivate === o.priv && styles.choiceOn]}>
+              <MaterialCommunityIcons name={isPrivate === o.priv ? 'radiobox-marked' : 'radiobox-blank'} size={22} color={isPrivate === o.priv ? GOLD : '#7C9A8C'} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.optionTitle, isPrivate === o.priv && { color: GOLD }]}>{o.title}</Text>
+                <Text style={styles.hint}>{o.note}</Text>
+              </View>
+            </TapPressable>
+          ))}
+        </View>
+
+        {valid ? (
+          <Text style={styles.hint}>
+            You need {money(need)} in your wallet to sit here. Biggest bet {money(boot * (config?.maxStakeTimes ?? 16) * 2)}, pot limit {money(boot * (config?.potLimitTimes ?? 250))}.
+            {isPrivate && seats > 2 ? '\nAs host you can start a friends\' table before all seats are taken.' : ''}
+          </Text>
+        ) : null}
         {short ? <Text style={[styles.hint, { color: '#FF9B9B' }]}>Your balance is {money(balance)} - add money or pick a smaller boot.</Text> : null}
-        <ActionButton label="CREATE TABLE" tone="gold" height={54} disabled={!!short} onPress={() => onCreate(boot, seats)} flex={0} style={{ alignSelf: 'stretch', marginTop: 6 }} />
-      </View>
+        <ActionButton label="CREATE TABLE" tone="gold" height={54} disabled={!valid || short} onPress={() => onCreate(boot, seats, isPrivate)} flex={0} style={{ alignSelf: 'stretch', marginTop: 6 }} />
+      </ScrollView>
     </Shell>
   );
 }
@@ -317,6 +374,14 @@ const styles = StyleSheet.create({
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choice: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#3C5A4E', backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center' },
   choiceOn: { borderColor: GOLD, backgroundColor: 'rgba(242,196,90,0.18)' },
+  choiceSmall: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: '#3C5A4E', backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center' },
+  bootRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepBtn: { width: 48, height: 52, borderRadius: 14, borderWidth: 1.5, borderColor: GOLD, backgroundColor: 'rgba(242,196,90,0.1)', alignItems: 'center', justifyContent: 'center' },
+  bootBox: { flex: 1, height: 52, borderRadius: 14, borderWidth: 1.5, borderColor: GOLD, backgroundColor: 'rgba(0,0,0,0.35)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  rupee: { color: GOLD, fontSize: 24, fontWeight: '900' },
+  bootInput: { color: '#FFFFFF', fontSize: 28, fontWeight: '900', minWidth: 90, textAlign: 'center', paddingVertical: 0 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#3C5A4E', backgroundColor: 'rgba(255,255,255,0.05)' },
+  optionTitle: { color: '#E8F1EC', fontSize: 14.5, fontWeight: '800' },
   choiceText: { color: '#C7D8CF', fontSize: 15, fontWeight: '800' },
   choiceTextOn: { color: GOLD },
   hint: { color: '#9DB3A8', fontSize: 12.5, lineHeight: 18 },

@@ -4,13 +4,14 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import {
   clubAction,
-  createPrivateClubTable,
+  createClubTable,
   getClubConfig,
   getClubLobby,
   getMyClubHands,
   getMyClubTable,
   joinClubByCode,
   joinClubTable,
+  joinOpenClubTable,
   leaveClubTable,
   startPrivateClubTable,
 } from "../services/teenPattiClubService";
@@ -27,7 +28,7 @@ router.get(
   "/lobby",
   requireAuth,
   asyncHandler(async (req, res) => {
-    res.json(await getClubLobby(req.user!.userId));
+    res.json(await getClubLobby(req.user!.userId, req.header("X-App-Version")));
   })
 );
 
@@ -39,17 +40,37 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { boot, seats } = sitSchema.parse(req.body);
-    res.json(await joinClubTable(req.user!.userId, boot, seats));
+    res.json(await joinClubTable(req.user!.userId, boot, seats, req.header("X-App-Version")));
   })
 );
 
-/** A table for friends, with a code to share. */
+/** A table the player makes: their own boot and size, private (a code to share) or open (listed in the lobby). */
+router.post(
+  "/create",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { boot, seats, isPrivate } = z.object({ boot: z.number().positive(), seats: z.number().int(), isPrivate: z.boolean() }).parse(req.body);
+    res.json(await createClubTable(req.user!.userId, boot, seats, isPrivate, req.header("X-App-Version")));
+  })
+);
+
+/** The same as /create with isPrivate = true (what app 1.0.121 calls). */
 router.post(
   "/private",
   requireAuth,
   asyncHandler(async (req, res) => {
     const { boot, seats } = sitSchema.parse(req.body);
-    res.json(await createPrivateClubTable(req.user!.userId, boot, seats));
+    res.json(await createClubTable(req.user!.userId, boot, seats, true, req.header("X-App-Version")));
+  })
+);
+
+/** Sits at one of the open tables of the lobby's list. */
+router.post(
+  "/join-table",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { tableId } = z.object({ tableId: z.string().min(1).max(64) }).parse(req.body);
+    res.json(await joinOpenClubTable(req.user!.userId, tableId, req.header("X-App-Version")));
   })
 );
 
@@ -58,7 +79,7 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { code } = z.object({ code: z.string().min(4).max(12) }).parse(req.body);
-    res.json(await joinClubByCode(req.user!.userId, code));
+    res.json(await joinClubByCode(req.user!.userId, code, req.header("X-App-Version")));
   })
 );
 

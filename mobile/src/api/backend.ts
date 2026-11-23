@@ -4163,8 +4163,14 @@ export interface ClubBootInfo {
   potLimit: number;
 }
 export interface ClubConfig {
+  /** The boots of Quick Play. */
   boots: ClubBootInfo[];
+  /** Table sizes (2 to 5 players). */
   seats: number[];
+  /** The boots a player can make a table with: whole multiples of `step` from `min` to `max`. */
+  customBoot: { min: number; max: number; step: number };
+  /** A table that is not full starts this long after its second player sat. */
+  fillWaitSeconds: number;
   rakePercent: number;
   turnSeconds: number;
   sideShowSeconds: number;
@@ -4176,11 +4182,23 @@ export interface ClubConfig {
 export interface ClubLobbyBoot extends ClubBootInfo {
   sizes: { seats: number; waiting: number; playing: number }[];
 }
+/** A table a player made that is open to everybody and has a seat free. */
+export interface ClubOpenTable {
+  id: string;
+  boot: number;
+  seats: number;
+  /** How many are sitting there now. */
+  players: number;
+  /** Hands have been played at this table (it is in the middle of a game, new players are dealt in from the next hand). */
+  started: boolean;
+  phase: ClubPhase;
+}
 export interface ClubLobby {
   now: number;
   balance: number;
   rakePercent: number;
   boots: ClubLobbyBoot[];
+  open: ClubOpenTable[];
   online: number;
   mine: { tableId: string; boot: number; seats: number; phase: ClubPhase; isPrivate: boolean } | null;
 }
@@ -4258,8 +4276,12 @@ export interface ClubTable {
   boot: number;
   seats: number;
   isPrivate: boolean;
+  /** Made by a player with their own boot and size. */
+  custom: boolean;
   code: string | null;
   host: boolean;
+  /** The countdown is a wait for more players (the table is not full), not the last seconds before the deal. */
+  filling: boolean;
   canStart: boolean;
   phase: ClubPhase;
   version: number;
@@ -4302,8 +4324,11 @@ export function fetchClubLobby() {
 export function joinClub(boot: number, seats: number) {
   return apiFetch<ClubTableResponse>('/teen-patti-club/join', { method: 'POST', body: JSON.stringify({ boot, seats }) });
 }
-export function createPrivateClub(boot: number, seats: number) {
-  return apiFetch<ClubTableResponse>('/teen-patti-club/private', { method: 'POST', body: JSON.stringify({ boot, seats }) });
+export function createClub(boot: number, seats: number, isPrivate: boolean) {
+  return apiFetch<ClubTableResponse>('/teen-patti-club/create', { method: 'POST', body: JSON.stringify({ boot, seats, isPrivate }) });
+}
+export function joinOpenClub(tableId: string) {
+  return apiFetch<ClubTableResponse>('/teen-patti-club/join-table', { method: 'POST', body: JSON.stringify({ tableId }) });
 }
 export function joinClubByCode(code: string) {
   return apiFetch<ClubTableResponse>('/teen-patti-club/join-code', { method: 'POST', body: JSON.stringify({ code }) });

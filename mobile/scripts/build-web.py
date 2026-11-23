@@ -25,7 +25,8 @@ def run(*cmd, cwd=MOBILE):
     subprocess.run(cmd, cwd=cwd, check=True)
 
 shutil.rmtree(TMP, ignore_errors=True)
-run("npx", "expo", "export", "-p", "web", "--output-dir", str(TMP))
+# --clear: a bundler cache from an earlier build would keep an old app version (expo-constants is cached with it) in the website.
+run("npx", "expo", "export", "-p", "web", "--output-dir", str(TMP), "--clear")
 
 # Vercel leaves every folder named node_modules out of a deployment, and the export puts the icon font and the
 # navigation icons under assets/node_modules/: move them to assets/vendor/ and point the bundle there.

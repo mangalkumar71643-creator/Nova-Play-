@@ -12,6 +12,7 @@ import {
   expire,
   HandState,
   HandView,
+  isValidBoot,
   leaveHand,
   MIN_RAKE_BPS,
   newHand,
@@ -23,7 +24,7 @@ import {
 import { HAND_NAMES } from "./teenPattiService";
 
 /**
- * Teen Patti Club: real Teen Patti for 2 or 3 players. The rules of a hand are in teenPattiClubEngine.ts; this file is the
+ * Teen Patti Club: real Teen Patti for 2 to 5 players. The rules of a hand are in teenPattiClubEngine.ts; this file is the
  * tables around it: who sits where, the wallets, the clocks and what each player is shown.
  *
  * HOW IT RUNS ON A SERVER WITHOUT A CLOCK
@@ -87,6 +88,8 @@ export function getClubConfig() {
       potLimit: boot * CLUB.POT_LIMIT_X,
     })),
     seats: CLUB.SEATS,
+    customBoot: CLUB.CUSTOM_BOOT,
+    fillWaitSeconds: CLUB.FILL_WAIT_MS / 1000,
     rakePercent: clubRakeBps() / 100,
     turnSeconds: CLUB.TURN_MS / 1000,
     sideShowSeconds: CLUB.SIDE_SHOW_MS / 1000,
@@ -99,6 +102,26 @@ export function getClubConfig() {
 
 const emptyState = (): TableState => ({ phase: "WAITING", startsAt: null, handId: null, hand: null, dealerSeat: null, handNo: 0, startWithFewer: false });
 const stateOf = (row: { state: Prisma.JsonValue }) => row.state as unknown as TableState;
+
+/**
+ * How many players a table needs before its next hand: all the seats for a friends' table that has not played yet (its host can
+ * start it sooner), otherwise two (a table that is not full starts after a short wait, and more players can sit down between hands).
+ */
+const minToStart = (row: { isPrivate: boolean; seats: number }, st: TableState) => (row.isPrivate && st.handNo === 0 && !st.startWithFewer ? row.seats : 2);
+
+/** Tables of 4 and 5 players, and the lobby's list of open tables, came with app 1.0.122; an older app is not offered them. */
+const BIG_TABLES_MIN_APP = [1, 0, 122];
+function appAtLeast(appVersion: string | undefined, min: number[]): boolean {
+  const v = (appVersion ?? "0").split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < min.length; i++) {
+    if ((v[i] ?? 0) > min[i]) return true;
+    if ((v[i] ?? 0) < min[i]) return false;
+  }
+  return true;
+}
+function assertAppSeats(appVersion: string | undefined, seats: number) {
+  if (seats > 3 && !appAtLeast(appVersion, BIG_TABLES_MIN_APP)) throw new ApiError(426, "Tables of 4 and 5 players need the latest NovaPlay. Please update the app.");
+}
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
 
 /** What other players see: a name, never the phone digits the sign-up put in the last name. */
@@ -321,8 +344,7 @@ async function startHand(tx: Tx, row: TableRow, st: TableState, now: number): Pr
     (gone || idle || !u || u.isBanned || excluded || broke ? drop : keep).push(s);
   }
   if (drop.length > 0) await tx.teenPattiClubSeat.deleteMany({ where: { id: { in: drop.map((d) => d.id) } } });
-  const needFull = st.handNo === 0 && !st.startWithFewer;
-  if (needFull ? keep.length !== row.seats : keep.length < 2) {
+  if (keep.length < minToStart(row, st)) {
     st.phase = "WAITING";
     st.startsAt = null;
     st.hand = null;
@@ -439,8 +461,11 @@ function buildView(row: TableRow, userId: string, balance: number, now: number) 
     boot,
     seats: row.seats,
     isPrivate: row.isPrivate,
+    custom: row.custom,
     code: row.isPrivate ? row.code : null,
     host: row.hostId === userId,
+    /** The countdown is a wait for more players (the first hand of a table that is not full yet), not the last seconds before the deal. */
+    filling: st.phase === "STARTING" && humans < row.seats && st.handNo === 0 && !st.startWithFewer,
     canStart: row.isPrivate && row.hostId === userId && st.phase === "WAITING" && st.handNo === 0 && humans >= 2 && humans < row.seats,
     phase: st.phase,
     version: row.version,
@@ -467,7 +492,7 @@ async function balanceOf(tx: Tx | typeof prisma, userId: string): Promise<number
 // ---------------------------------------------------------------------------------------------------------------------
 // The lobby
 
-export async function getClubLobby(userId: string) {
+export async function getClubLobby(userId: string, appVersion?: string) {
   await sweepDueClubTables();
   const now = Date.now();
   const rows = await prisma.$queryRaw<{ boot: number; seats: number; phase: string; fresh: boolean; players: bigint }[]>`
@@ -477,9 +502,10 @@ export async function getClubLobby(userId: string) {
     WHERE t."isPrivate" = false
     GROUP BY t.id`;
   const cfg = getClubConfig();
+  const big = appAtLeast(appVersion, BIG_TABLES_MIN_APP);
   const boots = cfg.boots.map((b) => ({
     ...b,
-    sizes: CLUB.SEATS.map((seats) => {
+    sizes: CLUB.SEATS.filter((n) => big || n <= 3).map((seats) => {
       const here = rows.filter((r) => Number(r.boot) === b.boot && r.seats === seats);
       return {
         seats,
@@ -489,6 +515,20 @@ export async function getClubLobby(userId: string) {
       };
     }),
   }));
+  // The tables players made themselves (any boot, any size) that are open to everyone and still have a seat free.
+  const open = big
+    ? (
+        await prisma.$queryRaw<{ id: string; boot: number; seats: number; phase: string; played: number; players: bigint }[]>`
+          SELECT t.id, t.boot::float AS boot, t.seats, t.phase, t."handsPlayed" AS played,
+                 COUNT(s.id) FILTER (WHERE s."lastSeenAt" > now() - interval '25 seconds') AS players
+          FROM "TeenPattiClubTable" t JOIN "TeenPattiClubSeat" s ON s."tableId" = t.id
+          WHERE t."isPrivate" = false AND t.custom = true
+          GROUP BY t.id
+          HAVING COUNT(s.id) < t.seats AND COUNT(s.id) FILTER (WHERE s."lastSeenAt" > now() - interval '25 seconds') > 0
+          ORDER BY players DESC, t."createdAt" ASC
+          LIMIT 12`
+      ).map((r) => ({ id: r.id, boot: Number(r.boot), seats: r.seats, players: Number(r.players), started: r.played > 0, phase: r.phase }))
+    : [];
   const seat = await prisma.teenPattiClubSeat.findUnique({ where: { userId }, include: { table: { select: { id: true, boot: true, seats: true, phase: true, isPrivate: true } } } });
   const balance = await balanceOf(prisma, userId);
   return {
@@ -496,6 +536,7 @@ export async function getClubLobby(userId: string) {
     balance,
     rakePercent: cfg.rakePercent,
     boots,
+    open,
     online: rows.reduce((n, r) => n + Number(r.players), 0),
     mine: seat ? { tableId: seat.table.id, boot: Number(seat.table.boot), seats: seat.table.seats, phase: seat.table.phase, isPrivate: seat.table.isPrivate } : null,
   };
@@ -528,11 +569,16 @@ async function seatPlayer(tx: Tx, row: TableRow, who: { userId: string; name: st
   await tx.teenPattiClubSeat.create({ data: { tableId: row.id, seat: free, userId: who.userId, name: who.name, uid: who.uid, lastSeenAt: new Date(now) } });
   const humans = row.seatRows.length + 1;
   if (st.phase === "WAITING") {
-    const ready = st.handNo === 0 ? humans === row.seats : humans >= 2;
-    if (ready) {
+    if (humans === row.seats) {
       st.phase = "STARTING";
       st.startsAt = now + CLUB.START_MS;
+    } else if (humans >= minToStart(row, st)) {
+      // Two are here: the cards are dealt after a short wait for others (more can still sit down meanwhile), at once if the table fills up.
+      st.phase = "STARTING";
+      st.startsAt = now + (st.handNo === 0 ? CLUB.FILL_WAIT_MS : CLUB.START_MS);
     }
+  } else if (st.phase === "STARTING" && humans === row.seats && st.startsAt !== null && st.startsAt - now > CLUB.START_MS) {
+    st.startsAt = now + CLUB.START_MS;
   }
   await saveTable(tx, row, st, now, humans);
   return (await reload(tx, row.id))!;
@@ -544,8 +590,9 @@ async function viewAfter(tx: Tx, row: TableRow | null, userId: string, now: numb
 }
 
 /** Quick play: the first table of that boot and size with a free seat, or a new one. */
-export async function joinClubTable(userId: string, boot: number, seats: number) {
-  if (!CLUB.BOOTS.includes(boot) || !CLUB.SEATS.includes(seats)) throw new ApiError(400, "Pick one of the boot amounts and 2 or 3 players.");
+export async function joinClubTable(userId: string, boot: number, seats: number, appVersion?: string) {
+  if (!CLUB.BOOTS.includes(boot) || !CLUB.SEATS.includes(seats)) throw new ApiError(400, "Pick one of the boot amounts and a table of 2 to 5 players.");
+  assertAppSeats(appVersion, seats);
   const existing = await prisma.teenPattiClubSeat.findUnique({ where: { userId }, select: { tableId: true } });
   if (existing) return getMyClubTable(userId);
   await assertCanSit(userId, boot);
@@ -580,30 +627,39 @@ export async function joinClubTable(userId: string, boot: number, seats: number)
   }
 }
 
-/** A table for friends: made with a code to share; nobody else is matched with it. */
-export async function createPrivateClubTable(userId: string, boot: number, seats: number) {
-  if (!CLUB.BOOTS.includes(boot) || !CLUB.SEATS.includes(seats)) throw new ApiError(400, "Pick one of the boot amounts and 2 or 3 players.");
+/**
+ * A table the player makes themselves: their own boot (any multiple of 5 from 5 to 5000) and size (2 to 5). Private: friends join with
+ * a code and nobody else is matched with it. Open: it shows in the lobby's list for anybody to join.
+ */
+export async function createClubTable(userId: string, boot: number, seats: number, isPrivate: boolean, appVersion?: string) {
+  if (!CLUB.SEATS.includes(seats)) throw new ApiError(400, "Pick a table of 2 to 5 players.");
+  if (!isValidBoot(boot)) throw new ApiError(400, `The boot must be a whole amount in steps of ₹${CLUB.CUSTOM_BOOT.step}, from ₹${CLUB.CUSTOM_BOOT.min} to ₹${CLUB.CUSTOM_BOOT.max.toLocaleString("en-IN")}.`);
+  assertAppSeats(appVersion, seats);
   const existing = await prisma.teenPattiClubSeat.findUnique({ where: { userId }, select: { tableId: true } });
   if (existing) return getMyClubTable(userId);
   await assertCanSit(userId, boot);
   const who = { userId, ...(await playerFor(userId)) };
   return prisma.$transaction(async (tx) => {
     const now = Date.now();
-    let code = makeCode();
-    for (let i = 0; i < 6 && (await tx.teenPattiClubTable.findUnique({ where: { code }, select: { id: true } })); i++) code = makeCode();
+    let code: string | null = null;
+    if (isPrivate) {
+      code = makeCode();
+      for (let i = 0; i < 6 && (await tx.teenPattiClubTable.findUnique({ where: { code }, select: { id: true } })); i++) code = makeCode();
+    }
     const st = emptyState();
-    const created = await tx.teenPattiClubTable.create({ data: { boot, seats, isPrivate: true, code, hostId: userId, state: st as unknown as Prisma.InputJsonValue, phase: st.phase, dueAt: new Date(now + WAIT_TICK_MS) } });
+    const created = await tx.teenPattiClubTable.create({ data: { boot, seats, isPrivate, custom: true, code, hostId: userId, state: st as unknown as Prisma.InputJsonValue, phase: st.phase, dueAt: new Date(now + WAIT_TICK_MS) } });
     const row = (await lockTable(tx, created.id))!;
     return viewAfter(tx, await seatPlayer(tx, row, who, now), userId, now);
   }, TX);
 }
 
-export async function joinClubByCode(userId: string, rawCode: string) {
+export async function joinClubByCode(userId: string, rawCode: string, appVersion?: string) {
   const code = rawCode.trim().toUpperCase();
   const existing = await prisma.teenPattiClubSeat.findUnique({ where: { userId }, select: { tableId: true } });
   if (existing) return getMyClubTable(userId);
-  const table = await prisma.teenPattiClubTable.findUnique({ where: { code }, select: { id: true, boot: true } });
+  const table = await prisma.teenPattiClubTable.findUnique({ where: { code }, select: { id: true, boot: true, seats: true } });
   if (!table) throw new ApiError(404, "No table has that code. Check it with your friend.");
+  assertAppSeats(appVersion, table.seats);
   await assertCanSit(userId, Number(table.boot));
   const who = { userId, ...(await playerFor(userId)) };
   try {
@@ -617,7 +673,27 @@ export async function joinClubByCode(userId: string, rawCode: string) {
   }
 }
 
-/** The host of a friends' table starts it with the players who are there (2 of 3). */
+/** Sits the player at one of the open tables of the lobby's list. */
+export async function joinOpenClubTable(userId: string, tableId: string, appVersion?: string) {
+  const existing = await prisma.teenPattiClubSeat.findUnique({ where: { userId }, select: { tableId: true } });
+  if (existing) return getMyClubTable(userId);
+  const table = await prisma.teenPattiClubTable.findUnique({ where: { id: tableId }, select: { id: true, boot: true, seats: true, isPrivate: true } });
+  if (!table || table.isPrivate) throw new ApiError(404, "That table is not open any more.");
+  assertAppSeats(appVersion, table.seats);
+  await assertCanSit(userId, Number(table.boot));
+  const who = { userId, ...(await playerFor(userId)) };
+  try {
+    return await withTable(table.id, async (tx, row, now) => {
+      if (!row) throw new ApiError(404, "That table has closed.");
+      if (row.seatRows.length >= row.seats) throw new ApiError(409, "That table is full.");
+      return viewAfter(tx, await seatPlayer(tx, row, who, now), userId, now);
+    });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** The host of a friends' table starts it with the players who are there (2 or more of its seats). */
 export async function startPrivateClubTable(userId: string) {
   const seat = await prisma.teenPattiClubSeat.findUnique({ where: { userId }, select: { tableId: true } });
   if (!seat) throw new ApiError(404, "You are not at a table.");
@@ -660,7 +736,7 @@ export async function leaveClubTable(userId: string) {
       await tx.teenPattiClubTable.delete({ where: { id: row.id } });
       return;
     }
-    if ((st.phase === "STARTING" || st.phase === "WAITING") && humans < (st.handNo === 0 && !st.startWithFewer ? row.seats : 2)) {
+    if ((st.phase === "STARTING" || st.phase === "WAITING") && humans < minToStart(row, st)) {
       st.phase = "WAITING";
       st.startsAt = null;
     }

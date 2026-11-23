@@ -1,5 +1,5 @@
 /**
- * Checks the rules of Teen Patti Club (src/services/teenPattiClubEngine.ts). No database needed:
+ * Checks the rules of Teen Patti Club (src/services/teenPattiClubEngine.ts), for tables of 2 to 5 players. No database needed:
  *
  *   cd backend && DATABASE_URL=postgresql://x@127.0.0.1:1/x JWT_SECRET=check npx tsx scripts/check-teen-patti-club.ts
  *   HANDS=60000 ... to play more hands (default 20000)
@@ -335,6 +335,75 @@ const T = (h: HandState) => h.turn;
   check("the rake is rounded up to the paisa: at least 5% for every pot size, and the winner gets the rest", rakes.every((r) => r.rake * 10000 >= r.pot * MIN_RAKE_BPS && r.rake - (r.pot * MIN_RAKE_BPS) / 10000 < 1 && r.rake + r.paid === r.pot), JSON.stringify(rakes.slice(0, 4)));
 }
 
+// ---- 3b. tables of 4 and 5
+{
+  const mk = (n: number, last: number | null = null) => newHand({ no: 1, boot: BOOT, now: T0, lastDealerSeat: last, players: Array.from({ length: n }, (_, s) => ({ userId: `u${s}`, seat: s, name: `P${s}`, uid: s })) });
+  let h = mk(5);
+  check("five players are dealt fifteen different cards, three each", new Set(h.players.flatMap((p) => p.cards)).size === 15 && h.players.every((p) => p.cards.length === 3));
+  check("the pot holds five boots and the first to play is left of the dealer", h.pot === 5 * BOOT && h.turn === 1);
+  const again = verifyDeal(h.seed, h.seedHash, 5, h.dealer);
+  check("the published seed re-deals the five hands exactly", !!again && again.every((c, i) => JSON.stringify(c) === JSON.stringify(h.players[i].cards)));
+  let throwsSix = false;
+  try {
+    mk(6);
+  } catch (e) {
+    throwsSix = e instanceof ClubError;
+  }
+  check("a hand of 6 (or 1) players is refused", throwsSix);
+  // the dealer goes round all five seats
+  const dealers: number[] = [];
+  let last: number | null = null;
+  for (let i = 0; i < 5; i++) {
+    const g = mk(5, last);
+    dealers.push(g.dealer);
+    last = g.players[g.dealer].seat;
+  }
+  check("the dealer button goes round the five seats, one hand each", dealers.join() === "0,1,2,3,4", dealers.join());
+  // no show with more than two, a side show asks the player before, skipping those who packed
+  for (const u of [0, 1, 2, 3, 4]) if (h.players[u].packed) throw new Error("bad");
+  const order: number[] = [];
+  let guard = 0;
+  while (order.length < 5 && guard++ < 10) {
+    const i = h.turn;
+    order.push(i);
+    act(h, i, "SEE", T0);
+    act(h, i, "CHAAL", T0 + guard);
+  }
+  check("everyone has looked and bet once, in seat order", order.join() === "1,2,3,4,0", order.join());
+  check("a show is not offered with five in", [0, 1, 2, 3, 4].every((i) => actionsFor(h, i).show === null));
+  // seat 1 is on turn again: its previous active player is seat 0
+  act(h, 0 === h.turn ? 0 : h.turn, "PACK", T0 + 50); // the player on turn (seat 1) packs
+  const asker = h.turn; // seat 2, whose previous active player is now seat 0 (seat 1 packed)
+  act(h, asker, "SIDE_SHOW", T0 + 60);
+  check("a side show goes to the player before, skipping the one who packed", h.sideShow !== null && h.sideShow.from === asker && h.sideShow.to === 0, JSON.stringify(h.sideShow));
+  act(h, 0, "DENY", T0 + 61);
+  check("refused: nobody is out and the asker is on turn again", h.sideShow === null && h.turn === asker && h.players.filter((p) => p.packed).length === 1);
+  // a long silence: the players time out one by one, a hand of five ends with one player left
+  h = mk(5);
+  expire(h, T0 + CLUB.TURN_MS * 100);
+  check("after a long silence four of five time out and the fifth wins", h.over && h.players.filter((p) => !p.packed).length === 1 && h.players.filter((p) => p.timedOut).length === 4 && h.result!.winners.length === 1);
+  // the pot limit with five players: all who are still in are shown, the best wins, the rake is 5% of the pot
+  h = mk(5);
+  const best = [card(1, 0), card(1, 1), card(1, 2)];
+  h.players.forEach((p, i) => (p.cards = i === 3 ? best : [card(2 + i, 0), card(8 + i, 1), card(12, 2)]));
+  let g2 = 0;
+  while (!h.over && g2++ < 800) act(h, h.turn, actionsFor(h, h.turn).raise ? "RAISE" : "CHAAL", T0 + g2);
+  check("at the pot limit five players are shown and the best hand (the Trail) wins", h.over && h.result!.endedBy === "POT_LIMIT" && h.result!.shown.length === 5 && h.result!.winners.join() === "u3");
+  check("...and the house takes at least 5% of that big pot", h.result!.rake * 10000 >= h.result!.pot * MIN_RAKE_BPS && h.result!.rake + Object.values(h.result!.payouts).reduce((x, y) => x + y, 0) === h.result!.pot);
+  // five players, three of them with equal best hands at the pot limit: they share the pot to the paisa
+  h = mk(5);
+  h.players[0].cards = [card(9, 0), card(9, 1), card(4, 2)];
+  h.players[1].cards = [card(9, 2), card(9, 3), card(4, 0)];
+  h.players[2].cards = [card(9, 0), card(9, 3), card(4, 1)].map((c, i) => (i === 0 ? card(9, 0) : c));
+  h.players[3].cards = [card(2, 0), card(5, 1), card(7, 2)];
+  h.players[4].cards = [card(3, 0), card(6, 1), card(8, 2)];
+  h.players[2].cards = [card(9, 1), card(9, 2), card(4, 3)];
+  g2 = 0;
+  while (!h.over && g2++ < 800) act(h, h.turn, actionsFor(h, h.turn).raise ? "RAISE" : "CHAAL", T0 + g2);
+  const shares = Object.values(h.result!.payouts);
+  check("equal best hands among five share the pot to the paisa", h.result!.winners.length === 3 && shares.reduce((x, y) => x + y, 0) + h.result!.rake === h.result!.pot && Math.max(...shares) - Math.min(...shares) <= 1, JSON.stringify(shares));
+}
+
 // ---- 4 and 5. tens of thousands of hands, played at random
 {
   const HANDS = Number(process.env.HANDS ?? 20000);
@@ -378,9 +447,9 @@ const T = (h: HandState) => h.turn;
   };
 
   for (let n = 0; n < HANDS; n++) {
-    const players = 2 + ri(2);
+    const players = 2 + ri(4); // 2 to 5 players
     const boot = pick([500, 1000, 5000, 10000, 50000, 100000]);
-    const h = newHand({ no: n, boot, now: T0, lastDealerSeat: ri(3) - 1 < 0 ? null : ri(3), players: Array.from({ length: players }, (_, s) => ({ userId: `u${s}`, seat: s, name: `P${s}`, uid: s })) });
+    const h = newHand({ no: n, boot, now: T0, lastDealerSeat: ri(players + 1) - 1 < 0 ? null : ri(players), players: Array.from({ length: players }, (_, s) => ({ userId: `u${s}`, seat: s, name: `P${s}`, uid: s })) });
     let now = T0;
     let steps = 0;
     let wentLong = chance(0.3); // some hands are played hard, to reach the pot limit

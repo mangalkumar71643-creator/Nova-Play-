@@ -3,7 +3,7 @@ import { generateServerSeed, hashServerSeed } from "../utils/rng";
 import { handScore, HAND_NAMES } from "./teenPattiService";
 
 /**
- * Teen Patti Club: the rules of one hand of real Teen Patti for 2 or 3 players, with no database in it.
+ * Teen Patti Club: the rules of one hand of real Teen Patti for 2 to 5 players, with no database in it.
  * teenPattiClubService.ts keeps the tables, the wallets and the clock; this file is only the game, so it can be
  * played over and over in a test (scripts/check-teen-patti-club.ts).
  *
@@ -19,7 +19,7 @@ import { handScore, HAND_NAMES } from "./teenPattiService";
  *  - Pack (fold) at any time and your money stays in the pot. See your cards at any time (they cannot be hidden again).
  *  - Show: when only two players are left, pay a chaal and both hands are turned over. The better hand wins.
  *    Equal hands: the player who asked for the show loses.
- *  - Side show: a Seen player, with three still in, may ask the player just before them (who must be Seen too) to
+ *  - Side show: a Seen player, with three or more still in, may ask the player just before them (who must be Seen too) to
  *    compare cards. If that player says yes, the two of them see each other's cards, the lower hand packs (equal hands:
  *    the one who asked packs). If no (or no answer in time), play goes on. It costs nothing to ask.
  *  - Pot limit: when the pot reaches POT_LIMIT_X x boot, everyone still in is shown and the best hand wins (equal best
@@ -42,8 +42,15 @@ import { handScore, HAND_NAMES } from "./teenPattiService";
 export const MIN_RAKE_BPS = 500; // 5.00% of the pot, the least the house keeps
 
 export const CLUB = {
-  BOOTS: [5, 10, 50, 100, 500, 1000],
-  SEATS: [2, 3],
+  /** The boots of Quick Play. A player can also make a table with any boot of their own (CUSTOM_BOOT). */
+  BOOTS: [5, 10, 20, 30, 40, 50, 100, 200, 500, 1000],
+  /** Table sizes: how many players a table seats. */
+  SEATS: [2, 3, 4, 5],
+  MAX_SEATS: 5,
+  /** A boot a player makes up for their own table: whole multiples of `step` from `min` to `max` rupees. */
+  CUSTOM_BOOT: { min: 5, max: 5000, step: 5 },
+  /** A table of more than two that has not played yet starts this long after its second player sat (it starts at once, after START_MS, when it is full). */
+  FILL_WAIT_MS: 15_000,
   TURN_MS: 20_000,
   SIDE_SHOW_MS: 10_000,
   RESULT_MS: 8_000,
@@ -55,6 +62,12 @@ export const CLUB = {
   /** The wallet a player needs to sit down and to be dealt in again, in boots. */
   MIN_SIT_X: 60,
 };
+
+/** Whether `boot` (rupees) is a boot a player may make a table with. */
+export function isValidBoot(boot: number): boolean {
+  const { min, max, step } = CLUB.CUSTOM_BOOT;
+  return Number.isFinite(boot) && boot >= min && boot <= max && Math.abs(boot / step - Math.round(boot / step)) < 1e-9;
+}
 
 export class ClubError extends Error {
   constructor(message: string, public status = 400) {
@@ -196,7 +209,7 @@ export function newHand(o: {
 }): HandState {
   const roster = [...o.players].sort((a, b) => a.seat - b.seat);
   const n = roster.length;
-  if (n < 2 || n > 3) throw new ClubError("A hand needs 2 or 3 players.");
+  if (n < 2 || n > CLUB.MAX_SEATS) throw new ClubError(`A hand needs 2 to ${CLUB.MAX_SEATS} players.`);
   if (!Number.isInteger(o.boot) || o.boot <= 0) throw new ClubError("Bad boot.");
   const rakeBps = Math.max(MIN_RAKE_BPS, Math.round(o.rakeBps ?? MIN_RAKE_BPS));
   const seed = o.seed ?? generateServerSeed();
