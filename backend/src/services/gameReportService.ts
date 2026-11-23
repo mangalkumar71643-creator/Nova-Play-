@@ -60,6 +60,7 @@ export const SOURCES: Source[] = [
   { key: "FishermansCatch", name: "Fisherman's Catch", category: "Slots", table: "FishermanSpin", stake: "stake", paid: "payout" },
   { key: "BookOfPharaoh", name: "Book of Pharaoh", category: "Slots", table: "BookOfPharaohSpin", stake: "stake", paid: "payout" },
   { key: "JaguarTemple", name: "Jaguar Temple", category: "Slots", table: "JaguarTempleSpin", stake: "cost", paid: "payout" },
+  { key: "TurboSevens", name: "Turbo Sevens", category: "Slots", table: "TurboSevensSpin", stake: "stake", paid: "payout" },
   { key: "GatesOfZeus", name: "Gates of Zeus", category: "Slots", table: "ZeusSpin", stake: "stake", paid: "payout" },
   { key: "WolfMoon", name: "Wolf Moon", category: "Slots", table: "WolfMoonSpin", stake: "stake", paid: "payout" },
   // Card & Table
@@ -97,6 +98,7 @@ export const SOURCES: Source[] = [
   // Mines & Cash-out
   { key: "Mines", name: "Mines", category: "Mines & Cash-out", table: "MinesRound", stake: "stake", paid: "payout", where: NOT_VOID },
   { key: "ChickenRoad", name: "Chicken Road", category: "Mines & Cash-out", table: "ChickenRoadRound", stake: "stake", paid: "payout", where: NOT_VOID },
+  { key: "RingGauntlet", name: "Ring Gauntlet", category: "Mines & Cash-out", table: "RingGauntletRound", stake: "stake", paid: "payout", where: NOT_VOID },
   { key: "DragonTower", name: "Dragon Tower", category: "Mines & Cash-out", table: "DragonTowerRound", stake: "stake", paid: "payout" },
   { key: "Pump", name: "Pump", category: "Mines & Cash-out", table: "PumpRound", stake: "stake", paid: "payout" },
   { key: "CoinFlip", name: "Coin Flip", category: "Mines & Cash-out", table: "CoinFlipRound", stake: "stake", paid: "payout" },
@@ -166,7 +168,7 @@ export async function getGameReport() {
     if (["AndarBahar", "TeenPatti", "DragonTiger", "Baccarat", "Roulette"].includes(key)) return 1 - env.games.tableRtp;
     if (key === "SevenUpDown") return 1 - env.games.sevenUpDownRtp;
     if (key === "TeenPattiClub") return Math.max(0.05, env.games.teenPattiClubRake);
-    if (["Dice", "Limbo", "RedButton", "Plinko", "Keno", "Hilo", "Mines", "ChickenRoad", "DragonTower", "Pump", "CoinFlip"].includes(key)) return 1 - env.games.rtp;
+    if (["Dice", "Limbo", "RedButton", "Plinko", "Keno", "Hilo", "Mines", "ChickenRoad", "RingGauntlet", "DragonTower", "Pump", "CoinFlip"].includes(key)) return 1 - env.games.rtp;
     return null;
   };
   const targetEdge = (key: string, category: string) => {
