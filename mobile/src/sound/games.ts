@@ -117,6 +117,7 @@ export const GAMES: GameDef[] = [
   screen('keno', 'Keno', '/keno'),
   screen('limbo', 'Limbo', '/limbo', { tick: 'start', land: 'land' }),
   screen('redbutton', 'RedButton', '/red-button'),
+  screen('teenpatticlub', 'TeenPattiClub', '/teen-patti-club'),
   screen('jaguartemple', 'JaguarTemple', '/jaguar-temple'),
   screen('moneycoming', 'MoneyComing', '/money-coming'),
   screen('neon777', 'Neon777', '/neon-777'),

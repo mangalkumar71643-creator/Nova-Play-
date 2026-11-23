@@ -4150,3 +4150,176 @@ export function fetchBettingTasks() {
 export function claimBettingTask(id: string) {
   return apiFetch<{ amount: number; balance: number }>(`/promotion/tasks/${encodeURIComponent(id)}/claim`, { method: 'POST' });
 }
+
+// ---- Teen Patti Club (real Teen Patti for 2 or 3 players; the house keeps a rake of at least 5% of every pot) ----
+export interface ClubBootInfo {
+  boot: number;
+  /** The wallet needed to sit down (and to be dealt in again). */
+  minBalance: number;
+  /** The most the Blind stake can grow to; a Seen chaal at that stake costs twice that (maxBet). */
+  maxStake: number;
+  maxBet: number;
+  /** When the pot reaches this, everyone still in is shown and the best hand wins. */
+  potLimit: number;
+}
+export interface ClubConfig {
+  boots: ClubBootInfo[];
+  seats: number[];
+  rakePercent: number;
+  turnSeconds: number;
+  sideShowSeconds: number;
+  maxStakeTimes: number;
+  potLimitTimes: number;
+  minBalanceTimes: number;
+  handNames: string[];
+}
+export interface ClubLobbyBoot extends ClubBootInfo {
+  sizes: { seats: number; waiting: number; playing: number }[];
+}
+export interface ClubLobby {
+  now: number;
+  balance: number;
+  rakePercent: number;
+  boots: ClubLobbyBoot[];
+  online: number;
+  mine: { tableId: string; boot: number; seats: number; phase: ClubPhase; isPrivate: boolean } | null;
+}
+export type ClubPhase = 'WAITING' | 'STARTING' | 'PLAYING' | 'RESULT';
+export type ClubLogKind = 'DEAL' | 'SEE' | 'CHAAL' | 'RAISE' | 'PACK' | 'TIMEOUT' | 'LEFT' | 'SHOW' | 'SIDE_ASK' | 'SIDE_YES' | 'SIDE_NO' | 'SIDE_LOSS' | 'END';
+export interface ClubLogEntry {
+  seq: number;
+  at: number;
+  kind: ClubLogKind;
+  seat: number;
+  /** The other seat of a side show. */
+  to?: number;
+  amount?: number;
+  /** Who the entry is about (and the other player of a side show), by name: the seat may belong to somebody else by the time it is read. */
+  name: string;
+  toName?: string;
+}
+export interface ClubHandPlayer {
+  seat: number;
+  name: string;
+  uid: number | null;
+  seen: boolean;
+  packed: boolean;
+  invested: number;
+  timedOut: boolean;
+  left: boolean;
+  dealer: boolean;
+  /** Card 0..51 = suit * 13 + (rank - 1), suits S H C D. Only the cards this player may see. */
+  cards: number[] | null;
+  handName: string | null;
+}
+export interface ClubActions {
+  see: boolean;
+  pack: boolean;
+  chaal: number | null;
+  raise: { cost: number; stake: number } | null;
+  show: number | null;
+  sideShow: boolean;
+  respond: boolean;
+}
+export interface ClubHand {
+  no: number;
+  boot: number;
+  pot: number;
+  stake: number;
+  maxStake: number;
+  potLimit: number;
+  rakePercent: number;
+  turnSeat: number | null;
+  turnNo: number;
+  turnEndsAt: number;
+  sideShow: { fromSeat: number; toSeat: number; endsAt: number } | null;
+  over: boolean;
+  seedHash: string;
+  seed: string | null;
+  players: ClubHandPlayer[];
+  log: ClubLogEntry[];
+  result: {
+    endedBy: 'PACK' | 'SHOW' | 'POT_LIMIT';
+    winnerSeats: number[];
+    payouts: { seat: number; amount: number }[];
+    pot: number;
+    rake: number;
+    rakeBps: number;
+    shownSeats: number[];
+    askerSeat: number | null;
+  } | null;
+  you: { seat: number; actions: ClubActions } | null;
+}
+export type ClubSeatInfo =
+  | { seat: number; empty: true }
+  | { seat: number; empty: false; name: string; uid: number | null; you: boolean; left: boolean; inHand: boolean; away: boolean };
+export interface ClubTable {
+  id: string;
+  boot: number;
+  seats: number;
+  isPrivate: boolean;
+  code: string | null;
+  host: boolean;
+  canStart: boolean;
+  phase: ClubPhase;
+  version: number;
+  now: number;
+  startsAt: number | null;
+  handNo: number;
+  rakePercent: number;
+  minBalance: number;
+  maxStake: number;
+  potLimit: number;
+  turnSeconds: number;
+  balance: number;
+  /** The player's own seat number. */
+  you: number | null;
+  seatsInfo: ClubSeatInfo[];
+  hand: ClubHand | null;
+}
+export type ClubTableResponse = { table: ClubTable | null; now: number; unchanged?: undefined } | { unchanged: true; version: number; now: number; table?: undefined };
+export type ClubActionKind = 'SEE' | 'PACK' | 'CHAAL' | 'RAISE' | 'SHOW' | 'SIDE_SHOW' | 'ACCEPT' | 'DENY';
+export interface ClubHistoryHand {
+  id: string;
+  at: string;
+  outcome: 'WON' | 'LOST' | 'PACKED' | 'LEFT';
+  invested: number;
+  payout: number;
+  boot: number | null;
+  pot: number | null;
+  rake: number | null;
+  endedBy: 'PACK' | 'SHOW' | 'POT_LIMIT' | null;
+  seedHash: string | null;
+  seed: string | null;
+  players: { name: string; you: boolean; invested: number; payout: number; packed: boolean; cards: number[] | null }[];
+}
+export function fetchClubConfig() {
+  return apiFetch<ClubConfig>('/teen-patti-club/config');
+}
+export function fetchClubLobby() {
+  return apiFetch<ClubLobby>('/teen-patti-club/lobby');
+}
+export function joinClub(boot: number, seats: number) {
+  return apiFetch<ClubTableResponse>('/teen-patti-club/join', { method: 'POST', body: JSON.stringify({ boot, seats }) });
+}
+export function createPrivateClub(boot: number, seats: number) {
+  return apiFetch<ClubTableResponse>('/teen-patti-club/private', { method: 'POST', body: JSON.stringify({ boot, seats }) });
+}
+export function joinClubByCode(code: string) {
+  return apiFetch<ClubTableResponse>('/teen-patti-club/join-code', { method: 'POST', body: JSON.stringify({ code }) });
+}
+export function startPrivateClub() {
+  return apiFetch<ClubTableResponse>('/teen-patti-club/start', { method: 'POST', body: '{}' });
+}
+export function fetchMyClubTable(since?: number) {
+  return apiFetch<ClubTableResponse>(`/teen-patti-club/table${since !== undefined ? `?since=${since}` : ''}`);
+}
+export function clubAction(action: ClubActionKind, turnNo?: number) {
+  return apiFetch<ClubTableResponse>('/teen-patti-club/action', { method: 'POST', body: JSON.stringify({ action, turnNo }) });
+}
+export function leaveClub() {
+  return apiFetch<{ left: boolean }>('/teen-patti-club/leave', { method: 'POST', body: '{}' });
+}
+export function fetchClubHistory(limit = 30) {
+  return apiFetch<ClubHistoryHand[]>(`/teen-patti-club/history?limit=${limit}`);
+}

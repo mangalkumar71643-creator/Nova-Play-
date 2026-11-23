@@ -522,6 +522,12 @@ export interface PlayerView {
   handName: string | null;
 }
 
+export interface LogView extends LogEntry {
+  /** Who the entry is about, and (side show) the other player: by name, so the entry stays right if a seat is taken by somebody else later. */
+  name: string;
+  toName?: string;
+}
+
 export interface HandView {
   no: number;
   boot: number;
@@ -539,7 +545,7 @@ export interface HandView {
   /** Revealed once the hand is over. */
   seed: string | null;
   players: PlayerView[];
-  log: LogEntry[];
+  log: LogView[];
   result: null | {
     endedBy: HandResult["endedBy"];
     winnerSeats: number[];
@@ -591,7 +597,11 @@ export function viewHand(h: HandState, viewerId: string | null): HandView {
     seedHash: h.seedHash,
     seed: h.over ? h.seed : null,
     players,
-    log: h.log,
+    log: h.log.map((e) => {
+      const who = h.players.find((p) => p.seat === e.seat);
+      const other = e.to === undefined ? undefined : h.players.find((p) => p.seat === e.to);
+      return { ...e, name: who?.name ?? "", ...(other ? { toName: other.name } : {}) };
+    }),
     result: r
       ? {
           endedBy: r.endedBy,

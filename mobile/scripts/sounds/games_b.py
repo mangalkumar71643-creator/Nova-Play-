@@ -553,6 +553,29 @@ def jaguartemple(r):
     return d
 
 
+def teenpatticlub(r):
+    """Teen Patti Club, real Teen Patti at a table: cards dealt one by one, a card turned over, chips pushed to the pot, cards
+    thrown in, a soft chime when it is your turn, the clock ticking, and a warm win. The bets themselves are heard as the app's chip sound."""
+    d = {
+        # the deal: seven cards slid across the felt, a soft thud under the last
+        "start": L.mix([(cards(7, 0.095, 0, 0.0), 0, 1.0), (L.thud(120, 0.18, r, 0.05, 0.5), 0.62, 0.35)]),
+        # a card turned face up
+        "step": L.mix([(K("card-fan-1")[: L.N(0.45)], 0, 0.85), (C.card_place(2, 1.0), 0.16, 0.75)]),
+        # the last seconds of a turn: a small wooden tick
+        "tick": C.tk(r, "wood", 1700) * 0.9,
+        # your turn: two soft bells
+        "land": L.mix([(L.bell(float(hz(81)), 0.55, 0.28), 0, 0.8), (L.bell(float(hz(88)), 0.7, 0.34), 0.13, 0.8)]),
+        # the cards are shown: a fan of cards turned over
+        "reveal": L.mix([(K("card-fan-2"), 0, 1.0), (cards(3, 0.14, 3, 0.5), 0.3, 0.8), (L.thud(80, 0.22, r, 0.06), 0.75, 0.6)]),
+        # a pack: the cards are pushed away
+        "special": L.mix([(K("card-shove-2"), 0, 1.0), (L.whoosh(0.3, 1500, 500, r) * 0.2, 0.02, 1.0)]),
+        # the pot is pushed to the winner
+        "cashout": L.mix([(C.chips_win(r, 1), 0, 1.0), (C.chips_win(r, 3, 1.0), 0.18, 0.8)]),
+    }
+    d.update(triple(r, 62, L.MAJOR_PENT, "glass", 6, coins=0.6, shim=0.3, lose_kind="wah", lose_f=260, step=0.075, d=0.55, tau=0.32))
+    return d
+
+
 GAMES_B = {
     "sevenupdown": sevenupdown, "dragontiger": dragontiger, "andarbahar": andarbahar, "teenpatti": teenpatti,
     "jhandimunda": jhandimunda, "roulette": roulette, "baccarat": baccarat,
@@ -562,5 +585,5 @@ GAMES_B = {
     "bookofpharaoh": bookofpharaoh,
     "plinko": plinko, "dice": dice, "limbo": limbo, "keno": keno, "diamonds": diamonds, "blackjack": blackjack,
     "casinoholdem": casinoholdem, "threecardpoker": threecardpoker, "videopoker": videopoker, "slot": slot,
-    "aces": aces, "candyblast": candyblast, "gatesofzeus": gatesofzeus, "moneycoming": moneycoming, "neon777": neon777, "redbutton": redbutton, "jaguartemple": jaguartemple,
+    "teenpatticlub": teenpatticlub, "aces": aces, "candyblast": candyblast, "gatesofzeus": gatesofzeus, "moneycoming": moneycoming, "neon777": neon777, "redbutton": redbutton, "jaguartemple": jaguartemple,
 }

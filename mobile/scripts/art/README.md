@@ -15,3 +15,5 @@ node mobile/scripts/art/build.js redbutton/lcd   # one piece
 * The app only uses the finished pictures (SVG filters are not available in the app); the moving parts (the LCD digits, the
   lamps, the reels) are drawn live on top of them.
 * To use a painted picture instead, save it over the file the app loads (same name, same shape) — nothing else needs to change.
+* `teenpatticlub/` draws the back of the cards (`card-back`), the emblem and the felt grain of the table, and the Home tile of Teen Patti Club
+  (the card faces and the chips are drawn live by the app, as SVG, so they stay sharp at any size).

@@ -427,6 +427,18 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     bigwin: require('../../assets/sounds/games/teenpatti/bigwin.mp3'),
     lose: require('../../assets/sounds/games/teenpatti/lose.mp3'),
   },
+  teenpatticlub: {
+    start: require('../../assets/sounds/games/teenpatticlub/start.mp3'),
+    step: require('../../assets/sounds/games/teenpatticlub/step.mp3'),
+    tick: require('../../assets/sounds/games/teenpatticlub/tick.mp3'),
+    land: require('../../assets/sounds/games/teenpatticlub/land.mp3'),
+    reveal: require('../../assets/sounds/games/teenpatticlub/reveal.mp3'),
+    cashout: require('../../assets/sounds/games/teenpatticlub/cashout.mp3'),
+    special: require('../../assets/sounds/games/teenpatticlub/special.mp3'),
+    win: require('../../assets/sounds/games/teenpatticlub/win.mp3'),
+    bigwin: require('../../assets/sounds/games/teenpatticlub/bigwin.mp3'),
+    lose: require('../../assets/sounds/games/teenpatticlub/lose.mp3'),
+  },
   threecardpoker: {
     start: require('../../assets/sounds/games/threecardpoker/start.mp3'),
     tick: require('../../assets/sounds/games/threecardpoker/tick.mp3'),

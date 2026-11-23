@@ -14,6 +14,7 @@ chip / dice foley, everything else is synthesised in lib.py / common.py. See REA
 import argparse
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -297,6 +298,29 @@ def ts_index(done):
     return "\n".join(lines)
 
 
+def packs_on_disk():
+    """event -> file of every game pack that is in the sounds folder, so packs.ts also covers the games not built in this run."""
+    done = {}
+    for game in sorted(os.listdir(OUT)):
+        d = os.path.join(OUT, game)
+        if not os.path.isdir(d):
+            continue
+        files = {}
+        for ev in EVENTS:
+            for ext in ("mp3", "wav"):
+                path = os.path.join(d, f"{ev}.{ext}")
+                if os.path.exists(path):
+                    files[ev] = os.path.relpath(path, os.path.join(ROOT, "src", "sound")).replace(os.sep, "/")
+                    break
+        if files:
+            done[game] = files
+    # A game that has no sound files of its own is listed (empty) all the same, as in the last index.
+    if os.path.exists(PACKS_TS):
+        for name in re.findall(r"^  (\w+): \{$", open(PACKS_TS).read(), flags=re.M):
+            done.setdefault(name, {})
+    return done
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--kenney", required=True)
@@ -314,10 +338,11 @@ def main():
         results = p.map(render_game, [(g, a.kenney) for g in games])
     done = {g: f for g, f, _ in results}
     infos = {g: i for g, _, i in results}
-    if not a.only:
-        os.makedirs(os.path.dirname(PACKS_TS), exist_ok=True)
-        with open(PACKS_TS, "w") as fh:
-            fh.write(ts_index(done))
+    os.makedirs(os.path.dirname(PACKS_TS), exist_ok=True)
+    # A full build writes the index of what it made; a build of some games (--only) adds them to the packs already there.
+    index = ts_index(done if not a.only else packs_on_disk())  # (read before the file is opened for writing)
+    with open(PACKS_TS, "w") as fh:
+        fh.write(index)
     if not a.only:
         for name, dur in build_ui():
             print(f"ui sound {name}: {dur * 1000:.0f} ms")

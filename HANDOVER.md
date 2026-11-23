@@ -48,6 +48,7 @@ real values. The full list with defaults is in `backend/src/config/env.ts`;
 - `JWT_SECRET` — signs login tokens; anyone holding it can forge logins
 - `DEPOSITS_ENABLED` — deposits are refused unless this is `"true"`
 - `GAME_MAX_PAYOUT`, house-edge and bonus settings — see `env.ts`
+- `TEEN_PATTI_CLUB_RAKE` — the house's share of each Teen Patti Club pot (default `0.05`; the game never takes less than 5%, whatever is set)
 - `KYC_PROVIDER_MODE`, `PAYMENT_PROVIDER_MODE`, `SMS_PROVIDER_MODE` — all `mock` today
 
 ## 4. Running locally
@@ -95,6 +96,7 @@ Admin app: `cd admin-app && ./gradlew assembleRelease`.
 | Wallet, withdrawals, history, balance records | `routes/wallet.routes.ts`, `services/paymentService.ts` | `screens/WalletScreen.tsx`, `DepositScreen.tsx`, `WithdrawScreen.tsx`, `HistoryScreen.tsx`, `BalanceRecordsScreen.tsx` | Transactions (withdrawal approval) |
 | Winnings-only withdrawals | `Wallet.unplayedDeposit` + trigger in `prisma/seed.ts` | — | — |
 | Games (about 40, each its own service) | `services/*Service.ts`, `routes/*.routes.ts` | `screens/*Screen.tsx`, tiles in `components/GameTile.tsx` | Games, Reports |
+| Teen Patti Club: real Teen Patti for 2-3 players, the house keeps a rake of at least 5% of every pot | `services/teenPattiClubEngine.ts` (the rules), `teenPattiClubService.ts` (tables, wallets, clocks), `routes/teenPattiClub.routes.ts`; check: `scripts/check-teen-patti-club.ts` | `screens/TeenPattiClubScreen.tsx`, `screens/club/*`, `components/club/*` | Reports → Games |
 | Max win per bet | `services/settingsService.ts` | shown in game screens | Reports → Max win per bet |
 | App-open popups and Home slider (with buttons) | `services/popupService.ts`, `routes/popups.routes.ts` | `components/HomePopups.tsx`, `components/HomeSlider.tsx` | Popups, Home Slider |
 | Gift codes | `services/giftCodeService.ts` | `screens/GiftCodeScreen.tsx` | Gift Codes |

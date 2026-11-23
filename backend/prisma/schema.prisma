@@ -2514,9 +2514,8 @@ model TeenPattiClubSeat {
   tableId    String
   table      TeenPattiClubTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
   seat       Int
-  /// Null once the player left in the middle of a hand: the seat stays taken until that hand has been shown.
-  userId     String?            @unique
-  user       User?              @relation(fields: [userId], references: [id])
+  userId     String             @unique
+  user       User               @relation(fields: [userId], references: [id])
   name       String
   uid        Int?
   /// Last poll from the app: a player who stops polling is taken off a table that is not playing.

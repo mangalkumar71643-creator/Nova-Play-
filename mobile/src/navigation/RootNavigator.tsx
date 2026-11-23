@@ -51,6 +51,7 @@ import AcesScreen from '../screens/AcesScreen';
 import DiceScreen from '../screens/DiceScreen';
 import LimboScreen from '../screens/LimboScreen';
 import RedButtonScreen from '../screens/RedButtonScreen';
+import TeenPattiClubScreen from '../screens/TeenPattiClubScreen';
 import JaguarTempleScreen from '../screens/JaguarTempleScreen';
 import BlackjackScreen from '../screens/BlackjackScreen';
 import KenoScreen from '../screens/KenoScreen';
@@ -235,6 +236,7 @@ function MainNavigator() {
       <Stack.Screen name="Dice" component={DiceScreenWithRefresh} />
       <Stack.Screen name="Limbo" component={LimboScreenWithRefresh} />
       <Stack.Screen name="RedButton" component={RedButtonScreenWithRefresh} />
+      <Stack.Screen name="TeenPattiClub" component={TeenPattiClubScreen} />
       <Stack.Screen name="JaguarTemple" component={JaguarTempleScreenWithRefresh} />
       <Stack.Screen name="Blackjack" component={BlackjackScreenWithRefresh} />
       <Stack.Screen name="Keno" component={KenoScreenWithRefresh} />

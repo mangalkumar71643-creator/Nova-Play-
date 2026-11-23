@@ -273,7 +273,7 @@ async function processTable(tx: Tx, row: TableRow, now: number): Promise<TableRo
       continue;
     }
     // WAITING: players who went away are taken off.
-    const stale = (await seatsOf(tx, row.id)).filter((s) => s.userId && now - s.lastSeenAt.getTime() > PRESENCE_MS);
+    const stale = (await seatsOf(tx, row.id)).filter((s) => now - s.lastSeenAt.getTime() > PRESENCE_MS);
     if (stale.length > 0) {
       await tx.teenPattiClubSeat.deleteMany({ where: { id: { in: stale.map((s) => s.id) } } });
       changed = true;
@@ -286,7 +286,7 @@ async function processTable(tx: Tx, row: TableRow, now: number): Promise<TableRo
     if (rearm) await tx.teenPattiClubTable.update({ where: { id: row.id }, data: { dueAt: new Date(now + WAIT_TICK_MS) } });
     return row;
   }
-  const humans = (await seatsOf(tx, row.id)).filter((s) => s.userId).length;
+  const humans = (await seatsOf(tx, row.id)).length;
   if (humans === 0 && st.phase !== "PLAYING") {
     await tx.teenPattiClubTable.delete({ where: { id: row.id } });
     return null;
@@ -302,11 +302,8 @@ async function processTable(tx: Tx, row: TableRow, now: number): Promise<TableRo
  */
 async function startHand(tx: Tx, row: TableRow, st: TableState, now: number): Promise<boolean> {
   const boot = Number(row.boot);
-  const seats = await seatsOf(tx, row.id);
-  const ghosts = seats.filter((s) => !s.userId);
-  if (ghosts.length > 0) await tx.teenPattiClubSeat.deleteMany({ where: { id: { in: ghosts.map((g) => g.id) } } });
-  const humans = seats.filter((s) => s.userId);
-  const ids = humans.map((s) => s.userId!);
+  const humans = await seatsOf(tx, row.id);
+  const ids = humans.map((s) => s.userId);
   await lockWallets(tx, ids);
   const [wallets, users] = await Promise.all([
     tx.wallet.findMany({ where: { userId: { in: ids } }, select: { userId: true, balance: true } }),
@@ -335,15 +332,15 @@ async function startHand(tx: Tx, row: TableRow, st: TableState, now: number): Pr
   const hand = newHand({
     no: st.handNo + 1,
     boot: toPaise(boot),
-    players: keep.map((s) => ({ userId: s.userId!, seat: s.seat, name: s.name, uid: s.uid })),
+    players: keep.map((s) => ({ userId: s.userId, seat: s.seat, name: s.name, uid: s.uid })),
     lastDealerSeat: st.dealerSeat,
     now,
     rakeBps: clubRakeBps(),
   });
   const handId = randomUUID();
   for (const s of keep) {
-    await takeMoney(tx, s.userId!, hand.boot);
-    await tx.teenPattiClubResult.create({ data: { handId, userId: s.userId!, invested: boot } });
+    await takeMoney(tx, s.userId, hand.boot);
+    await tx.teenPattiClubResult.create({ data: { handId, userId: s.userId, invested: boot } });
   }
   st.phase = "PLAYING";
   st.startsAt = null;
@@ -382,7 +379,11 @@ export async function sweepDueClubTables(limit = 4) {
 
 const R = (paise: number) => paise / 100;
 
-function apiHand(v: HandView) {
+/**
+ * The hand as the app gets it, in rupees. A player who has left the table is marked `left` (also at the end of a hand), because
+ * their seat may already be somebody else's: the app draws only the players who are still there.
+ */
+function apiHand(v: HandView, seated: Set<string>, h: HandState) {
   const a = v.you?.actions;
   return {
     ...v,
@@ -392,7 +393,7 @@ function apiHand(v: HandView) {
     maxStake: R(v.maxStake),
     potLimit: R(v.potLimit),
     rakePercent: v.rakeBps / 100,
-    players: v.players.map((p) => ({ ...p, invested: R(p.invested) })),
+    players: v.players.map((p, i) => ({ ...p, invested: R(p.invested), left: p.left || !seated.has(h.players[i].userId) })),
     log: v.log.map((e) => (e.amount === undefined ? e : { ...e, amount: R(e.amount) })),
     result: v.result && { ...v.result, pot: R(v.result.pot), rake: R(v.result.rake), payouts: v.result.payouts.map((x) => ({ seat: x.seat, amount: R(x.amount) })) },
     you:
@@ -414,12 +415,12 @@ function buildView(row: TableRow, userId: string, balance: number, now: number) 
   const st = stateOf(row);
   const h = st.hand;
   const mine = row.seatRows.find((s) => s.userId === userId);
-  const humans = row.seatRows.filter((s) => s.userId).length;
+  const humans = row.seatRows.length;
   const seatsInfo = Array.from({ length: row.seats }, (_, n) => {
     const s = row.seatRows.find((x) => x.seat === n);
     if (!s) return { seat: n, empty: true as const };
-    const inHand = !!h && h.players.some((p) => p.seat === n);
-    return { seat: n, empty: false as const, name: s.name, uid: s.uid, you: s.userId === userId, left: s.userId === null, inHand, away: !!s.userId && now - s.lastSeenAt.getTime() > PRESENCE_MS };
+    const inHand = !!h && h.players.some((p) => p.userId === s.userId);
+    return { seat: n, empty: false as const, name: s.name, uid: s.uid, you: s.userId === userId, inHand, away: now - s.lastSeenAt.getTime() > PRESENCE_MS };
   });
   const boot = Number(row.boot);
   return {
@@ -443,7 +444,7 @@ function buildView(row: TableRow, userId: string, balance: number, now: number) 
     balance,
     you: mine ? mine.seat : null,
     seatsInfo,
-    hand: h ? apiHand(viewHand(h, userId)) : null,
+    hand: h ? apiHand(viewHand(h, userId), new Set(row.seatRows.map((s) => s.userId)), h) : null,
   };
 }
 
@@ -460,7 +461,7 @@ export async function getClubLobby(userId: string) {
   const now = Date.now();
   const rows = await prisma.$queryRaw<{ boot: number; seats: number; phase: string; fresh: boolean; players: bigint }[]>`
     SELECT t.boot::float AS boot, t.seats, t.phase, (t."handsPlayed" = 0) AS fresh,
-           COUNT(s.id) FILTER (WHERE s."userId" IS NOT NULL AND s."lastSeenAt" > now() - interval '25 seconds') AS players
+           COUNT(s.id) FILTER (WHERE s."lastSeenAt" > now() - interval '25 seconds') AS players
     FROM "TeenPattiClubTable" t LEFT JOIN "TeenPattiClubSeat" s ON s."tableId" = t.id
     WHERE t."isPrivate" = false
     GROUP BY t.id`;
@@ -514,7 +515,7 @@ async function seatPlayer(tx: Tx, row: TableRow, who: { userId: string; name: st
   const free = Array.from({ length: row.seats }, (_, n) => n).find((n) => !taken.has(n));
   if (free === undefined) throw new ApiError(409, "That table is full.");
   await tx.teenPattiClubSeat.create({ data: { tableId: row.id, seat: free, userId: who.userId, name: who.name, uid: who.uid, lastSeenAt: new Date(now) } });
-  const humans = row.seatRows.filter((s) => s.userId).length + 1;
+  const humans = row.seatRows.length + 1;
   if (st.phase === "WAITING") {
     const ready = st.handNo === 0 ? humans === row.seats : humans >= 2;
     if (ready) {
@@ -542,6 +543,8 @@ export async function joinClubTable(userId: string, boot: number, seats: number)
   try {
     return await prisma.$transaction(async (tx) => {
       const now = Date.now();
+      // One player at a time per queue (boot and size): two who sit down at the same moment must find each other's table, not make one each.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`teen-patti-club:${boot}:${seats}`}))`;
       for (let attempt = 0; attempt < 3; attempt++) {
         const found = await tx.$queryRaw<{ id: string }[]>`
           SELECT t.id FROM "TeenPattiClubTable" t
@@ -611,7 +614,7 @@ export async function startPrivateClubTable(userId: string) {
     if (!row) throw new ApiError(404, "That table has closed.");
     const st = stateOf(row);
     if (!row.isPrivate || row.hostId !== userId) throw new ApiError(403, "Only the host of a friends' table can start it.");
-    const humans = row.seatRows.filter((s) => s.userId).length;
+    const humans = row.seatRows.length;
     if (st.phase !== "WAITING" || st.handNo !== 0) throw new ApiError(400, "The table has already started.");
     if (humans < 2) throw new ApiError(400, "At least 2 players are needed to start.");
     st.startWithFewer = true;
@@ -631,7 +634,6 @@ export async function leaveClubTable(userId: string) {
     const st = stateOf(row);
     const mine = row.seatRows.find((s) => s.userId === userId);
     if (!mine) return;
-    const inHand = !!st.hand && st.hand.players.some((p) => p.userId === userId) && (st.phase === "PLAYING" || st.phase === "RESULT");
     if (st.phase === "PLAYING" && st.hand && !st.hand.over) {
       const idx = playerIndex(st.hand, userId);
       if (idx >= 0) {
@@ -641,10 +643,8 @@ export async function leaveClubTable(userId: string) {
         if (copy.over) await finalizeHand(tx, row, st);
       }
     }
-    // Kept as an empty seat until that hand is shown, so nobody sits in a seat the result still has a name on.
-    if (inHand) await tx.teenPattiClubSeat.update({ where: { id: mine.id }, data: { userId: null } });
-    else await tx.teenPattiClubSeat.delete({ where: { id: mine.id } });
-    const humans = (await seatsOf(tx, row.id)).filter((s) => s.userId).length;
+    await tx.teenPattiClubSeat.delete({ where: { id: mine.id } });
+    const humans = (await seatsOf(tx, row.id)).length;
     if (humans === 0 && st.phase !== "PLAYING") {
       await tx.teenPattiClubTable.delete({ where: { id: row.id } });
       return;
@@ -702,7 +702,7 @@ export async function clubAction(userId: string, kind: ActionKind, turnNo?: numb
       }
       st.hand = copy;
       if (copy.over) await finalizeHand(tx, row, st);
-      const humans = (await seatsOf(tx, row.id)).filter((s) => s.userId).length;
+      const humans = (await seatsOf(tx, row.id)).length;
       await saveTable(tx, row, st, now, humans);
       return viewAfter(tx, await reload(tx, row.id), userId, now);
     });
