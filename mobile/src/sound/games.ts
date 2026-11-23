@@ -119,6 +119,8 @@ export const GAMES: GameDef[] = [
   screen('redbutton', 'RedButton', '/red-button'),
   screen('teenpatticlub', 'TeenPattiClub', '/teen-patti-club'),
   screen('jaguartemple', 'JaguarTemple', '/jaguar-temple'),
+  screen('ringgauntlet', 'RingGauntlet', '/ring-gauntlet'),
+  screen('turbosevens', 'TurboSevens', '/turbo-sevens'),
   screen('moneycoming', 'MoneyComing', '/money-coming'),
   screen('neon777', 'Neon777', '/neon-777'),
   screen('plinko', 'Plinko', '/plinko'),

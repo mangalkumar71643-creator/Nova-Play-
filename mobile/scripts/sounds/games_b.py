@@ -576,6 +576,68 @@ def teenpatticlub(r):
     return d
 
 
+def ringgauntlet(r):
+    """Ring Gauntlet, a ring that locks segment by segment: a heavy ring engaging, bright metal locks that climb in pitch, a dark
+    failure sting, coins and a chime when it is cashed out."""
+    lock = lambda f, g=1.0: L.mix([
+        (L.click(r, 0.02, 2600, 6.0, 0.004) * 2.0, 0, g),
+        (L.bell(float(hz(f)), 0.42, 0.16) * 0.55, 0.0, g * 0.8),
+        (L.thud(240, 0.05, r, 0.02, 0.4), 0, 0.45 * g),
+    ])
+    chime = lambda root, n: C.jingle(r, root, L.MAJOR_PENT, C.voice("glass", d=0.5, tau=0.3), n, 0.07, "up", tail=0.5, rev=(0.5, 0.22))
+    d = {
+        "start": L.mix([
+            (L.thud(62, 0.3, r, 0.1, 0.9), 0, 1.0),
+            (L.click(r, 0.03, 1500, 4.0, 0.006) * 1.8, 0.0, 0.9),
+            (L.sweep(120, 880, 0.5, "saw") * L.env_swell(L.N(0.5), 0.85) * 0.2, 0.05, 1.0),
+            (L.whoosh(0.45, 300, 2600, r) * 0.2, 0.08, 1.0),
+            (L.click(r, 0.02, 3200, 7.0, 0.004) * 1.4, 0.42, 0.7),
+        ]),
+        "step": lock(79),
+        "tick": C.blip(1568, 0.05, "square", 0.03, 0.1) * 0.75,
+        "land": L.mix([(L.thud(95, 0.18, r, 0.06), 0, 1.0), (L.click(r, 0.02, 1800, 5.0, 0.005) * 1.4, 0, 0.8)]),
+        "special": L.mix([
+            (L.sweep(520, 70, 0.55, "saw") * L.env_exp(L.N(0.55), 0.3) * 0.32, 0, 1.0),
+            (L.thud(55, 0.35, r, 0.12, 1.0), 0.02, 1.0),
+            (L.hp(L.noise(0.3, r), 1800) * L.env_exp(L.N(0.3), 0.08, 0.0004) * 1.2, 0.0, 0.8),
+            (L.click(r, 0.03, 700, 3.0, 0.01) * 1.8, 0.0, 0.9),
+        ]),
+        "cashout": L.mix([(L.coin_shower(r, 10, 0.8), 0, 0.9), (chime(76, 5), 0.02, 0.9)]),
+        "reveal": L.mix([(ticker(r, 1.2, 22, 2400, 0.9), 0, 1.0)]),
+    }
+    d.update({
+        "win": L.mix([(chime(69, 7), 0, 1.0), (L.coin_shower(r, 12, 0.9), 0.08, 0.6)]),
+        "bigwin": L.mix([(chime(60, 10), 0, 1.0), (chime(72, 9), 0.6, 0.85), (L.coin_shower(r, 30, 1.8), 0.12, 0.85), (L.gong(98, 2.0) * 0.8, 0.0, 0.6)]),
+        "lose": L.mix([(C.lose_sound(r, "slide", 250, 0.55, -10), 0.05, 1.0), (L.thud(70, 0.3, r, 0.1, 0.8), 0, 0.7)]),
+    })
+    return d
+
+
+def turbosevens(r):
+    """Turbo Sevens, a classic 777 machine: a lever, reels whirring and stopping one by one, bells for a win, coins pouring for a big
+    one, and a quick flourish when the bonus reel brings a multiplier, cash or the respin wheel."""
+    d = {
+        "start": L.mix([(lever(r), 0, 1.0), (reel_spin(r, 1.0, 2600, 52), 0.12, 0.85)]),
+        "tick": L.mix([(L.coin(r, 3100, 0.1, 0.05), 0, 0.8)]),
+        "land": L.mix([(L.thud(150, 0.12, r, 0.05, 0.6) * 1.2, 0, 1.0), (L.click(r, 0.02, 1700, 5.0, 0.004) * 1.2, 0, 0.7)]),
+        "step": L.mix([(reel_spin(r, 0.55, 3000, 60), 0, 0.8), (L.click(r, 0.03, 1100, 4.0, 0.01) * 1.4, 0, 0.8)]),
+        "reveal": L.mix([(ticker(r, 1.6, 26, 2600, 1.0), 0, 1.0)]),
+        "special": L.mix([
+            (L.bell(float(hz(88)), 0.7, 0.26), 0.0, 0.9),
+            (L.bell(float(hz(95)), 0.9, 0.32), 0.1, 0.9),
+            (L.coin(r, 3400, 0.2, 0.08), 0.02, 0.8),
+        ]),
+        "cashout": L.mix([(L.coin_shower(r, 8, 0.7), 0, 1.0), (L.bell(float(hz(91)), 0.6, 0.24), 0.0, 0.7)]),
+    }
+    bells = lambda root, n: C.jingle(r, root, L.MAJOR_PENT, C.voice("glass", d=0.45, tau=0.28), n, 0.075, "up", tail=0.45, rev=(0.5, 0.2))
+    d.update({
+        "win": L.mix([(bells(72, 6), 0, 1.0), (L.coin_shower(r, 10, 0.8), 0.06, 0.6)]),
+        "bigwin": L.mix([(bells(60, 9), 0, 1.0), (bells(72, 8), 0.55, 0.85), (L.coin_shower(r, 32, 2.0), 0.1, 0.9), (L.siren(1.0, 650, 950, 4.0) * 0.14, 0.1, 1.0), (L.gong(110, 1.8) * 0.7, 0.0, 0.6)]),
+        "lose": L.mix([(C.lose_sound(r, "wah", 240, 0.45), 0, 0.7)]),
+    })
+    return d
+
+
 GAMES_B = {
     "sevenupdown": sevenupdown, "dragontiger": dragontiger, "andarbahar": andarbahar, "teenpatti": teenpatti,
     "jhandimunda": jhandimunda, "roulette": roulette, "baccarat": baccarat,
@@ -586,4 +648,5 @@ GAMES_B = {
     "plinko": plinko, "dice": dice, "limbo": limbo, "keno": keno, "diamonds": diamonds, "blackjack": blackjack,
     "casinoholdem": casinoholdem, "threecardpoker": threecardpoker, "videopoker": videopoker, "slot": slot,
     "teenpatticlub": teenpatticlub, "aces": aces, "candyblast": candyblast, "gatesofzeus": gatesofzeus, "moneycoming": moneycoming, "neon777": neon777, "redbutton": redbutton, "jaguartemple": jaguartemple,
+    "ringgauntlet": ringgauntlet, "turbosevens": turbosevens,
 }

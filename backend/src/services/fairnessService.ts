@@ -60,6 +60,7 @@ async function hasOpenRound(userId: string): Promise<boolean> {
   const counts = await Promise.all([
     prisma.minesRound.count({ where: pending }),
     prisma.chickenRoadRound.count({ where: pending }),
+    prisma.ringGauntletRound.count({ where: pending }),
     prisma.penaltyRound.count({ where: pending }),
     prisma.cupsRound.count({ where: pending }),
     prisma.bombRound.count({ where: pending }),

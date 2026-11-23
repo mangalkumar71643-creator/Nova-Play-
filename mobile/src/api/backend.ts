@@ -4348,3 +4348,145 @@ export function leaveClub() {
 export function fetchClubHistory(limit = 30) {
   return apiFetch<ClubHistoryHand[]>(`/teen-patti-club/history?limit=${limit}`);
 }
+
+// ---- Ring Gauntlet (climb the segments of a ring, cash out any time; three rings: outer square, middle triangle, inner circle) ----
+export type RingKey = 'OUTER' | 'MIDDLE' | 'INNER';
+export interface RingSegment {
+  step: number;
+  kind: 'x' | 'plus' | 'bonus';
+  /** What the ring shows: "3.9X", "+7X", "BONUS". */
+  label: string;
+  multiplier: number;
+  /** Chance of surviving this segment once the round is on it, and of getting this far from the start. */
+  chance: number;
+  reach: number;
+}
+export interface RingInfo {
+  ring: RingKey;
+  shape: 'SQUARE' | 'TRIANGLE' | 'CIRCLE';
+  steps: RingSegment[];
+  /** The outer ring's bonus wheel: what it adds to the last multiplier, with its weight (out of 100). */
+  wheel: { add: number; weight: number }[];
+}
+export interface RingGauntletConfig {
+  minStake: number;
+  maxStake: number;
+  maxPayout: number;
+  rtp: number;
+  maxPartCashouts: number;
+  rings: RingInfo[];
+}
+export interface RingGauntletRound {
+  id: string;
+  ring: RingKey;
+  stake: number;
+  /** Segments survived so far. */
+  currentStep: number;
+  steps: number;
+  multiplier: number;
+  /** Part of the stake still in play (1, 0.5, 0.25, 0.125). */
+  share: number;
+  banked: number;
+  partCashouts: number;
+  payout: number;
+  bonus: number;
+  auto: boolean;
+  status: 'PENDING' | 'WON' | 'LOST';
+  /** What a cash-out would pay right now (0 once the round has ended). */
+  value: number;
+  canPartCashout: boolean;
+  next: { step: number; label: string; multiplier: number; chance: number } | null;
+  serverSeedHash: string;
+  clientSeed: string;
+  nonce: number;
+  createdAt: string;
+  settledAt: string | null;
+}
+export interface RingGauntletMove {
+  round: RingGauntletRound;
+  survived: boolean;
+}
+export function fetchRingGauntletConfig() {
+  return apiFetch<RingGauntletConfig>('/ring-gauntlet/config');
+}
+export function fetchRingGauntletCurrent() {
+  return apiFetch<RingGauntletRound | null>('/ring-gauntlet/current');
+}
+export function fetchRingGauntletHistory(limit = 30) {
+  return apiFetch<RingGauntletRound[]>(`/ring-gauntlet/my-history?limit=${limit}`);
+}
+export function startRingGauntlet(stake: number, ring: RingKey) {
+  return apiFetch<RingGauntletMove>('/ring-gauntlet/start', { method: 'POST', body: JSON.stringify({ stake, ring }) });
+}
+export function advanceRingGauntlet(roundId: string) {
+  return apiFetch<RingGauntletMove>('/ring-gauntlet/advance', { method: 'POST', body: JSON.stringify({ roundId }) });
+}
+export function cashOutRingGauntlet(roundId: string) {
+  return apiFetch<RingGauntletRound>('/ring-gauntlet/cashout', { method: 'POST', body: JSON.stringify({ roundId }) });
+}
+export function partCashOutRingGauntlet(roundId: string) {
+  return apiFetch<RingGauntletRound>('/ring-gauntlet/part-cashout', { method: 'POST', body: JSON.stringify({ roundId }) });
+}
+export function autoRingGauntlet(stake: number, ring: RingKey, target: number) {
+  return apiFetch<RingGauntletMove>('/ring-gauntlet/auto', { method: 'POST', body: JSON.stringify({ stake, ring, target }) });
+}
+
+// ---- Turbo Sevens (one-payline 777 slot with a fourth bonus reel: multipliers, cash symbols, a respin wheel) ----
+export type TurboSymbol = 'FLAME7' | 'RED7' | 'GOLD7' | 'GREEN2BAR' | 'BLUE1BAR' | 'BLANK';
+export type TurboBonusSymbol = 'EMPTY' | 'X2' | 'X5' | 'X10' | 'CASH2' | 'CASH20' | 'RESPIN';
+export type TurboLineKind = 'FLAME7' | 'RED7' | 'GOLD7' | 'GREEN2BAR' | 'BLUE1BAR' | 'ANY7' | 'ANYBAR' | 'ANY' | 'NONE';
+export interface TurboStep {
+  stops: number[];
+  bonusStop: number;
+  /** What each main reel shows: [top, middle, bottom]. */
+  window: TurboSymbol[][];
+  bonusWindow: TurboBonusSymbol[];
+  bonus: TurboBonusSymbol;
+  line: TurboLineKind;
+  linePay: number;
+  multiplier: number;
+  cash: number;
+  win: number;
+}
+export interface TurboOutcome {
+  /** The paid spin, then the respins the wheel awarded. */
+  spins: TurboStep[];
+  respins: number;
+  totalWin: number;
+}
+export interface TurboSpinRow {
+  id: string;
+  stake: number;
+  totalWin: number;
+  payout: number;
+  serverSeedHash: string;
+  clientSeed: string;
+  nonce: number;
+  createdAt: string;
+}
+export interface TurboSevensConfig {
+  minStake: number;
+  maxStake: number;
+  maxPayout: number;
+  symbols: TurboSymbol[];
+  strips: TurboSymbol[][];
+  bonusStrip: TurboBonusSymbol[];
+  pays: Record<string, number>;
+  anyPays: { ANY7: number; ANYBAR: number; ANY: number };
+  multipliers: Record<string, number>;
+  cashPays: Record<string, number>;
+  wheel: { respins: number; weight: number }[];
+  maxRespins: number;
+  hitRatePercent: number;
+  respinChanceOneIn: number;
+  rtpPercent: number;
+}
+export function fetchTurboSevensConfig() {
+  return apiFetch<TurboSevensConfig>('/turbo-sevens/config');
+}
+export function spinTurboSevens(stake: number) {
+  return apiFetch<{ spin: TurboSpinRow; outcome: TurboOutcome }>('/turbo-sevens/spin', { method: 'POST', body: JSON.stringify({ stake }) });
+}
+export function fetchTurboSevensHistory(limit = 30) {
+  return apiFetch<TurboSpinRow[]>(`/turbo-sevens/my-history?limit=${limit}`);
+}
