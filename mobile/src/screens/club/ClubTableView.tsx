@@ -349,6 +349,17 @@ export default function ClubTableView({
     for (const e of fresh) handleEntry(e, hand.no, ownSounded.current.delete(`${e.kind}:${hand.no}:${e.seat}`));
   }, [table.version]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The last three seconds before the cards are dealt tick.
+  const startTick = useRef(-1);
+  const startSecs = table.phase === 'STARTING' && table.startsAt ? Math.max(0, Math.ceil(remainingMs(table.startsAt) / 1000)) : -1;
+  useEffect(() => {
+    if (startSecs >= 1 && startSecs <= 3 && startTick.current !== startSecs) {
+      startTick.current = startSecs;
+      play('tick');
+    }
+    if (startSecs === -1) startTick.current = -1;
+  }, [startSecs, play]);
+
   // Whose turn: a chime and a buzz when it becomes mine; the last five seconds tick.
   useEffect(() => {
     if (!hand || hand.over) return;

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -26,6 +27,8 @@ import { clubErrorMessage, useClubTable } from './club/useClubTable';
  * tables) and, once the player sits down, the table (club/ClubTableView.tsx). The rules of a hand and the house's rake are decided
  * by the server (backend teenPattiClubEngine.ts); the app only shows what the server sends and sends the player's moves.
  */
+
+const RULES_SEEN_KEY = 'novaplay:club:rules:v1';
 
 export default function TeenPattiClubScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -58,6 +61,17 @@ export default function TeenPattiClubScreen() {
   useEffect(() => {
     fetchClubConfig()
       .then(setConfig)
+      .catch(() => {});
+  }, []);
+
+  // The rules (with the house's cut) open by themselves the first time a player comes in; the "?" button opens them again.
+  useEffect(() => {
+    AsyncStorage.getItem(RULES_SEEN_KEY)
+      .then((seen) => {
+        if (seen) return;
+        setRules(true);
+        AsyncStorage.setItem(RULES_SEEN_KEY, '1').catch(() => {});
+      })
       .catch(() => {});
   }, []);
 

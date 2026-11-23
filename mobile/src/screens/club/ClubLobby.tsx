@@ -116,6 +116,12 @@ export default function ClubLobby({
               <MaterialCommunityIcons name="bank" size={13} color={GOLD} />
               <Text style={styles.chipText}>House cut {rake}%</Text>
             </View>
+            {lobby && lobby.online > 0 ? (
+              <View style={styles.chip}>
+                <View style={styles.liveDot} />
+                <Text style={styles.chipText}>{lobby.online} at the tables</Text>
+              </View>
+            ) : null}
           </View>
         </View>
       </LinearGradient>
@@ -178,6 +184,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(242,196,90,0.4)' },
   chipText: { color: '#FFE9B0', fontSize: 11, fontWeight: '800' },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#3FE08C' },
   resume: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#3FE08C', borderRadius: 14, padding: 12 },
   resumeTitle: { color: '#04301A', fontSize: 15, fontWeight: '900' },
   resumeSub: { color: '#064A2A', fontSize: 12, fontWeight: '700' },
