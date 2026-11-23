@@ -744,7 +744,7 @@ export default function RouletteScreen() {
   const multFor = useCallback(
     (key: string) => {
       const n = SPOTS.get(key)?.length ?? 1;
-      return config?.multipliers?.[String(n)] ?? floor2((0.85 * 37) / n);
+      return config?.multipliers?.[String(n)] ?? floor2((0.98 * 37) / n);
     },
     [config]
   );
@@ -1110,7 +1110,7 @@ export default function RouletteScreen() {
   return (
     <View style={styles.root}>
       <GameBackdrop theme="emerald" />
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Roulette" />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Roulette" taxPercent={config?.taxPercent} />
 
       {/* Top bar */}
       <View style={[styles.topBar, { height: topH, paddingLeft: padL, paddingRight: padR }]}>

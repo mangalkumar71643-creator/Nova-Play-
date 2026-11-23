@@ -43,14 +43,14 @@ const CHIP_COLORS: Record<number, string> = {
 };
 const DEFAULT_CHIP = 10;
 const FALLBACK_MULTIPLIERS: Record<AndarBaharArea, number> = {
-  ANDAR: 1.65,
-  BAHAR: 1.75,
-  C1_5: 3.13,
-  C6_10: 3.91,
-  C11_15: 5.02,
-  C16_25: 3.89,
-  C26_35: 8.67,
-  C36_49: 31.6,
+  ANDAR: 1.9,
+  BAHAR: 2.02,
+  C1_5: 3.61,
+  C6_10: 4.51,
+  C11_15: 5.79,
+  C16_25: 4.49,
+  C26_35: 10,
+  C36_49: 36.44,
 };
 
 const WIN_CARD_MS = 3000;
@@ -856,7 +856,7 @@ export default function AndarBaharScreen() {
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
       <GameBackdrop theme="crimson" />
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Andar Bahar" />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Andar Bahar" taxPercent={config?.taxPercent} />
 
       {/* Top bar */}
       <View style={[styles.topBar, { height: topH, paddingLeft: padX, paddingRight: padX }]}>

@@ -1028,6 +1028,8 @@ export interface SevenUpDownConfig {
   resultAtSeconds: number;
   multipliers: Record<SevenUpDownArea, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
+  taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
@@ -1157,6 +1159,8 @@ export interface DragonTigerConfig {
   rtpPercent: number;
   multipliers: Record<DragonTigerArea, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
+  taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
@@ -1333,6 +1337,8 @@ export interface AndarBaharConfig {
   rtpPercent: number;
   multipliers: Record<AndarBaharArea, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
+  taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
@@ -1411,6 +1417,8 @@ export interface TeenPattiConfig {
   rtpPercent: number;
   multipliers: Record<TeenPattiArea, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
+  taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
@@ -1923,6 +1931,8 @@ export interface RouletteConfig {
   /** Total return per unit staked, by how many numbers the bet covers. */
   multipliers: Record<string, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
+  taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 
@@ -2343,6 +2353,8 @@ export interface BaccaratConfig {
   rtpPercent: number;
   multipliers: Record<BaccaratArea, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
+  /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
+  taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
 }
 

@@ -53,7 +53,7 @@ const CHIP_COLORS: Record<number, string> = {
   1000: '#0F766E',
 };
 const DEFAULT_CHIP = 10;
-const FALLBACK_MULTIPLIERS: Record<DragonTigerArea, number> = { DRAGON: 1.84, TIE: 11.05, TIGER: 1.84, SUITED_TIE: 44.2 };
+const FALLBACK_MULTIPLIERS: Record<DragonTigerArea, number> = { DRAGON: 2.12, TIE: 12.74, TIGER: 2.12, SUITED_TIE: 50.96 };
 
 const WIN_CARD_MS = 3000;
 const TOAST_MS = 1600;
@@ -1200,7 +1200,7 @@ export default function DragonTigerScreen() {
 
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Dragon Tiger" />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Dragon Tiger" taxPercent={config?.taxPercent} />
       <Image source={TABLE_BG} style={[styles.abs, frameOf([0, 0, IMG_W, IMG_H])]} resizeMode="stretch" />
 
       {/* Glass strip: light sweep and the glow on the painted heads */}

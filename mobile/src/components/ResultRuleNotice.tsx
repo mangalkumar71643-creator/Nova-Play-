@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useEffect, useState } from 'react';
-import { Modal, StyleProp, StyleSheet, View, ViewStyle, useWindowDimensions } from 'react-native';
+import { Modal, ScrollView, StyleProp, StyleSheet, View, ViewStyle, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import TapPressable from './TapPressable';
 
@@ -12,6 +12,8 @@ type Props = {
   active: boolean;
   /** The game's name, e.g. "Dragon Tiger". */
   game: string;
+  /** The tax already taken in the odds shown (the fair odds less this %), when the server reports one (Win Go's rule). */
+  taxPercent?: number;
 };
 
 // What a player has been shown already: one flag per player and game, kept on the phone.
@@ -27,9 +29,9 @@ const openers = new Set<{ game: string; open: () => void }>();
  * It opens by itself the first time a player enters the game (once, until they tap "I understand"), so nobody plays without having
  * been told; after that it stays out of the way and the small "?" button of the game's top bar (ResultRuleButton) opens it.
  */
-export default function ResultRuleNotice({ active, game }: Props) {
+export default function ResultRuleNotice({ active, game, taxPercent }: Props) {
   const [open, setOpen] = useState(false);
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { backendUser } = useAuth();
   const key = `${SEEN_KEY}:${backendUser?.uid ?? 'guest'}:${game}`;
 
@@ -67,12 +69,19 @@ export default function ResultRuleNotice({ active, game }: Props) {
       <View style={styles.back}>
         <View style={[styles.card, { width: Math.min(width - 32, 420) }]}>
           <Text style={styles.title}>{game}: how the result is decided</Text>
-          <Text style={styles.body}>
-            Least payout wins: when betting closes, the result is the one that pays the least in total on all players&apos; bets. Ties are decided at random.
-          </Text>
-          <Text style={styles.body}>
-            The result is not a random deal or spin: the more money is on a bet, the less likely it is to win.
-          </Text>
+          <ScrollView style={{ maxHeight: Math.max(120, height - 150) }} contentContainerStyle={styles.paragraphs}>
+            <Text style={styles.body}>
+              Least payout wins: when betting closes, the result is the one that pays the least in total on all players&apos; bets. If several results would pay the same, one of them is picked at random.
+            </Text>
+            <Text style={styles.body}>
+              The result is not a random deal or spin: the more money is on a bet, the less likely it is to win.
+            </Text>
+            {taxPercent && taxPercent > 0 ? (
+              <Text style={styles.body}>
+                Tax: a {taxPercent}% tax is already taken in the odds shown (the fair odds less {taxPercent}%). A winning bet returns the odds shown times the bet, stake included: ₹100 on a 3X box returns ₹300.
+              </Text>
+            ) : null}
+          </ScrollView>
           <TapPressable onPress={close} style={({ pressed }) => [styles.ok, pressed && { opacity: 0.7 }]} accessibilityRole="button">
             <Text style={styles.okText}>I understand</Text>
           </TapPressable>
@@ -106,6 +115,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 16, padding: 18, gap: 10, backgroundColor: '#2A0F12', borderWidth: 1, borderColor: '#F5B942' },
   title: { color: '#F5B942', fontSize: 16, fontWeight: '900' },
   body: { color: '#FFF4E4', fontSize: 13.5, lineHeight: 19 },
+  paragraphs: { gap: 10 },
   ok: { marginTop: 4, alignSelf: 'stretch', alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: '#F5B942' },
   okText: { color: '#1A0A00', fontSize: 14, fontWeight: '900' },
   help: { alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(245,185,66,0.9)', backgroundColor: 'rgba(0,0,0,0.4)' },

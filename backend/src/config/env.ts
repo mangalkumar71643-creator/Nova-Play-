@@ -39,15 +39,17 @@ export const env = {
     // round's own seed is at a 10% house edge (it was 25% here).
     rtp: Number(process.env.GAME_RTP ?? 0.9),
     // Dragon Tiger, Andar Bahar, Teen Patti, Roulette and Baccarat set their
-    // multipliers from this (0.85). Under tableLeastPayout the result is
+    // multipliers from this: 0.98, the fair odds less the 2% tax that every
+    // least-payout game takes (as Win Go, K3, 5D and Jhandi Munda do; owner's
+    // request, 2026-11-23; it was 0.85). Under tableLeastPayout the result is
     // picked by the bets, so their real return is lower than this.
-    tableRtp: Number(process.env.TABLE_GAME_RTP ?? 0.85),
+    tableRtp: Number(process.env.TABLE_GAME_RTP ?? 0.98),
     // The least a win can pay in Mines, Chicken Road, Dragon Tower, Pump,
     // Hi-Lo and Dice, so a win never returns less than the stake. Their
     // easiest picks (win chance above rtp) return more than rtp as a result.
     minWinMultiplier: Number(process.env.MIN_WIN_MULTIPLIER ?? 1.01),
-    // 7 Up Down runs its own, higher edge (0.85 = 15%).
-    sevenUpDownRtp: Number(process.env.SEVEN_UP_DOWN_RTP ?? 0.85),
+    // 7 Up Down has its own setting; it is 0.98 too since 2026-11-23 (it ran its own, higher edge, 0.85, before).
+    sevenUpDownRtp: Number(process.env.SEVEN_UP_DOWN_RTP ?? 0.98),
     // Win pays out at this multiple of the stake; win probability is derived
     // from rtp / winMultiplier so the long-run expected value matches rtp.
     winMultiplier: Number(process.env.GAME_WIN_MULTIPLIER ?? 2),

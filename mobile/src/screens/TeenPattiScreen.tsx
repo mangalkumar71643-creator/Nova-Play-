@@ -42,7 +42,7 @@ const CHIP_COLORS: Record<number, string> = {
   1000: '#0F766E',
 };
 const DEFAULT_CHIP = 10;
-const FALLBACK_MULTIPLIERS: Record<TeenPattiArea, number> = { PLAYER_A: 1.7, PLAYER_B: 1.7, TIE: 768.19 };
+const FALLBACK_MULTIPLIERS: Record<TeenPattiArea, number> = { PLAYER_A: 1.96, PLAYER_B: 1.96, TIE: 885.68 };
 
 const WIN_CARD_MS = 3000;
 const TOAST_MS = 1600;
@@ -826,7 +826,7 @@ export default function TeenPattiScreen() {
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
       <GameBackdrop theme="crimson" />
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Teen Patti" />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Teen Patti" taxPercent={config?.taxPercent} />
 
       {/* Top bar */}
       <View style={[styles.topBar, { height: topH, paddingLeft: padX, paddingRight: padX }]}>

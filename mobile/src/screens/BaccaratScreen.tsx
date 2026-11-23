@@ -55,7 +55,7 @@ const CHIP_COLORS: Record<number, string> = {
   500: '#C81E3A',
 };
 const DEFAULT_CHIP = 10;
-const FALLBACK_MULTIPLIERS: Record<BaccaratArea, number> = { PLAYER: 1.69, BANKER: 1.64, TIE: 8.9, PLAYER_PAIR: 11.05, BANKER_PAIR: 11.05 };
+const FALLBACK_MULTIPLIERS: Record<BaccaratArea, number> = { PLAYER: 1.98, BANKER: 1.92, TIE: 10.26, PLAYER_PAIR: 12.74, BANKER_PAIR: 12.74 };
 
 const WIN_CARD_MS = 3200;
 const TOAST_MS = 1600;
@@ -1036,7 +1036,7 @@ export default function BaccaratScreen() {
 
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Baccarat" />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Baccarat" taxPercent={config?.taxPercent} />
       {/* Salon, felt, rail and the painted boxes */}
       <Svg width={W} height={H} style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>

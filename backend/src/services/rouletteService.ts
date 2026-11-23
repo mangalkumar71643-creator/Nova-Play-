@@ -263,6 +263,8 @@ export function getRouletteConfig() {
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
     rtpPercent: round2(env.games.tableRtp * 100),
+    // The odds shown are the fair odds less this tax (Win Go's rule: see env.games.tableRtp).
+    taxPercent: round2((1 - env.games.tableRtp) * 100),
     redNumbers: RED_NUMBERS,
     // Total return per unit staked, by how many numbers the bet covers.
     multipliers: Object.fromEntries([1, 2, 3, 4, 6, 12, 18].map((c) => [c, multiplierForCount(c)])),

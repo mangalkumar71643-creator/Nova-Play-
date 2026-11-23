@@ -244,6 +244,8 @@ export function getSevenUpDownConfig() {
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
     multipliers,
+    // The odds shown are the fair odds less this tax (Win Go's rule: see env.games.sevenUpDownRtp).
+    taxPercent: round2((1 - env.games.sevenUpDownRtp) * 100),
     resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
   };
 }

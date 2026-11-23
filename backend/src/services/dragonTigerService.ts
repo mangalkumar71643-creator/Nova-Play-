@@ -254,6 +254,8 @@ export function getDragonTigerConfig() {
     betSeconds: BET_SECONDS,
     resultAtSeconds: RESULT_AT_SECONDS,
     rtpPercent: round2(env.games.tableRtp * 100),
+    // The odds shown are the fair odds less this tax (Win Go's rule: see env.games.tableRtp).
+    taxPercent: round2((1 - env.games.tableRtp) * 100),
     multipliers: Object.fromEntries(AREAS.map((a) => [a, multiplierFor(a)])),
     resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
   };
