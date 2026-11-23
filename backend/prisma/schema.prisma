@@ -295,6 +295,8 @@ model User {
   MoneyComingSpin    MoneyComingSpin[]
   RedButtonPlay      RedButtonPlay[]
   JaguarTempleSpin   JaguarTempleSpin[]
+  teenPattiClubSeat  TeenPattiClubSeat?
+  teenPattiClubHands TeenPattiClubResult[]
   GiftCodeRedemption GiftCodeRedemption[]
   VipBonusClaim      VipBonusClaim[]
 
@@ -2468,5 +2470,96 @@ model PromoTaskClaim {
   createdAt DateTime @default(now())
 
   @@unique([userId, taskId, periodKey])
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Teen Patti Club: real Teen Patti for 2 or 3 players (teenPattiClubService.ts,
+// rules in teenPattiClubEngine.ts). The house takes a rake of at least 5% of
+// every pot and never plays.
+// ---------------------------------------------------------------------------
+
+/// One table. `state` holds the table's phase and the hand being played (the
+/// engine's HandState, hidden cards included): it is never sent to a player as
+/// it is, only as a per-player view. Every change takes the row's lock.
+model TeenPattiClubTable {
+  id          String              @id @default(uuid())
+  boot        Decimal             @db.Decimal(12, 2)
+  /// 2 or 3 seats.
+  seats       Int
+  /// A friends' table: joined with `code`, never matched with strangers.
+  isPrivate   Boolean             @default(false)
+  code        String?             @unique
+  /// Who made a private table (can start it with fewer players than seats).
+  hostId      String?
+  /// WAITING | STARTING | PLAYING | RESULT (also inside `state`; kept here to find tables).
+  phase       String              @default("WAITING")
+  state       Json
+  /// Counts every change; a poll with the version it has gets "unchanged".
+  version     Int                 @default(0)
+  /// When the table next needs the clock (a turn, a countdown ...). Null: nothing is running.
+  dueAt       DateTime?
+  handsPlayed Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  seatRows    TeenPattiClubSeat[]
+
+  @@index([dueAt])
+  @@index([boot, seats, isPrivate, phase])
+}
+
+/// A player's place at a table. A player sits at one table at a time (userId is unique).
+model TeenPattiClubSeat {
+  id         String             @id @default(uuid())
+  tableId    String
+  table      TeenPattiClubTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  seat       Int
+  /// Null once the player left in the middle of a hand: the seat stays taken until that hand has been shown.
+  userId     String?            @unique
+  user       User?              @relation(fields: [userId], references: [id])
+  name       String
+  uid        Int?
+  /// Last poll from the app: a player who stops polling is taken off a table that is not playing.
+  lastSeenAt DateTime           @default(now())
+  /// Hands in a row this player let run out of time.
+  idleHands  Int                @default(0)
+  joinedAt   DateTime           @default(now())
+
+  @@unique([tableId, seat])
+}
+
+/// One finished hand, kept for the record: the money, how it ended, every card and the seed that dealt them.
+model TeenPattiClubHand {
+  id        String   @id
+  tableId   String
+  no        Int
+  boot      Decimal  @db.Decimal(12, 2)
+  pot       Decimal  @db.Decimal(12, 2)
+  rake      Decimal  @db.Decimal(12, 2)
+  endedBy   String
+  players   Int
+  detail    Json
+  seed      String
+  seedHash  String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([tableId, no])
+}
+
+/// What one player put into one hand and got back; kept up to date during the
+/// hand, so the admin game report always matches the wallet (staked - paid = rake).
+model TeenPattiClubResult {
+  id        String   @id @default(uuid())
+  handId    String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  invested  Decimal  @db.Decimal(12, 2)
+  payout    Decimal  @default(0) @db.Decimal(12, 2)
+  /// PLAYING | WON | LOST | PACKED | LEFT
+  outcome   String   @default("PLAYING")
+  createdAt DateTime @default(now())
+
+  @@unique([handId, userId])
   @@index([userId, createdAt])
 }

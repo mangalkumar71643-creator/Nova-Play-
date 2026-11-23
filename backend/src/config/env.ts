@@ -77,6 +77,10 @@ export const env = {
     // Teen Patti, Roulette, Baccarat): the result that pays the least on all
     // bets wins. Shown in the app from 1.0.26.
     tableLeastPayout: process.env.TABLE_LEAST_PAYOUT === "true",
+    // Teen Patti Club (real Teen Patti for 2 or 3 players): the house's rake, as a share of every pot, taken
+    // whichever way a hand ends. 0.05 is the least it can be: the engine (teenPattiClubEngine.ts) never goes
+    // below it, whatever is set here (owner's request, 2026-11-23: the house must always get at least 5%).
+    teenPattiClubRake: Number(process.env.TEEN_PATTI_CLUB_RAKE ?? 0.05),
     // Most a single bet can pay out in any game, whatever the stake and
     // multiplier — bounds the house's worst single-bet loss. By default there
     // is no limit (NO_PAYOUT_LIMIT); the admin can set one from the panel.

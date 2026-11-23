@@ -65,6 +65,8 @@ export const SOURCES: Source[] = [
   // Card & Table
   { key: "AndarBahar", name: "Andar Bahar", category: "Card & Table", table: "AndarBaharBet", stake: "amount", paid: "payout", where: NOT_VOID },
   { key: "TeenPatti", name: "Teen Patti", category: "Card & Table", table: "TeenPattiBet", stake: "amount", paid: "payout", where: NOT_VOID },
+  // Players play each other: staked = everything put into the pots, paid = what the winners got, so profit = the rake (at least 5% of every pot).
+  { key: "TeenPattiClub", name: "Teen Patti Club (2-3 players)", category: "Card & Table", table: "TeenPattiClubResult", stake: "invested", paid: "payout" },
   { key: "DragonTiger", name: "Dragon Tiger", category: "Card & Table", table: "DragonTigerBet", stake: "amount", paid: "payout", where: NOT_VOID },
   { key: "Baccarat", name: "Baccarat", category: "Card & Table", table: "BaccaratBet", stake: "amount", paid: "payout", where: NOT_VOID },
   { key: "Blackjack", name: "Blackjack", category: "Card & Table", table: "BlackjackHand", stake: `"totalStake"`, paid: "payout" },
@@ -163,6 +165,7 @@ export async function getGameReport() {
     if (category === "Crash") return env.games.crashHouseEdge;
     if (["AndarBahar", "TeenPatti", "DragonTiger", "Baccarat", "Roulette"].includes(key)) return 1 - env.games.tableRtp;
     if (key === "SevenUpDown") return 1 - env.games.sevenUpDownRtp;
+    if (key === "TeenPattiClub") return Math.max(0.05, env.games.teenPattiClubRake);
     if (["Dice", "Limbo", "RedButton", "Plinko", "Keno", "Hilo", "Mines", "ChickenRoad", "DragonTower", "Pump", "CoinFlip"].includes(key)) return 1 - env.games.rtp;
     return null;
   };
