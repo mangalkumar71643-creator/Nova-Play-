@@ -362,6 +362,17 @@ async function withTable<T>(tableId: string, fn: (tx: Tx, row: TableRow | null, 
   }, TX);
 }
 
+/**
+ * Plays out what is due on the player's own table (a turn that ran out, a hand that has ended) before their wallet is read, so the
+ * money of a hand nobody was looking at (the app was closed in the middle of it) is settled as soon as the player is back.
+ */
+export async function settleMyClubTable(userId: string) {
+  const seat = await prisma.teenPattiClubSeat.findUnique({ where: { userId }, select: { tableId: true } });
+  if (!seat) return;
+  const t = await prisma.teenPattiClubTable.findUnique({ where: { id: seat.tableId }, select: { dueAt: true } });
+  if (t?.dueAt && t.dueAt.getTime() <= Date.now()) await withTable(seat.tableId, async () => null);
+}
+
 /** Settles a few tables whose clock has run out and that nobody is looking at (nothing else runs between requests). */
 export async function sweepDueClubTables(limit = 4) {
   const due = await prisma.$queryRaw<{ id: string }[]>`SELECT id FROM "TeenPattiClubTable" WHERE "dueAt" IS NOT NULL AND "dueAt" <= now() ORDER BY "dueAt" LIMIT ${limit}`;

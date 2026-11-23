@@ -12,6 +12,7 @@ import { playerDepositBonus, playerDepositOffer } from "../services/depositBonus
 import { alertAdmins } from "../services/adminAlertService";
 import { tryAutoPayout } from "../services/autoPayoutService";
 import { feeLabel, istDayStart, vipTermsFor, WITHDRAWAL_FEE, withdrawalFee } from "../services/vipService";
+import { settleMyClubTable } from "../services/teenPattiClubService";
 
 const router = Router();
 
@@ -70,6 +71,8 @@ router.get(
   "/",
   requireAuth,
   asyncHandler(async (req, res) => {
+    // A Teen Patti Club hand left running (the app was closed) is settled before the balance is read.
+    await settleMyClubTable(req.user!.userId).catch(() => {});
     res.json(await buildWalletView(req.user!.userId));
   })
 );
