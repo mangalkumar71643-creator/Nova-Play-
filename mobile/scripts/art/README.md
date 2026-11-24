@@ -23,5 +23,13 @@ node mobile/scripts/art/build.js redbutton/lcd   # one piece
 * `turbosevens/` draws the symbols of the reels (`symbols.js`, build it first: the board and the icon embed them), the machine's top
   (`board.js`: marquee, paytable with its lit digits, the bonus-reel panel), the reel window (`reels.js`), the steel frame (`frame.js`),
   the control deck and the buttons; the reels, the WIN and balance digits and the lights are live.
+* `chickenroad-popup/` is not a piece of the app: it draws the picture of Chicken Road for **Admin -> Popups** (a popup is an uploaded picture,
+  so it needs no new app: the app and the website show it once when they open). `poster.js` builds `assets/promo/chicken-road-popup.webp`
+  (840 x 1260, 2:3; `chicken-road-popup.png` is the same picture for uploading). It is made of the game's own screen: `source/game-road.webp` and
+  `source/game-buttons.webp` are cut out of the running app (the road with the ambulance coming, the Cash Out / GO buttons), `source/chicken.webp`
+  is the game's chicken with its edge cleaned (`clean_chicken.py`, because the popup draws it three times larger than the game does). The
+  headline, "UP TO 1189x" (the top multiplier of Hardcore: x1189.4) and the footer are in `poster.js`; to change the words or the numbers, edit
+  them there and build again: `node scripts/art/build.js chickenroad-popup`. The admin panel shrinks an upload to 900 px wide at most and saves it as
+  WebP 0.86, which this picture survives without any visible change. None of it goes into the app (nothing `require`s `assets/promo/`).
 * Size: the pictures are WEBP at quality 80 at most (`to_webp.py` caps what `build.js` writes; `shrink_webp.py` does the same for pictures that
   are already in `assets/`, and leaves a picture alone if it would look noticeably worse). The fonts are small subsets too, see `scripts/fonts/`.
