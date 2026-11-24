@@ -297,6 +297,7 @@ model User {
   JaguarTempleSpin   JaguarTempleSpin[]
   RingGauntletRound  RingGauntletRound[]
   TurboSevensSpin    TurboSevensSpin[]
+  GarudaGoldSpin     GarudaGoldSpin[]
   teenPattiClubSeat  TeenPattiClubSeat?
   teenPattiClubHands TeenPattiClubResult[]
   GiftCodeRedemption GiftCodeRedemption[]
@@ -2613,6 +2614,32 @@ model TurboSevensSpin {
   totalWin       Decimal  @db.Decimal(12, 4)
   payout         Decimal  @db.Decimal(12, 2)
   /// What the spin showed: reels, bonus reel, wheel and respins (the app replays it).
+  detail         Json
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// Garuda Gold: a 3-reel, five-line slot with a fourth multiplier reel (1x-100x, NUDGE coins to 10x-500x) and an EX bet
+/// (garudaGoldService.ts; the reels, the paytable and the exact return are in garudaGoldEngine.ts).
+model GarudaGoldSpin {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  /// The bet the win is counted in.
+  stake          Decimal  @db.Decimal(12, 2)
+  /// What the spin took from the wallet: the stake, or 1.5 stakes with EX.
+  cost           Decimal  @db.Decimal(14, 2)
+  extraBet       Boolean
+  /// The spin's win in stakes (line wins x multiplier), before the payout cap.
+  totalWin       Decimal  @db.Decimal(12, 4)
+  multiplier     Int
+  payout         Decimal  @db.Decimal(12, 2)
+  /// What the spin showed: reels, multiplier reel, nudge and line wins (the app replays it).
   detail         Json
   serverSeed     String
   serverSeedHash String

@@ -78,6 +78,7 @@ import moneyComingRoutes from "./routes/moneyComing.routes";
 import jaguarTempleRoutes from "./routes/jaguarTemple.routes";
 import ringGauntletRoutes from "./routes/ringGauntlet.routes";
 import turboSevensRoutes from "./routes/turboSevens.routes";
+import garudaGoldRoutes from "./routes/garudaGold.routes";
 import { closeOutRetiredGames } from "./services/retiredGamesCloseout";
 import { refreshSettingsIfStale } from "./services/settingsService";
 import { sweepRupayex } from "./services/rupayexService";
@@ -213,6 +214,7 @@ app.use("/money-coming", moneyComingRoutes);
 app.use("/jaguar-temple", jaguarTempleRoutes);
 app.use("/ring-gauntlet", ringGauntletRoutes);
 app.use("/turbo-sevens", turboSevensRoutes);
+app.use("/garuda-gold", garudaGoldRoutes);
 
 app.use(errorHandler);
 
