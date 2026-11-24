@@ -82,6 +82,7 @@ export type GameId =
   | 'JaguarTemple'
   | 'RingGauntlet'
   | 'TurboSevens'
+  | 'GarudaGold'
   | 'Blackjack'
   | 'Keno'
   | 'Hilo'
@@ -131,7 +132,7 @@ export const GAME_CATEGORIES: GameCategory[] = [
   { id: 'dice-instant', title: 'Dice & Instant', tagline: 'Roll · Win · Instant', games: ['Dice', 'Limbo', 'RedButton', 'Plinko', 'SevenUpDown', 'Diamonds', 'Keno', 'LuckyWheel', 'ScratchCard', 'DiceDuel', 'ColorBall'] },
   { id: 'lottery', title: 'Lottery', tagline: 'Win Go · K3 · 5D', games: ['WinGo', 'K3Lottery', 'FiveDLottery', 'TrxWin', 'JhandiMunda', 'FortuneSix'] },
   { id: 'mines-cashout', title: 'Mines & Cash-out', tagline: 'Pick · Climb · Cash out', games: ['RingGauntlet', 'Mines', 'ChickenRoad', 'DragonTower', 'Pump', 'CoinFlip', 'PenaltyHero', 'LuckyCups', 'BombSquad', 'VaultHeist', 'TreasureDig'] },
-  { id: 'slots', title: 'Slots', tagline: 'Spin · Win · Jackpot', games: ['TurboSevens', 'JaguarTemple', 'Slot', 'Aces', 'CandyBlast', 'Neon777', 'MoneyComing', 'FruitMachine', 'FishermansCatch', 'BookOfPharaoh', 'GatesOfZeus', 'WolfMoon'] },
+  { id: 'slots', title: 'Slots', tagline: 'Spin · Win · Jackpot', games: ['GarudaGold', 'TurboSevens', 'JaguarTemple', 'Slot', 'Aces', 'CandyBlast', 'Neon777', 'MoneyComing', 'FruitMachine', 'FishermansCatch', 'BookOfPharaoh', 'GatesOfZeus', 'WolfMoon'] },
   { id: 'crash', title: 'Crash', tagline: 'Fly · Multiply · Cash out', games: ['Aviator', 'CricketX', 'Vortex', 'Rocket', 'GoalRush', 'BigCatch', 'Cosmonaut', 'SkyJet', 'NightRacer', 'Airship'] },
 ];
 
@@ -169,6 +170,7 @@ export const GAME_ICONS: Partial<Record<GameId, ImageSourcePropType>> = {
   JaguarTemple: require('../../assets/icons/jaguar-temple.webp'),
   RingGauntlet: require('../../assets/icons/ring-gauntlet.webp'),
   TurboSevens: require('../../assets/icons/turbo-sevens.webp'),
+  GarudaGold: require('../../assets/icons/garuda-gold.webp'),
   Plinko: require('../../assets/icons/plinko.webp'),
   SevenUpDown: require('../../assets/icons/seven-up-down.webp'),
   Keno: require('../../assets/icons/keno.webp'),

@@ -638,6 +638,31 @@ def turbosevens(r):
     return d
 
 
+def garudagold(r):
+    """Garuda Gold, a temple slot: a temple drum and the reels' whir, a stone thud as each reel stops, bright bells that climb as the
+    NUDGE takes the multiplier reel up, a gong for the big wins, and coins pouring."""
+    bells = lambda root, n, step=0.075: C.jingle(r, root, L.MAJOR_PENT, C.voice("glass", d=0.5, tau=0.3), n, step, "up", tail=0.5, rev=(0.55, 0.22))
+    d = {
+        "start": L.mix([(L.thud(70, 0.35, r, 0.12, 0.9), 0, 1.0), (reel_spin(r, 0.9, 2300, 48), 0.06, 0.8), (L.bell(float(hz(84)), 0.5, 0.22) * 0.5, 0.0, 0.6)]),
+        "land": L.mix([(L.thud(120, 0.16, r, 0.06, 0.7) * 1.2, 0, 1.0), (L.click(r, 0.02, 1500, 5.0, 0.005) * 1.3, 0, 0.8)]),
+        "tick": L.mix([(L.coin(r, 3000, 0.1, 0.05), 0, 0.8)]),
+        "step": L.mix([(L.bell(float(hz(88)), 0.35, 0.14), 0, 0.9), (L.click(r, 0.02, 2400, 6.0, 0.004) * 1.2, 0, 0.6)]),
+        "reveal": L.mix([(L.bell(float(hz(79)), 0.8, 0.3), 0, 0.9), (L.bell(float(hz(86)), 0.9, 0.34), 0.09, 0.8), (L.coin(r, 3300, 0.2, 0.08), 0.03, 0.6)]),
+        "special": L.mix([
+            (L.gong(98, 1.6) * 0.8, 0, 0.9),
+            (L.whoosh(0.7, 300, 3800, r) * 0.25, 0.05, 1.0),
+            (bells(74, 6, 0.06), 0.25, 0.9),
+        ]),
+        "cashout": L.mix([(L.coin_shower(r, 9, 0.7), 0, 1.0), (L.bell(float(hz(91)), 0.6, 0.24), 0.0, 0.7)]),
+    }
+    d.update({
+        "win": L.mix([(bells(72, 6), 0, 1.0), (L.coin_shower(r, 10, 0.8), 0.06, 0.6)]),
+        "bigwin": L.mix([(L.gong(92, 2.2) * 0.9, 0.0, 0.8), (bells(60, 9), 0.05, 1.0), (bells(72, 8), 0.6, 0.85), (L.coin_shower(r, 32, 2.0), 0.12, 0.9)]),
+        "lose": L.mix([(C.lose_sound(r, "wah", 240, 0.45), 0, 0.6)]),
+    })
+    return d
+
+
 GAMES_B = {
     "sevenupdown": sevenupdown, "dragontiger": dragontiger, "andarbahar": andarbahar, "teenpatti": teenpatti,
     "jhandimunda": jhandimunda, "roulette": roulette, "baccarat": baccarat,
@@ -648,5 +673,5 @@ GAMES_B = {
     "plinko": plinko, "dice": dice, "limbo": limbo, "keno": keno, "diamonds": diamonds, "blackjack": blackjack,
     "casinoholdem": casinoholdem, "threecardpoker": threecardpoker, "videopoker": videopoker, "slot": slot,
     "teenpatticlub": teenpatticlub, "aces": aces, "candyblast": candyblast, "gatesofzeus": gatesofzeus, "moneycoming": moneycoming, "neon777": neon777, "redbutton": redbutton, "jaguartemple": jaguartemple,
-    "ringgauntlet": ringgauntlet, "turbosevens": turbosevens,
+    "ringgauntlet": ringgauntlet, "turbosevens": turbosevens, "garudagold": garudagold,
 }

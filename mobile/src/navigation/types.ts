@@ -87,6 +87,7 @@ export type RootStackParamList = {
   JaguarTemple: undefined;
   RingGauntlet: undefined;
   TurboSevens: undefined;
+  GarudaGold: undefined;
   Blackjack: undefined;
   Keno: undefined;
   Hilo: undefined;

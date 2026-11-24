@@ -210,6 +210,18 @@ export const PACKS: Record<string, Partial<Record<SoundEvent, number>>> = {
     bigwin: require('../../assets/sounds/games/fruitmachine/bigwin.mp3'),
     lose: require('../../assets/sounds/games/fruitmachine/lose.mp3'),
   },
+  garudagold: {
+    start: require('../../assets/sounds/games/garudagold/start.mp3'),
+    step: require('../../assets/sounds/games/garudagold/step.mp3'),
+    tick: require('../../assets/sounds/games/garudagold/tick.mp3'),
+    land: require('../../assets/sounds/games/garudagold/land.mp3'),
+    reveal: require('../../assets/sounds/games/garudagold/reveal.mp3'),
+    cashout: require('../../assets/sounds/games/garudagold/cashout.mp3'),
+    special: require('../../assets/sounds/games/garudagold/special.mp3'),
+    win: require('../../assets/sounds/games/garudagold/win.mp3'),
+    bigwin: require('../../assets/sounds/games/garudagold/bigwin.mp3'),
+    lose: require('../../assets/sounds/games/garudagold/lose.mp3'),
+  },
   gatesofzeus: {
     start: require('../../assets/sounds/games/gatesofzeus/start.mp3'),
     tick: require('../../assets/sounds/games/gatesofzeus/tick.mp3'),

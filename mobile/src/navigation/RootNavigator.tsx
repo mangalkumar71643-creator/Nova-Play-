@@ -55,6 +55,7 @@ import TeenPattiClubScreen from '../screens/TeenPattiClubScreen';
 import JaguarTempleScreen from '../screens/JaguarTempleScreen';
 import RingGauntletScreen from '../screens/RingGauntletScreen';
 import TurboSevensScreen from '../screens/TurboSevensScreen';
+import GarudaGoldScreen from '../screens/GarudaGoldScreen';
 import BlackjackScreen from '../screens/BlackjackScreen';
 import KenoScreen from '../screens/KenoScreen';
 import HiloScreen from '../screens/HiloScreen';
@@ -139,6 +140,7 @@ const RedButtonScreenWithRefresh = withPullToRefresh(RedButtonScreen);
 const JaguarTempleScreenWithRefresh = withPullToRefresh(JaguarTempleScreen);
 const RingGauntletScreenWithRefresh = withPullToRefresh(RingGauntletScreen);
 const TurboSevensScreenWithRefresh = withPullToRefresh(TurboSevensScreen);
+const GarudaGoldScreenWithRefresh = withPullToRefresh(GarudaGoldScreen);
 const BlackjackScreenWithRefresh = withPullToRefresh(BlackjackScreen);
 const KenoScreenWithRefresh = withPullToRefresh(KenoScreen);
 const HiloScreenWithRefresh = withPullToRefresh(HiloScreen);
@@ -244,6 +246,7 @@ function MainNavigator() {
       <Stack.Screen name="JaguarTemple" component={JaguarTempleScreenWithRefresh} />
       <Stack.Screen name="RingGauntlet" component={RingGauntletScreenWithRefresh} />
       <Stack.Screen name="TurboSevens" component={TurboSevensScreenWithRefresh} />
+      <Stack.Screen name="GarudaGold" component={GarudaGoldScreenWithRefresh} />
       <Stack.Screen name="Blackjack" component={BlackjackScreenWithRefresh} />
       <Stack.Screen name="Keno" component={KenoScreenWithRefresh} />
       <Stack.Screen name="Hilo" component={HiloScreenWithRefresh} />

@@ -121,6 +121,7 @@ export const GAMES: GameDef[] = [
   screen('jaguartemple', 'JaguarTemple', '/jaguar-temple'),
   screen('ringgauntlet', 'RingGauntlet', '/ring-gauntlet'),
   screen('turbosevens', 'TurboSevens', '/turbo-sevens'),
+  screen('garudagold', 'GarudaGold', '/garuda-gold'),
   screen('moneycoming', 'MoneyComing', '/money-coming'),
   screen('neon777', 'Neon777', '/neon-777'),
   screen('plinko', 'Plinko', '/plinko'),

@@ -4490,3 +4490,70 @@ export function spinTurboSevens(stake: number) {
 export function fetchTurboSevensHistory(limit = 30) {
   return apiFetch<TurboSpinRow[]>(`/turbo-sevens/my-history?limit=${limit}`);
 }
+
+// ---- Garuda Gold (3 reels, five lines, a multiplier reel with NUDGE coins, and an EX bet) ----
+export type GarudaSymbol = 'WILD' | 'RUBY' | 'SAPPHIRE' | 'EMERALD' | 'A' | 'K' | 'Q' | 'J';
+export type GarudaCoin = 'X1' | 'X2' | 'X3' | 'X5' | 'X10' | 'X15' | 'X20' | 'X25' | 'X50' | 'X100' | 'X500' | 'NUDGE';
+export interface GarudaLineWin {
+  /** 0 top row, 1 middle, 2 bottom, 3 the diagonal from the top left, 4 the one from the bottom left. */
+  line: number;
+  symbol: GarudaSymbol;
+  pay: number;
+}
+export interface GarudaOutcome {
+  ex: boolean;
+  stops: number[];
+  /** window[reel] = [top, middle, bottom] of reels 1 to 3. */
+  window: GarudaSymbol[][];
+  coinStop: number;
+  /** The five coins in sight on the multiplier reel, top to bottom; the middle one counts. */
+  coinWindow: GarudaCoin[];
+  coin: GarudaCoin;
+  /** Where the NUDGE took the multiplier reel (a winning spin whose centre coin was a NUDGE). */
+  nudge: GarudaCoin | null;
+  lines: GarudaLineWin[];
+  linePay: number;
+  multiplier: number;
+  totalWin: number;
+}
+export interface GarudaSpinRow {
+  id: string;
+  stake: number;
+  cost: number;
+  extraBet: boolean;
+  totalWin: number;
+  multiplier: number;
+  payout: number;
+  serverSeedHash: string;
+  clientSeed: string;
+  nonce: number;
+  createdAt: string;
+}
+export interface GarudaGoldConfig {
+  minStake: number;
+  maxStake: number;
+  maxPayout: number;
+  symbols: GarudaSymbol[];
+  strips: GarudaSymbol[][];
+  lines: number[][];
+  pays: Record<GarudaSymbol, number>;
+  coinStrips: { normal: GarudaCoin[]; ex: GarudaCoin[] };
+  coinValues: Record<string, number>;
+  coinCounts: { normal: Partial<Record<GarudaCoin, number>>; ex: Partial<Record<GarudaCoin, number>> };
+  nudgeWeights: { normal: Partial<Record<GarudaCoin, number>>; ex: Partial<Record<GarudaCoin, number>> };
+  exCost: number;
+  hitRatePercent: number;
+  nudgeChanceOneIn: { normal: number; ex: number };
+  maxWinStakes: number;
+  rtpPercent: number;
+  exRtpPercent: number;
+}
+export function fetchGarudaGoldConfig() {
+  return apiFetch<GarudaGoldConfig>('/garuda-gold/config');
+}
+export function spinGarudaGold(stake: number, ex: boolean) {
+  return apiFetch<{ spin: GarudaSpinRow; outcome: GarudaOutcome }>('/garuda-gold/spin', { method: 'POST', body: JSON.stringify({ stake, ex }) });
+}
+export function fetchGarudaGoldHistory(limit = 30) {
+  return apiFetch<GarudaSpinRow[]>(`/garuda-gold/my-history?limit=${limit}`);
+}
