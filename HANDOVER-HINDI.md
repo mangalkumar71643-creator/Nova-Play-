@@ -89,6 +89,13 @@ key kho gayi to app ka update nahi daal paoge.
 
 Admin app: `cd admin-app && ./gradlew assembleRelease`.
 
+**App ko chhota rakhna** (lagbhag 30 MB): pictures WEBP me zyada se zyada quality 80 par hain (`mobile/scripts/art/to_webp.py` art banate waqt
+rokta hai; `python3 mobile/scripts/art/shrink_webp.py` `mobile/assets` ki purani pictures ke liye wahi karta hai). Fonts chhote kiye hue hain:
+`pip install fonttools` ke baad `python3 mobile/scripts/fonts/subset.py` paanchon Montserrat fonts (sirf Latin; poore fonts
+`mobile/scripts/fonts/full` me hain) aur `assets/fonts/MaterialCommunityIcons.subset.ttf` (sirf wo icons jo app me likhe hain; `mobile/metro.config.js`
+app ko 1.3 MB wale poore font ki jagah ye chhota font load karwata hai) banata hai. **Naya icon jodne ke baad `subset.py` dobara chalao** aur
+`python3 mobile/scripts/fonts/check_icons.py` bhi (agar app ka koi icon ya symbol chhoot gaya to ye fail hota hai).
+
 ## 6. Har feature ka code kahan hai
 
 | Feature | Server | App | Admin panel |

@@ -23,3 +23,5 @@ node mobile/scripts/art/build.js redbutton/lcd   # one piece
 * `turbosevens/` draws the symbols of the reels (`symbols.js`, build it first: the board and the icon embed them), the machine's top
   (`board.js`: marquee, paytable with its lit digits, the bonus-reel panel), the reel window (`reels.js`), the steel frame (`frame.js`),
   the control deck and the buttons; the reels, the WIN and balance digits and the lights are live.
+* Size: the pictures are WEBP at quality 80 at most (`to_webp.py` caps what `build.js` writes; `shrink_webp.py` does the same for pictures that
+  are already in `assets/`, and leaves a picture alone if it would look noticeably worse). The fonts are small subsets too, see `scripts/fonts/`.

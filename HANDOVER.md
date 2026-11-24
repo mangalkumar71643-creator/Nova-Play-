@@ -88,6 +88,13 @@ users can't update the app.
 
 Admin app: `cd admin-app && ./gradlew assembleRelease`.
 
+**Keeping the app small** (about 30 MB): the pictures are WEBP at quality 80 at most (`mobile/scripts/art/to_webp.py` caps what the art
+builder writes; `python3 mobile/scripts/art/shrink_webp.py` does the same for pictures already in `mobile/assets`). The fonts are small
+subsets: `pip install fonttools`, then `python3 mobile/scripts/fonts/subset.py` makes the five Montserrat fonts (Latin only, full ones are in
+`mobile/scripts/fonts/full`) and `assets/fonts/MaterialCommunityIcons.subset.ttf` (only the icons the app names; `mobile/metro.config.js`
+makes the app load it instead of the 1.3 MB full font). **After adding an icon, run `subset.py` again** and
+`python3 mobile/scripts/fonts/check_icons.py` (it fails if an icon or a symbol the app uses is missing).
+
 ## 6. Main features and where they live
 
 | Feature | Server | App | Admin panel |
