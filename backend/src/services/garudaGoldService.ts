@@ -12,6 +12,22 @@ import { COIN_COUNTS, COIN_STRIPS, COIN_VALUE, EX_COST, LINES, NUDGE_WEIGHTS, PA
  * exact return are in garudaGoldEngine.ts.
  */
 
+/**
+ * Most one Garuda Gold spin pays, in rupees (owner's request, 2026-11-24: a 5 lakh limit for this game). A spin can be worth up to
+ * 20,400 stakes with a 500x nudge, so this bounds the house's worst spin; the admin's "Max win per bet" for all games still applies
+ * when it is lower. The rules screen shows it (the config's maxPayout).
+ */
+export const GARUDA_MAX_PAYOUT = 500_000;
+
+export function garudaMaxPayout(): number {
+  return Math.min(env.games.maxPayout, GARUDA_MAX_PAYOUT);
+}
+
+/** What a spin pays: stake x its win, rounded down to the paisa (never more than the table says), at most garudaMaxPayout(). */
+export function garudaPayout(stake: number, totalWin: number): number {
+  return Math.min(floor2(stake * totalWin), garudaMaxPayout());
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -33,7 +49,7 @@ export function getGarudaGoldConfig() {
   return {
     minStake: env.games.minStake,
     maxStake: env.games.maxStake,
-    maxPayout: env.games.maxPayout,
+    maxPayout: garudaMaxPayout(),
     symbols: SYMBOLS,
     // The three reels as symbols, so the app can spin them the way they really are.
     strips: STRIPS.map((strip) => strip.map((i) => SYMBOLS[i])),
@@ -68,8 +84,7 @@ export async function spinGarudaGold(userId: string, stake: number, ex = false) 
 
   const { serverSeed, serverSeedHash, clientSeed, nonce } = await nextRoundSeedMaterial(userId);
   const outcome = replayGarudaSpin(serverSeed, clientSeed, nonce, ex);
-  // Rounded down, so rounding never pays more than the table says.
-  const payout = Math.min(floor2(stake * outcome.totalWin), env.games.maxPayout);
+  const payout = garudaPayout(stake, outcome.totalWin);
 
   const spin = await prisma.$transaction(async (tx) => {
     const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });

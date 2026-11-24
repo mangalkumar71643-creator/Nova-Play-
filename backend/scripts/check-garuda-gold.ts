@@ -33,6 +33,7 @@ import {
   windowFor,
 } from "../src/services/garudaGoldEngine";
 import { generateClientSeed, generateServerSeed } from "../src/utils/rng";
+import { GARUDA_MAX_PAYOUT, garudaPayout } from "../src/services/garudaGoldService";
 
 let failed = 0;
 function check(name: string, ok: boolean, detail = "") {
@@ -167,6 +168,10 @@ const MODES = ["normal", "ex"] as const;
   const mixed = evaluateWindow([[w, sym("RUBY"), sym("J")], [sym("RUBY"), sym("RUBY"), sym("Q")], [sym("RUBY"), sym("K"), w]]);
   check("a WILD completes a line of the symbol beside it (WILD RUBY RUBY on the top row pays 10)", mixed.lines.some((l) => l.line === 0 && l.symbol === "RUBY" && l.pay === 10));
   console.log(`     max line win of one spin ${stats.maxLinePay} stakes, so the most a spin can win is ${stats.maxLinePay * 500} stakes (with a 500x nudge)`);
+  check(
+    "one spin pays at most 5,00,000: a 100,000 bet's 20,400x win pays 5,00,000, a 10 bet's 3x pays 30, a 1.05 bet's 0.3x pays 0.31 (rounded down)",
+    GARUDA_MAX_PAYOUT === 500000 && garudaPayout(100000, 20400) === 500000 && garudaPayout(10, 3) === 30 && garudaPayout(1.05, 0.3) === 0.31 && garudaPayout(24.5, 20400) === 499800
+  );
 }
 
 console.log(failed ? `\n${failed} FAILED` : "\nall ok");
