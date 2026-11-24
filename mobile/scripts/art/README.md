@@ -31,5 +31,11 @@ node mobile/scripts/art/build.js redbutton/lcd   # one piece
   headline, "UP TO 1189x" (the top multiplier of Hardcore: x1189.4) and the footer are in `poster.js`; to change the words or the numbers, edit
   them there and build again: `node scripts/art/build.js chickenroad-popup`. The admin panel shrinks an upload to 900 px wide at most and saves it as
   WebP 0.86, which this picture survives without any visible change. None of it goes into the app (nothing `require`s `assets/promo/`).
+  `slide.js` is the same game for the **Home Slider** instead (a slide stands on the red stage and the app draws its own Play button under it):
+  `assets/promo/chicken-road-slide.webp` (900 x 640, transparent, about the 1.4 : 1 that the stage shows biggest; `.png` for uploading), made of the
+  game's chicken, taxi, police car and manholes, the egg and name of the header, and an "UP TO 1189x" plate in the red and gold of the Home. In the
+  panel the slide's button text must be short (**PLAY**; "PLAY NOW" is cut off) and the game **Chicken Road**. The panel's "Remove background" box
+  (on by default) clears white / light-grey and near-black pixels that touch the outside of a slide, so every white part of the slide sits inside a
+  maroon or gold outline and there are no black shadows; checked through the real panel: nothing is lost.
 * Size: the pictures are WEBP at quality 80 at most (`to_webp.py` caps what `build.js` writes; `shrink_webp.py` does the same for pictures that
   are already in `assets/`, and leaves a picture alone if it would look noticeably worse). The fonts are small subsets too, see `scripts/fonts/`.
