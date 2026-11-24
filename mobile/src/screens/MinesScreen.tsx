@@ -22,6 +22,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT } from '../utils/limits';
 import GameBackdrop from '../components/GameBackdrop';
+import MinesTile from './mines/MinesTile';
 import { withPopupSound, withTapSound } from '../sound/ui';
 
 const TILE_COUNT = 25;
@@ -369,37 +370,27 @@ export default function MinesScreen() {
     const isRevealed = revealed.has(tile);
     const settled = round && !isPlaying;
     const isMine = mines.has(tile);
-    const showContent = isRevealed || (settled && round?.minePositions);
-    const dimmed = settled && !isRevealed;
+    const showContent = Boolean(isRevealed || (settled && round?.minePositions));
+    const dimmed = Boolean(settled && !isRevealed);
     const isHit = tile === hitTile;
     const isSelected = autoMode && autoSelected.has(tile);
     const canPress = selectingTiles || (isPlaying && !isRevealed && !locked);
 
     return (
-      <Pressable
+      <MinesTile
         key={tile}
-        onPress={() => onTilePress(tile)}
+        width={TILE_WIDTH}
+        height={TILE_HEIGHT}
+        showContent={showContent}
+        isMine={isMine}
+        isHit={isHit}
+        isSelected={isSelected}
+        pending={tile === pendingTile}
+        dimmed={dimmed}
         disabled={!canPress}
-        style={({ pressed }) => [
-          styles.tile,
-          isSelected && !showContent && styles.tileSelected,
-          (pressed || tile === pendingTile) && !showContent && styles.tilePending,
-          showContent && styles.tileOpen,
-          isSelected && showContent && styles.tileSelectedOpen,
-          isHit && styles.tileHit,
-          dimmed && !isSelected && styles.tileDimmed,
-        ]}
-      >
-        {showContent ? (
-          isMine ? (
-            <MaterialCommunityIcons name="bomb" size={TILE_HEIGHT * 0.56} color={isHit ? '#1B0A0E' : '#E6ECF7'} />
-          ) : (
-            <MaterialCommunityIcons name="diamond-stone" size={TILE_HEIGHT * 0.56} color="#35E0B0" />
-          )
-        ) : (
-          <View style={[styles.tileDot, isSelected && styles.tileDotSelected]} />
-        )}
-      </Pressable>
+        onPress={() => onTilePress(tile)}
+        testID={`mines-tile-${tile}`}
+      />
     );
   };
 
@@ -796,31 +787,6 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: '#F5C21B' },
   boardArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   board: { width: BOARD_WIDTH, flexDirection: 'row', flexWrap: 'wrap', gap: BOARD_GAP },
-  tile: {
-    width: TILE_WIDTH,
-    height: TILE_HEIGHT,
-    borderRadius: 8,
-    backgroundColor: '#0E3E7E',
-    borderWidth: 1.5,
-    borderColor: '#1D5AAD',
-    borderBottomWidth: 4,
-    borderBottomColor: '#0A2E63',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tileOpen: { backgroundColor: '#0A2C62', borderBottomWidth: 1.5 },
-  tileHit: { backgroundColor: '#E03A50', borderColor: '#FF7A8A' },
-  tileDimmed: { opacity: 0.45 },
-  tilePending: { backgroundColor: '#3E8BFF', transform: [{ scale: 0.92 }] },
-  tileSelected: { backgroundColor: '#1C62C4', borderColor: '#F5C21B', borderBottomColor: '#B88A00' },
-  tileSelectedOpen: { borderColor: '#F5C21B' },
-  tileDot: {
-    width: TILE_HEIGHT * 0.32,
-    height: TILE_HEIGHT * 0.32,
-    borderRadius: TILE_HEIGHT * 0.16,
-    backgroundColor: '#3A78D4',
-  },
-  tileDotSelected: { backgroundColor: '#F5C21B' },
   winWrap: { position: 'absolute', alignItems: 'center' },
   winClose: {
     marginTop: 12,
