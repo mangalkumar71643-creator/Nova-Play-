@@ -6,7 +6,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 import { showAlert } from '../components/AppAlert';
-import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
 import { ApiClientError } from '../api/client';
@@ -182,31 +182,39 @@ const Board = memo(function Board({ g, width }: { g: Geometry; width: number }) 
     for (let j = 0; j < i + 3; j++) {
       const x = g.cx + (j - (i + 2) / 2) * g.sx;
       const y = rowY(g, i);
-      pins.push(<Circle key={`h${i}-${j}`} cx={x} cy={y} r={g.pinR * 2.2} fill="url(#pinGlow)" />);
-      pins.push(<Circle key={`s${i}-${j}`} cx={x + g.pinR * 0.15} cy={y + g.pinR * 0.3} r={g.pinR} fill="#0B3F5C" fillOpacity={0.45} />);
+      pins.push(<Circle key={`h${i}-${j}`} cx={x} cy={y} r={g.pinR * 2.4} fill="url(#pinGlow)" />);
+      pins.push(<Circle key={`s${i}-${j}`} cx={x + g.pinR * 0.2} cy={y + g.pinR * 0.45} r={g.pinR * 1.05} fill="#02121E" fillOpacity={0.55} />);
+      pins.push(<Circle key={`r${i}-${j}`} cx={x} cy={y} r={g.pinR * 1.12} fill="#6A4206" />);
       pins.push(<Circle key={`p${i}-${j}`} cx={x} cy={y} r={g.pinR} fill="url(#pinFace)" />);
+      pins.push(<Circle key={`l${i}-${j}`} cx={x - g.pinR * 0.32} cy={y - g.pinR * 0.34} r={g.pinR * 0.3} fill="#FFFFFF" fillOpacity={0.85} />);
     }
   }
-  // Dotted side guides, like a real Plinko cabinet.
-  const topY = g.top - g.sy * 0.6;
-  const botY = rowY(g, g.rows - 1);
-  const inner = g.sx * 1.9;
-  const leftPath = `M 6 ${topY} L ${g.cx - inner} ${topY} L 6 ${botY - g.sy * 1.2} Z`;
-  const rightPath = `M ${width - 6} ${topY} L ${g.cx + inner} ${topY} L ${width - 6} ${botY - g.sy * 1.2} Z`;
+  // The glass pyramid the pins are set in: from just above the top row to just below the last, its edges lit.
+  const topY = g.top - g.sy * 0.75;
+  const botY = rowY(g, g.rows - 1) + g.sy * 0.55;
+  const topHalf = g.sx * 1.55;
+  const botHalf = ((g.rows + 2) / 2) * g.sx + g.sx * 0.45;
+  const plate = `M ${g.cx - topHalf} ${topY} L ${g.cx + topHalf} ${topY} L ${g.cx + botHalf} ${botY} L ${g.cx - botHalf} ${botY} Z`;
   return (
     <Svg width={width} height={g.height} style={StyleSheet.absoluteFill}>
       <Defs>
         <RadialGradient id="pinGlow" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.35} />
-          <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
+          <Stop offset="0" stopColor="#FFD86A" stopOpacity={0.4} />
+          <Stop offset="1" stopColor="#FFD86A" stopOpacity={0} />
         </RadialGradient>
-        <RadialGradient id="pinFace" cx="38%" cy="32%" r="70%">
-          <Stop offset="0" stopColor="#FFFFFF" />
-          <Stop offset="1" stopColor="#C9D6E0" />
+        <RadialGradient id="pinFace" cx="36%" cy="30%" r="75%">
+          <Stop offset="0" stopColor="#FFF8D2" />
+          <Stop offset="0.45" stopColor="#F4C548" />
+          <Stop offset="1" stopColor="#A8680C" />
         </RadialGradient>
+        <SvgLinearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#021A2E" stopOpacity={0.15} />
+          <Stop offset="1" stopColor="#021A2E" stopOpacity={0.55} />
+        </SvgLinearGradient>
       </Defs>
-      <Path d={leftPath} fill="none" stroke="#0A3D66" strokeOpacity={0.45} strokeWidth={1.5} strokeDasharray="2 4" strokeLinejoin="round" />
-      <Path d={rightPath} fill="none" stroke="#0A3D66" strokeOpacity={0.45} strokeWidth={1.5} strokeDasharray="2 4" strokeLinejoin="round" />
+      <Path d={plate} fill="url(#plate)" />
+      <Path d={plate} fill="none" stroke="#7FE6FF" strokeOpacity={0.22} strokeWidth={6} strokeLinejoin="round" />
+      <Path d={plate} fill="none" stroke="#BFF4FF" strokeOpacity={0.75} strokeWidth={1.4} strokeLinejoin="round" />
       {pins}
     </Svg>
   );
@@ -587,6 +595,7 @@ export default function PlinkoScreen() {
                   ]}
                 >
                   <LinearGradient colors={c.tile} style={styles.tileFill}>
+                    <View pointerEvents="none" style={styles.tileShine} />
                     <Text style={[styles.tileText, { fontSize: tileFont }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
                       {formatMult(m)}
                     </Text>
@@ -1049,9 +1058,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(160,230,255,0.35)',
   },
   board: { flex: 1, overflow: 'hidden' },
-  tile: { position: 'absolute', borderRadius: 3, overflow: 'hidden' },
-  tileFill: { flex: 1, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1.5, borderBottomColor: 'rgba(0,0,0,0.25)' },
-  tileText: { color: '#1C1C1C', fontWeight: '700' },
+  tile: { position: 'absolute', borderRadius: 5, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
+  tileFill: { flex: 1, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'rgba(0,0,0,0.35)' },
+  tileShine: { position: 'absolute', left: 2, right: 2, top: 1, height: '42%', borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.28)' },
+  tileText: { color: '#FFFFFF', fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.55)', textShadowRadius: 2, textShadowOffset: { width: 0, height: 1 } },
   tileFlash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#FFFFFF' },
   ball: { position: 'absolute', zIndex: 5, elevation: 6, shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } },
   ballCore: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.18)' },
