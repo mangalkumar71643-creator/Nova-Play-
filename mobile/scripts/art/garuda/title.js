@@ -55,8 +55,8 @@ const lamp = (on) => ({
   ${on ? '<rect x="0" y="0" width="100" height="36" rx="8" fill="url(#halo)"/>' : ''}
   <rect x="4" y="4" width="92" height="28" rx="5" fill="url(#${on ? 'lit' : 'dark'})"/>
   <rect x="4" y="4" width="92" height="28" rx="5" fill="none" stroke="${on ? '#ffe27a' : '#6a4a20'}" stroke-width="1.4"/>
-  <text x="50" y="24.5" text-anchor="middle" font-family="Liberation Serif" font-weight="700" font-size="16" letter-spacing="2.5" fill="${on ? 'url(#litText)' : '#7a5a2a'}" stroke="${on ? '#4a0a6a' : '#1a0a02'}" stroke-width="${on ? 2.4 : 1.2}" paint-order="stroke" stroke-linejoin="round">NUDGE</text>
-  ${on ? '<path d="M12 18 L 17 11 L 22 18 L 19 18 L 19 24 L 15 24 L 15 18 Z" fill="#fff3b0"/><path d="M78 18 L 83 11 L 88 18 L 85 18 L 85 24 L 81 24 L 81 18 Z" fill="#fff3b0"/>' : ''}
+  <text x="50" y="24" text-anchor="middle" font-family="Liberation Serif" font-weight="700" font-size="${on ? 14 : 16}" letter-spacing="${on ? 1.4 : 2.5}" fill="${on ? 'url(#litText)' : '#7a5a2a'}" stroke="${on ? '#4a0a6a' : '#1a0a02'}" stroke-width="${on ? 2.4 : 1.2}" paint-order="stroke" stroke-linejoin="round">NUDGE</text>
+  ${on ? '<path d="M9 18 L 14 11 L 19 18 L 16 18 L 16 24 L 12 24 L 12 18 Z" fill="#fff3b0"/><path d="M81 18 L 86 11 L 91 18 L 88 18 L 88 24 L 84 24 L 84 18 Z" fill="#fff3b0"/>' : ''}
 `,
       `${L.gradient('dark', [[0, '#2a1606'], [1, '#140a02']])}
   ${L.gradient('lit', [[0, '#c04aff'], [0.5, '#7a12d0'], [1, '#4a0890']])}

@@ -224,7 +224,7 @@ export default function GarudaGoldScreen() {
     if (!config || busyRef.current || placed.current) return;
     placed.current = true;
     const rowsOf = (strip: string[], stop: number, n: number) => Array.from({ length: n }, (_, i) => strip[(stop + i - Math.floor(n / 2) + strip.length) % strip.length]);
-    const rows = [0, 1, 2].map((i) => rowsOf(config.strips[i], 5 + i * 9, 3));
+    const rows = [0, 1, 2].map((i) => rowsOf(config.strips[i], [13, 23, 33][i], 3));
     rows.push(rowsOf(config.coinStrips.normal, 17, 5));
     rows.forEach((r, i) => reelRefs[i].current?.set(r));
     shownRef.current = rows;
@@ -391,6 +391,7 @@ export default function GarudaGoldScreen() {
     refreshWallet().catch(() => {});
     setHistory(null);
     if (payout >= stake * 10) {
+      setMultBadge(null);
       setBig({ title: payout >= stake * 100 ? 'SUPER WIN' : payout >= stake * 30 ? 'MEGA WIN' : 'BIG WIN', amount: payout });
       shower.setValue(0);
       Animated.timing(shower, { toValue: 1, duration: 2800, easing: Easing.linear, useNativeDriver: true }).start();
@@ -495,12 +496,19 @@ export default function GarudaGoldScreen() {
           </View>
 
           {/* EX */}
-          <Pressable onPress={withTapSound(toggleEx)} style={[box(8, 244, 66, 40), locked && { opacity: 0.7 }]} accessibilityRole="switch" accessibilityState={{ checked: ex }} accessibilityLabel="EX" testID="gg-ex">
+          <Pressable onPress={withTapSound(toggleEx)} style={[box(8, 244, 66, 40), locked && { opacity: 0.7 }]} accessibilityRole="button" accessibilityState={{ selected: ex }} accessibilityLabel="EX" testID="gg-ex">
             <Image source={ex ? A.exOn : A.exOff} style={styles.fill} resizeMode="stretch" fadeDuration={0} />
           </Pressable>
           <Pressable onPress={withTapSound(() => openPanel('rules'))} style={[box(76, 251, 26, 26), styles.help]} accessibilityLabel="What is EX" hitSlop={8}>
             <Text style={[styles.helpText, { fontSize: u(15) }]}>?</Text>
           </Pressable>
+          {ex ? (
+            <View style={[box(106, 252, 96, 24), styles.exPill]} pointerEvents="none">
+              <Text style={[styles.exLabel, { fontSize: u(11.5) }]} testID="gg-cost">
+                Spin ₹{costOf(bet, true).toLocaleString('en-IN')}
+              </Text>
+            </View>
+          ) : null}
 
           {/* the name plate and the NUDGE lamp */}
           <Pic source={A.title} style={box(0, TITLE_Y, U_W, 48)} />
@@ -605,15 +613,11 @@ export default function GarudaGoldScreen() {
           </View>
 
           <RoundButton style={box(SPIN_C.x - 162 - 25, SPIN_C.y - 25, 50, 50)} img={A.btn} icon="information-variant" size={u(26)} onPress={() => openPanel('pays')} label="Paytable" />
-          <RoundButton style={[box(SPIN_C.x - 94 - 25, SPIN_C.y - 25, 50, 50), locked && { opacity: 0.6 }]} img={A.btn} icon="layers-triple" size={u(24)} onPress={() => !locked && setBetOpen(true)} label="Bet" />
+          <RoundButton style={[box(SPIN_C.x - 94 - 25, SPIN_C.y - 25, 50, 50), locked && { opacity: 0.6 }]} img={A.btn} icon="layers" size={u(25)} onPress={() => !locked && setBetOpen(true)} label="Bet" />
           <Text style={[box(SPIN_C.x - 94 - 44, SPIN_C.y + 26, 88, 18), styles.btnLabel, { fontSize: u(11.5) }]} pointerEvents="none" testID="gg-bet">
             Bet ₹{bet.toLocaleString('en-IN')}
           </Text>
-          {ex ? (
-            <Text style={[box(SPIN_C.x - 94 - 50, SPIN_C.y - 44, 100, 16), styles.exLabel, { fontSize: u(10.5) }]} pointerEvents="none" testID="gg-cost">
-              EX ₹{costOf(bet, true).toLocaleString('en-IN')}
-            </Text>
-          ) : null}
+
 
           <Pressable
             onPress={onSpin}
@@ -642,6 +646,7 @@ export default function GarudaGoldScreen() {
 
           {big ? (
             <View style={[box(0, 230, U_W, 400), styles.center]} pointerEvents="none">
+              <View style={[styles.bigBack, { width: u(360), height: u(170), borderRadius: u(85) }]} />
               <CoinShower w={u(U_W)} h={u(400)} progress={shower} />
               <Text style={[styles.bigTitle, { fontSize: u(42) }]}>{big.title}</Text>
               <Text style={[styles.bigAmount, { fontSize: u(34) }]}>{money(big.amount)}</Text>
@@ -720,11 +725,13 @@ const styles = StyleSheet.create({
   balLabel: { color: 'rgba(255,214,120,0.9)', fontWeight: '800', fontStyle: 'italic' },
   balValue: { color: '#FFFFFF', fontWeight: '800' },
   btnLabel: { color: '#FFF3DC', fontWeight: '800', textAlign: 'center', textShadowColor: '#000', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 } },
-  exLabel: { color: '#FFB040', fontWeight: '900', textAlign: 'center', textShadowColor: '#000', textShadowRadius: 4 },
+  exLabel: { color: '#FFD9A0', fontWeight: '900', textAlign: 'center' },
+  exPill: { borderRadius: 12, backgroundColor: 'rgba(120,40,0,0.88)', borderWidth: 1, borderColor: 'rgba(255,176,64,0.9)', alignItems: 'center', justifyContent: 'center' },
   autoCount: { color: '#FFF3B0', fontWeight: '900', textShadowColor: '#000', textShadowRadius: 6 },
   reelWin: { color: '#FFE27A', fontWeight: '900', textShadowColor: '#000', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } },
   badge: { paddingHorizontal: 20, paddingVertical: 4, borderRadius: 26, backgroundColor: 'rgba(90,10,40,0.92)', borderWidth: 2, borderColor: '#FFD23A' },
   badgeText: { color: '#FFE27A', fontWeight: '900', textShadowColor: '#000', textShadowRadius: 5 },
+  bigBack: { position: 'absolute', backgroundColor: 'rgba(20,6,0,0.72)', shadowColor: '#000', shadowOpacity: 0.9, shadowRadius: 30, shadowOffset: { width: 0, height: 0 } },
   bigTitle: { color: GOLD, fontWeight: '900', letterSpacing: 4, textShadowColor: '#5A2A00', textShadowRadius: 10 },
   bigAmount: { color: '#FFFFFF', fontWeight: '900', textShadowColor: '#000', textShadowRadius: 8 },
   toast: { position: 'absolute', alignSelf: 'center', top: '46%', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.86)', borderWidth: 1, borderColor: 'rgba(255,200,58,0.6)', maxWidth: '86%', zIndex: 5 },
