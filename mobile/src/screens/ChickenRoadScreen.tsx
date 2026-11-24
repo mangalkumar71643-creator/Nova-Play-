@@ -76,6 +76,14 @@ const PLATE_HEIGHT = PLATE_WIDTH * PLATE_ASPECT;
 const PLATE_PATCH_SIZE = MANHOLE_DIAM * 1.2;
 const LANE_Y = NEAR_MANHOLE.yFrac * PANEL_HEIGHT;
 
+// Room the screen gives to what is around the road (the same numbers as in the styles below). The road is cut to what is left once
+// the header, the history row and the controls have their room, so Play / GO / Cash Out are always fully on screen.
+const HISTORY_ROW_H = 40;
+const ROAD_TOP_GAP = 12;
+const CONTROLS_TOP_GAP = 16;
+const ROAD_SAFE_GAP = 10;
+const MIN_ROAD_H = Math.round(PANEL_HEIGHT * 0.5);
+
 const CHICKEN_ASPECT = 650 / 562;
 const CHICKEN_WIDTH = 60;
 const CHICKEN_HEIGHT = CHICKEN_WIDTH * CHICKEN_ASPECT;
@@ -221,12 +229,13 @@ const AmbientTraffic = React.memo(function AmbientTraffic({
   maxSteps: number;
   blockedUpToStep: number | null;
 }) {
-  const steps = useMemo(() => Array.from({ length: maxSteps + 1 }, (_, i) => i), [maxSteps]);
+  // Lane k (1 to maxSteps) has the k-th manhole of the road (position k - 1); step 0 is the sidewalk the chicken starts from.
+  const steps = useMemo(() => Array.from({ length: maxSteps }, (_, i) => i + 1), [maxSteps]);
   return (
     <>
       {steps.map((step) =>
         blockedUpToStep !== null && step <= blockedUpToStep ? null : (
-          <LaneTraffic key={step} x={laneX(step)} />
+          <LaneTraffic key={step} x={laneX(step - 1)} />
         )
       )}
     </>
@@ -289,6 +298,10 @@ export default function ChickenRoadScreen() {
   const [round, setRound] = useState<ChickenRoadRound | null>(null);
   const [history, setHistory] = useState<ChickenRoadRound[]>([]);
   const [banner, setBanner] = useState<ResultBanner | null>(null);
+  // The screen's own height, and the header's and the controls' (measured): what is left is the road's.
+  const [rootH, setRootH] = useState(0);
+  const [headerH, setHeaderH] = useState(0);
+  const [controlsH, setControlsH] = useState(0);
   const [busy, setBusy] = useState(false);
   const [carVisible, setCarVisible] = useState(false);
   const [carLaneX, setCarLaneX] = useState(0);
@@ -333,19 +346,22 @@ export default function ChickenRoadScreen() {
     [config, difficulty, round]
   );
 
-  // Lanes 0 and 1 sit over the real background art; every lane after that
-  // is a code-drawn extension of the same road color, repeating the pitch
-  // measured between those two spots. Every lane, including 0 and 1, now
-  // gets the same real plate image at the same size.
+  // The first two manholes sit over the real background art; every manhole
+  // after that is a code-drawn extension of the same road color, repeating
+  // the pitch measured between those two spots. Every manhole gets the same
+  // real plate image at the same size. The chicken starts on the sidewalk
+  // (step 0), so lane k (1 to maxSteps) is the k-th manhole, at position
+  // k - 1, and the first one shows the first real multiplier (1.01x on Easy),
+  // not a 1.00x start pad.
   const maxSteps = activeConfig?.steps ?? 1;
-  const extraLaneCount = Math.max(0, maxSteps - 1);
+  const extraLaneCount = Math.max(0, maxSteps - 2);
   const extraWidth = extraLaneCount * LANE_PITCH;
   const totalRoadWidth = PANEL_WIDTH + extraWidth;
   const extraLaneSteps = useMemo(
     () => Array.from({ length: extraLaneCount }, (_, i) => i + 2),
     [extraLaneCount]
   );
-  const allLaneSteps = useMemo(() => Array.from({ length: maxSteps + 1 }, (_, i) => i), [maxSteps]);
+  const allLaneSteps = useMemo(() => Array.from({ length: maxSteps }, (_, i) => i + 1), [maxSteps]);
 
   useEffect(() => {
     return () => {
@@ -362,7 +378,8 @@ export default function ChickenRoadScreen() {
   // advances, without blocking the player from scrolling ahead manually.
   useEffect(() => {
     if (!round || chickenAtIdle) return;
-    const targetX = Math.max(0, laneX(chickenStep ?? 0) - PANEL_WIDTH * 0.35);
+    const position = (chickenStep ?? 0) - 1;
+    const targetX = position < 0 ? 0 : Math.max(0, laneX(position) - PANEL_WIDTH * 0.35);
     roadScrollRef.current?.scrollTo({ x: targetX, animated: true });
   }, [round, chickenAtIdle, chickenStep]);
 
@@ -414,7 +431,7 @@ export default function ChickenRoadScreen() {
       carAnim.stopAnimation();
       carAnim.setValue(0);
       if (hitTimeoutRef.current !== null) clearTimeout(hitTimeoutRef.current);
-      setCarLaneX(laneX(toStep));
+      setCarLaneX(laneX(toStep - 1));
       setCarSource(randomCarSource());
       setCarPhase('driving');
       setCarVisible(true);
@@ -531,9 +548,21 @@ export default function ChickenRoadScreen() {
   const maxPayout = config?.maxPayout ?? Infinity;
   const potentialPayout = round ? Math.min(round2(Number(round.stake) * currentMultiplier), maxPayout) : 0;
 
+  // The road is as tall as its picture, but never taller than what is left on this screen. A phone's page is shorter inside a browser
+  // (its own bars take room), and a message above the controls used to push Play off the bottom of the screen after a win. A shorter
+  // road shows the middle of the picture, so the row of manholes and the chicken stay in view.
+  const measured = rootH > 0 && headerH > 0 && controlsH > 0;
+  const freeForRoad = rootH - headerH - HISTORY_ROW_H - ROAD_TOP_GAP - CONTROLS_TOP_GAP - controlsH - ROAD_SAFE_GAP;
+  const roadH = measured ? Math.max(MIN_ROAD_H, Math.min(PANEL_HEIGHT, freeForRoad)) : PANEL_HEIGHT;
+  const cropTop = Math.max(0, Math.min(PANEL_HEIGHT - roadH, LANE_Y - roadH * 0.58));
+  const onSize = (set: (fn: (h: number) => number) => void) => (e: { nativeEvent: { layout: { height: number } } }) => {
+    const h = Math.round(e.nativeEvent.layout.height);
+    set((old) => (Math.abs(old - h) < 1 ? old : h));
+  };
+
   return (
-    <View style={styles.root}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+    <View style={styles.root} onLayout={onSize(setRootH)}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]} onLayout={onSize(setHeaderH)}>
         <Pressable onPress={withTapSound(() => navigation.goBack())} hitSlop={10} style={styles.backBtn}>
           <MaterialCommunityIcons name="chevron-left" size={26} color="#FFFFFF" />
         </Pressable>
@@ -563,7 +592,8 @@ export default function ChickenRoadScreen() {
         )}
       </ScrollView>
 
-      <View style={[styles.roadWrap, { width: PANEL_WIDTH, height: PANEL_HEIGHT }]}>
+      <View style={[styles.roadWrap, { width: PANEL_WIDTH, height: roadH }]}>
+      <View style={{ width: PANEL_WIDTH, height: PANEL_HEIGHT, marginTop: -cropTop }}>
       <ScrollView
         ref={roadScrollRef}
         horizontal
@@ -598,7 +628,7 @@ export default function ChickenRoadScreen() {
         {allLaneSteps.map((step) => {
           const mult = activeConfig?.multipliers[step];
           if (mult === undefined) return null;
-          const x = laneX(step);
+          const x = laneX(step - 1);
           return (
             <React.Fragment key={`lane-${step}`}>
               <View
@@ -648,7 +678,7 @@ export default function ChickenRoadScreen() {
 
         {isPlaying &&
           round &&
-          Array.from({ length: round.currentStep + 1 }, (_, step) => step).map((step) => {
+          Array.from({ length: round.currentStep }, (_, i) => i + 1).map((step) => {
             // Every already-crossed lane keeps its barrier permanently; the
             // current lane's barrier drops only while the bust-hit car is
             // actually driving through (so it can reach the chicken).
@@ -660,7 +690,7 @@ export default function ChickenRoadScreen() {
                 pointerEvents="none"
                 style={{
                   position: 'absolute',
-                  left: laneX(step) - BARRIER_WIDTH / 2,
+                  left: laneX(step - 1) - BARRIER_WIDTH / 2,
                   top: LANE_Y - BARRIER_Y_OFFSET - BARRIER_HEIGHT / 2,
                   width: BARRIER_WIDTH,
                   height: BARRIER_HEIGHT,
@@ -682,7 +712,9 @@ export default function ChickenRoadScreen() {
               width: CHICKEN_WIDTH,
               height: CHICKEN_HEIGHT,
               left:
-                (chickenStep !== null && !chickenAtIdle ? laneX(chickenStep) : CHICKEN_IDLE_SPOT.xFrac * PANEL_WIDTH) -
+                (chickenStep !== null && chickenStep >= 1 && !chickenAtIdle
+                  ? laneX(chickenStep - 1)
+                  : CHICKEN_IDLE_SPOT.xFrac * PANEL_WIDTH) -
                 CHICKEN_WIDTH / 2,
               top: NEAR_MANHOLE.yFrac * PANEL_HEIGHT - CHICKEN_HEIGHT,
               transform: [{ translateY: hopAnim }],
@@ -719,8 +751,9 @@ export default function ChickenRoadScreen() {
       </ScrollView>
       </View>
 
+      {/* the win message lies over the road (it used to be a bar above the controls and pushed Play off the screen) */}
       {banner && (
-        <View style={[styles.banner, styles.bannerWon]}>
+        <View pointerEvents="none" style={styles.bannerOverlay} testID="cr-banner">
           <Text style={styles.bannerText}>
             {banner.payout >= maxPayout
               ? `Max win reached! Won ₹${banner.payout.toFixed(2)}`
@@ -728,8 +761,9 @@ export default function ChickenRoadScreen() {
           </Text>
         </View>
       )}
+      </View>
 
-      <View style={[styles.controls, { paddingBottom: insets.bottom }]}>
+      <View style={[styles.controls, { paddingBottom: insets.bottom }]} onLayout={onSize(setControlsH)}>
         <View style={styles.stakeRow}>
           <Pressable
             onPress={() => setStakeValue(config?.minStake ?? MIN_STAKE)}
@@ -870,7 +904,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   balanceAmount: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
-  historyScroll: { height: 40, flexGrow: 0 },
+  historyScroll: { height: HISTORY_ROW_H, flexGrow: 0 },
   historyRow: {
     flexDirection: 'row',
     gap: 8,
@@ -887,7 +921,7 @@ const styles = StyleSheet.create({
   historyChipText: { fontSize: 12, fontWeight: '700' },
   roadWrap: {
     alignSelf: 'center',
-    marginTop: 12,
+    marginTop: ROAD_TOP_GAP,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -905,16 +939,20 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
   },
   chickenOverlay: { position: 'absolute' },
-  banner: {
-    marginHorizontal: 12,
-    marginTop: 12,
+  bannerOverlay: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 10,
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
+    backgroundColor: 'rgba(16,86,58,0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(62,207,142,0.7)',
   },
-  bannerWon: { backgroundColor: 'rgba(62,207,142,0.15)' },
-  bannerText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
-  controls: { marginTop: 16, paddingHorizontal: 12, gap: 12 },
+  bannerText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  controls: { marginTop: CONTROLS_TOP_GAP, paddingHorizontal: 12, gap: 12 },
   stakeRow: {
     flexDirection: 'row',
     alignItems: 'center',
