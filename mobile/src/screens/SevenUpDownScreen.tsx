@@ -986,7 +986,7 @@ export default function SevenUpDownScreen() {
   return (
     <View style={styles.root}>
       <GameBackdrop theme="emerald" />
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="7 Up Down" taxPercent={config?.taxPercent} />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="7 Up Down" taxPercent={config?.taxPercent} solo={config?.soloRule} />
       {/* Header */}
       <LinearGradient colors={['#4A1119', '#2A070C']} style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <Pressable onPress={withTapSound(() => navigation.goBack())} style={styles.backBtn} hitSlop={8}>

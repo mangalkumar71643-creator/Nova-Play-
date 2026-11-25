@@ -6,6 +6,7 @@ import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } fr
 import { assertCanTransact } from "./responsibleGamblingService";
 import { BET_TAX, HOUSE_CHANCE, afterBetTax, isHouseRound } from "./lotteryHouse";
 import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast, leastPayoutOutcome, stakedByKey } from "./leastPayout";
+import { keepsOwnResult, soloRuleView } from "./soloRuleService";
 
 /**
  * "5D Lottery": five digits A-E (each 0-9) every round, on the same fixed
@@ -210,9 +211,12 @@ async function settleRound(round: RoundRow) {
   if (env.games.lotteryLeastPayout) {
     // From every bet on the round (betting has closed), so a second
     // settler arrives at the same digits.
-    const all = await prisma.fiveDBet.findMany({ where: { roundId: round.id }, select: { area: true, amount: true } });
-    digits = leastPayoutDigits(all, round.serverSeed, round.periodNumber);
-    await prisma.fiveDRound.updateMany({ where: { id: round.id, settled: false }, data: { digits } });
+    const all = await prisma.fiveDBet.findMany({ where: { roundId: round.id }, select: { userId: true, area: true, amount: true } });
+    // One player on the round: Admin → Result Rules may keep the round's own result (soloRuleService.ts).
+    if (!keepsOwnResult("fiveD", all, round.serverSeed, round.periodNumber)) {
+      digits = leastPayoutDigits(all, round.serverSeed, round.periodNumber);
+      await prisma.fiveDRound.updateMany({ where: { id: round.id, settled: false }, data: { digits } });
+    }
   }
   for (const bet of pending) {
     const won = betWins(bet.area, digits, round.house);
@@ -281,6 +285,7 @@ export function getFiveDConfig() {
     taxPercent: round2(BET_TAX * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
     resultRule: env.games.lotteryLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
+    soloRule: soloRuleView("fiveD"),
     multipliers: Object.fromEntries(KEYS.map((k) => [k, shownMultiplierFor(k)])),
   };
 }

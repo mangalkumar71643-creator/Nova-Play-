@@ -1036,7 +1036,7 @@ export default function BaccaratScreen() {
 
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Baccarat" taxPercent={config?.taxPercent} />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Baccarat" taxPercent={config?.taxPercent} solo={config?.soloRule} />
       {/* Salon, felt, rail and the painted boxes */}
       <Svg width={W} height={H} style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>

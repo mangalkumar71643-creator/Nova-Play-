@@ -25,6 +25,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import { withTapSound } from '../sound/ui';
+import { soloRuleText } from '../utils/soloRule';
 
 // ---------- theme ----------
 
@@ -295,6 +296,8 @@ export default function FiveDLotteryScreen() {
   const rtpPercent = config?.rtpPercent ?? 98;
   const taxPercent = config?.taxPercent ?? 2;
   const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
+  // A period with only one player (Admin → Result Rules).
+  const soloLine = soloRuleText(config?.soloRule, 'five digits', 'period');
   // Fair odds until the config loads: a digit 10X, the rest 2X.
   const multOf = useCallback((key: string) => config?.multipliers?.[key] ?? (/^\w+:\d$/.test(key) ? 10 : 2), [config]);
   /** Chance (in %) that a bet winning with probability p on the draw wins a period, House included. */
@@ -1008,6 +1011,7 @@ export default function FiveDLotteryScreen() {
                     `Five digits A, B, C, D, E (each 0–9) are decided every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
                     'Result rule — least payout wins: when betting closes, the result is the five digits that pay the least in total on all players’ bets. Ties are decided at random. The digits are not a random draw.',
                     'This means the result goes against where players’ money is: the more money is on a bet, the less likely it is to win.',
+                    ...(soloLine ? [soloLine] : []),
                     '⭐ House: one period in five is a House result, on which every bet loses, whatever the digits are.',
                     `Position bets (A–E): the exact digit pays ${multOf('A:0')}X. Big (5–9), Small (0–4), Odd or Even pay ${multOf('A:BIG')}X.`,
                     `Sum bets: the five digits added up (0–45). Big (23–45), Small (0–22), Odd or Even pay ${multOf('SUM:BIG')}X.`,

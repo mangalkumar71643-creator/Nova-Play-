@@ -1200,7 +1200,7 @@ export default function DragonTigerScreen() {
 
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Dragon Tiger" taxPercent={config?.taxPercent} />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Dragon Tiger" taxPercent={config?.taxPercent} solo={config?.soloRule} />
       <Image source={TABLE_BG} style={[styles.abs, frameOf([0, 0, IMG_W, IMG_H])]} resizeMode="stretch" />
 
       {/* Glass strip: light sweep and the glow on the painted heads */}

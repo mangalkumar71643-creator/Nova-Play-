@@ -1110,7 +1110,7 @@ export default function RouletteScreen() {
   return (
     <View style={styles.root}>
       <GameBackdrop theme="emerald" />
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Roulette" taxPercent={config?.taxPercent} />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Roulette" taxPercent={config?.taxPercent} solo={config?.soloRule} />
 
       {/* Top bar */}
       <View style={[styles.topBar, { height: topH, paddingLeft: padL, paddingRight: padR }]}>

@@ -45,6 +45,7 @@ import { getMinesConfig } from "../services/minesService";
 import * as popupService from "../services/popupService";
 import * as giftCodeService from "../services/giftCodeService";
 import { getAppDownloadUrl, getAppVersionInfo, getGameSettings, getSupportTelegramUrl, MAX_MAX_PAYOUT, MIN_MAX_PAYOUT, setAppDownloadUrl, setLatestAppVersion, setMaxPayout, setSupportTelegramUrl } from "../services/settingsService";
+import { SOLO_GAME_KEYS, listSoloRules, setSoloRules } from "../services/soloRuleService";
 
 /** A player UID: a positive whole number that fits the database column (a bigger one made a 500). */
 const isUid = (n: number) => Number.isInteger(n) && n > 0 && n <= 2147483647;
@@ -975,6 +976,23 @@ router.patch(
   asyncHandler(async (req, res) => {
     const { maxPayout } = settingsSchema.parse(req.body);
     res.json(await setMaxPayout(maxPayout));
+  })
+);
+
+// --- Result Rules: what a round with one player does in each least-rule game (soloRuleService.ts) ---
+
+router.get("/solo-rules", (_req, res) => {
+  res.json(listSoloRules());
+});
+
+const soloRulesSchema = z.object({
+  rules: z.record(z.enum(SOLO_GAME_KEYS), z.object({ mode: z.enum(["RANDOM", "LEAST"]), houseChancePercent: z.number().min(0).max(100) })),
+});
+router.put(
+  "/solo-rules",
+  asyncHandler(async (req, res) => {
+    const { rules } = soloRulesSchema.parse(req.body);
+    res.json(await setSoloRules(rules));
   })
 );
 

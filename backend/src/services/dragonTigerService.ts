@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { assertTableAppShowsRules, leastPayoutOutcome, stakedByKey } from "./leastPayout";
+import { keepsOwnResult, soloRuleView } from "./soloRuleService";
 
 /**
  * "Dragon Tiger": one card to Dragon, one to Tiger, higher rank wins (Ace
@@ -157,8 +158,12 @@ async function settleRound(round: RoundRow) {
   if (env.games.tableLeastPayout) {
     // From every chip still on the round, so a second settler arrives at
     // the same cards.
-    [dragonCard, tigerCard] = leastPayoutCards(await prisma.dragonTigerBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
-    await prisma.dragonTigerRound.updateMany({ where: { id: round.id, settled: false }, data: { dragonCard, tigerCard } });
+    const all = await prisma.dragonTigerBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { userId: true, area: true, amount: true } });
+    // One player on the round: Admin → Result Rules may keep the round's own result (soloRuleService.ts).
+    if (!keepsOwnResult("dragonTiger", all, round.serverSeed, round.periodNumber)) {
+      [dragonCard, tigerCard] = leastPayoutCards(all, round.serverSeed, round.periodNumber);
+      await prisma.dragonTigerRound.updateMany({ where: { id: round.id, settled: false }, data: { dragonCard, tigerCard } });
+    }
   }
 
   for (const bet of pending) {
@@ -258,6 +263,7 @@ export function getDragonTigerConfig() {
     taxPercent: round2((1 - env.games.tableRtp) * 100),
     multipliers: Object.fromEntries(AREAS.map((a) => [a, multiplierFor(a)])),
     resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
+    soloRule: soloRuleView("dragonTiger"),
   };
 }
 

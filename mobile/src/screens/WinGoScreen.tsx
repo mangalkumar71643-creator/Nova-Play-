@@ -263,7 +263,9 @@ export default function WinGoScreen() {
 
   const P = config?.payouts ?? FALLBACK;
   const housePercent = config?.houseChancePercent ?? FALLBACK_HOUSE_PERCENT;
-  const soloPercent = config?.soloHouseChancePercent ?? 40;
+  // A period with only one player (Admin → Result Rules): its own random number with the House taking a share, or the least-money rule.
+  const soloLeast = config?.soloRule?.mode === 'LEAST';
+  const soloPercent = config?.soloRule?.houseChancePercent ?? config?.soloHouseChancePercent ?? 40;
   const taxPercent = config?.taxPercent ?? 2;
   const leastStaked = config?.resultRule === 'LEAST_STAKED';
   const minStake = config?.minStake ?? 1;
@@ -969,8 +971,14 @@ export default function WinGoScreen() {
                 ? [
                     `One number 0–9 is chosen every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
                     'Result rule — least money wins: when betting closes, the number, colour (Green, Red, Violet) and Big / Small with the least money bet on them by all players win. For each number 0–9, the money on every choice it would make a winner is added up, and the number with the smallest total is the result. Ties are decided at random.',
-                    'This means the result goes against where most players’ money is: the more money is on a choice, the less likely it is to win. The number is not a random draw, except in a period with only one player (next point).',
-                    `When only one player has bet on a period there is nobody to compare with, so the number is a normal random draw — but the House takes ${soloPercent}% of such periods: the number is then the one that pays that player the least. A player on their own therefore loses most of the time.`,
+                    soloLeast
+                      ? 'This means the result goes against where most players’ money is: the more money is on a choice, the less likely it is to win. The number is not a random draw.'
+                      : 'This means the result goes against where most players’ money is: the more money is on a choice, the less likely it is to win. The number is not a random draw, except in a period with only one player (next point).',
+                    soloLeast
+                      ? 'This applies when only one player has bet on a period too: the number is then the one with the least money on the choices it makes win, so a player on their own who bets on one choice loses.'
+                      : soloPercent > 0
+                        ? `When only one player has bet on a period there is nobody to compare with, so the number is a normal random draw — but the House takes ${soloPercent}% of such periods: the number is then the one that pays that player the least. A player on their own therefore loses most of the time.`
+                        : 'When only one player has bet on a period there is nobody to compare with, so the number is a normal random draw.',
                   ]
                 : [
                     `One number 0–9 is drawn every period (${DURATION_LABEL[duration]}). Betting closes in the last ${lockSeconds} seconds.`,
@@ -993,7 +1001,11 @@ export default function WinGoScreen() {
                 .concat([`Bet amount = balance × quantity × multiplier; ₹${minStake}–₹${maxStake} per bet, max win ${winLimit(maxPayout)}.`])
                 .concat(
                   leastStaked
-                    ? ['Whether a period is ⭐ House, how ties are decided and, with one player only, the random number and whether the House takes the period, come from a server seed whose hash is published before the period and the seed itself after it.']
+                    ? [
+                        soloLeast
+                          ? 'Whether a period is ⭐ House and how ties are decided come from a server seed whose hash is published before the period and the seed itself after it.'
+                          : 'Whether a period is ⭐ House, how ties are decided and, with one player only, the random number and whether the House takes the period, come from a server seed whose hash is published before the period and the seed itself after it.',
+                      ]
                     : ['Provably fair: each period’s number, and whether it is House, come from a server seed whose hash is published before the period, and the seed itself after it.'],
                 )
                 .filter((t) => housePercent > 0 || !t.startsWith('⭐ House')).map((t, i) => (

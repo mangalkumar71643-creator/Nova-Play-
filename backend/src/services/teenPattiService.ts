@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { assertTableAppShowsRules, leastPayoutByKind, stakedByKey } from "./leastPayout";
+import { keepsOwnResult, soloRuleView } from "./soloRuleService";
 
 /**
  * "Teen Patti 20-20": three cards each to Player A and Player B from one
@@ -245,8 +246,12 @@ async function settleRound(round: RoundRow) {
   if (env.games.tableLeastPayout) {
     // From every chip still on the round, so a second settler arrives at
     // the same deal.
-    cards = leastPayoutDeal(await prisma.teenPattiBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
-    await prisma.teenPattiRound.updateMany({ where: { id: round.id, settled: false }, data: { cards } });
+    const all = await prisma.teenPattiBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { userId: true, area: true, amount: true } });
+    // One player on the round: Admin → Result Rules may keep the round's own result (soloRuleService.ts).
+    if (!keepsOwnResult("teenPatti", all, round.serverSeed, round.periodNumber)) {
+      cards = leastPayoutDeal(all, round.serverSeed, round.periodNumber);
+      await prisma.teenPattiRound.updateMany({ where: { id: round.id, settled: false }, data: { cards } });
+    }
   }
 
   for (const bet of pending) {
@@ -343,6 +348,7 @@ export function getTeenPattiConfig() {
     taxPercent: round2((1 - env.games.tableRtp) * 100),
     multipliers: Object.fromEntries(AREAS.map((a) => [a, multiplierFor(a)])),
     resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
+    soloRule: soloRuleView("teenPatti"),
   };
 }
 

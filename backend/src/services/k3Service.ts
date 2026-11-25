@@ -6,6 +6,7 @@ import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } fr
 import { assertCanTransact } from "./responsibleGamblingService";
 import { BET_TAX, HOUSE_CHANCE, afterBetTax, isHouseRound } from "./lotteryHouse";
 import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast, leastPayoutOutcome, stakedByKey } from "./leastPayout";
+import { keepsOwnResult, soloRuleView } from "./soloRuleService";
 
 /**
  * "K3 Lottery": three dice every round, on the same fixed wall-clock tracks
@@ -220,9 +221,12 @@ async function settleRound(round: RoundRow) {
   if (env.games.lotteryLeastPayout) {
     // From every bet on the round (betting has closed), so a second
     // settler arrives at the same throw.
-    const all = await prisma.k3Bet.findMany({ where: { roundId: round.id }, select: { area: true, amount: true } });
-    dice = leastPayoutDice(all, round.serverSeed, round.periodNumber);
-    await prisma.k3Round.updateMany({ where: { id: round.id, settled: false }, data: { dice } });
+    const all = await prisma.k3Bet.findMany({ where: { roundId: round.id }, select: { userId: true, area: true, amount: true } });
+    // One player on the round: Admin → Result Rules may keep the round's own result (soloRuleService.ts).
+    if (!keepsOwnResult("k3", all, round.serverSeed, round.periodNumber)) {
+      dice = leastPayoutDice(all, round.serverSeed, round.periodNumber);
+      await prisma.k3Round.updateMany({ where: { id: round.id, settled: false }, data: { dice } });
+    }
   }
   for (const bet of pending) {
     const won = betWins(bet.area, dice, round.house);
@@ -291,6 +295,7 @@ export function getK3Config() {
     /** Tax taken from every bet when it is placed; the odds apply to the rest. */
     taxPercent: round2(BET_TAX * 100),
     resultRule: env.games.lotteryLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
+    soloRule: soloRuleView("k3"),
     multipliers: Object.fromEntries([...WIN_COUNTS.keys()].map((k) => [k, shownMultiplierFor(k)])),
   };
 }

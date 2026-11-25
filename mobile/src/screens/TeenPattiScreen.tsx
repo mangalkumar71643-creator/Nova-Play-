@@ -826,7 +826,7 @@ export default function TeenPattiScreen() {
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
       <GameBackdrop theme="crimson" />
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Teen Patti" taxPercent={config?.taxPercent} />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Teen Patti" taxPercent={config?.taxPercent} solo={config?.soloRule} />
 
       {/* Top bar */}
       <View style={[styles.topBar, { height: topH, paddingLeft: padX, paddingRight: padX }]}>

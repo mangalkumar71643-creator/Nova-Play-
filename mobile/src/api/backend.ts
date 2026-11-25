@@ -1,5 +1,8 @@
 import { apiFetch } from './client';
 
+/** What a round with only one player does in a least-rule game (backend soloRuleService.ts, Admin → Result Rules). */
+export type SoloRule = { mode: 'RANDOM' | 'LEAST'; houseChancePercent: number };
+
 export interface BackendUser {
   id: string;
   // Short public-facing account number ("UID" in the UI) — a 5-digit
@@ -1031,6 +1034,8 @@ export interface SevenUpDownConfig {
   /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
   taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface SevenUpDownRoundView {
@@ -1162,6 +1167,8 @@ export interface DragonTigerConfig {
   /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
   taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface DragonTigerRoundView {
@@ -1340,6 +1347,8 @@ export interface AndarBaharConfig {
   /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
   taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface AndarBaharRoundView {
@@ -1420,6 +1429,8 @@ export interface TeenPattiConfig {
   /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
   taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface TeenPattiRoundView {
@@ -1848,6 +1859,8 @@ export interface JhandiMundaConfig {
   paytable: Record<string, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface JhandiMundaRoundView {
@@ -1934,6 +1947,8 @@ export interface RouletteConfig {
   /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
   taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface RouletteRoundView {
@@ -2019,6 +2034,8 @@ export interface K3Config {
   multipliers: Record<string, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface K3RoundView {
@@ -2102,6 +2119,8 @@ export interface WinGoConfig {
   payouts: { number: number; size: number; violet: number; color: number; colorMixed: number };
   /** How the number is chosen: SEED = drawn from the round's seed; LEAST_STAKED = least money staked wins. */
   resultRule?: 'SEED' | 'LEAST_STAKED';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface WinGoRoundView {
@@ -2184,6 +2203,8 @@ export interface FiveDConfig {
   multipliers: Record<string, number>;
   /** LEAST_PAYOUT: the result is whatever pays the least on all players' bets. */
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface FiveDRoundView {
@@ -2269,6 +2290,8 @@ export interface TrxConfig {
   voidAfterMinutes: number;
   /** LEAST_STAKED: Win Go's least-money rule; the block only decides ties and House. */
   resultRule?: 'BLOCK' | 'LEAST_STAKED';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface TrxRoundView {
@@ -2356,6 +2379,8 @@ export interface BaccaratConfig {
   /** The tax already taken in the odds shown (the fair odds less this %), as in Win Go. */
   taxPercent?: number;
   resultRule?: 'SEED' | 'LEAST_PAYOUT';
+  /** A round with only one player (Admin → Result Rules): its own random result with the House taking a share, or the least rule. */
+  soloRule?: SoloRule;
 }
 
 export interface BaccaratHand {

@@ -27,6 +27,7 @@ import GameBackdrop from '../components/GameBackdrop';
 import ChipStrip, { CHIP_HEIGHT } from '../components/ChipStrip';
 import { NARROW } from '../utils/narrow';
 import { playChipBet, withTapSound } from '../sound/ui';
+import { soloRuleText } from '../utils/soloRule';
 
 const GOLD = '#FFD66B';
 const SYMBOLS: JhandiSymbol[] = ['HEART', 'SPADE', 'DIAMOND', 'CLUB', 'FLAG', 'CROWN'];
@@ -487,6 +488,8 @@ export default function JhandiMundaScreen() {
   const winChance = config?.winChancePercent ?? FALLBACK_WIN_CHANCE;
   const houseOn = (config?.houseChancePercent ?? 0) > 0;
   const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
+  // A round with only one player (Admin → Result Rules).
+  const soloLine = soloRuleText(config?.soloRule, 'dice', 'round');
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -942,6 +945,7 @@ export default function JhandiMundaScreen() {
                 Result rule — least payout wins: when betting closes, the dice show the throw that pays the least in total on all players&apos; chips. Ties are decided at
                 random. The throw is not random: the more money is on a symbol, the less likely it is to win.
               </Text>
+              {soloLine ? <Text style={styles.rulesText}>{soloLine}</Text> : null}
               {houseOn ? (
                 <Text style={styles.rulesText}>⭐ House: one round in five is a House result — the bowl lifts on a ⭐ instead of the dice, and every bet loses.</Text>
               ) : null}

@@ -856,7 +856,7 @@ export default function AndarBaharScreen() {
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
       <GameBackdrop theme="crimson" />
-      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Andar Bahar" taxPercent={config?.taxPercent} />
+      <ResultRuleNotice active={config?.resultRule === 'LEAST_PAYOUT'} game="Andar Bahar" taxPercent={config?.taxPercent} solo={config?.soloRule} />
 
       {/* Top bar */}
       <View style={[styles.topBar, { height: topH, paddingLeft: padX, paddingRight: padX }]}>

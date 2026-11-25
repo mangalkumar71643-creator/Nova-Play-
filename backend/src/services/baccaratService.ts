@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { assertTableAppShowsRules, leastPayoutByKind, stakedByKey } from "./leastPayout";
+import { keepsOwnResult, soloRuleView } from "./soloRuleService";
 
 /**
  * "Baccarat" (punto banco): two cards each to Player and Banker, the
@@ -229,10 +230,14 @@ async function settleRound(round: RoundRow) {
   if (env.games.tableLeastPayout) {
     // From every chip still on the round, so a second settler arrives at
     // the same hand.
-    const hand = leastPayoutHand(await prisma.baccaratBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
-    playerCards = hand.player;
-    bankerCards = hand.banker;
-    await prisma.baccaratRound.updateMany({ where: { id: round.id, settled: false }, data: { playerCards, bankerCards } });
+    const all = await prisma.baccaratBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { userId: true, area: true, amount: true } });
+    // One player on the round: Admin → Result Rules may keep the round's own result (soloRuleService.ts).
+    if (!keepsOwnResult("baccarat", all, round.serverSeed, round.periodNumber)) {
+      const hand = leastPayoutHand(all, round.serverSeed, round.periodNumber);
+      playerCards = hand.player;
+      bankerCards = hand.banker;
+      await prisma.baccaratRound.updateMany({ where: { id: round.id, settled: false }, data: { playerCards, bankerCards } });
+    }
   }
 
   for (const bet of pending) {
@@ -344,6 +349,7 @@ export function getBaccaratConfig() {
     taxPercent: round2((1 - env.games.tableRtp) * 100),
     multipliers: Object.fromEntries(AREAS.map((a) => [a, multiplierFor(a)])),
     resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
+    soloRule: soloRuleView("baccarat"),
   };
 }
 

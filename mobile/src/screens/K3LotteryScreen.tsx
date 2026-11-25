@@ -25,6 +25,7 @@ import {
 import { useGameState } from '../state/GameStateContext';
 import { NO_LIMIT, winLimit } from '../utils/limits';
 import { withTapSound } from '../sound/ui';
+import { soloRuleText } from '../utils/soloRule';
 
 // ---------- theme ----------
 
@@ -305,6 +306,8 @@ export default function K3LotteryScreen() {
   const rtpPercent = config?.rtpPercent ?? 98;
   const taxPercent = config?.taxPercent ?? 2;
   const leastPayout = config?.resultRule === 'LEAST_PAYOUT';
+  // A period with only one player (Admin → Result Rules).
+  const soloLine = soloRuleText(config?.soloRule, 'dice', 'period');
   const multOf = useCallback(
     (key: string) => {
       const m = config?.multipliers?.[key];
@@ -1071,6 +1074,7 @@ export default function K3LotteryScreen() {
                     `Three dice are decided at the end of every period. ${DURATION_LABEL[duration]} per period; betting closes in the last ${lockSeconds} seconds.`,
                     'Result rule — least payout wins: when betting closes, the result is the dice combination that pays the least in total on all players’ bets. Ties are decided at random. The dice are not a random throw.',
                     'This means the result goes against where players’ money is: the more money is on a bet, the less likely it is to win.',
+                    ...(soloLine ? [soloLine] : []),
                     '⭐ House: one period in five is a House result, on which every bet loses, whatever the dice show.',
                     `Total: bet on the sum (3–18). Big = 11–18, Small = 3–10, Odd / Even on the sum — ${multOf('BIG') || 2}X. A single sum pays from ${multOf('SUM:10')}X (10 or 11) to ${multOf('SUM:3')}X (3 or 18).`,
                     `2 same: a pair such as 22 wins when at least two dice show 2 (${multOf('PAIR:2')}X). A pair plus a number, e.g. 22+5, needs exactly 2, 2, 5 (${multOf('PAIRSINGLE:2-5')}X).`,

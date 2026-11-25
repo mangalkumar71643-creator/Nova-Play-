@@ -6,6 +6,7 @@ import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } fr
 import { assertCanTransact } from "./responsibleGamblingService";
 import { BET_TAX, HOUSE_CHANCE, afterBetTax, isHouseRound } from "./lotteryHouse";
 import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast, leastPayoutOutcome, stakedByKey } from "./leastPayout";
+import { keepsOwnResult, soloRuleView } from "./soloRuleService";
 
 /**
  * "Jhandi Munda": six dice, each with the same six symbols, are shaken and
@@ -191,9 +192,12 @@ async function settleRound(round: RoundRow) {
   if (env.games.lotteryLeastPayout) {
     // From every chip still on the round (betting has closed; removed
     // chips are VOID), so a second settler arrives at the same throw.
-    const all = await prisma.jhandiMundaBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } });
-    dice = leastPayoutDice(all, round.serverSeed, round.periodNumber);
-    await prisma.jhandiMundaRound.updateMany({ where: { id: round.id, settled: false }, data: { dice } });
+    const all = await prisma.jhandiMundaBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { userId: true, area: true, amount: true } });
+    // One player on the round: Admin → Result Rules may keep the round's own result (soloRuleService.ts).
+    if (!keepsOwnResult("jhandiMunda", all, round.serverSeed, round.periodNumber)) {
+      dice = leastPayoutDice(all, round.serverSeed, round.periodNumber);
+      await prisma.jhandiMundaRound.updateMany({ where: { id: round.id, settled: false }, data: { dice } });
+    }
   }
 
   for (const bet of pending) {
@@ -296,6 +300,7 @@ export function getJhandiMundaConfig() {
     /** Tax taken from every bet when it is placed; the odds apply to the rest. */
     taxPercent: round2(BET_TAX * 100),
     resultRule: env.games.lotteryLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
+    soloRule: soloRuleView("jhandiMunda"),
     // Chance a bet on one symbol wins, House rounds included.
     winChancePercent: round2(winChance() * 100),
     symbols: AREAS,

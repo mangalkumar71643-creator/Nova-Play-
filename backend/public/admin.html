@@ -974,6 +974,26 @@
         </div>
       </div>
 
+      <div class="panel" id="panel-result-rules">
+        <h1 class="page-title">Result Rules</h1>
+        <div class="page-sub">In these games the result that pays the least (or has the least money on it) wins when two or more players have bet. Here you choose, game by game, what happens in a round where only one player has bet.</div>
+        <div class="card">
+          <div class="card-head"><h2>When only one player bets</h2></div>
+          <div class="item-meta" style="margin:-6px 0 12px;line-height:1.6;">
+            <b>Random</b> — the round's own random result, but the House takes the share you set: in those rounds the result is the one that pays that player the least. With the House at 40%, the result is random in 60% of such rounds, and the player wins when their pick comes up.<br/>
+            <b>Least wins</b> — the least rule even for one player: the result is always the one that pays that player the least, so a player alone loses every round (unless they bet on every result).<br/>
+            Players see the rule in force in each game's rules (app 1.0.129 or newer; older apps show the House's share, 100% under Least wins). Rounds with two or more players always follow the least rule. A change applies to rounds settled from then on.
+          </div>
+          <div class="table-scroll" id="soloRulesTable"></div>
+          <div class="form-row" style="margin-top:14px;flex-wrap:wrap;">
+            <button class="btn" id="soloRulesSave" style="flex:0 0 auto;">Save</button>
+            <button class="btn secondary" id="soloRulesAllRandom" style="flex:0 0 auto;">Set all: Random, House 40%</button>
+            <button class="btn secondary" id="soloRulesAllLeast" style="flex:0 0 auto;">Set all: Least wins</button>
+          </div>
+          <div class="item-meta" id="soloRulesStatus"></div>
+        </div>
+      </div>
+
       <div class="panel" id="panel-settings">
         <h1 class="page-title">Settings</h1>
         <div class="page-sub">Your account on this control panel.</div>
@@ -1299,6 +1319,7 @@
         { id: 'game-colorpredict', label: 'Win Go' },
         { id: 'game-aviator', label: 'Aviator' },
       ] },
+    { id: 'result-rules', label: 'Result Rules', icon: 'games' },
     { id: 'support', label: 'Support', icon: 'support' },
     { id: 'messages', label: 'Messages', icon: 'bell' },
     { id: 'popups', label: 'Popups', icon: 'image' },
@@ -1394,6 +1415,7 @@
       activeGamePollInterval = setInterval(reportsTick, 1000);
     },
     settings: function () { loadSettings(); loadSmsStatus(); loadSmsGateway(); loadIntegrations(); },
+    'result-rules': loadSoloRules,
     'game-all': function () {
       // A game picked from the menu shows its bets first, above the overview.
       var betsCard = document.getElementById('allGamesBetsCard');
@@ -3018,6 +3040,77 @@
     btn.disabled = true;
     api('/admin/settings', { method: 'PATCH', body: JSON.stringify({ maxPayout: Number(input.max) }) })
       .then(function () { input.value = ''; status.textContent = 'Saved. No limit on wins in any game.'; })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
+      .finally(function () { btn.disabled = false; });
+  });
+
+  // ---------- Result Rules (soloRuleService.ts): what a round with one player does in each least-rule game ----------
+  var soloRules = [];
+  function soloHint(mode, house) {
+    if (mode === 'LEAST') return 'Player alone always gets the result that pays them the least';
+    var h = Math.max(0, Math.min(100, Number(house) || 0));
+    return 'Random in ' + (Math.round((100 - h) * 100) / 100) + '% of rounds, House in ' + h + '%';
+  }
+  function renderSoloRules() {
+    var el = document.getElementById('soloRulesTable');
+    el.innerHTML = '<table><thead><tr><th>Game</th><th>Least rule</th><th>When only one player bets</th><th>House takes</th><th></th></tr></thead><tbody>' +
+      soloRules.map(function (r) {
+        var random = r.mode === 'RANDOM';
+        return '<tr data-solo-key="' + r.key + '">' +
+          '<td><b>' + escapeHtml(r.name) + '</b><div class="item-meta">' + escapeHtml(r.group) + '</div></td>' +
+          '<td><span class="pill ' + (r.leastRuleOn ? 'active' : 'pending') + '">' + (r.leastRuleOn ? 'On' : 'Off') + '</span></td>' +
+          '<td><select data-solo-mode style="min-width:150px;">' +
+            '<option value="RANDOM"' + (random ? ' selected' : '') + '>Random</option>' +
+            '<option value="LEAST"' + (!random ? ' selected' : '') + '>Least wins</option>' +
+          '</select></td>' +
+          '<td><div data-solo-house-wrap style="display:flex;align-items:center;gap:6px;visibility:' + (random ? 'visible' : 'hidden') + ';"><input data-solo-house type="number" min="0" max="100" step="1" value="' + (random ? r.houseChancePercent : 40) + '" style="width:80px;"' + (random ? '' : ' disabled') + ' /> %</div></td>' +
+          '<td class="item-meta" data-solo-hint style="white-space:normal;min-width:200px;">' + escapeHtml(soloHint(r.mode, r.houseChancePercent)) + (r.leastRuleOn ? '' : '<br/>The least rule is off for this game, so its results are random anyway.') + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table>';
+    el.querySelectorAll('tr[data-solo-key]').forEach(function (tr) {
+      var mode = tr.querySelector('[data-solo-mode]');
+      var house = tr.querySelector('[data-solo-house]');
+      var hint = tr.querySelector('[data-solo-hint]');
+      function update() {
+        house.disabled = mode.value !== 'RANDOM';
+        tr.querySelector('[data-solo-house-wrap]').style.visibility = mode.value === 'RANDOM' ? 'visible' : 'hidden';
+        hint.firstChild.nodeValue = soloHint(mode.value, house.value);
+      }
+      mode.addEventListener('change', update);
+      house.addEventListener('input', update);
+    });
+  }
+  function loadSoloRules() {
+    document.getElementById('soloRulesStatus').textContent = '';
+    api('/admin/solo-rules')
+      .then(function (rows) { soloRules = rows; renderSoloRules(); })
+      .catch(function (err) { if (err.authError) doLogout(); else document.getElementById('soloRulesStatus').textContent = err.message; });
+  }
+  function setAllSolo(mode) {
+    document.querySelectorAll('#soloRulesTable tr[data-solo-key]').forEach(function (tr) {
+      tr.querySelector('[data-solo-mode]').value = mode;
+      if (mode === 'RANDOM') tr.querySelector('[data-solo-house]').value = 40;
+      tr.querySelector('[data-solo-mode]').dispatchEvent(new Event('change'));
+    });
+    document.getElementById('soloRulesStatus').textContent = 'Not saved yet: press Save.';
+  }
+  document.getElementById('soloRulesAllRandom').addEventListener('click', function () { setAllSolo('RANDOM'); });
+  document.getElementById('soloRulesAllLeast').addEventListener('click', function () { setAllSolo('LEAST'); });
+  document.getElementById('soloRulesSave').addEventListener('click', function () {
+    var btn = this;
+    var status = document.getElementById('soloRulesStatus');
+    var rules = {}, bad = null;
+    document.querySelectorAll('#soloRulesTable tr[data-solo-key]').forEach(function (tr) {
+      var mode = tr.querySelector('[data-solo-mode]').value;
+      var house = Number(tr.querySelector('[data-solo-house]').value);
+      if (mode === 'RANDOM' && (!isFinite(house) || house < 0 || house > 100 || tr.querySelector('[data-solo-house]').value === '')) bad = tr.querySelector('b').textContent;
+      rules[tr.getAttribute('data-solo-key')] = { mode: mode, houseChancePercent: mode === 'RANDOM' ? house : 100 };
+    });
+    if (bad) { status.textContent = bad + ': the House\'s share must be from 0 to 100%.'; return; }
+    btn.disabled = true;
+    status.textContent = 'Saving…';
+    api('/admin/solo-rules', { method: 'PUT', body: JSON.stringify({ rules: rules }) })
+      .then(function (rows) { soloRules = rows; renderSoloRules(); status.textContent = 'Saved. Rounds settled from now on follow these rules; players see them in each game\'s rules.'; })
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
       .finally(function () { btn.disabled = false; });
   });

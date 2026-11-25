@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { assertTableAppShowsRules, leastPayoutOutcome, stakedByKey } from "./leastPayout";
+import { keepsOwnResult, soloRuleView } from "./soloRuleService";
 
 /**
  * "7 Up Down": two dice per shared round, bets on the total. Rounds sit on
@@ -147,9 +148,13 @@ async function settleRound(round: RoundRow) {
   if (env.games.tableLeastPayout) {
     // From every chip still on the round (betting has closed; removed chips
     // are VOID), so a second settler arrives at the same dice.
-    const [dice1, dice2] = leastPayoutDice(await prisma.sevenUpDownBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
-    await prisma.sevenUpDownRound.updateMany({ where: { id: round.id, settled: false }, data: { dice1, dice2 } });
-    total = dice1 + dice2;
+    const all = await prisma.sevenUpDownBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { userId: true, area: true, amount: true } });
+    // One player on the round: Admin → Result Rules may keep the round's own result (soloRuleService.ts).
+    if (!keepsOwnResult("sevenUpDown", all, round.serverSeed, round.periodNumber)) {
+      const [dice1, dice2] = leastPayoutDice(all, round.serverSeed, round.periodNumber);
+      await prisma.sevenUpDownRound.updateMany({ where: { id: round.id, settled: false }, data: { dice1, dice2 } });
+      total = dice1 + dice2;
+    }
   }
 
   for (const bet of pending) {
@@ -247,6 +252,7 @@ export function getSevenUpDownConfig() {
     // The odds shown are the fair odds less this tax (Win Go's rule: see env.games.sevenUpDownRtp).
     taxPercent: round2((1 - env.games.sevenUpDownRtp) * 100),
     resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
+    soloRule: soloRuleView("sevenUpDown"),
   };
 }
 

@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { assertTableAppShowsRules, leastPayoutOutcome, stakedByKey } from "./leastPayout";
+import { keepsOwnResult, soloRuleView } from "./soloRuleService";
 
 /**
  * European roulette: one ball, a single-zero wheel of 37 pockets (0-36).
@@ -168,8 +169,12 @@ async function settleRound(round: RoundRow) {
   if (env.games.tableLeastPayout) {
     // From every chip still on the round, so a second settler arrives at
     // the same pocket.
-    result = leastPayoutResult(await prisma.rouletteBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
-    await prisma.rouletteRound.updateMany({ where: { id: round.id, settled: false }, data: { result } });
+    const all = await prisma.rouletteBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { userId: true, area: true, amount: true } });
+    // One player on the round: Admin → Result Rules may keep the round's own result (soloRuleService.ts).
+    if (!keepsOwnResult("roulette", all, round.serverSeed, round.periodNumber)) {
+      result = leastPayoutResult(all, round.serverSeed, round.periodNumber);
+      await prisma.rouletteRound.updateMany({ where: { id: round.id, settled: false }, data: { result } });
+    }
   }
 
   for (const bet of pending) {
@@ -269,6 +274,7 @@ export function getRouletteConfig() {
     // Total return per unit staked, by how many numbers the bet covers.
     multipliers: Object.fromEntries([1, 2, 3, 4, 6, 12, 18].map((c) => [c, multiplierForCount(c)])),
     resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
+    soloRule: soloRuleView("roulette"),
   };
 }
 

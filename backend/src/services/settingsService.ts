@@ -2,6 +2,7 @@ import { prisma } from "../db/prismaClient";
 import { env, NO_PAYOUT_LIMIT } from "../config/env";
 import { runtimeSettings } from "../config/runtimeSettings";
 import { loadIntegrationSettings } from "./integrationSettings";
+import { SOLO_RULES_KEY, parseSoloRules } from "./soloRuleService";
 
 /** Re-read the Setting table at most this often per server instance. */
 const REFRESH_MS = 15_000;
@@ -13,9 +14,11 @@ export const MAX_MAX_PAYOUT = NO_PAYOUT_LIMIT;
 const MAX_PAYOUT_KEY = "maxPayoutCap";
 
 async function load() {
-  const rows = await prisma.setting.findMany({ where: { key: MAX_PAYOUT_KEY } });
+  const rows = await prisma.setting.findMany({ where: { key: { in: [MAX_PAYOUT_KEY, SOLO_RULES_KEY] } } });
   const maxPayout = Number(rows.find((r) => r.key === MAX_PAYOUT_KEY)?.value);
   runtimeSettings.maxPayout = Number.isFinite(maxPayout) && maxPayout > 0 ? maxPayout : undefined;
+  // Admin → Result Rules: what a round with one player does in each least-rule game.
+  runtimeSettings.soloRules = parseSoloRules(rows.find((r) => r.key === SOLO_RULES_KEY)?.value);
   await loadIntegrationSettings();
   loadedAt = Date.now();
 }

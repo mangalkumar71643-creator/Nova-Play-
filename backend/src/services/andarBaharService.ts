@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { assertTableAppShowsRules, leastPayoutOutcome, stakedByKey } from "./leastPayout";
+import { keepsOwnResult, soloRuleView } from "./soloRuleService";
 
 /**
  * "Andar Bahar": a Joker card is turned up, then cards are dealt one at a
@@ -208,9 +209,13 @@ async function settleRound(round: RoundRow) {
   if (env.games.tableLeastPayout) {
     // From every chip still on the round, so a second settler arrives at
     // the same deal.
-    const deal = leastPayoutDeal(await prisma.andarBaharBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { area: true, amount: true } }), round.serverSeed, round.periodNumber);
-    cards = deal.cards;
-    await prisma.andarBaharRound.updateMany({ where: { id: round.id, settled: false }, data: { joker: deal.joker, cards } });
+    const all = await prisma.andarBaharBet.findMany({ where: { roundId: round.id, status: { not: "VOID" } }, select: { userId: true, area: true, amount: true } });
+    // One player on the round: Admin → Result Rules may keep the round's own result (soloRuleService.ts).
+    if (!keepsOwnResult("andarBahar", all, round.serverSeed, round.periodNumber)) {
+      const deal = leastPayoutDeal(all, round.serverSeed, round.periodNumber);
+      cards = deal.cards;
+      await prisma.andarBaharRound.updateMany({ where: { id: round.id, settled: false }, data: { joker: deal.joker, cards } });
+    }
   }
 
   for (const bet of pending) {
@@ -310,6 +315,7 @@ export function getAndarBaharConfig() {
     taxPercent: round2((1 - env.games.tableRtp) * 100),
     multipliers: Object.fromEntries(AREAS.map((a) => [a, multiplierFor(a)])),
     resultRule: env.games.tableLeastPayout ? ("LEAST_PAYOUT" as const) : ("SEED" as const),
+    soloRule: soloRuleView("andarBahar"),
   };
 }
 

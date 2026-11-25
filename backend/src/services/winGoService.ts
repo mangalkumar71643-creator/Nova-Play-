@@ -6,6 +6,7 @@ import { fairGameFloat, fairRandomFloat, generateServerSeed, hashServerSeed } fr
 import { assertCanTransact } from "./responsibleGamblingService";
 import { BET_TAX, HOUSE_CHANCE, LOTTERY_RTP, isHouseRound } from "./lotteryHouse";
 import { assertAppAtLeast } from "./leastPayout";
+import { soloRuleFor, soloRuleView } from "./soloRuleService";
 
 /**
  * Win Go: one number 0-9 per round on fixed wall-clock tracks (one chain of
@@ -115,22 +116,28 @@ export function leastStakedNumber(bets: { area: string; amount: unknown }[], ser
 /**
  * The number for a period once betting has closed (owner's request,
  * 2026-11-16). With two or more players it is the least-money rule above.
- * With exactly one player there is nobody to weigh the bets against (the rule
- * would hand a lone player a certain loss, or a certain win), so the number is
- * the period's ordinary random draw (`natural`) -- except that a share of such
- * periods (env.games.winGoSoloHouseChance) is taken by the House: the number
- * is then the one that pays that player the least, ties drawn from the seed.
- * Both draws come from the period's own seed (Trx Win Go: the block hash), so
+ * With exactly one player there is nobody to weigh the bets against, so the
+ * admin picks what such a period does (Admin → Result Rules, soloRuleService.ts;
+ * owner's request, 2026-11-26), for Win Go and Trx Win Go (`game`) apart:
+ *  - RANDOM (the default): the period's ordinary random draw (`natural`) --
+ *    except that a share of such periods (the House's share, 40% unless the
+ *    admin sets another) is taken by the House: the number is then the one
+ *    that pays that player the least, ties drawn from the seed.
+ *  - LEAST: the least-money rule, as with any number of players.
+ * The draws come from the period's own seed (Trx Win Go: the block hash), so
  * they can be re-checked once it is out.
  */
 export function resultForBets(
   bets: { userId: string; area: string; amount: unknown }[],
   natural: number,
   serverSeed: string,
-  periodNumber: string
+  periodNumber: string,
+  game: "winGo" | "trxWinGo" = "winGo"
 ): number {
   if (new Set(bets.map((b) => b.userId)).size !== 1) return leastStakedNumber(bets, serverSeed, periodNumber);
-  if (fairGameFloat(serverSeed, periodNumber, "wingo-solo", 0) >= env.games.winGoSoloHouseChance) return natural;
+  const rule = soloRuleFor(game);
+  if (rule.mode === "LEAST") return leastStakedNumber(bets, serverSeed, periodNumber);
+  if (fairGameFloat(serverSeed, periodNumber, "wingo-solo", 0) >= rule.houseChance) return natural;
   // What the player would be paid on each number, in paise so equal totals compare equal.
   const paid = Array.from({ length: 10 }, (_, n) => bets.reduce((sum, b) => sum + Math.round(Number(b.amount) * payoutMultiplier(b.area, n) * 100), 0));
   const least = Math.min(...paid);
@@ -282,7 +289,9 @@ export function getWinGoConfig() {
     lockSeconds: LOCK_SECONDS,
     rtpPercent: round2(LOTTERY_RTP * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
-    soloHouseChancePercent: round2(env.games.winGoSoloHouseChance * 100),
+    // The one-player rule (Admin → Result Rules); apps up to 1.0.128 read only the House's share (100 under LEAST).
+    soloHouseChancePercent: soloRuleView("winGo").houseChancePercent,
+    soloRule: soloRuleView("winGo"),
     /** Tax taken from every bet when it is placed; the odds apply to the rest. */
     taxPercent: round2(BET_TAX * 100),
     payouts: PAYOUTS,

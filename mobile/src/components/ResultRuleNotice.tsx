@@ -6,6 +6,8 @@ import { Text } from './AppText';
 import TapPressable from './TapPressable';
 
 import { useAuth } from '../state/AuthContext';
+import type { SoloRule } from '../api/backend';
+import { soloRuleText } from '../utils/soloRule';
 
 type Props = {
   /** True when the server reports the least-payout rule for this game. */
@@ -14,6 +16,8 @@ type Props = {
   game: string;
   /** The tax already taken in the odds shown (the fair odds less this %), when the server reports one (Win Go's rule). */
   taxPercent?: number;
+  /** What a round with only one player does (Admin → Result Rules), when the server reports it. */
+  solo?: SoloRule;
 };
 
 // What a player has been shown already: one flag per player and game, kept on the phone.
@@ -29,7 +33,7 @@ const openers = new Set<{ game: string; open: () => void }>();
  * It opens by itself the first time a player enters the game (once, until they tap "I understand"), so nobody plays without having
  * been told; after that it stays out of the way and the small "?" button of the game's top bar (ResultRuleButton) opens it.
  */
-export default function ResultRuleNotice({ active, game, taxPercent }: Props) {
+export default function ResultRuleNotice({ active, game, taxPercent, solo }: Props) {
   const [open, setOpen] = useState(false);
   const { width, height } = useWindowDimensions();
   const { backendUser } = useAuth();
@@ -76,6 +80,7 @@ export default function ResultRuleNotice({ active, game, taxPercent }: Props) {
             <Text style={styles.body}>
               The result is not a random deal or spin: the more money is on a bet, the less likely it is to win.
             </Text>
+            {soloRuleText(solo, 'result') ? <Text style={styles.body}>{soloRuleText(solo, 'result')}</Text> : null}
             {taxPercent && taxPercent > 0 ? (
               <Text style={styles.body}>
                 Tax: a {taxPercent}% tax is already taken in the odds shown (the fair odds less {taxPercent}%). A winning bet returns the odds shown times the bet, stake included: ₹100 on a 3X box returns ₹300.

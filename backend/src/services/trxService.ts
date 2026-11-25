@@ -4,6 +4,7 @@ import { ApiError } from "../middleware/errorHandler";
 import { env } from "../config/env";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { PAYOUTS, colorsOf, headlineFor, isValidKey, payoutMultiplier, periodNumberFor, resultForBets, returnPerUnit, sizeOf } from "./winGoService";
+import { soloRuleView } from "./soloRuleService";
 import { firstBlockAtOrAfter, lastDigitOf } from "./tronBlocks";
 import { BET_TAX, HOUSE_CHANCE, HOUSE_DIGITS, LOTTERY_RTP, houseFromBlockHash } from "./lotteryHouse";
 import { LEAST_PAYOUT_MIN_APP, assertAppAtLeast } from "./leastPayout";
@@ -108,7 +109,7 @@ async function resolveRound(round: RoundRow, now: Date, budget: { lookups: numbe
     // one-player case with the hash's own digit as the random number; the
     // block still decides ties, House and the solo draw, so anyone can re-check them.
     const all = await prisma.trxBet.findMany({ where: { roundId: round.id }, select: { userId: true, area: true, amount: true } });
-    digit = resultForBets(all, digit, block.hash, round.periodNumber);
+    digit = resultForBets(all, digit, block.hash, round.periodNumber, "trxWinGo");
   }
   if (block && digit !== null) {
     await prisma.trxRound.updateMany({
@@ -213,7 +214,9 @@ export function getTrxConfig() {
     lockSeconds: LOCK_SECONDS,
     rtpPercent: round2(LOTTERY_RTP * 100),
     houseChancePercent: round2(HOUSE_CHANCE * 100),
-    soloHouseChancePercent: round2(env.games.winGoSoloHouseChance * 100),
+    // The one-player rule (Admin → Result Rules); apps up to 1.0.128 read only the House's share (100 under LEAST).
+    soloHouseChancePercent: soloRuleView("trxWinGo").houseChancePercent,
+    soloRule: soloRuleView("trxWinGo"),
     /** Tax taken from every bet when it is placed; the odds apply to the rest. */
     taxPercent: round2(BET_TAX * 100),
     payouts: PAYOUTS,
