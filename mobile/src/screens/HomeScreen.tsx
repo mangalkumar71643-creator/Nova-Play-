@@ -1,6 +1,6 @@
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
-import React from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import React, { useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Text } from '../components/AppText';
@@ -69,7 +69,14 @@ export default function HomeScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const navigation = useNavigation<BottomTabNavigationProp<BottomTabParamList>>();
   const { avatarId } = useAuth();
-  const { coins, vipLevel } = useGameState();
+  const { coins, vipLevel, refreshWallet } = useGameState();
+  // Back on Home (from a game, History, the Deposit screen…): the balance is read again, so a deposit that arrived
+  // meanwhile shows here at once.
+  useFocusEffect(
+    useCallback(() => {
+      refreshWallet().catch(() => {});
+    }, [refreshWallet])
+  );
   const panelHeight = screenHeight * (PANEL_HEIGHT / REFERENCE_HEIGHT);
   const panelWidth = panelHeight * CONTROL_PANEL_ASPECT;
   const panelTop = screenHeight * (PANEL_TOP / REFERENCE_HEIGHT);
@@ -135,6 +142,7 @@ export default function HomeScreen() {
               fontSize: 13,
               fontFamily: fonts.extra,
             }}
+            testID="home-balance"
           >
             {coins.toLocaleString('en-IN')}
           </Text>

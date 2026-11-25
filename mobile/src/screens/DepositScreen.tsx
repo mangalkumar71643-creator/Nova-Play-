@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, AppState, Linking, View } from 'react-native';
+import { ActivityIndicator, Animated, AppState, Linking, View } from 'react-native';
 import { Text, TextInput } from '../components/AppText';
 import { showAlert } from '../components/AppAlert';
 import KeyboardAwareScrollView from '../components/KeyboardAwareScrollView';
@@ -23,6 +23,11 @@ const MIN_DEPOSIT = 100;
 const MAX_DEPOSIT = 50000;
 // The buttons until the server's own (set in the admin panel) arrive.
 const QUICK_AMOUNTS = [100, 200, 300, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+// Back from the payment page, a payment RupayEx has not seen yet (it can take some seconds, and a player can come back
+// before paying) is asked about again every few seconds for this long while the app is in front, and its money is
+// shown the moment it lands.
+const WATCH_MS = 3 * 60_000;
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Same rule as backend/src/services/depositBonusService.ts's bonusFor, used
 // only to preview the bonus before depositing. The backend works out and
@@ -55,8 +60,18 @@ export default function DepositScreen() {
   const [successInfo, setSuccessInfo] = useState<{ total: number; bonus: number } | null>(null);
   const successScale = useRef(new Animated.Value(0)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
-  // The StockPay UPI payment page opened from here; checked when the app comes back.
+  // The UPI payment page opened from here; checked when the app comes back, and then until it is paid or failed.
   const pendingSession = useRef<string | null>(null);
+  // The payment being watched (watchPayment), and whether the screen still shows the "checking" line.
+  const watching = useRef<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    []
+  );
 
   const showSuccess = useCallback(
     (total: number, bonus: number) => {
@@ -71,14 +86,20 @@ export default function DepositScreen() {
     [successScale, successOpacity]
   );
 
+  /**
+   * Asks the server about this player's open UPI deposits (or just `sessionId`): a credited one shows the success card.
+   * Returns the status of `sessionId` (null without one, or when the server could not be asked).
+   */
   const reportUpiResults = useCallback(
-    async (sessionId?: string, quiet = false) => {
+    async (sessionId?: string, quiet = false): Promise<'COMPLETED' | 'PENDING' | 'FAILED' | null> => {
       try {
         const { results } = await confirmUpiDeposits(sessionId);
         // The webhook may have credited it already (alreadyCredited): when
         // this is the payment the player just made, still say it arrived.
         const done = results.filter((r) => r.status === 'COMPLETED' && (sessionId ? true : !r.alreadyCredited));
-        if (results.length > 0) {
+        const status = sessionId ? results[0]?.status ?? null : null;
+        // The balance is read again, unless all that came back is the payment being watched, still on its way.
+        if (results.length > 0 && status !== 'PENDING') {
           await refreshWallet();
           // A deposit can use up a first-deposit-only bonus.
           fetchDepositBonus().then(setBonusInfo).catch(() => {});
@@ -92,11 +113,38 @@ export default function DepositScreen() {
         } else if (!quiet && results.some((r) => r.status === 'FAILED')) {
           showAlert('Payment cancelled', 'No money was taken.');
         }
+        return status;
       } catch {
         // Checked again next time the app comes back to this screen.
+        return null;
       }
     },
     [refreshWallet, showSuccess]
+  );
+
+  /** The payment just made: asked about until it is paid or failed, or WATCH_MS has gone by (then the player is told). */
+  const watchPayment = useCallback(
+    async (sessionId: string) => {
+      if (watching.current === sessionId) return;
+      watching.current = sessionId;
+      setChecking(true);
+      const started = Date.now();
+      let status: 'COMPLETED' | 'PENDING' | 'FAILED' | null = null;
+      for (;;) {
+        // Only while the app is in front (the player may have gone back to the UPI app to pay).
+        if (AppState.currentState === 'active') status = (await reportUpiResults(sessionId, true)) ?? status;
+        if (!mounted.current || watching.current !== sessionId) return;
+        if (status === 'COMPLETED' || status === 'FAILED' || Date.now() - started > WATCH_MS) break;
+        await wait(Date.now() - started < 30_000 ? 3000 : 6000);
+        if (!mounted.current || watching.current !== sessionId) return;
+      }
+      watching.current = null;
+      if (pendingSession.current === sessionId) pendingSession.current = null;
+      setChecking(false);
+      if (status === 'FAILED') showAlert('Payment cancelled', 'No money was taken.');
+      else if (status !== 'COMPLETED') showAlert('Payment not finished', 'We have not received this payment yet. If you paid, your balance will update shortly.');
+    },
+    [reportUpiResults]
   );
 
   useEffect(() => {
@@ -105,13 +153,10 @@ export default function DepositScreen() {
     // Settle any UPI payment left open last time (e.g. the app was closed while paying).
     reportUpiResults(undefined, true);
     const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active' || !pendingSession.current) return;
-      const sessionId = pendingSession.current;
-      pendingSession.current = null;
-      reportUpiResults(sessionId);
+      if (state === 'active' && pendingSession.current) watchPayment(pendingSession.current);
     });
     return () => sub.remove();
-  }, [reportUpiResults]);
+  }, [reportUpiResults, watchPayment]);
 
   const kycApproved = !KYC_REQUIRED || backendUser?.kycStatus === 'APPROVED';
   const amount = Number(amountText);
@@ -138,6 +183,9 @@ export default function DepositScreen() {
     if (upi?.enabled) {
       try {
         const { sessionId, url } = await startUpiCheckout(amount);
+        // A new payment: stop watching an earlier one (it is still credited by the server when it lands).
+        watching.current = null;
+        setChecking(false);
         pendingSession.current = sessionId;
         await Linking.openURL(url);
       } catch (err) {
@@ -294,7 +342,12 @@ export default function DepositScreen() {
       </KeyboardAwareScrollView>
 
       <View style={[styles.payBar, { paddingBottom: spacing.lg + bottomInset }]}>
-        {upi?.enabled ? (
+        {checking ? (
+          <View style={styles.checkingRow} testID="deposit-checking">
+            <ActivityIndicator size="small" color={colors.gold} />
+            <Text style={styles.checkingText}>Checking your payment… your balance updates the moment it arrives.</Text>
+          </View>
+        ) : upi?.enabled ? (
           <Text style={{ color: colors.gold, textAlign: 'center', fontSize: 12, marginBottom: 6 }} testID="deposit-gateway-note">
             Pay by UPI with {upi.gatewayName}{upi.testMode ? ' · TEST MODE (no real money)' : ''}
           </Text>
@@ -487,6 +540,8 @@ const styles = {
     borderTopColor: colors.border,
   },
   payButton: { borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center' as const },
+  checkingRow: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 8, marginBottom: 8, paddingHorizontal: spacing.md },
+  checkingText: { color: colors.gold, fontSize: 12, fontWeight: '700' as const, flexShrink: 1, textAlign: 'center' as const },
   payButtonText: { color: colors.textPrimary, fontWeight: '800' as const, fontSize: typography.md, letterSpacing: 1 },
   successOverlay: {
     position: 'absolute' as const,

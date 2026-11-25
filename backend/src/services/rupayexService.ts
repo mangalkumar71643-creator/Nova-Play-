@@ -124,10 +124,13 @@ const fieldsOf = (json: Json): Json => (typeof json.data === "object" && json.da
 function utrOf(o: Json): string | null {
   for (const k of ["utr", "UTR", "utr_number", "bank_ref", "bank_reference", "rrn", "RRN", "upi_txn_id", "txn_id", "transaction_id"]) {
     const v = o[k];
-    if ((typeof v === "string" || typeof v === "number") && String(v).trim()) return String(v).trim().slice(0, 64);
+    if ((typeof v === "string" || typeof v === "number") && String(v).trim() && !DATE_TIME.test(String(v).trim())) return String(v).trim().slice(0, 64);
   }
   return null;
 }
+// A field holding a date and time ("2026-11-24 08:51:02", seen in place of a UTR) is not a bank reference: it is skipped, so the
+// player is never shown a time as their UTR and the next field is tried.
+const DATE_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/;
 
 /** The payment page link. The docs don't show create-order's answer, so the usual names are tried. */
 function paymentUrl(json: Json): string | null {
@@ -265,10 +268,39 @@ export async function confirmUpiDeposits(userId: string, sessionId?: string) {
   return { results };
 }
 
-// Each order is looked up at most this often from the unauthenticated return
-// route, so replaying it can't run up calls to RupayEx with our token.
-const RETURN_THROTTLE_MS = 30_000;
-const lastReturnCheck = new Map<string, number>();
+/**
+ * The player's newest UPI deposit, if it is still PENDING and was made in the
+ * last WALLET_CHECK_WINDOW_MS, is asked about again before their balance is
+ * read (GET /wallet). So a payment whose callback was missed lands as soon as
+ * the app reads the balance (back in the app, on Home, in a game) instead of
+ * at the next sweep. Each order at most once every WALLET_CHECK_GAP_MS per
+ * server, and an order left unpaid stops being asked about after the window.
+ */
+const WALLET_CHECK_WINDOW_MS = 15 * 60_000;
+const WALLET_CHECK_GAP_MS = 15_000;
+const walletChecks = new Map<string, number>();
+export async function settleRecentDeposit(userId: string) {
+  if (!token()) return;
+  const tx = await prisma.transaction.findFirst({
+    where: { userId, type: "DEPOSIT", provider: PROVIDER, status: "PENDING", reversedAt: null, createdAt: { gte: new Date(Date.now() - WALLET_CHECK_WINDOW_MS) } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!tx?.providerReferenceId) return;
+  if (Date.now() - (walletChecks.get(tx.id) ?? 0) < WALLET_CHECK_GAP_MS) return;
+  if (walletChecks.size > 5000) walletChecks.clear();
+  walletChecks.set(tx.id, Date.now());
+  await settle(tx);
+}
+
+// Each order is looked up from the unauthenticated return route at most once
+// every RETURN_GAP_MS and RETURN_MAX_CHECKS times in all (per server), so
+// replaying it can't run up calls to RupayEx with our token. The gap is short
+// on purpose: RupayEx's JSON callback can come a few seconds after the
+// player's browser, when the payment has gone through, and must not be
+// skipped (a 30 s wait here once left a paid deposit uncredited for minutes).
+const RETURN_GAP_MS = 2_000;
+const RETURN_MAX_CHECKS = 20;
+const returnChecks = new Map<string, { at: number; count: number }>();
 
 /**
  * RupayEx's return to redirect_url: the player's browser (GET) and its JSON
@@ -281,10 +313,10 @@ export async function handleReturn(orderId: string | undefined) {
   const tx = await prisma.transaction.findFirst({ where: { provider: PROVIDER, type: "DEPOSIT", providerReferenceId: orderId } });
   if (!tx) return { status: null };
   if (tx.status === "COMPLETED" || !checkable(tx)) return { status: tx.status };
-  const last = lastReturnCheck.get(orderId) ?? 0;
-  if (Date.now() - last < RETURN_THROTTLE_MS) return { status: tx.status };
-  lastReturnCheck.set(orderId, Date.now());
-  if (lastReturnCheck.size > 5000) lastReturnCheck.clear();
+  const seen = returnChecks.get(orderId);
+  if (seen && (Date.now() - seen.at < RETURN_GAP_MS || seen.count >= RETURN_MAX_CHECKS)) return { status: tx.status };
+  if (returnChecks.size > 5000) returnChecks.clear();
+  returnChecks.set(orderId, { at: Date.now(), count: (seen?.count ?? 0) + 1 });
   try {
     return { status: (await settle(tx)).status };
   } catch (err) {

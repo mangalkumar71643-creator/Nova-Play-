@@ -71,8 +71,10 @@ router.get(
   "/",
   requireAuth,
   asyncHandler(async (req, res) => {
-    // A Teen Patti Club hand left running (the app was closed) is settled before the balance is read.
+    // A Teen Patti Club hand left running (the app was closed) is settled before the balance is read,
+    // and so is a UPI deposit paid in the last few minutes whose callback was missed (rupayexService.ts).
     await settleMyClubTable(req.user!.userId).catch(() => {});
+    await rupayex.settleRecentDeposit(req.user!.userId).catch(() => {});
     res.json(await buildWalletView(req.user!.userId));
   })
 );

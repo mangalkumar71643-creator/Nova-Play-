@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import { initialAchievements, initialMissions, initialNotifications } from '../data/mockData';
 import { Achievement, AppNotification, Mission, User, VipBonusRecord, WalletTransaction } from '../data/models';
 import { fetchUser } from '../services/userService';
@@ -187,6 +188,19 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
       setStreak(0);
       setClaimedToday(false);
     }
+  }, [isAuthenticated, loading, refreshWallet]);
+
+  // Back in the app (e.g. from a UPI app after paying a deposit): the balance is read again, so money that
+  // arrived meanwhile shows at once rather than when some screen next asks for it. At most every 5 s.
+  useEffect(() => {
+    if (loading || !isAuthenticated) return;
+    let last = 0;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || Date.now() - last < 5000) return;
+      last = Date.now();
+      refreshWallet().catch(() => {});
+    });
+    return () => sub.remove();
   }, [isAuthenticated, loading, refreshWallet]);
 
   useEffect(() => {
