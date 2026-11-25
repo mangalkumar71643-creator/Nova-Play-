@@ -1,19 +1,44 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, View, useWindowDimensions } from 'react-native';
+import { Image, Linking, Modal, Platform, View, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import { API_BASE_URL } from '../api/client';
 import { withPopupSound } from '../sound/ui';
+import { GAME_CATEGORIES } from './GameTile';
+import PromoButton from './PromoButton';
 import TapPressable from './TapPressable';
 
-type HomePopup = { id: string; title: string; width: number; height: number; imageUrl: string };
+type HomePopup = {
+  id: string;
+  title: string;
+  width: number;
+  height: number;
+  imageUrl: string;
+  /** Optional button under the picture (Admin → Popups); buttonTarget is the game it opens, or DOWNLOAD_TARGET. */
+  buttonText?: string | null;
+  buttonTarget?: string | null;
+  /** For a "Download app" button: the link it opens. */
+  buttonUrl?: string | null;
+};
+
+// A popup whose button downloads the app is for people on the website (the server sends those only to ?web=1);
+// anyone in the installed app has it already.
+const DOWNLOAD_TARGET = 'DOWNLOAD';
+const IS_WEB = Platform.OS === 'web';
+
+// Only screens that are real games can be opened from a popup.
+const GAME_SCREENS = new Set<string>(GAME_CATEGORIES.flatMap((c) => c.games));
 
 // { [popupId]: date the player ticked "Don't show again today" }
 const STORAGE_KEY = 'novaplay:popups:hiddenOn';
 
 const CLOSE_SIZE = 34;
 const CHECK_ROW_HEIGHT = 44;
+const BUTTON_HEIGHT = 46;
+const BUTTON_WIDTH = BUTTON_HEIGHT * 2.9;
+const BUTTON_GAP = 12;
 
 // Shown once per app launch.
 let shownThisLaunch = false;
@@ -36,7 +61,10 @@ async function readHidden(): Promise<Record<string, string>> {
 /**
  * The popups set up in the admin panel, one after another in the admin's
  * order: closing one shows the next. Each has its own "Don't show again
- * today" box.
+ * today" box. A popup with a game (Admin → Popups → Button) opens it from
+ * its PLAY button or from the picture itself, and the rest of this launch's
+ * popups are skipped (the player has picked something to do; the deposit
+ * offer then waits until they are back on Home, alone, not stacked on a popup).
  */
 // Settles once this launch's image popups are all closed (or there are none),
 // so the deposit-offer popup (DepositOfferPopup.tsx) comes up after them, not on top.
@@ -47,6 +75,8 @@ export const homePopupsDone = new Promise<void>((resolve) => {
 
 export default function HomePopups() {
   const { width, height } = useWindowDimensions();
+  const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const [queue, setQueue] = useState<HomePopup[]>([]);
   const [dontShow, setDontShow] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -57,11 +87,11 @@ export default function HomePopups() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/popups`);
+        const res = await fetch(`${API_BASE_URL}/popups${IS_WEB ? '?web=1' : ''}`);
         if (!res.ok) return;
         const popups: HomePopup[] = await res.json();
         const hidden = await readHidden();
-        const due = popups.filter((p) => hidden[p.id] !== today());
+        const due = popups.filter((p) => hidden[p.id] !== today() && (IS_WEB || p.buttonTarget !== DOWNLOAD_TARGET));
         due.forEach((p) => Image.prefetch(`${API_BASE_URL}${p.imageUrl}`).catch(() => {}));
         if (!cancelled) setQueue(due);
       } catch {
@@ -92,11 +122,29 @@ export default function HomePopups() {
     setQueue((q) => q.slice(1));
   };
 
-  if (!current) return null;
+  // Only over Home: a popup never comes up on top of a game the player opened.
+  if (!current || !isFocused) return null;
 
-  // Fit the image inside the screen, leaving room for the close button and the checkbox row.
+  // The popup's game (or, on the website, the app download): its button and its picture open it; this popup closes (its
+  // "Don't show again today" box still counts) and the ones after it are skipped for this launch.
+  const game = current.buttonTarget && GAME_SCREENS.has(current.buttonTarget) ? current.buttonTarget : null;
+  const downloadUrl = IS_WEB && current.buttonTarget === DOWNLOAD_TARGET ? current.buttonUrl : null;
+  const openAnd = (go: () => void) => () => {
+    close();
+    setQueue([]);
+    go();
+  };
+  const open = game
+    ? openAnd(() => (navigation as any).navigate(game))
+    : downloadUrl
+      ? openAnd(() => Linking.openURL(downloadUrl).catch(() => {}))
+      : undefined;
+  const buttonText = current.buttonText?.trim();
+
+  // Fit the image inside the screen, leaving room for the close button, the button (if any) and the checkbox row.
   const aspect = current.width / current.height;
-  const imageW = Math.min(width - 40, (height - CLOSE_SIZE - CHECK_ROW_HEIGHT - 90) * aspect, 420);
+  const buttonSpace = buttonText ? BUTTON_HEIGHT + BUTTON_GAP : 0;
+  const imageW = Math.min(width - 40, (height - CLOSE_SIZE - CHECK_ROW_HEIGHT - buttonSpace - 90) * aspect, 420);
   const imageH = imageW / aspect;
 
   return (
@@ -123,13 +171,26 @@ export default function HomePopups() {
           >
             <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
           </TapPressable>
-          <Image
-            key={current.id}
-            source={{ uri: `${API_BASE_URL}${current.imageUrl}` }}
-            accessibilityLabel={current.title}
-            style={{ width: imageW, height: imageH, borderRadius: 14, backgroundColor: '#1A1012' }}
-            resizeMode="cover"
-          />
+          <TapPressable onPress={open} disabled={!open} accessibilityRole={open ? 'button' : undefined} accessibilityLabel={current.title} testID="home-popup-image">
+            <Image
+              key={current.id}
+              source={{ uri: `${API_BASE_URL}${current.imageUrl}` }}
+              style={{ width: imageW, height: imageH, borderRadius: 14, backgroundColor: '#1A1012' }}
+              resizeMode="cover"
+            />
+          </TapPressable>
+          {!!buttonText && (
+            <PromoButton
+              key={current.id}
+              label={buttonText}
+              width={BUTTON_WIDTH}
+              height={BUTTON_HEIGHT}
+              onPress={open}
+              disabled={!open}
+              style={{ alignSelf: 'center', marginTop: BUTTON_GAP }}
+              testID="home-popup-button"
+            />
+          )}
           <TapPressable
             onPress={() => setDontShow((v) => !v)}
             accessibilityRole="checkbox"

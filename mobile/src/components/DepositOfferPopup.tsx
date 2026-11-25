@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
@@ -35,6 +35,7 @@ let shownThisLaunch = false;
  */
 export default function DepositOfferPopup() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const isFocused = useIsFocused();
   const { isAuthenticated } = useAuth();
   const { height } = useWindowDimensions();
   const [offer, setOffer] = useState<DepositOffer | null>(null);
@@ -64,7 +65,8 @@ export default function DepositOfferPopup() {
     };
   }, [isAuthenticated]);
 
-  if (!offer) return null;
+  // Only over Home: if the player went into a game from a popup's PLAY button, the offer waits for them to come back.
+  if (!offer || !isFocused) return null;
 
   const close = () => {
     if (hideToday) AsyncStorage.setItem(HIDE_KEY, today()).catch(() => {});

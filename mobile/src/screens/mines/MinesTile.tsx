@@ -1,10 +1,11 @@
 import React, { memo, useEffect, useRef } from 'react';
-import { Animated, Easing, Image, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
+import TapPressable from '../../components/TapPressable';
 
 /*
  * One tile of the Mines board, drawn (scripts/art/mines/tiles.js): a glossy sapphire block with a gold rim while it is closed (gold when
  * Auto Game has picked it), the open well with a cut diamond or a bomb once it is shown, and the blast behind the bomb that was hit.
- * What it shows pops in with a spring; a hit bomb shakes.
+ * What it shows pops in with a spring; a hit bomb shakes. A tap makes no touch sound: the game plays its own (gem, bomb).
  */
 
 const ART = {
@@ -52,7 +53,7 @@ function MinesTile({ width, height, showContent, isMine, isHit, isSelected, pend
 
   const back = showContent ? (isHit ? ART.blast : ART.open) : isSelected ? ART.tileSelected : ART.tile;
   return (
-    <Pressable onPress={onPress} disabled={disabled} testID={testID} style={({ pressed }) => [{ width, height }, (pressed || pending) && !showContent && styles.pressed, dimmed && !isSelected && styles.dimmed]}>
+    <TapPressable silent onPress={onPress} disabled={disabled} testID={testID} style={({ pressed }) => [{ width, height }, (pressed || pending) && !showContent && styles.pressed, dimmed && !isSelected && styles.dimmed]}>
       <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: shake }] }]}>
         <Image source={back} style={styles.fill} resizeMode="stretch" fadeDuration={0} />
         {showContent ? (
@@ -62,7 +63,7 @@ function MinesTile({ width, height, showContent, isMine, isHit, isSelected, pend
         ) : null}
       </Animated.View>
       {!showContent && pending ? <View style={[StyleSheet.absoluteFill, styles.pendingGlow]} pointerEvents="none" /> : null}
-    </Pressable>
+    </TapPressable>
   );
 }
 

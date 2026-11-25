@@ -15,6 +15,7 @@ import GarudaReel, { Img, ReelHandle } from './garuda/GarudaReel';
 import { GarudaInfoSheet } from './garuda/GarudaSheets';
 import { CoinShower } from './turbo/TurboFx';
 import { AutoSheet, BetSheet, GOLD, INK, money } from './turbo/TurboSheets';
+import { winLimit } from '../utils/limits';
 
 /*
  * Garuda Gold: a temple slot with three reels of tiles (five lines: the rows and the diagonals) and a fourth, red MULTIPLIER REEL whose
@@ -115,7 +116,8 @@ const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const none = () => [3, 3, 3, 5].map((n) => new Array(n).fill(false) as boolean[]);
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
-type Big = { title: string; amount: number } | null;
+/** The big-win banner, with an optional line under the amount (the limit, when the win was cut to it). */
+type Big = { title: string; amount: number; note?: string } | null;
 
 export default function GarudaGoldScreen() {
   const navigation = useNavigation();
@@ -296,9 +298,12 @@ export default function GarudaGoldScreen() {
     [play]
   );
 
-  /** Lights the winning lines and cells, counts the line wins, then the multiplier. Returns the total shown. */
+  /**
+   * Lights the winning lines and cells, counts the line wins, then the multiplier, never past what the spin pays (`paid`:
+   * one spin pays at most the game's limit, ₹5,00,000). Returns the total shown.
+   */
   const showWin = useCallback(
-    async (o: GarudaOutcome, stake: number) => {
+    async (o: GarudaOutcome, stake: number, paid: number) => {
       if (o.linePay <= 0) return 0;
       const hits = none();
       o.lines.forEach((l) => LINES[l.line].forEach((row, reel) => (hits[reel][row] = true)));
@@ -308,7 +313,7 @@ export default function GarudaGoldScreen() {
       setDimmed(hits.map((c, r) => c.map((x) => (r === 3 ? false : !x))));
       setLines(o.lines.map((l) => l.line));
       Animated.loop(Animated.sequence([Animated.timing(lineGlow, { toValue: 1, duration: 360, useNativeDriver: true }), Animated.timing(lineGlow, { toValue: 0.4, duration: 360, useNativeDriver: true })]), { iterations: 4 }).start();
-      const lineWin = round2(floor2(stake * o.linePay));
+      const lineWin = Math.min(round2(floor2(stake * o.linePay)), paid);
       play(o.linePay >= 5 ? 'bigwin' : 'win');
       await countUp(0, lineWin);
       let total = lineWin;
@@ -320,7 +325,7 @@ export default function GarudaGoldScreen() {
         Animated.loop(Animated.sequence([Animated.timing(windowGlow, { toValue: 1, duration: 300, useNativeDriver: true }), Animated.timing(windowGlow, { toValue: 0.3, duration: 300, useNativeDriver: true })]), { iterations: 4 }).start();
         play('special');
         await pause(600);
-        const full = round2(floor2(stake * o.totalWin));
+        const full = Math.min(round2(floor2(stake * o.totalWin)), paid);
         await countUp(total, full);
         total = full;
         await pause(500);
@@ -381,18 +386,21 @@ export default function GarudaGoldScreen() {
 
     await land(outcome, started);
     if (!mountedRef.current) return;
-    const shown = await showWin(outcome, stake);
+    const shown = await showWin(outcome, stake, payout);
 
-    // the spin is paid as a whole (rounded down), then a big win gets its banner
+    // the spin is paid as a whole (rounded down, at most the game's limit), then a big win gets its banner
     if (payout > 0 && payout !== shown) setWinShown(payout);
     if (payout <= 0) setWinShown(0);
+    // a win bigger than the game's limit is paid the limit: say so (in the big-win banner when there is one)
+    const capNote = payout > 0 && payout < round2(floor2(stake * outcome.totalWin)) ? `Max win per spin: ${winLimit(payout)}` : undefined;
+    if (capNote && payout < stake * 10) showToast(capNote);
     setCounting(false);
     setShownBalance((v) => round2(v + payout));
     refreshWallet().catch(() => {});
     setHistory(null);
     if (payout >= stake * 10) {
       setMultBadge(null);
-      setBig({ title: payout >= stake * 100 ? 'SUPER WIN' : payout >= stake * 30 ? 'MEGA WIN' : 'BIG WIN', amount: payout });
+      setBig({ title: payout >= stake * 100 ? 'SUPER WIN' : payout >= stake * 30 ? 'MEGA WIN' : 'BIG WIN', amount: payout, note: capNote });
       shower.setValue(0);
       Animated.timing(shower, { toValue: 1, duration: 2800, easing: Easing.linear, useNativeDriver: true }).start();
       play('bigwin');
@@ -650,6 +658,7 @@ export default function GarudaGoldScreen() {
               <CoinShower w={u(U_W)} h={u(400)} progress={shower} />
               <Text style={[styles.bigTitle, { fontSize: u(42) }]}>{big.title}</Text>
               <Text style={[styles.bigAmount, { fontSize: u(34) }]}>{money(big.amount)}</Text>
+              {big.note ? <Text style={[styles.bigNote, { fontSize: u(13), marginTop: u(4) }]}>{big.note}</Text> : null}
             </View>
           ) : null}
         </View>
@@ -734,6 +743,7 @@ const styles = StyleSheet.create({
   bigBack: { position: 'absolute', backgroundColor: 'rgba(20,6,0,0.72)', shadowColor: '#000', shadowOpacity: 0.9, shadowRadius: 30, shadowOffset: { width: 0, height: 0 } },
   bigTitle: { color: GOLD, fontWeight: '900', letterSpacing: 4, textShadowColor: '#5A2A00', textShadowRadius: 10 },
   bigAmount: { color: '#FFFFFF', fontWeight: '900', textShadowColor: '#000', textShadowRadius: 8 },
+  bigNote: { color: 'rgba(255,243,220,0.85)', fontWeight: '800', letterSpacing: 0.5, textShadowColor: '#000', textShadowRadius: 6 },
   toast: { position: 'absolute', alignSelf: 'center', top: '46%', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.86)', borderWidth: 1, borderColor: 'rgba(255,200,58,0.6)', maxWidth: '86%', zIndex: 5 },
   toastText: { color: INK, fontSize: 14, fontWeight: '800', textAlign: 'center' },
 });

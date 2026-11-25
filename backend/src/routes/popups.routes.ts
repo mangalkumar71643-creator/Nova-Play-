@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { asyncHandler } from "../middleware/errorHandler";
-import { getPopupImage, listLivePopups, POPUP_KINDS, type PopupKind } from "../services/popupService";
+import { DOWNLOAD_TARGET, getPopupImage, listLivePopups, POPUP_KINDS, type PopupKind } from "../services/popupService";
 import { getAppVersionInfo } from "../services/settingsService";
 
 // Public: the app fetches these before the player is necessarily logged in.
@@ -11,7 +11,10 @@ router.get(
   asyncHandler(async (req, res) => {
     // ?kind=SLIDER for the Home banner, ?kind=CATEGORY_SLIDER for the category screen; no kind keeps older apps on app-open popups.
     const kind = POPUP_KINDS.includes(req.query.kind as PopupKind) ? (req.query.kind as PopupKind) : "POPUP";
-    res.json(await listLivePopups(kind));
+    const rows = await listLivePopups(kind);
+    // An app-open popup whose button downloads the app is for the website, which asks with ?web=1. Installed apps never get
+    // it: they have the app already (and apps up to 1.0.126 show popups without their buttons).
+    res.json(kind === "POPUP" && req.query.web !== "1" ? rows.filter((r) => r.buttonTarget !== DOWNLOAD_TARGET) : rows);
   })
 );
 

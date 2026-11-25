@@ -1,12 +1,9 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Animated, AppState, Easing, Image, Linking, PanResponder, Platform, View } from 'react-native';
-import { Text } from './AppText';
 import { API_BASE_URL } from '../api/client';
-import { fonts } from '../theme';
 import { GAME_CATEGORIES } from './GameTile';
-import TapPressable from './TapPressable';
+import PromoButton from './PromoButton';
 
 type Slide = {
   id: string;
@@ -228,56 +225,15 @@ export default function HomeSlider({ width, height, maxImageWidth, panel, button
           );
         })}
       {!!current.buttonText && (
-        <TapPressable
+        <PromoButton
           key={current.id}
+          label={current.buttonText}
+          width={buttonWidth}
+          height={buttonHeight}
           onPress={onButtonPress}
           disabled={!onButtonPress}
-          style={({ pressed }) => ({
-            position: 'absolute',
-            left: (width - buttonWidth) / 2,
-            top: buttonArea.top + (buttonArea.height - buttonHeight) / 2,
-            transform: [{ scale: pressed ? 0.95 : 1 }],
-          })}
-          accessibilityRole="button"
-          accessibilityLabel={current.buttonText}
-        >
-          {/* Drawn here (not a picture), so its edges are smooth at any screen size. */}
-          <LinearGradient
-            colors={['#FFE9A8', '#E3A92E', '#8F5A0C']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={{ width: buttonWidth, height: buttonHeight, borderRadius: buttonHeight / 2, padding: 2 }}
-          >
-            <LinearGradient
-              colors={['#FF6B6B', '#E3162C', '#A1081C', '#C4102A']}
-              locations={[0, 0.45, 0.55, 1]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={{ flex: 1, borderRadius: buttonHeight / 2 - 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
-            >
-              {/* The light on the top half. */}
-              <View
-                pointerEvents="none"
-                style={{ position: 'absolute', left: buttonHeight * 0.3, right: buttonHeight * 0.3, top: 1.5, height: '42%', borderRadius: buttonHeight, backgroundColor: 'rgba(255,255,255,0.22)' }}
-              />
-              <Text
-                numberOfLines={1}
-                style={{
-                  color: '#FFFFFF',
-                  fontSize: buttonHeight * 0.38,
-                  fontFamily: fonts.extra,
-                  letterSpacing: 0.5,
-                  paddingHorizontal: buttonWidth * 0.1,
-                  textShadowColor: 'rgba(60,0,0,0.75)',
-                  textShadowOffset: { width: 0, height: 1.5 },
-                  textShadowRadius: 3,
-                }}
-              >
-                {current.buttonText}
-              </Text>
-            </LinearGradient>
-          </LinearGradient>
-        </TapPressable>
+          style={{ position: 'absolute', left: (width - buttonWidth) / 2, top: buttonArea.top + (buttonArea.height - buttonHeight) / 2 }}
+        />
       )}
     </>
   );

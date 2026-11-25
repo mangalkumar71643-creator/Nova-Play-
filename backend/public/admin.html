@@ -808,6 +808,11 @@
             <input id="popupFile" type="file" accept="image/png,image/jpeg,image/webp" />
           </div>
           <img id="popupPreview" class="upload-preview" alt="" />
+          <div class="item-meta" style="margin-bottom:6px;">Button (optional) — a red button under the picture that opens the game you pick; tapping the picture opens it too (the popups after it are then skipped until the app is opened again). Pick a game and leave the text empty to make only the picture tappable. Needs app 1.0.127 or newer (older apps show the picture alone).</div>
+          <div class="form-row">
+            <input id="popupButtonText" placeholder="Button text, e.g. PLAY" maxlength="20" />
+            <select id="popupButtonTarget" data-game-select></select>
+          </div>
           <button class="btn" id="popupAddBtn">Add Popup</button>
           <div class="item-meta" id="popupAddStatus"></div>
         </div>
@@ -3676,6 +3681,13 @@
   }
   document.querySelectorAll('[data-game-select]').forEach(function (sel) { sel.innerHTML = gameOptionsHtml(''); });
 
+  // What a popup's / slide's button does, for its row in the list. An app-open popup's picture opens its game too.
+  function buttonMeta(p, kind) {
+    var opens = p.buttonTarget ? escapeHtml(gameName(p.buttonTarget)) : '';
+    if (!p.buttonText) return kind === 'POPUP' && opens ? 'No button; tapping the picture opens ' + opens : 'No button';
+    return 'Button: "' + escapeHtml(p.buttonText) + '"' + (opens ? ' → opens ' + opens + (kind === 'POPUP' ? ' (so does tapping the picture)' : '') : ' (opens nothing)');
+  }
+
   function renderPopupKind(kind, listId, emptyText) {
     var el = document.getElementById(listId);
     var rows = popupsCache.filter(function (p) { return (p.kind || 'POPUP') === kind; });
@@ -3692,21 +3704,17 @@
             (p.active && p.buttonTarget === 'DOWNLOAD'
               ? '<div class="item-meta" style="color:#f5a524;">⚠ Not shown in the app: its button is "Download app", which only people on the website need. To show it in the app, press Button and pick a game (or Opens: nothing).</div>'
               : '') +
-            (kind !== 'POPUP'
-              ? '<div class="item-meta">' + (p.buttonText
-                  ? 'Button: "' + escapeHtml(p.buttonText) + '"' + (p.buttonTarget ? ' → opens ' + escapeHtml(gameName(p.buttonTarget)) : ' (opens nothing)')
-                  : 'No button') + '</div>' +
-                '<div class="form-row" data-button-editor="' + p.id + '" style="display:none;margin-top:8px;">' +
-                  '<input data-button-text maxlength="20" placeholder="Button text, e.g. Play" value="' + escapeHtml(p.buttonText || '') + '" />' +
-                  '<select data-button-target>' + gameOptionsHtml(p.buttonTarget || '') + '</select>' +
-                  '<button class="btn small" data-button-save data-id="' + p.id + '" style="flex:none;min-width:0;">Save</button>' +
-                '</div>'
-              : '') +
+            '<div class="item-meta">' + buttonMeta(p, kind) + '</div>' +
+            '<div class="form-row" data-button-editor="' + p.id + '" style="display:none;margin-top:8px;">' +
+              '<input data-button-text maxlength="20" placeholder="Button text, e.g. ' + (kind === 'POPUP' ? 'PLAY' : 'Play') + '" value="' + escapeHtml(p.buttonText || '') + '" />' +
+              '<select data-button-target>' + gameOptionsHtml(p.buttonTarget || '') + '</select>' +
+              '<button class="btn small" data-button-save data-id="' + p.id + '" style="flex:none;min-width:0;">Save</button>' +
+            '</div>' +
             '<div class="item-actions">' +
               '<button class="btn secondary small" data-popup-move="-1" data-id="' + p.id + '"' + (i === 0 ? ' disabled' : '') + '>&uarr; Up</button>' +
               '<button class="btn secondary small" data-popup-move="1" data-id="' + p.id + '"' + (i === rows.length - 1 ? ' disabled' : '') + '>&darr; Down</button>' +
               '<button class="btn secondary small" data-popup-toggle data-id="' + p.id + '">' + (p.active ? 'Hide' : 'Show') + '</button>' +
-              (kind !== 'POPUP' ? '<button class="btn secondary small" data-button-edit data-id="' + p.id + '">Button</button>' : '') +
+              '<button class="btn secondary small" data-button-edit data-id="' + p.id + '">Button</button>' +
               '<button class="btn danger small" data-popup-delete data-id="' + p.id + '">Delete</button>' +
             '</div>' +
           '</div>' +
