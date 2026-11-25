@@ -43,5 +43,10 @@ node mobile/scripts/art/build.js redbutton/lcd   # one piece
   panel the slide's button text must be short (**PLAY**; "PLAY NOW" is cut off) and the game **Chicken Road**. The panel's "Remove background" box
   (on by default) clears white / light-grey and near-black pixels that touch the outside of a slide, so every white part of the slide sits inside a
   maroon or gold outline and there are no black shadows; checked through the real panel: nothing is lost.
+* `wingo-slide/` draws the **Home Slider** picture of Win Go the same way: `assets/promo/wingo-slide.webp` (900 x 640, transparent; `.png` for
+  uploading), made of the game's own look (WinGoScreen.tsx): its number chips 0-9 in their colours with the 9X under each, its Green 2X /
+  Violet 4.5X / Red 2X buttons on its white board in a gold frame, the clock of its period tabs beside the name, three big chips (7, 0, 5) and an
+  "UP TO 9X" plate (a number pays 9X, the game's top pay). In the panel: button text **PLAY**, game **Win Go**, "Remove background" on (checked
+  through the real panel and on Home at 360 x 640, 411 x 783 and 430 x 932). Build: `node scripts/art/build.js wingo-slide`.
 * Size: the pictures are WEBP at quality 80 at most (`to_webp.py` caps what `build.js` writes; `shrink_webp.py` does the same for pictures that
   are already in `assets/`, and leaves a picture alone if it would look noticeably worse). The fonts are small subsets too, see `scripts/fonts/`.
