@@ -1,11 +1,11 @@
 // The Win Go picture for the HOME SLIDER of Admin (a slide stands on the red stage at the top of Home; the app draws its own Play button under it).
-// 900 x 640 at 1x, a transparent picture about as wide as the stage (the stage takes up to ~1.4 : 1). Made of the game's own look (WinGoScreen.tsx):
-// its number chips 0-9 in their colours (0 red + violet, 5 green + violet, odd green, even red) with the 9X under each, its Green 2X / Violet 4.5X /
-// Red 2X buttons, the clock of its period tabs, and the game's top pay (a number pays 9X); the red and gold of the Home round it off. Our own art.
+// 900 x 640 at 1x, transparent. Its own layout, unlike the Chicken Road slide (title top-left, card, plate): everything turns round the middle.
+// A big emerald-and-gold stopwatch shows the game's countdown boxes (a round every 30 seconds), the game's ten number chips (WinGoScreen.tsx
+// NumberBall: 0 red + violet, 5 green + violet, odd green, even red) stand over it in an arch, the 7 lit as the number that came up, the name runs
+// along a green ribbon with gold edges, and a gold burst gives the game's top pay (a number pays 9X). Win Go's green and gold on the red stage.
 //
 // The admin panel's "Remove background" step (on by default) clears white / light-grey and near-black pixels that touch the outside of the picture,
-// so nothing white or black may touch the edge: the white board sits inside a gold frame, every chip and the clock inside a maroon + gold outline,
-// the title is a sticker, and the shadows are maroon (as in the Chicken Road slide).
+// so nothing white or black reaches the edge (the white parts are inside the watch and the chips) and the shadows are dark green or maroon.
 const fs = require('fs');
 const path = require('path');
 
@@ -13,45 +13,38 @@ const ROOT = path.resolve(__dirname, '..', '..', '..');
 const b64 = (file, mime) => `data:${mime};base64,` + fs.readFileSync(file).toString('base64');
 const ASSET = (f) => path.join(ROOT, 'assets', f);
 
-const MAROON = '#6A0D1A';
 const GOLD = '#F5C518';
-// The game's colours (WinGoScreen.tsx C_GREEN, C_RED, C_VIOLET) and a darker shade of each for a chip's edge.
+const DEEP_GREEN = '#0A4A28';
+// The game's colours (WinGoScreen.tsx C_GREEN, C_RED, C_VIOLET).
 const HEX = { GREEN: '#1DB25E', RED: '#F0445A', VIOLET: '#A559E6' };
-const EDGE = { '#1DB25E': '#117A40', '#F0445A': '#A8213A', '#A559E6': '#6E2FA8' };
 const colorsOf = (n) => (n === 0 ? ['RED', 'VIOLET'] : n === 5 ? ['GREEN', 'VIOLET'] : n % 2 === 0 ? ['RED'] : ['GREEN']).map((c) => HEX[c]);
 
-/** The two halves of a split chip (0 and 5), or the whole round, centred on 0,0. */
-const face = (cols, r, dy = 0, edge = false) => {
-  const c = cols.map((x) => (edge ? EDGE[x] : x));
-  return c.length === 1
-    ? `<circle cy="${dy}" r="${r}" fill="${c[0]}"/>`
-    : `<path d="M0 ${dy - r} A${r} ${r} 0 0 0 0 ${dy + r} Z" fill="${c[0]}"/><path d="M0 ${dy - r} A${r} ${r} 0 0 1 0 ${dy + r} Z" fill="${c[1]}"/>`;
-};
+// The watch, and the arch of chips round it.
+const CX = 450;
+const CY = 352;
+const ARCH_R = 282;
+const WIN = 7;
 
-/** One of the game's number chips (NumberBall): the colour, a dashed white ring, a white middle and the number in the chip's colours. */
+/** One of the game's number chips (NumberBall), centred on 0,0: the colour, a dashed white ring, a white middle, the number in its colours. */
 function chip(n, r) {
   const cols = colorsOf(n);
   const dash = ((2 * Math.PI * r * 0.82) / 16).toFixed(2);
-  return `${face(cols, r)}
+  const face =
+    cols.length === 1
+      ? `<circle r="${r}" fill="${cols[0]}"/>`
+      : `<path d="M0 ${-r} A${r} ${r} 0 0 0 0 ${r} Z" fill="${cols[0]}"/><path d="M0 ${-r} A${r} ${r} 0 0 1 0 ${r} Z" fill="${cols[1]}"/>`;
+  return `<circle r="${r + 5}" fill="url(#goldRim)"/>
+    ${face}
     <circle r="${r * 0.82}" fill="none" stroke="#fff" stroke-width="${r * 0.14}" stroke-dasharray="${dash} ${dash}" opacity="0.6"/>
     <circle r="${r * 0.6}" fill="#fff"/>
     <circle r="${r}" fill="url(#chipShine)"/>
     <text y="${(r * 0.3).toFixed(1)}" text-anchor="middle" font-family="SlideFont" font-weight="900" font-size="${(r * 0.84).toFixed(1)}" fill="url(#num${n})">${n}</text>`;
 }
 
-/** A big chip with an edge (a little thickness), as a sticker: maroon and gold round it. */
-const heroChip = (n, cx, cy, r, rot) => `
-  <g transform="translate(${cx} ${cy}) rotate(${rot})" filter="url(#shadow)">
-    <circle r="${r + 17}" fill="${GOLD}"/><circle cy="${r * 0.12}" r="${r + 17}" fill="${GOLD}"/>
-    <circle r="${r + 9}" fill="${MAROON}"/><circle cy="${r * 0.12}" r="${r + 9}" fill="${MAROON}"/>
-    ${face(colorsOf(n), r, r * 0.12, true)}
-    ${chip(n, r)}
-  </g>`;
-
 /** A gold coin with a rupee sign. */
 const coin = (cx, cy, r, rot = 0) => `
   <g transform="translate(${cx} ${cy}) rotate(${rot})" filter="url(#shadow)">
-    <circle r="${r + 3}" fill="${MAROON}"/>
+    <circle r="${r + 3}" fill="#8F5A0C"/>
     <circle r="${r}" fill="url(#coinGold)"/>
     <circle r="${r * 0.8}" fill="none" stroke="#B8860B" stroke-width="${r * 0.1}" opacity="0.7"/>
     <circle r="${r}" fill="none" stroke="#FFE680" stroke-width="${r * 0.07}" opacity="0.8"/>
@@ -60,16 +53,18 @@ const coin = (cx, cy, r, rot = 0) => `
 
 /** A four-point gold sparkle. */
 const spark = (cx, cy, r, rot = 0) =>
-  `<path transform="translate(${cx} ${cy}) rotate(${rot})" d="M0 ${-r} C${r * 0.12} ${-r * 0.12} ${r * 0.12} ${-r * 0.12} ${r} 0 C${r * 0.12} ${r * 0.12} ${r * 0.12} ${r * 0.12} 0 ${r} C${-r * 0.12} ${r * 0.12} ${-r * 0.12} ${r * 0.12} ${-r} 0 C${-r * 0.12} ${-r * 0.12} ${-r * 0.12} ${-r * 0.12} 0 ${-r} Z" fill="#FFD84A" filter="url(#glow)"/>`;
+  `<path transform="translate(${cx} ${cy}) rotate(${rot})" d="M0 ${-r} C${r * 0.12} ${-r * 0.12} ${r * 0.12} ${-r * 0.12} ${r} 0 C${r * 0.12} ${r * 0.12} ${r * 0.12} ${r * 0.12} 0 ${r} C${-r * 0.12} ${r * 0.12} ${-r * 0.12} ${r * 0.12} ${-r} 0 C${-r * 0.12} ${-r * 0.12} ${-r * 0.12} ${-r * 0.12} 0 ${-r} Z" fill="#FFE27A" filter="url(#glow)"/>`;
 
-/** One of the game's three colour bets: its gradient, its name and its pay. */
-const colourBet = (x, w, grad, label, rate) => `
-  <rect x="${x}" y="16" width="${w}" height="64" rx="14" fill="url(#${grad})"/>
-  <rect x="${x + 4}" y="19" width="${w - 8}" height="24" rx="11" fill="#fff" opacity="0.16"/>
-  <g font-family="SlideFont" fill="#fff" stroke="#000" stroke-opacity="0.12" stroke-width="3" paint-order="stroke">
-    <text x="${x + 14}" y="58" font-weight="900" font-size="25">${label}</text>
-    <text x="${x + w - 12}" y="57" font-weight="800" font-size="21" text-anchor="end">${rate}</text>
-  </g>`;
+/** A star of `points` points between radius r1 and r2, centred on 0,0. */
+const star = (points, r1, r2) => {
+  let d = '';
+  for (let k = 0; k < points * 2; k++) {
+    const a = -Math.PI / 2 + (k * Math.PI) / points;
+    const r = k % 2 ? r2 : r1;
+    d += `${k ? 'L' : 'M'}${(Math.cos(a) * r).toFixed(1)} ${(Math.sin(a) * r).toFixed(1)} `;
+  }
+  return `${d}Z`;
+};
 
 module.exports = {
   width: 900,
@@ -80,17 +75,41 @@ module.exports = {
   svg: () => {
     const font900 = b64(ASSET('fonts/Montserrat_900Black.ttf'), 'font/ttf');
     const font800 = b64(ASSET('fonts/Montserrat_800ExtraBold.ttf'), 'font/ttf');
-    // The board's ten chips, two rows of five, each with the game's 9X under it.
-    const board = Array.from({ length: 10 }, (_, n) => {
-      const x = 74 + (n % 5) * 98;
-      const y = n < 5 ? 150 : 266;
-      return `<g transform="translate(${x} ${y})">${chip(n, 40)}</g>
-        <text x="${x}" y="${y + 61}" text-anchor="middle" font-family="SlideFont" font-weight="800" font-size="20" fill="#8E9893">9X</text>`;
-    }).join('');
     const numberGradients = Array.from({ length: 10 }, (_, n) => {
       const cols = colorsOf(n);
       return `<linearGradient id="num${n}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${cols[0]}"/><stop offset="1" stop-color="${cols[1] ?? cols[0]}"/></linearGradient>`;
     }).join('');
+
+    // The arch: 0 to 9 from left to right over the watch; the 7 (the number that came up) a little bigger, lit.
+    const arch = Array.from({ length: 10 }, (_, n) => {
+      const a = ((-76 + n * (152 / 9)) * Math.PI) / 180;
+      const x = CX + ARCH_R * Math.sin(a);
+      const y = CY - ARCH_R * Math.cos(a);
+      const r = n === WIN ? 48 : 38;
+      const lit = n === WIN ? `<circle r="${r + 22}" fill="url(#winGlow)"/>` : '';
+      // Upright, so every number reads at a glance (a 6 or a 9 on its side would not).
+      return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" filter="url(#shadowGreen)">${lit}${chip(n, r)}</g>`;
+    }).join('');
+
+    // The light behind the watch.
+    const rays = Array.from({ length: 16 }, (_, k) => {
+      const a = (k * 22.5 * Math.PI) / 180;
+      const w = (4 * Math.PI) / 180;
+      const R = 300;
+      return `<path d="M${CX} ${CY} L${(CX + R * Math.sin(a - w)).toFixed(1)} ${(CY - R * Math.cos(a - w)).toFixed(1)} L${(CX + R * Math.sin(a + w)).toFixed(1)} ${(CY - R * Math.cos(a + w)).toFixed(1)} Z"/>`;
+    }).join('');
+
+    // The minute marks of the watch face.
+    const ticks = Array.from({ length: 60 }, (_, k) => {
+      const a = (k * 6 * Math.PI) / 180;
+      const big = k % 5 === 0;
+      const r1 = big ? 104 : 110;
+      return `<path d="M${(Math.sin(a) * r1).toFixed(1)} ${(-Math.cos(a) * r1).toFixed(1)} L${(Math.sin(a) * 118).toFixed(1)} ${(-Math.cos(a) * 118).toFixed(1)}" stroke-width="${big ? 5 : 2.2}"/>`;
+    }).join('');
+
+    // The game's countdown boxes: 0 0 : 3 0.
+    const box = (x, d) => `<rect x="${x}" y="-38" width="46" height="66" rx="9" fill="url(#boxWhite)"/><text x="${x + 23}" y="17" text-anchor="middle" font-family="SlideFont" font-weight="900" font-size="52" fill="#123B26">${d}</text>`;
+
     return `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="640" viewBox="0 0 900 640">
   <defs>
     <style>
@@ -98,80 +117,82 @@ module.exports = {
       @font-face { font-family: 'SlideFont'; font-weight: 800; src: url(${font800}) format('truetype'); }
     </style>
     ${numberGradients}
-    <linearGradient id="goldFrame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset="0.5" stop-color="#E3A92E"/><stop offset="1" stop-color="#8F5A0C"/></linearGradient>
-    <linearGradient id="whiteText" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFE9B0"/></linearGradient>
-    <linearGradient id="goldText" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0A0"/><stop offset="0.5" stop-color="#FFC62E"/><stop offset="1" stop-color="#F08C00"/></linearGradient>
-    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B3162B"/><stop offset="0.5" stop-color="#7C0E1E"/><stop offset="1" stop-color="#520812"/></linearGradient>
-    <linearGradient id="betGreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3FD17F"/><stop offset="1" stop-color="#16994F"/></linearGradient>
-    <linearGradient id="betViolet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C184F5"/><stop offset="1" stop-color="#8C3FD8"/></linearGradient>
-    <linearGradient id="betRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF7385"/><stop offset="1" stop-color="#E0263E"/></linearGradient>
-    <radialGradient id="clockGreen" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#6BE59C"/><stop offset="1" stop-color="#138A48"/></radialGradient>
+    <linearGradient id="goldCase" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF1B0"/><stop offset="0.35" stop-color="#F5C518"/><stop offset="0.7" stop-color="#C98A00"/><stop offset="1" stop-color="#FFE07A"/></linearGradient>
+    <linearGradient id="goldRim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFEFA0"/><stop offset="1" stop-color="#C98A00"/></linearGradient>
+    <linearGradient id="goldText" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6C0"/><stop offset="0.45" stop-color="#FFD02E"/><stop offset="1" stop-color="#F59A00"/></linearGradient>
+    <linearGradient id="ribbon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#36D27B"/><stop offset="0.5" stop-color="#1DB25E"/><stop offset="1" stop-color="#0E7A40"/></linearGradient>
+    <linearGradient id="ribbonTail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1A9A52"/><stop offset="1" stop-color="#0B5F35"/></linearGradient>
+    <linearGradient id="boxWhite" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3EFE8"/></linearGradient>
+    <linearGradient id="burstRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF6B6B"/><stop offset="0.5" stop-color="#E3162C"/><stop offset="1" stop-color="#A1081C"/></linearGradient>
+    <radialGradient id="face" cx="0.42" cy="0.36" r="0.75"><stop offset="0" stop-color="#3FE08C"/><stop offset="0.6" stop-color="#16994F"/><stop offset="1" stop-color="#0B6A37"/></radialGradient>
+    <radialGradient id="rayGold" cx="${CX}" cy="${CY}" r="300" gradientUnits="userSpaceOnUse"><stop offset="0.25" stop-color="#FFE27A" stop-opacity="0.75"/><stop offset="1" stop-color="#FFE27A" stop-opacity="0"/></radialGradient>
+    <radialGradient id="halo" cx="${CX}" cy="${CY}" r="250" gradientUnits="userSpaceOnUse"><stop offset="0.45" stop-color="#FFD84A" stop-opacity="0.5"/><stop offset="1" stop-color="#FFD84A" stop-opacity="0"/></radialGradient>
+    <radialGradient id="winGlow"><stop offset="0.55" stop-color="#FFF3A0" stop-opacity="0.95"/><stop offset="1" stop-color="#FFD84A" stop-opacity="0"/></radialGradient>
     <radialGradient id="chipShine" cx="0.35" cy="0.3" r="0.75"><stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/></radialGradient>
     <radialGradient id="coinGold" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF2A8"/><stop offset="0.5" stop-color="${GOLD}"/><stop offset="1" stop-color="#C98A00"/></radialGradient>
-    <filter id="shadow" x="-30%" y="-30%" width="170%" height="180%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#3A0008" flood-opacity="0.65"/></filter>
-    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="shadow" x="-30%" y="-30%" width="170%" height="180%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#3A0008" flood-opacity="0.6"/></filter>
+    <filter id="shadowGreen" x="-40%" y="-40%" width="180%" height="190%"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="${DEEP_GREEN}" flood-opacity="0.75"/></filter>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <path id="ribbonText" d="M170 572 Q${CX} 534 730 572"/>
   </defs>
 
-  <g transform="translate(20 8) scale(0.955)">
-  <!-- THE BOARD: the game's colour bets and number chips on its white panel, in a gold frame, a little tilted -->
-  <g transform="translate(24 238) rotate(-3 270 180)" filter="url(#shadow)">
-    <rect x="-10" y="-10" width="560" height="380" rx="30" fill="url(#goldFrame)"/>
-    <rect x="0" y="0" width="540" height="360" rx="22" fill="#FFFFFF"/>
-    ${colourBet(16, 162, 'betGreen', 'Green', '2X')}
-    ${colourBet(189, 162, 'betViolet', 'Violet', '4.5X')}
-    ${colourBet(362, 162, 'betRed', 'Red', '2X')}
-    <rect x="16" y="92" width="508" height="252" rx="18" fill="#EEF1F0"/>
-    ${board}
-    <rect x="3" y="3" width="534" height="354" rx="20" fill="none" stroke="#E3A92E" stroke-opacity="0.35" stroke-width="2"/>
-  </g>
+  <g transform="translate(18 6) scale(0.96)">
+  <!-- light behind the watch -->
+  <circle cx="${CX}" cy="${CY}" r="250" fill="url(#halo)"/>
+  <g fill="url(#rayGold)">${rays}</g>
 
-  <!-- THE NAME: the clock of the game's period tabs and its name, as a sticker -->
-  <g transform="translate(96 100)" filter="url(#shadow)">
-    <circle r="80" fill="${GOLD}"/>
-    <circle r="71" fill="${MAROON}"/>
-    <circle r="60" fill="url(#clockGreen)" stroke="#fff" stroke-width="6"/>
-    <g stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.85">
-      <path d="M0 -50 V-42"/><path d="M50 0 H42"/><path d="M0 50 V42"/><path d="M-50 0 H-42"/>
+  <!-- THE ARCH of the game's number chips -->
+  ${arch}
+
+  <!-- THE WATCH: a round every 30 seconds, with the game's countdown boxes -->
+  <g transform="translate(${CX} ${CY})" filter="url(#shadow)">
+    <rect x="-20" y="-180" width="40" height="34" rx="6" fill="url(#goldCase)" stroke="#8F5A0C" stroke-width="3"/>
+    <rect x="-40" y="-202" width="80" height="30" rx="12" fill="url(#goldCase)" stroke="#8F5A0C" stroke-width="3"/>
+    <g transform="rotate(42)"><rect x="-15" y="-172" width="30" height="30" rx="6" fill="url(#goldCase)" stroke="#8F5A0C" stroke-width="3"/></g>
+    <g transform="rotate(-42)"><rect x="-15" y="-172" width="30" height="30" rx="6" fill="url(#goldCase)" stroke="#8F5A0C" stroke-width="3"/></g>
+    <circle r="152" fill="url(#goldCase)"/>
+    <circle r="152" fill="none" stroke="#8F5A0C" stroke-width="3"/>
+    <circle r="138" fill="#0B5F35"/>
+    <circle r="128" fill="url(#face)"/>
+    <g stroke="#fff" stroke-linecap="round" opacity="0.75">${ticks}</g>
+    <text y="-56" text-anchor="middle" font-family="SlideFont" font-weight="800" font-size="20" letter-spacing="3" fill="#E9FFF1">TIME LEFT</text>
+    <g transform="translate(0 6)">
+      ${box(-112, 0)}${box(-60, 0)}
+      <circle cx="0" cy="-14" r="5.5" fill="#fff"/><circle cx="0" cy="12" r="5.5" fill="#fff"/>
+      ${box(14, 3)}${box(66, 0)}
     </g>
-    <path d="M0 0 V-34" stroke="#fff" stroke-width="9" stroke-linecap="round"/>
-    <path d="M0 0 L24 13" stroke="#fff" stroke-width="9" stroke-linecap="round"/>
-    <circle r="7.5" fill="#fff"/>
-    <ellipse cx="-22" cy="-27" rx="17" ry="9" fill="#fff" opacity="0.3" transform="rotate(-32 -22 -27)"/>
-  </g>
-  <g font-family="SlideFont" font-weight="900" stroke-linejoin="round" filter="url(#shadow)">
-    <g paint-order="stroke">
-      <text x="196" y="148" font-size="124" letter-spacing="2" fill="none" stroke="${GOLD}" stroke-width="58">WIN GO</text>
-      <text x="196" y="148" font-size="124" letter-spacing="2" fill="none" stroke="${MAROON}" stroke-width="40">WIN GO</text>
-    </g>
-    <text x="196" y="148" font-size="124" letter-spacing="2"><tspan fill="url(#whiteText)">WIN</tspan><tspan fill="url(#goldText)"> GO</tspan></text>
+    <path d="M-92 -84 A128 128 0 0 1 60 -112" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity="0.18"/>
   </g>
 
-  <!-- THE REWARD: the game's top pay (a number pays 9X), on a plate in the red and gold of the Home -->
-  <g transform="translate(592 420) rotate(3 158 92) scale(0.9)" filter="url(#shadow)">
-    <path d="M30 0 H306 L336 30 V166 L306 196 H30 L0 166 V30 Z" fill="url(#goldFrame)"/>
-    <path d="M34 10 H302 L326 34 V162 L302 186 H34 L10 162 V34 Z" fill="url(#plate)"/>
-    <path d="M34 10 H302 L326 34 V70 H10 V34 Z" fill="#fff" opacity="0.1"/>
-    <path d="M34 15 H302 L321 36 V160 L302 181 H34 L15 160 V36 Z" fill="none" stroke="#FFD25A" stroke-opacity="0.6" stroke-width="2"/>
-    <g font-family="SlideFont" font-weight="900" text-anchor="middle">
-      <text x="168" y="62" font-size="38" letter-spacing="6" fill="#FFD25A" stroke="#3A0008" stroke-width="6" paint-order="stroke" stroke-linejoin="round">UP TO</text>
-      <text x="168" y="160" font-size="104" fill="url(#whiteText)" stroke="#3A0008" stroke-width="12" paint-order="stroke" stroke-linejoin="round">9X</text>
-    </g>
-    <circle cx="22" cy="22" r="5" fill="#FFE9A8"/><circle cx="314" cy="22" r="5" fill="#FFE9A8"/><circle cx="22" cy="174" r="5" fill="#FFE9A8"/><circle cx="314" cy="174" r="5" fill="#FFE9A8"/>
+  <!-- THE NAME on a green ribbon with gold edges -->
+  <g filter="url(#shadow)">
+    <path d="M150 508 L56 520 L92 566 L56 612 L170 604 Z" fill="url(#ribbonTail)" stroke="${GOLD}" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M750 508 L844 520 L808 566 L844 612 L730 604 Z" fill="url(#ribbonTail)" stroke="${GOLD}" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M150 508 L170 532 L170 604 Z" fill="#06391F"/>
+    <path d="M750 508 L730 532 L730 604 Z" fill="#06391F"/>
+    <path d="M130 496 Q${CX} 452 770 496 L770 600 Q${CX} 556 130 600 Z" fill="url(#ribbon)" stroke="${GOLD}" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M142 508 Q${CX} 466 758 508" fill="none" stroke="#fff" stroke-width="3" opacity="0.35"/>
+    <text font-family="SlideFont" font-weight="900" font-size="98" letter-spacing="4" text-anchor="middle" fill="none" stroke="${DEEP_GREEN}" stroke-width="16" stroke-linejoin="round"><textPath href="#ribbonText" startOffset="50%">WIN GO</textPath></text>
+    <text font-family="SlideFont" font-weight="900" font-size="98" letter-spacing="4" text-anchor="middle" fill="url(#goldText)"><textPath href="#ribbonText" startOffset="50%">WIN GO</textPath></text>
   </g>
 
-  <!-- THE CHIPS jumping out: a green 7, a red-and-violet 0, a green-and-violet 5 -->
-  ${heroChip(5, 652, 262, 44, -14)}
-  ${heroChip(0, 824, 158, 56, 14)}
-  ${heroChip(7, 784, 316, 86, -9)}
+  <!-- THE TOP PAY: a number pays 9X -->
+  <g transform="translate(796 124) rotate(10)" filter="url(#shadow)">
+    <path d="${star(18, 80, 64)}" fill="url(#goldCase)" stroke="#8F5A0C" stroke-width="3" stroke-linejoin="round"/>
+    <circle r="58" fill="url(#burstRed)" stroke="#FFE07A" stroke-width="4"/>
+    <text y="-20" text-anchor="middle" font-family="SlideFont" font-weight="800" font-size="16" letter-spacing="2" fill="#FFE9A8">NUMBER</text>
+    <text y="34" text-anchor="middle" font-family="SlideFont" font-weight="900" font-size="58" fill="url(#goldText)" stroke="#5A0010" stroke-width="6" paint-order="stroke" stroke-linejoin="round">9X</text>
+  </g>
 
-  ${coin(574, 226, 26, -12)}
-  ${coin(42, 606, 24, 10)}
-  ${coin(878, 616, 18, -8)}
-  ${coin(690, 410, 18, 12)}
-  ${spark(612, 52, 24, 8)}
-  ${spark(878, 262, 18, 0)}
-  ${spark(28, 236, 18, 10)}
-  ${spark(552, 626, 20, 0)}
+  ${coin(74, 430, 26, -12)}
+  ${coin(118, 352, 18, 10)}
+  ${coin(830, 380, 22, 14)}
+  ${coin(786, 452, 16, -8)}
+  ${spark(112, 120, 24, 8)}
+  ${spark(300, 210, 14, 0)}
+  ${spark(612, 238, 16, 12)}
+  ${spark(866, 268, 18, 0)}
+  ${spark(450, 628, 18, 0)}
   </g>
 </svg>`;
   },
