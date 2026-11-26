@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Animated, Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, G, Path, RadialGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { RingKey, RingSegment } from '../../api/backend';
@@ -6,7 +6,12 @@ import TapPressable from '../../components/TapPressable';
 
 /*
  * The wheel of Ring Gauntlet. The plate (scripts/art/ringgauntlet/plate.js) is a picture; everything that moves is drawn live on top of
- * it in the same 380 x 380 units: the lit arcs, the numbers on the segments, the shape badges and the sentinel in the middle.
+ * it in the same 380 x 380 units: the lit arcs, the numbers on the segments, the shape badges and, in the middle, what the screen puts
+ * there (the reel of sentinels, RingReel.tsx).
+ *
+ * The lit arc, the red of a failed segment and the glow of a win follow Animated values (the screen runs them): only those few SVG
+ * properties change as they move, never the rest of the wheel or of the screen, so they run smoothly on any phone. The arc is one full
+ * circle per layer, shown up to the lit angle with a dash.
  */
 
 export const C = 190;
@@ -21,6 +26,8 @@ export const RING_COLOR: Record<RingKey, { main: string; light: string; dark: st
   MIDDLE: { main: '#2EE86A', light: '#A6FFC4', dark: '#0B6B2C', ink: '#03210E', glow: '#18D058' },
   INNER: { main: '#2AA8FF', light: '#A8DEFF', dark: '#0A4C8A', ink: '#FFFFFF', glow: '#1C8CFF' },
 };
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
 export const SHAPE_OF: Record<RingKey, 'SQUARE' | 'TRIANGLE' | 'CIRCLE'> = { OUTER: 'SQUARE', MIDDLE: 'TRIANGLE', INNER: 'CIRCLE' };
 export const RING_NAME: Record<RingKey, string> = { OUTER: 'Outer ring', MIDDLE: 'Middle ring', INNER: 'Inner ring' };
 export const RING_HINT: Record<RingKey, string> = { OUTER: 'wildest', MIDDLE: 'balanced', INNER: 'steadiest' };
@@ -88,27 +95,54 @@ interface Props {
   /** Segments survived on `ring`: their numbers turn dark on the lit arc. */
   step: number;
   /** Degrees of the lit arc on `ring`, from 12 o'clock (animated by the screen). */
-  sweep: number;
-  /** The segment that was failed (1-based) and how red it still is (0 to 1). */
+  sweep: Animated.Value;
+  /** The segment that was failed (1-based), and how red it is (0 to 1, animated by the screen). */
   failStep: number | null;
-  failAlpha: number;
-  guard: ImageSourcePropType;
-  /** Animated scale and tilt (degrees) of the sentinel: a little bounce on a step, a shake on a loss. */
+  failAlpha: Animated.Value;
+  /** What stands in the middle (the reel of sentinels), in a window of `centerSize(size)` pixels. */
+  center: React.ReactNode;
+  /** Animated scale and tilt (degrees) of the middle: a little bounce on a step, a shake on a loss. */
   guardScale?: Animated.Value;
   guardTilt?: Animated.Value;
-  /** A pulse (0 to 1) of light round the lit arc, for a win. */
-  glow?: number;
+  /** A pulse (0 to 1) of light round the lit arc, for a win (animated by the screen). */
+  glow: Animated.Value;
   /** Tapping a badge picks that ring (null while a round is on). */
   onPick: ((k: RingKey) => void) | null;
 }
 
-export default function RingWheel({ size, rings, plate, ring, step, sweep, failStep, failAlpha, guard, guardScale, guardTilt, glow = 0, onPick }: Props) {
+/** The size of the window in the middle of the wheel, in pixels. */
+export const centerSize = (size: number) => (108 * size) / 380;
+
+/** A full circle of radius r from 12 o'clock clockwise (the lit arc shows the first part of it with a dash). */
+const circlePath = (r: number) => `M${C} ${C - r} A${r} ${r} 0 1 1 ${C} ${C + r} A${r} ${r} 0 1 1 ${C} ${C - r}`;
+
+/** One layer of the lit arc: the circle of radius r shown from 12 o'clock to `sweep` degrees. */
+function LitLayer({ r, sweep, stroke, width, opacity }: { r: number; sweep: Animated.Value; stroke: string; width: number; opacity: Animated.AnimatedInterpolation<number> | number }) {
+  const len = 2 * Math.PI * r;
+  const offset = useMemo(() => sweep.interpolate({ inputRange: [0, 360], outputRange: [len, 0], extrapolate: 'clamp' }), [sweep, len]);
+  // Nothing at all while the arc is empty (a round line cap would leave a dot at 12 o'clock).
+  const shown = useMemo(() => sweep.interpolate({ inputRange: [0, 0.4, 360], outputRange: [0, 1, 1], extrapolate: 'clamp' }), [sweep]);
+  const strokeOpacity = useMemo(() => Animated.multiply(shown, opacity), [shown, opacity]);
+  return (
+    <AnimatedPath
+      d={circlePath(r)}
+      fill="none"
+      stroke={stroke}
+      strokeWidth={width}
+      strokeLinecap="round"
+      strokeDasharray={`${len} ${len}`}
+      strokeDashoffset={offset}
+      strokeOpacity={strokeOpacity}
+    />
+  );
+}
+
+export default function RingWheel({ size, rings, plate, ring, step, sweep, failStep, failAlpha, center, guardScale, guardTilt, glow, onPick }: Props) {
   const k = size / 380;
   const t = TRACK[ring];
   const w = (t.r1 - t.r0) * 0.66;
   const col = RING_COLOR[ring];
-  const arc = arcPath(mid(ring), sweep);
-  const full = sweep >= 359.9;
+  const glowOpacity = useMemo(() => glow.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0.68] }), [glow]);
   const failArc = failStep ? arcPath(mid(ring), (360 / t.n) * failStep, (360 / t.n) * (failStep - 1)) : '';
   return (
     <View style={{ width: size, height: size }}>
@@ -120,21 +154,11 @@ export default function RingWheel({ size, rings, plate, ring, step, sweep, failS
             <Stop offset="1" stopColor="#0c0d11" />
           </RadialGradient>
         </Defs>
-        {/* the lit arc of the ring in play: a soft glow under a solid band */}
-        {full ? (
-          <>
-            <Circle cx={C} cy={C} r={mid(ring)} fill="none" stroke={col.glow} strokeOpacity={0.28 + glow * 0.4} strokeWidth={w * 1.55} />
-            <Circle cx={C} cy={C} r={mid(ring)} fill="none" stroke={col.main} strokeWidth={w} />
-            <Circle cx={C} cy={C} r={mid(ring) - w * 0.28} fill="none" stroke={col.light} strokeOpacity={0.55} strokeWidth={1.8} />
-          </>
-        ) : arc ? (
-          <>
-            <Path d={arc} fill="none" stroke={col.glow} strokeOpacity={0.28 + glow * 0.4} strokeWidth={w * 1.55} strokeLinecap="round" />
-            <Path d={arc} fill="none" stroke={col.main} strokeWidth={w} strokeLinecap="round" />
-            <Path d={arcPath(mid(ring) - w * 0.28, sweep)} fill="none" stroke={col.light} strokeOpacity={0.55} strokeWidth={1.8} strokeLinecap="round" />
-          </>
-        ) : null}
-        {failArc ? <Path d={failArc} fill="none" stroke="#FF3B4A" strokeOpacity={failAlpha} strokeWidth={t.r1 - t.r0 - 4} strokeLinecap="butt" /> : null}
+        {/* the lit arc of the ring in play: a soft glow under a solid band and a light line */}
+        <LitLayer key={`${ring}-g`} r={mid(ring)} sweep={sweep} stroke={col.glow} width={w * 1.55} opacity={glowOpacity} />
+        <LitLayer key={`${ring}-m`} r={mid(ring)} sweep={sweep} stroke={col.main} width={w} opacity={1} />
+        <LitLayer key={`${ring}-l`} r={mid(ring) - w * 0.28} sweep={sweep} stroke={col.light} width={1.8} opacity={0.55} />
+        {failArc ? <AnimatedPath d={failArc} fill="none" stroke="#FF3B4A" strokeOpacity={failAlpha} strokeWidth={t.r1 - t.r0 - 4} strokeLinecap="butt" /> : null}
         <Labels rings={rings} ring={ring} step={step} />
         {/* the badges at 12 o'clock */}
         {RING_ORDER.map((kk) => {
@@ -150,7 +174,7 @@ export default function RingWheel({ size, rings, plate, ring, step, sweep, failS
           );
         })}
       </Svg>
-      {/* the sentinel */}
+      {/* the middle: the reel of sentinels */}
       <Animated.View
         style={[
           styles.guardBox,
@@ -164,7 +188,7 @@ export default function RingWheel({ size, rings, plate, ring, step, sweep, failS
         ]}
         pointerEvents="none"
       >
-        <Image source={guard} style={styles.fill} resizeMode="stretch" fadeDuration={0} />
+        {center}
       </Animated.View>
       {/* the badges are the buttons that pick the ring */}
       {onPick

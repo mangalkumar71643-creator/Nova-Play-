@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Image, ImageSourcePropType, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../components/AppText';
 import { ApiClientError } from '../api/client';
@@ -24,7 +24,8 @@ import { useGameState } from '../state/GameStateContext';
 import { PlayOptions, SoundSet, setSoundEnabled, useSoundEnabled } from '../sound/engine';
 import type { SoundEvent } from '../sound/types';
 import { withTapSound } from '../sound/ui';
-import RingWheel, { RING_COLOR, RING_NAME, RING_ORDER, endAngle } from './ring/RingWheel';
+import RingWheel, { RING_COLOR, RING_NAME, RING_ORDER, centerSize, endAngle } from './ring/RingWheel';
+import RingReel, { RingReelHandle, ReelSymbol } from './ring/RingReel';
 import { AutoSheet, BetSheet, INK, InfoSheet, MUTED, PINK, ShapeIcon, money } from './ring/RingSheets';
 
 /*
@@ -47,6 +48,8 @@ const GUARD = {
   INNER: require('../../assets/ringgauntlet/guard-inner.webp'),
   lost: require('../../assets/ringgauntlet/guard-lost.webp'),
 };
+/** The reel in the middle: the sentinel of each ring, and the cracked one (a failed segment). */
+const REEL_PICS: Record<ReelSymbol, ImageSourcePropType> = { OUTER: GUARD.OUTER, MIDDLE: GUARD.MIDDLE, INNER: GUARD.INNER, LOST: GUARD.lost };
 
 const BET_LEVELS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
 const DEFAULT_BET = 10;
@@ -96,11 +99,14 @@ export default function RingGauntletScreen() {
   const [bet, setBet] = useState(DEFAULT_BET);
   const [round, setRound] = useState<RingGauntletRound | null>(null);
   const [busy, setBusy] = useState(false);
-  const [sweep, setSweep] = useState(0);
+  // The lit arc (degrees), the red of a failed segment and the glow of a win run on Animated values: only the wheel's arcs move,
+  // the screen is not drawn again on every frame (it was, and it stuttered on phones).
+  const sweepAnim = useRef(new Animated.Value(0)).current;
   const [litStep, setLitStep] = useState(0);
-  const [fail, setFail] = useState<{ step: number; alpha: number } | null>(null);
-  const [lost, setLost] = useState(false);
-  const [glow, setGlow] = useState(0);
+  const [failStep, setFailStep] = useState<number | null>(null);
+  const failAnim = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const reelRef = useRef<RingReelHandle>(null);
   const [pop, setPop] = useState<Pop>(null);
   const [lastWin, setLastWin] = useState<number | null>(null);
   const [shownBalance, setShownBalance] = useState(coins);
@@ -127,8 +133,6 @@ export default function RingGauntletScreen() {
   const autoRef = useRef(0);
   const autoTargetRef = useRef(1);
   autoTargetRef.current = autoTarget;
-  const sweepRef = useRef(0);
-  const frameRef = useRef<number | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const soundsRef = useRef<SoundSet | null>(null);
   const guardScale = useRef(new Animated.Value(1)).current;
@@ -177,14 +181,14 @@ export default function RingGauntletScreen() {
         setRing(r.ring);
         setRound(r);
         setLitStep(r.currentStep);
-        sweepRef.current = endAngle(r.ring, r.currentStep);
-        setSweep(sweepRef.current);
+        sweepAnim.setValue(endAngle(r.ring, r.currentStep));
+        reelRef.current?.set(r.ring);
       })
       .catch(() => {});
     return () => {
       mountedRef.current = false;
       autoRef.current = 0;
-      if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
+      sweepAnim.stopAnimation();
       if (toastTimer.current) clearTimeout(toastTimer.current);
     };
   }, []);
@@ -199,36 +203,36 @@ export default function RingGauntletScreen() {
   }, [levels, bet]);
 
   // ---------- small animations ----------
-  /** The lit arc runs to `to` degrees (ease-out), a frame at a time. */
+  /** The lit arc runs to `to` degrees (ease-out). */
   const animateSweep = useCallback(
     (to: number, ms: number) =>
       new Promise<void>((resolve) => {
-        if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-        const from = sweepRef.current;
-        if (ms <= 0 || Math.abs(to - from) < 0.01) {
-          sweepRef.current = to;
-          setSweep(to);
-          resolve();
-          return;
-        }
-        const t0 = Date.now();
-        const tick = () => {
-          if (!mountedRef.current) return resolve();
-          const p = Math.min(1, (Date.now() - t0) / ms);
-          const v = from + (to - from) * (1 - Math.pow(1 - p, 3));
-          sweepRef.current = v;
-          setSweep(v);
-          if (p < 1) frameRef.current = requestAnimationFrame(tick);
-          else {
-            frameRef.current = null;
+        // From where the arc is now (an earlier run that was cut short stops where it got to).
+        sweepAnim.stopAnimation((now) => {
+          if (ms <= 0 || Math.abs(to - now) < 0.01) {
+            sweepAnim.setValue(to);
             resolve();
+            return;
           }
-        };
-        frameRef.current = requestAnimationFrame(tick);
+          Animated.timing(sweepAnim, { toValue: to, duration: ms, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(() => resolve());
+        });
       }),
-    []
+    [sweepAnim]
   );
+
+  /**
+   * The reel in the middle lands on one segment's answer: the sentinel of the ring in play (survived) or the cracked one (failed).
+   * `running` is true when it was already set spinning (when the button was pressed); otherwise it runs a moment first.
+   */
+  const spinTo = useCallback(async (symbol: ReelSymbol, quick: boolean, running: boolean) => {
+    const reel = reelRef.current;
+    if (!reel) return;
+    if (!running) {
+      reel.start(quick);
+      await wait(quick ? 140 : 380);
+    }
+    await reel.land(symbol);
+  }, []);
 
   const bump = useCallback(() => {
     guardScale.setValue(0.88);
@@ -241,18 +245,23 @@ export default function RingGauntletScreen() {
   }, [guardTilt]);
 
   const flashRed = useCallback(
-    async (step: number, quick: boolean) => {
-      const t0 = Date.now();
-      const dur = quick ? 600 : 1100;
-      while (mountedRef.current) {
-        const p = Math.min(1, (Date.now() - t0) / dur);
-        setFail({ step, alpha: Math.max(0, 1 - p) * (0.55 + 0.45 * Math.abs(Math.sin(p * 9))) });
-        if (p >= 1) break;
-        await wait(40);
-      }
-      if (mountedRef.current) setFail(null);
-    },
-    []
+    (step: number, quick: boolean) =>
+      new Promise<void>((resolve) => {
+        const dur = quick ? 600 : 1100;
+        setFailStep(step);
+        failAnim.setValue(0.55);
+        // From 0.55 down to nothing, blinking on the way: alpha(t) = (1 - t) (0.55 + 0.45 |sin 9t|).
+        Animated.timing(failAnim, {
+          toValue: 0,
+          duration: dur,
+          easing: (t) => 1 - ((1 - t) * (0.55 + 0.45 * Math.abs(Math.sin(t * 9)))) / 0.55,
+          useNativeDriver: false,
+        }).start(() => {
+          if (mountedRef.current) setFailStep(null);
+          resolve();
+        });
+      }),
+    [failAnim]
   );
 
   const popUp = useCallback(
@@ -267,16 +276,17 @@ export default function RingGauntletScreen() {
     [popAnim]
   );
 
-  const pulseGlow = useCallback(async (ms: number) => {
-    const t0 = Date.now();
-    while (mountedRef.current) {
-      const p = Math.min(1, (Date.now() - t0) / ms);
-      setGlow(Math.sin(p * Math.PI));
-      if (p >= 1) break;
-      await wait(40);
-    }
-    if (mountedRef.current) setGlow(0);
-  }, []);
+  const pulseGlow = useCallback(
+    (ms: number) =>
+      new Promise<void>((resolve) => {
+        glowAnim.setValue(0);
+        Animated.sequence([
+          Animated.timing(glowAnim, { toValue: 1, duration: ms / 2, easing: Easing.out(Easing.sin), useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 0, duration: ms / 2, easing: Easing.in(Easing.sin), useNativeDriver: false }),
+        ]).start(() => resolve());
+      }),
+    [glowAnim]
+  );
 
   // ---------- the round's endings ----------
   const clearBoard = useCallback(
@@ -284,8 +294,8 @@ export default function RingGauntletScreen() {
       await animateSweep(0, quick ? 120 : 420);
       if (!mountedRef.current) return;
       setLitStep(0);
-      setLost(false);
       setRound(null);
+      reelRef.current?.set(ringRef.current);
     },
     [animateSweep]
   );
@@ -313,7 +323,6 @@ export default function RingGauntletScreen() {
     async (r: RingGauntletRound, quick: boolean) => {
       play('special');
       shake();
-      setLost(true);
       if (r.payout > 0) setLastWin(r.payout);
       if (!quick) setTimeout(() => mountedRef.current && play('lose'), 480);
       else play('lose');
@@ -330,30 +339,31 @@ export default function RingGauntletScreen() {
   const reveal = useCallback(
     async (move: RingGauntletMove, before: RingGauntletRound | null, quick = false) => {
       const r = move.round;
+      // The reel was set spinning when the button was pressed: it lands on each segment's answer in turn
+      // (an autoplay round can come back several segments up), and the arc runs on after every survived one.
+      let running = true;
+      for (let k = (before?.currentStep ?? 0) + 1; k <= r.currentStep; k++) {
+        await spinTo(r.ring, quick, running);
+        running = false;
+        if (!mountedRef.current) return;
+        play('step', { rate: Math.min(1.6, 1 + 0.07 * (k - 1)) });
+        bump();
+        await animateSweep(endAngle(r.ring, k), quick ? 150 : 430);
+        if (!mountedRef.current) return;
+        setLitStep(k);
+      }
       if (move.survived) {
-        // every segment of the climb in turn (an autoplay round can come back several segments up)
-        for (let k = (before?.currentStep ?? 0) + 1; k <= r.currentStep; k++) {
-          play('step', { rate: Math.min(1.6, 1 + 0.07 * (k - 1)) });
-          bump();
-          await animateSweep(endAngle(r.ring, k), quick ? 150 : 430);
-          if (!mountedRef.current) return;
-          setLitStep(k);
-        }
         if (r.status === 'WON') await finishWin(r, before?.banked ?? 0, quick);
         else setRound(r);
       } else {
-        // the arc first runs up to the segments that were survived
-        for (let k = (before?.currentStep ?? 0) + 1; k <= r.currentStep; k++) {
-          play('step', { rate: Math.min(1.6, 1 + 0.07 * (k - 1)) });
-          await animateSweep(endAngle(r.ring, k), quick ? 150 : 430);
-          if (!mountedRef.current) return;
-          setLitStep(k);
-        }
-        await wait(quick ? 60 : 200);
+        // the next segment is failed: the reel lands on the cracked sentinel
+        await spinTo('LOST', quick, running);
+        if (!mountedRef.current) return;
+        await wait(quick ? 60 : 150);
         await finishLoss(r, quick);
       }
     },
-    [animateSweep, bump, finishLoss, finishWin, play]
+    [animateSweep, bump, finishLoss, finishWin, play, spinTo]
   );
 
   const release = () => {
@@ -370,16 +380,17 @@ export default function RingGauntletScreen() {
     }
     busyRef.current = true;
     setBusy(true);
-    setLost(false);
-    setFail(null);
+    setFailStep(null);
     setPop(null);
     setShownBalance((b) => round2(b - stake));
     play('start');
+    reelRef.current?.start(false);
     try {
       const move = await startRingGauntlet(stake, ringRef.current);
       if (!mountedRef.current) return;
       await reveal(move, null);
     } catch (err) {
+      reelRef.current?.set(ringRef.current);
       setShownBalance((b) => round2(b + stake));
       showToast(errorMessage(err));
     }
@@ -393,6 +404,7 @@ export default function RingGauntletScreen() {
       setRound(r);
       setLitStep(r?.currentStep ?? 0);
       if (r) setRing(r.ring);
+      reelRef.current?.set(r ? r.ring : ringRef.current);
       await animateSweep(r ? endAngle(r.ring, r.currentStep) : 0, 200);
     } catch {
       // the next press will tell
@@ -405,11 +417,13 @@ export default function RingGauntletScreen() {
     busyRef.current = true;
     setBusy(true);
     play('tick');
+    reelRef.current?.start(false);
     try {
       const move = await advanceRingGauntlet(r.id);
       if (!mountedRef.current) return;
       await reveal(move, r);
     } catch (err) {
+      reelRef.current?.set(r.ring);
       showToast(errorMessage(err));
       if (err instanceof ApiClientError && (err.status === 409 || err.status === 400)) await syncRound();
     }
@@ -464,15 +478,16 @@ export default function RingGauntletScreen() {
       }
       busyRef.current = true;
       setBusy(true);
-      setLost(false);
-      setFail(null);
+      setFailStep(null);
       setShownBalance((b) => round2(b - stake));
       play('start');
+      reelRef.current?.start(true);
       try {
         const move = await autoRingGauntlet(stake, ringRef.current, autoTargetRef.current);
         if (!mountedRef.current) return;
         await reveal(move, null, true);
       } catch (err) {
+        reelRef.current?.set(ringRef.current);
         setShownBalance((b) => round2(b + stake));
         showToast(errorMessage(err));
         autoRef.current = 0;
@@ -519,9 +534,10 @@ export default function RingGauntletScreen() {
       play('tick');
       setRing(k);
       setAutoTarget(1);
-      sweepRef.current = 0;
-      setSweep(0);
+      sweepAnim.stopAnimation();
+      sweepAnim.setValue(0);
       setLitStep(0);
+      reelRef.current?.set(k);
     }
   };
   const stepBet = (dir: 1 | -1) => {
@@ -559,7 +575,6 @@ export default function RingGauntletScreen() {
   const half = round ? Math.floor((value / 2) * 100) / 100 : 0;
   const nextSeg = round?.next ?? null;
   const col = RING_COLOR[ring];
-  const guardImg = lost ? GUARD.lost : GUARD[ring];
   const hint = autoActive
     ? `AUTOPLAY · ${autoLeft} round${autoLeft === 1 ? '' : 's'} left · cash out at ${steps[Math.min(autoTarget, steps.length) - 1]?.label ?? ''}`
     : round && nextSeg
@@ -595,13 +610,13 @@ export default function RingGauntletScreen() {
             plate={A.plate}
             ring={ring}
             step={litStep}
-            sweep={sweep}
-            failStep={fail?.step ?? null}
-            failAlpha={fail?.alpha ?? 0}
-            guard={guardImg}
+            sweep={sweepAnim}
+            failStep={failStep}
+            failAlpha={failAnim}
+            center={<RingReel ref={reelRef} size={centerSize(wheelSize)} pictures={REEL_PICS} initial={ring} />}
             guardScale={guardScale}
             guardTilt={guardTilt}
-            glow={glow}
+            glow={glowAnim}
             onPick={locked ? null : pickRing}
           />
           {pop ? (
