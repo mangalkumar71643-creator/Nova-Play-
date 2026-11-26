@@ -43,6 +43,11 @@ node mobile/scripts/art/build.js redbutton/lcd   # one piece
   panel the slide's button text must be short (**PLAY**; "PLAY NOW" is cut off) and the game **Chicken Road**. The panel's "Remove background" box
   (on by default) clears white / light-grey and near-black pixels that touch the outside of a slide, so every white part of the slide sits inside a
   maroon or gold outline and there are no black shadows; checked through the real panel: nothing is lost.
+* `garuda-popup/` draws the **Admin -> Popups** picture of Garuda Gold: `assets/promo/garuda-gold-popup.webp` (840 x 1260, 2:3;
+  `.png` for uploading). Our own art only: the game's golden Garuda (`../garuda/hero.js`, drawn again at poster size), GARUDA GOLD in the
+  game's gold serif letters, the game's real top win ("WIN UP TO ₹5,00,000": one spin pays at most ₹5,00,000) and features (NUDGE up to
+  500×, 5 lines, EX bet), on a dark warm ground with gold light, coins and sparks. In the panel: button text **PLAY**, game **Garuda
+  Gold** (checked through the real panel and in the app at 360 x 640, 411 x 783 and 430 x 932). Build: `node scripts/art/build.js garuda-popup`.
 * `wingo-slide/` draws the **Home Slider** picture of Win Go: `assets/promo/wingo-slide.webp` (900 x 640, transparent; `.png` for uploading).
   Its own layout, unlike the Chicken Road slide (the owner asked for them not to look alike): everything turns round the middle. A big
   emerald-and-gold stopwatch shows the game's countdown boxes (00:30, a round every 30 seconds) in a burst of gold light, the game's number
