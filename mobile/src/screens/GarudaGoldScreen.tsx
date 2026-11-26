@@ -96,6 +96,9 @@ const TOAST_MS = 2200;
 const SYMBOL_FILLERS = ['J', 'Q', 'K', 'A', 'J', 'Q', 'EMERALD', 'SAPPHIRE', 'RUBY', 'WILD', 'K', 'J', 'Q', 'A'];
 const COIN_FILLERS = ['X1', 'X2', 'X3', 'X1', 'X5', 'X2', 'X10', 'X1', 'X3', 'X15', 'X2', 'X20', 'X1', 'X25', 'NUDGE', 'X50', 'X2', 'X100'];
 const NUDGE_PATH = ['X10', 'X15', 'X20', 'X25', 'X50', 'X100', 'X500'];
+/** Spinning speeds in rows a second (normal, turbo): the same speed on the screen for the tiles and the smaller coin rows. */
+const SYMBOL_SPEED = { normal: 14, fast: 20 };
+const COIN_SPEED = { normal: (14 * CELL_H) / COIN_ROW, fast: (20 * CELL_H) / COIN_ROW };
 const START_ROWS: string[][] = [
   ['K', 'SAPPHIRE', 'J'],
   ['WILD', 'A', 'RUBY'],
@@ -540,6 +543,7 @@ export default function GarudaGoldScreen() {
                 dimmed={dimmed[r]}
                 glowing={glowing[r]}
                 fast={turbo}
+                speed={SYMBOL_SPEED}
                 testID={`gg-reel-${r}`}
               />
             ))}
@@ -559,6 +563,7 @@ export default function GarudaGoldScreen() {
               dimmed={dimmed[3]}
               glowing={glowing[3]}
               fast={turbo}
+              speed={COIN_SPEED}
               testID="gg-mult"
             />
           </View>

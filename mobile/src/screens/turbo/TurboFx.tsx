@@ -26,10 +26,10 @@ export function CoinShower({ w, h, progress }: { w: number; h: number; progress:
               ],
             }}
           >
-            <Svg width={size} height={size} viewBox="0 0 20 20">
-              <Circle cx={10} cy={10} r={9} fill={GOLD} stroke={GOLD_DEEP} strokeWidth={1.5} />
-              <Circle cx={10} cy={10} r={6} fill="none" stroke={GOLD_DEEP} strokeWidth={0.8} />
-            </Svg>
+            {/* plain views, not a drawing: 26 coins appear at once on a big win, and views are the cheapest thing for a phone to add */}
+            <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: GOLD, borderWidth: size * 0.075, borderColor: GOLD_DEEP, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: size * 0.6, height: size * 0.6, borderRadius: size * 0.3, borderWidth: Math.max(0.8, size * 0.04), borderColor: GOLD_DEEP }} />
+            </View>
           </Animated.View>
         );
       })}
