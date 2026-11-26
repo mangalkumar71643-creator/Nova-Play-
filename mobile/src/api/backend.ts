@@ -4379,7 +4379,7 @@ export type RingKey = 'OUTER' | 'MIDDLE' | 'INNER';
 export interface RingSegment {
   step: number;
   kind: 'x' | 'plus' | 'bonus';
-  /** What the ring shows: "3.9X", "+7X", "BONUS". */
+  /** What the ring shows: "1.9X", "+1.4X", "BONUS". */
   label: string;
   multiplier: number;
   /** Chance of surviving this segment once the round is on it, and of getting this far from the start. */
@@ -4399,6 +4399,8 @@ export interface RingGauntletConfig {
   maxPayout: number;
   rtp: number;
   maxPartCashouts: number;
+  /** The odds table new rounds are played on (2: the gentle table of 2026-11-26; older servers leave it out). */
+  paytable?: number;
   rings: RingInfo[];
 }
 export interface RingGauntletRound {
@@ -4421,6 +4423,11 @@ export interface RingGauntletRound {
   value: number;
   canPartCashout: boolean;
   next: { step: number; label: string; multiplier: number; chance: number } | null;
+  /** The odds table the round is played on. */
+  paytable?: number;
+  /** Only for a round on an older table than the game's (started before the table changed): the segments of its ring
+   * as that round plays them, for the wheel to show instead of the game's current ones. */
+  table?: RingSegment[];
   serverSeedHash: string;
   clientSeed: string;
   nonce: number;

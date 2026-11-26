@@ -2592,6 +2592,9 @@ model RingGauntletRound {
   bonus          Decimal   @default(0) @db.Decimal(10, 2)
   /// Played through the autoplay: the whole round in one request.
   auto           Boolean   @default(false)
+  /// The odds table the round is played on (ringGauntletEngine.ts PAYTABLES), kept until it ends. 1: the first table,
+  /// rounds started before 2026-11-26 (the default fills them in); new rounds are written with the current one.
+  paytable       Int       @default(1)
   status         BetStatus @default(PENDING)
   serverSeed     String
   serverSeedHash String

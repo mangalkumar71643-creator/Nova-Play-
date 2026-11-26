@@ -167,6 +167,35 @@ export function InfoSheet({
   );
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+/** "a, b, c or d" */
+const orList = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`);
+
+/** What the last segment of each ring does, from the game's own table (the numbers are the server's, never written here). */
+function lastSegmentText(config: RingGauntletConfig | null): string {
+  const head = 'The last segment of a ring ends the round with a win as soon as you survive it.';
+  if (!config) return head;
+  const plus: string[] = [];
+  for (const k of ['INNER', 'MIDDLE'] as RingKey[]) {
+    const steps = config.rings.find((r) => r.ring === k)?.steps ?? [];
+    const last = steps[steps.length - 1];
+    const before = steps[steps.length - 2];
+    if (last?.kind === 'plus' && before) {
+      plus.push(`on the ${RING_NAME[k].toLowerCase()} "${last.label}" adds ${round2(last.multiplier - before.multiplier)} to the ${before.label} before it (${round2(last.multiplier)}X)`);
+    }
+  }
+  let text = head;
+  if (plus.length) text += ` ${plus.join(', ').replace(/^on/, 'On')}.`;
+  const outer = config.rings.find((r) => r.ring === 'OUTER');
+  const lastPlain = outer ? outer.steps[outer.steps.length - 2] : undefined;
+  if (outer?.wheel.length && lastPlain) {
+    const adds = outer.wheel.map((w) => `+${w.add}`);
+    const totals = outer.wheel.map((w) => `${round2(lastPlain.multiplier + w.add)}X`);
+    text += ` On the outer ring BONUS spins a wheel that adds ${orList(adds)} to the ${lastPlain.label} (${orList(totals)}).`;
+  }
+  return text;
+}
+
 function Rules({ config }: { config: RingGauntletConfig | null }) {
   const rtp = Math.round((config?.rtp ?? 0.9) * 100);
   const parts = config?.maxPartCashouts ?? 3;
@@ -178,7 +207,7 @@ function Rules({ config }: { config: RingGauntletConfig | null }) {
       <Text style={styles.ruleLine}>3.  Every segment you survive lights up and raises your cash-out value to the number on it. Press PLAY again to try the next segment; fail one and the round is lost.</Text>
       <Text style={styles.ruleLine}>4.  Press CASHOUT whenever you like to take the value shown. PART CASHOUT takes half of what you have now (up to {parts} times a round) and keeps the other half climbing.</Text>
       <Text style={styles.ruleHead}>The last segment</Text>
-      <Text style={styles.ruleLine}>The last segment of a ring ends the round with a win as soon as you survive it. On the inner ring "+7X" adds 7 to the 10X before it (17X), on the middle ring "+20.5X" adds 20.5 to the 44X (64.5X). On the outer ring BONUS spins a wheel that adds +50, +100, +300 or +1000 to the 200X (250X, 300X, 500X or 1200X).</Text>
+      <Text style={styles.ruleLine}>{lastSegmentText(config)}</Text>
       <Text style={styles.ruleHead}>Autoplay</Text>
       <Text style={styles.ruleLine}>Hold the PLAY button to set up autoplay: your bet is played on the ring you picked for the number of rounds you choose, each round climbing to the segment you choose and cashing out there.</Text>
       <Text style={styles.ruleHead}>Fair play</Text>

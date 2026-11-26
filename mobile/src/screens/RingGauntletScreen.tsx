@@ -56,12 +56,14 @@ const DEFAULT_BET = 10;
 const BIG_WIN_X = 10;
 const TOAST_MS = 2400;
 
-// What the rings show before the server's table arrives (the numbers are the game's own and never change).
+// What the rings show before the server's table arrives (the game's current odds table, ringGauntletEngine.ts PAYTABLES 2).
 const FALLBACK_LABELS: Record<RingKey, string[]> = {
-  OUTER: ['3.9X', '12.5X', '28X', '52X', '85X', '133X', '200X', 'BONUS'],
-  MIDDLE: ['2.5X', '7.7X', '16X', '27.5X', '44X', '+20.5X'],
-  INNER: ['1.55X', '4.85X', '10X', '+7X'],
+  OUTER: ['1.9X', '4X', '8.4X', '17.7X', '37X', '78X', '165X', 'BONUS'],
+  MIDDLE: ['1.8X', '3.6X', '7.2X', '14.4X', '28.8X', '+28.8X'],
+  INNER: ['1.3X', '1.9X', '2.8X', '+1.4X'],
 };
+/** The ring a new player finds picked: the inner one, the steadiest climb (owner's choice, 2026-11-26). */
+const DEFAULT_RING: RingKey = 'INNER';
 const FALLBACK: Record<RingKey, RingSegment[]> = Object.fromEntries(
   RING_ORDER.map((k) => [
     k,
@@ -95,7 +97,7 @@ export default function RingGauntletScreen() {
   const soundOn = useSoundEnabled();
 
   const [config, setConfig] = useState<RingGauntletConfig | null>(null);
-  const [ring, setRing] = useState<RingKey>('MIDDLE');
+  const [ring, setRing] = useState<RingKey>(DEFAULT_RING);
   const [bet, setBet] = useState(DEFAULT_BET);
   const [round, setRound] = useState<RingGauntletRound | null>(null);
   const [busy, setBusy] = useState(false);
@@ -146,8 +148,10 @@ export default function RingGauntletScreen() {
   const rings = useMemo(() => {
     const out = { ...FALLBACK } as Record<RingKey, RingSegment[]>;
     if (config) for (const r of config.rings) out[r.ring] = r.steps;
+    // A round started before the odds table changed goes on with its own numbers: its ring shows them until it ends.
+    if (round?.table?.length) out[round.ring] = round.table;
     return out;
-  }, [config]);
+  }, [config, round]);
   const steps = rings[ring];
   const autoActive = autoLeft > 0;
   const locked = busy || round !== null || autoActive;

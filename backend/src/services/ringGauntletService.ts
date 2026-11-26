@@ -6,10 +6,13 @@ import { fairRandomFloat } from "../utils/rng";
 import { assertCanTransact } from "./responsibleGamblingService";
 import { nextRoundSeedMaterial } from "./fairnessService";
 import {
+  CURRENT_PAYTABLE,
   MAX_PART_CASHOUTS,
   RING_KEYS,
   RingKey,
+  SegmentInfo,
   multiplierAfter,
+  paytableOf,
   playRing,
   ringShape,
   ringSteps,
@@ -40,6 +43,20 @@ function isRing(value: string): value is RingKey {
   return (RING_KEYS as string[]).includes(value);
 }
 
+/** A segment as the apps get it. */
+function publicSegment(seg: SegmentInfo) {
+  return {
+    step: seg.step,
+    kind: seg.kind,
+    label: seg.label,
+    multiplier: round2(seg.multiplier),
+    // Chance of surviving this segment once the round is on it, and of getting this far from the start.
+    chance: Math.round(seg.survive * 10_000) / 10_000,
+    reach: Math.round(seg.reach * 1_000_000) / 1_000_000,
+  };
+}
+
+/** The game as new rounds play it (the current odds table). */
 export function getRingGauntletConfig() {
   const rtp = env.games.rtp;
   return {
@@ -48,18 +65,11 @@ export function getRingGauntletConfig() {
     maxPayout: env.games.maxPayout,
     rtp,
     maxPartCashouts: MAX_PART_CASHOUTS,
+    paytable: CURRENT_PAYTABLE,
     rings: RING_KEYS.map((ring) => ({
       ring,
       shape: ringShape(ring),
-      steps: ringTable(ring, rtp).map((seg) => ({
-        step: seg.step,
-        kind: seg.kind,
-        label: seg.label,
-        multiplier: round2(seg.multiplier),
-        // Chance of surviving this segment once the round is on it, and of getting this far from the start.
-        chance: Math.round(seg.survive * 10_000) / 10_000,
-        reach: Math.round(seg.reach * 1_000_000) / 1_000_000,
-      })),
+      steps: ringTable(ring, rtp).map(publicSegment),
       wheel: wheelSegments(ring),
     })),
   };
@@ -86,7 +96,8 @@ function canPartCashout(round: RoundRow): boolean {
  * round until they rotate it, and showing it would let them compute every segment ahead of time. */
 function toPublicRound(round: RoundRow) {
   const rtp = env.games.rtp;
-  const table = ringTable(round.ring as RingKey, rtp);
+  const paytable = paytableOf(round.paytable);
+  const table = ringTable(round.ring as RingKey, rtp, paytable);
   const next = round.status === "PENDING" ? table[round.currentStep] : undefined;
   return {
     id: round.id,
@@ -107,6 +118,10 @@ function toPublicRound(round: RoundRow) {
     canPartCashout: canPartCashout(round),
     /** The segment a press of PLAY would try next, and its chance. */
     next: next ? { step: next.step, label: next.label, multiplier: round2(next.multiplier), chance: Math.round(next.survive * 10_000) / 10_000 } : null,
+    paytable,
+    /** A round on an older odds table than the game's (it was started before the table changed): its own segments, so
+     * the app can show the numbers that round is played on (the game's config has the current ones). */
+    ...(paytable !== CURRENT_PAYTABLE ? { table: table.map(publicSegment) } : {}),
     serverSeedHash: round.serverSeedHash,
     clientSeed: round.clientSeed,
     nonce: round.nonce,
@@ -184,7 +199,9 @@ interface Settlement {
  */
 function tryNextSegment(round: RoundRow): Settlement {
   const ring = round.ring as RingKey;
-  const table = ringTable(ring, env.games.rtp);
+  // The round's own odds table: a round started on an older table finishes on it.
+  const paytable = paytableOf(round.paytable);
+  const table = ringTable(ring, env.games.rtp, paytable);
   const step = round.currentStep + 1;
   const stake = Number(round.stake);
   const share = Number(round.share);
@@ -197,8 +214,8 @@ function tryNextSegment(round: RoundRow): Settlement {
 
   if (step === table.length) {
     // The last segment: the bonus is added to the last plain multiplier and the round is paid in full.
-    const add = wheelAdd(ring, bonusRoll(round.serverSeed, round.clientSeed, round.nonce));
-    const multiplier = multiplierAfter(ring, step, add);
+    const add = wheelAdd(ring, bonusRoll(round.serverSeed, round.clientSeed, round.nonce), paytable);
+    const multiplier = multiplierAfter(ring, step, add, paytable);
     const credit = cappedPayout(stake * share, multiplier);
     return {
       data: { currentStep: step, multiplier, bonus: add, payout: round2(banked + credit), status: "WON", settledAt: new Date() },
@@ -206,7 +223,7 @@ function tryNextSegment(round: RoundRow): Settlement {
     };
   }
 
-  const multiplier = multiplierAfter(ring, step, 0);
+  const multiplier = multiplierAfter(ring, step, 0, paytable);
   // The payout cap is reached: nothing is left to gain by risking another segment, so it settles as a win.
   if (stake * share * multiplier >= env.games.maxPayout) {
     const credit = cappedPayout(stake * share, multiplier);
@@ -247,7 +264,7 @@ export async function startRingGauntletRound(userId: string, stake: number, ring
   return prisma.$transaction(async (tx) => {
     await takeStake(tx, userId, stake);
     const created = await tx.ringGauntletRound.create({
-      data: { userId, ring, stake, serverSeed, serverSeedHash, clientSeed, nonce },
+      data: { userId, ring, stake, paytable: CURRENT_PAYTABLE, serverSeed, serverSeedHash, clientSeed, nonce },
     });
     const outcome = tryNextSegment(created);
     const updated = await claimRound(tx, created, outcome.data);
@@ -307,7 +324,7 @@ export async function partCashOutRingGauntletRound(userId: string, roundId: stri
 export async function autoRingGauntletRound(userId: string, stake: number, ring: string, target: number) {
   checkStake(stake);
   if (!isRing(ring)) throw new ApiError(400, "Invalid ring.");
-  if (!Number.isInteger(target) || target < 1 || target > ringSteps(ring)) throw new ApiError(400, "Invalid target segment.");
+  if (!Number.isInteger(target) || target < 1 || target > ringSteps(ring, CURRENT_PAYTABLE)) throw new ApiError(400, "Invalid target segment.");
   await assertCanTransact(userId);
 
   const { serverSeed, serverSeedHash, clientSeed, nonce } = await nextRoundSeedMaterial(userId);
@@ -316,14 +333,15 @@ export async function autoRingGauntletRound(userId: string, stake: number, ring:
     env.games.rtp,
     target,
     (step) => segmentRoll(serverSeed, clientSeed, nonce, step),
-    () => bonusRoll(serverSeed, clientSeed, nonce)
+    () => bonusRoll(serverSeed, clientSeed, nonce),
+    CURRENT_PAYTABLE
   );
 
   let multiplier = 0;
   let status: "WON" | "LOST" = "LOST";
   let credit = 0;
   if (!outcome.eliminated) {
-    multiplier = multiplierAfter(ring, outcome.survived, outcome.bonus);
+    multiplier = multiplierAfter(ring, outcome.survived, outcome.bonus, CURRENT_PAYTABLE);
     credit = cappedPayout(stake, multiplier);
     status = "WON";
   }
@@ -340,6 +358,7 @@ export async function autoRingGauntletRound(userId: string, stake: number, ring:
         payout: credit,
         bonus: outcome.bonus,
         auto: true,
+        paytable: CURRENT_PAYTABLE,
         status,
         settledAt: new Date(),
         serverSeed,
