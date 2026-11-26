@@ -48,6 +48,11 @@ node mobile/scripts/art/build.js redbutton/lcd   # one piece
   game's gold serif letters, the game's real top win ("WIN UP TO ₹5,00,000": one spin pays at most ₹5,00,000) and features (NUDGE up to
   500×, 5 lines, EX bet), on a dark warm ground with gold light, coins and sparks. In the panel: button text **PLAY**, game **Garuda
   Gold** (checked through the real panel and in the app at 360 x 640, 411 x 783 and 430 x 932). Build: `node scripts/art/build.js garuda-popup`.
+* `garuda-slide/` draws the **Home Slider** picture of Garuda Gold: `assets/promo/garuda-gold-slide.webp` (900 x 640, transparent;
+  `.png` for uploading). Our own art only: the game's golden Garuda rising behind GARUDA GOLD on the game's carved plaque with gold rims
+  and lotus ends, the coins of its multiplier reel (500x, 100x, 50x, 25x, from `../garuda/coins.js`) and "UP TO ₹5,00,000" (one spin pays
+  at most ₹5,00,000) on a red plate with a gold rim. In the panel: button text **PLAY**, game **Garuda Gold**, "Remove background" on (checked
+  through the real panel and on Home at 360 x 640, 411 x 783 and 430 x 932). Build: `node scripts/art/build.js garuda-slide`.
 * `wingo-slide/` draws the **Home Slider** picture of Win Go: `assets/promo/wingo-slide.webp` (900 x 640, transparent; `.png` for uploading).
   Its own layout, unlike the Chicken Road slide (the owner asked for them not to look alike): everything turns round the middle. A big
   emerald-and-gold stopwatch shows the game's countdown boxes (00:30, a round every 30 seconds) in a burst of gold light, the game's number
