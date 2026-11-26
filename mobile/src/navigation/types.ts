@@ -26,6 +26,8 @@ export type RootStackParamList = {
   SupportForm: { kind: SupportFormKind };
   SupportProgress: undefined;
   BettingTasks: undefined;
+  /** One of the admin's own pages (Admin → Pages), opened from a banner, a popup or another page. */
+  CustomPage: { id: string };
   Notifications: undefined;
   BalanceRecords: undefined;
   /** Deposit or withdraw history; without a kind (from Wallet) the screen lets you switch. */

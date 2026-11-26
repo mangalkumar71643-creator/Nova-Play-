@@ -270,6 +270,27 @@
   .dep-chip.has .dep-badge { background: #f0b93d; color: #7a1022; }
   .dep-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .dep-tools input { max-width: 90px; }
+  /* Pages (custom pages): the editor beside a phone-sized preview drawn like the app's page */
+  .pg-layout { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+  .pg-layout > .card { flex: 1 1 420px; min-width: 0; }
+  .pg-block { border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 10px; background: var(--surface-alt); }
+  .pg-block-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12px; font-weight: 800; color: var(--text-secondary); letter-spacing: 0.04em; }
+  .pg-block-head .grow { flex: 1; }
+  .pg-block textarea { width: 100%; min-height: 64px; }
+  .pg-thumb { max-width: 120px; max-height: 160px; border-radius: 6px; border: 1px solid var(--border); display: block; background: #000; }
+  .pg-add { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 12px; }
+  .pp-phone { width: 340px; max-width: 100%; margin: 0 auto; border-radius: 26px; border: 6px solid #2b2b2b; background: #170709; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+  .pp-head { display: flex; align-items: center; gap: 8px; padding: 14px 14px 10px; color: #F0B93D; font-weight: 800; font-size: 17px; }
+  .pp-head .pp-back { font-size: 24px; line-height: 1; }
+  .pp-body { max-height: 620px; overflow-y: auto; padding-bottom: 18px; }
+  .pp-img { display: block; width: 100%; }
+  .pp-heading { color: #F0B93D; font-size: 19px; font-weight: 900; padding: 12px 16px 4px; white-space: pre-wrap; }
+  .pp-text { color: #FFFFFF; font-size: 14px; line-height: 1.5; padding: 6px 16px; white-space: pre-wrap; }
+  .pp-note { color: #CBB4B8; font-size: 12px; line-height: 1.45; padding: 4px 16px; white-space: pre-wrap; }
+  .pp-btn { margin: 12px auto; width: 72%; height: 46px; border-radius: 23px; padding: 2px; background: linear-gradient(#FFE9A8, #E3A92E, #8F5A0C); }
+  .pp-btn > div { height: 100%; border-radius: 21px; background: linear-gradient(#FF6B6B 0%, #E3162C 45%, #A1081C 55%, #C4102A 100%); color: #fff; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 15px; text-shadow: 0 1.5px 3px rgba(60,0,0,0.75); }
+  .pp-opens { color: #a6b0ae; font-size: 10.5px; text-align: center; margin-top: -8px; }
+  .pp-empty { color: #CBB4B8; font-size: 13px; text-align: center; padding: 60px 20px; }
 </style>
 </head>
 <body>
@@ -889,6 +910,37 @@
         </div>
       </div>
 
+      <div class="panel" id="panel-pages">
+        <h1 class="page-title">Pages</h1>
+        <div class="page-sub">Your own pages. A Home Slider slide, a popup, a Promotion banner or a Category Slider banner can open one: pick "Opens page: …" as what it opens. Build a page from your own pictures (shown full width, like a poster), headings, text and buttons; a button (or a picture) can open a game, Deposit or another page. The preview on the right shows it like the app. Needs app 1.0.133 or newer (older apps show the banner's button without opening the page).</div>
+        <div class="pg-layout">
+          <div class="card" id="pgEditorCard">
+            <div class="card-head"><h2 id="pgEditorTitle">New page</h2><button class="btn secondary small" id="pgNew" style="flex:none;">+ New page</button></div>
+            <div class="form-row"><input id="pgTitle" maxlength="80" placeholder="Page title, shown at the top of the page, e.g. Diwali Bonus" /></div>
+            <div id="pgBlocks"></div>
+            <div class="pg-add">
+              <label class="btn secondary small" style="margin:0;cursor:pointer;flex:none;">+ Picture<input id="pgPicture" type="file" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" /></label>
+              <button class="btn secondary small" data-pg-add="heading" style="flex:none;">+ Heading</button>
+              <button class="btn secondary small" data-pg-add="body" style="flex:none;">+ Text</button>
+              <button class="btn secondary small" data-pg-add="note" style="flex:none;">+ Small note</button>
+              <button class="btn secondary small" data-pg-add="button" style="flex:none;">+ Button</button>
+            </div>
+            <div class="form-row">
+              <button class="btn" id="pgSave" style="flex:none;">Save page</button>
+            </div>
+            <div class="item-meta" id="pgStatus"></div>
+          </div>
+          <div class="card" style="flex:0 1 380px;">
+            <div class="card-head"><h2>Preview</h2></div>
+            <div id="pgPreview"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Your pages</h2></div>
+          <div id="pgList"></div>
+        </div>
+      </div>
+
       <div class="panel" id="panel-giftcodes">
         <h1 class="page-title">Gift Codes</h1>
         <div class="page-sub">Codes players enter in the app's gift box. Each code pays a fixed amount, once per player, until it has been used by as many players as you allow. The money has to be played once before it can be withdrawn.</div>
@@ -1096,6 +1148,7 @@
     gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
     image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
     slider: '<rect x="3" y="4" width="18" height="12" rx="2"/><circle cx="8" cy="20" r="1"/><circle cx="12" cy="20" r="1"/><circle cx="16" cy="20" r="1"/>',
+    pages: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>',
     reports: '<path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/>',
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
@@ -1325,6 +1378,7 @@
     { id: 'popups', label: 'Popups', icon: 'image' },
     { id: 'slider', label: 'Home Slider', icon: 'slider' },
     { id: 'category-slider', label: 'Category Slider', icon: 'slider' },
+    { id: 'pages', label: 'Pages', icon: 'pages' },
     { id: 'giftcodes', label: 'Gift Codes', icon: 'gift' },
     { id: 'reports', label: 'Reports', icon: 'reports' },
     { id: 'settings', label: 'Settings', icon: 'settings' },
@@ -1408,6 +1462,7 @@
     popups: loadPopups,
     slider: function () { loadPopups(); loadAppDownloadUrl(); },
     'category-slider': loadPopups,
+    pages: loadPages,
     giftcodes: loadGiftCodes,
     reports: function () {
       loadReports();
@@ -3739,7 +3794,9 @@
   var popupsCache = [];
 
   function loadPopups() {
-    api('/admin/popups').then(function (rows) { popupsCache = rows; renderPopups(); })
+    // the pages first: the lists and the target pickers name them
+    loadPagesCache().catch(function () {}).then(function () { return api('/admin/popups'); })
+      .then(function (rows) { popupsCache = rows; renderPopups(); })
       .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
   }
 
@@ -3760,18 +3817,42 @@
     ['WinGo', 'Win Go'], ['K3Lottery', 'K3 Lottery'], ['FiveDLottery', '5D Lottery'], ['TrxWin', 'Trx Win'], ['JhandiMunda', 'Jhandi Munda'], ['FortuneSix', 'Fortune 6'],
     ['Mines', 'Mines'], ['ChickenRoad', 'Chicken Road'], ['RingGauntlet', 'Ring Gauntlet'], ['DragonTower', 'Dragon Tower'], ['Pump', 'Pump'], ['CoinFlip', 'Coin Flip'], ['PenaltyHero', 'Penalty Hero'], ['LuckyCups', 'Lucky Cups'], ['BombSquad', 'Bomb Squad'], ['VaultHeist', 'Vault Heist'], ['TreasureDig', 'Treasure Dig'],
   ];
-  function gameOptionsHtml(selected) {
-    return '<option value="">Opens: nothing</option>' +
-      '<option value="DOWNLOAD"' + (selected === 'DOWNLOAD' ? ' selected' : '') + '>Download app (website only)</option>' +
-      SLIDER_BUTTON_GAMES.map(function (g) {
-      return '<option value="' + g[0] + '"' + (g[0] === selected ? ' selected' : '') + '>Opens: ' + escapeHtml(g[1]) + '</option>';
-    }).join('');
+  // What a banner, a popup or a page's button / picture can open: a game, Deposit, one of your pages (Admin → Pages) or, for
+  // popups and slides, the app download. opts.noDownload leaves the download out; opts.exceptPage leaves that page out.
+  function targetOptionsHtml(selected, opts) {
+    opts = opts || {};
+    var sel = function (v) { return v === selected ? ' selected' : ''; };
+    var html = '<option value="">Opens: nothing</option>';
+    if (!opts.noDownload) html += '<option value="DOWNLOAD"' + sel('DOWNLOAD') + '>Download app (website only)</option>';
+    html += '<option value="Deposit"' + sel('Deposit') + '>Opens: Deposit</option>';
+    var pages = pagesCache.filter(function (p) { return p.id !== opts.exceptPage; });
+    var known = pages.some(function (p) { return 'page:' + p.id === selected; });
+    if (pages.length || (selected && selected.indexOf('page:') === 0 && !known)) {
+      html += '<optgroup label="Your pages">' + pages.map(function (p) {
+        return '<option value="page:' + p.id + '"' + sel('page:' + p.id) + '>Opens page: ' + escapeHtml(p.title) + (p.active ? '' : ' (hidden)') + '</option>';
+      }).join('') + (selected && selected.indexOf('page:') === 0 && !known ? '<option value="' + escapeHtml(selected) + '" selected>A deleted page (opens nothing)</option>' : '') + '</optgroup>';
+    }
+    html += '<optgroup label="Games">' + SLIDER_BUTTON_GAMES.map(function (g) {
+      return '<option value="' + g[0] + '"' + sel(g[0]) + '>Opens: ' + escapeHtml(g[1]) + '</option>';
+    }).join('') + '</optgroup>';
+    return html;
   }
+  function gameOptionsHtml(selected) { return targetOptionsHtml(selected); }
   function gameName(id) {
     if (id === 'DOWNLOAD') return 'the app download (website only)';
+    if (id === 'Deposit') return 'Deposit';
+    if (id && id.indexOf('page:') === 0) {
+      var page = pagesCache.find(function (p) { return 'page:' + p.id === id; });
+      return page ? 'the page "' + page.title + '"' + (page.active ? '' : ' (hidden: opens nothing)') : 'a deleted page (opens nothing)';
+    }
     var g = SLIDER_BUTTON_GAMES.find(function (x) { return x[0] === id; });
     return g ? g[1] : id;
   }
+  // The target lists of the add forms (they keep what is picked when the pages change).
+  function refreshTargetSelects() {
+    document.querySelectorAll('[data-game-select]').forEach(function (sel) { var v = sel.value; sel.innerHTML = gameOptionsHtml(v); });
+  }
+  var pagesCache = [];
   document.querySelectorAll('[data-game-select]').forEach(function (sel) { sel.innerHTML = gameOptionsHtml(''); });
 
   // What a popup's / slide's button does, for its row in the list. An app-open popup's picture opens its game too.
@@ -4033,6 +4114,288 @@
   setupImageForm('slider', 'SLIDER');
   setupImageForm('catSlider', 'CATEGORY_SLIDER');
   setupImageForm('promo', 'PROMOTION');
+
+  // ---------- Pages (custom pages a banner, a popup or a page's button can open in the app) ----------
+  var pageEdit = null; // the page in the editor: { id (null for a new one), title, active, blocks }
+  var PG_STYLE_NAMES = { heading: 'HEADING', body: 'TEXT', note: 'SMALL NOTE' };
+  var PG_KIND_NAMES = { POPUP: 'Popup', SLIDER: 'Home Slider', CATEGORY_SLIDER: 'Category Slider', PROMOTION: 'Promotion banner' };
+
+  function loadPagesCache() {
+    return api('/admin/pages').then(function (rows) {
+      pagesCache = rows;
+      refreshTargetSelects();
+      if (popupsCache.length) renderPopups();
+      return rows;
+    });
+  }
+  function loadPages() {
+    if (!pageEdit) pageEdit = { id: null, title: '', active: true, blocks: [] };
+    renderPageEditor();
+    loadPagesCache()
+      .then(function () { return api('/admin/popups'); })
+      .then(function (rows) { popupsCache = rows; renderPageList(); renderPageEditor(); })
+      .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+  }
+
+  // Who opens a page: banners and popups whose button / picture opens it, and other pages' buttons.
+  function pageUsers(id) {
+    var t = 'page:' + id;
+    var uses = popupsCache.filter(function (p) { return p.buttonTarget === t; }).map(function (p) { return PG_KIND_NAMES[p.kind || 'POPUP'] + ' "' + p.title + '"'; });
+    pagesCache.forEach(function (pg) {
+      if (pg.id !== id && pg.blocks.some(function (b) { return b.target === t; })) uses.push('page "' + pg.title + '"');
+    });
+    return uses;
+  }
+
+  function renderPageList() {
+    var el = document.getElementById('pgList');
+    if (!pagesCache.length) { el.innerHTML = '<div class="empty">No pages yet. Make one above, then pick it as what a slide, a popup or a banner opens.</div>'; return; }
+    el.innerHTML = pagesCache.map(function (p) {
+      var uses = pageUsers(p.id);
+      var pic = p.blocks.find(function (b) { return b.type === 'image'; });
+      return '<div class="item popup-item">' +
+        (pic ? '<img class="popup-thumb" src="' + API + pic.imageUrl + '" alt="" />' : '<div class="popup-thumb" style="height:72px;"></div>') +
+        '<div style="flex:1;min-width:0;">' +
+          '<div class="item-top"><div class="item-title">' + escapeHtml(p.title) + '</div>' +
+            '<span class="pill ' + (p.active ? 'active' : 'banned') + '">' + (p.active ? 'Showing' : 'Hidden') + '</span></div>' +
+          '<div class="item-meta">' + p.blocks.length + ' block' + (p.blocks.length === 1 ? '' : 's') + ' · ' +
+            (uses.length ? 'Opened by ' + escapeHtml(uses.join(', ')) : 'Nothing opens it yet: pick it as what a slide, a popup or a banner opens') + '</div>' +
+          '<div class="item-actions">' +
+            '<button class="btn secondary small" data-pg-edit="' + p.id + '">Edit</button>' +
+            '<button class="btn secondary small" data-pg-toggle="' + p.id + '">' + (p.active ? 'Hide' : 'Show') + '</button>' +
+            '<button class="btn danger small" data-pg-delete="' + p.id + '">Delete</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    el.querySelectorAll('[data-pg-edit]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var p = pagesCache.find(function (x) { return x.id === b.getAttribute('data-pg-edit'); });
+        if (!p) return;
+        pageEdit = JSON.parse(JSON.stringify({ id: p.id, title: p.title, active: p.active, blocks: p.blocks }));
+        pageEdit.blocks.forEach(function (x) { if (x.type !== 'text') x.target = x.target || ''; });
+        document.getElementById('pgStatus').textContent = '';
+        renderPageEditor();
+        document.getElementById('pgEditorCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    el.querySelectorAll('[data-pg-toggle]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var p = pagesCache.find(function (x) { return x.id === b.getAttribute('data-pg-toggle'); });
+        if (!p) return;
+        b.disabled = true;
+        api('/admin/pages/' + p.id, { method: 'PUT', body: JSON.stringify({ active: !p.active }) })
+          .then(function () { return loadPagesCache(); })
+          .then(function () { renderPageList(); if (pageEdit && pageEdit.id === p.id) pageEdit.active = !p.active; })
+          .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+      });
+    });
+    el.querySelectorAll('[data-pg-delete]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var p = pagesCache.find(function (x) { return x.id === b.getAttribute('data-pg-delete'); });
+        if (!p) return;
+        var uses = pageUsers(p.id);
+        if (!confirm('Delete the page "' + p.title + '"?' + (uses.length ? '\n\nThese will then open nothing: ' + uses.join(', ') + '.' : ''))) return;
+        b.disabled = true;
+        api('/admin/pages/' + p.id, { method: 'DELETE' })
+          .then(function () {
+            if (pageEdit && pageEdit.id === p.id) pageEdit = { id: null, title: '', active: true, blocks: [] };
+            return loadPagesCache();
+          })
+          .then(function () { renderPageList(); renderPageEditor(); })
+          .catch(function (err) { if (err.authError) doLogout(); else showAlert(err.message); });
+      });
+    });
+  }
+
+  function renderPageEditor() {
+    if (!pageEdit) return;
+    document.getElementById('pgEditorTitle').textContent = pageEdit.id ? 'Edit page' : 'New page';
+    var titleEl = document.getElementById('pgTitle');
+    if (titleEl.value !== pageEdit.title) titleEl.value = pageEdit.title;
+    var el = document.getElementById('pgBlocks');
+    var n = pageEdit.blocks.length;
+    el.innerHTML = !n
+      ? '<div class="item-meta" style="margin-bottom:8px;">Add pictures, headings, text and buttons below. They show top to bottom; move them with the arrows.</div>'
+      : pageEdit.blocks.map(function (b, i) {
+        var name = b.type === 'image' ? 'PICTURE' : b.type === 'button' ? 'BUTTON' : PG_STYLE_NAMES[b.style] || 'TEXT';
+        var head = '<div class="pg-block-head"><span class="grow">' + (i + 1) + '. ' + name + '</span>' +
+          '<button class="btn secondary small" data-pg-move="-1" data-i="' + i + '"' + (i === 0 ? ' disabled' : '') + ' title="Up">&uarr;</button>' +
+          '<button class="btn secondary small" data-pg-move="1" data-i="' + i + '"' + (i === n - 1 ? ' disabled' : '') + ' title="Down">&darr;</button>' +
+          '<button class="btn danger small" data-pg-remove="' + i + '" title="Remove">&times;</button></div>';
+        var targets = targetOptionsHtml(b.target || '', { noDownload: true, exceptPage: pageEdit.id });
+        var body;
+        if (b.type === 'image') {
+          body = '<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;"><img class="pg-thumb" src="' + (b.localUrl || API + b.imageUrl) + '" alt="" />' +
+            '<div style="flex:1;min-width:180px;"><div class="item-meta" style="margin-bottom:6px;">' + b.width + ' × ' + b.height + '. Tapping the picture (optional):</div>' +
+            '<select data-pg-field="target" data-i="' + i + '">' + targets + '</select></div></div>';
+        } else if (b.type === 'button') {
+          body = '<div class="form-row" style="margin:0;"><input data-pg-field="label" data-i="' + i + '" maxlength="30" placeholder="Button text, e.g. DEPOSIT NOW" value="' + escapeHtml(b.label) + '" />' +
+            '<select data-pg-field="target" data-i="' + i + '">' + targets + '</select></div>';
+        } else {
+          body = '<textarea data-pg-field="text" data-i="' + i + '" maxlength="3000" placeholder="' + (b.style === 'heading' ? 'Heading, e.g. Diwali Dhamaka Offer' : 'Your text. Press Enter for a new line.') + '">' + escapeHtml(b.text) + '</textarea>' +
+            '<div class="form-row" style="margin:6px 0 0;">' +
+              '<select data-pg-field="style" data-i="' + i + '">' +
+                '<option value="heading"' + (b.style === 'heading' ? ' selected' : '') + '>Heading (big, gold)</option>' +
+                '<option value="body"' + (b.style === 'body' ? ' selected' : '') + '>Text</option>' +
+                '<option value="note"' + (b.style === 'note' ? ' selected' : '') + '>Small note (grey)</option>' +
+              '</select>' +
+              '<select data-pg-field="align" data-i="' + i + '">' +
+                '<option value="left"' + (b.align !== 'center' ? ' selected' : '') + '>Left</option>' +
+                '<option value="center"' + (b.align === 'center' ? ' selected' : '') + '>Centre</option>' +
+              '</select>' +
+            '</div>';
+        }
+        return '<div class="pg-block">' + head + body + '</div>';
+      }).join('');
+    el.querySelectorAll('[data-pg-field]').forEach(function (f) {
+      f.addEventListener(f.tagName === 'SELECT' ? 'change' : 'input', function () {
+        var b = pageEdit.blocks[Number(f.getAttribute('data-i'))];
+        var field = f.getAttribute('data-pg-field');
+        b[field] = f.value;
+        if (field === 'style') renderPageEditor();
+        else renderPagePreview();
+      });
+    });
+    el.querySelectorAll('[data-pg-move]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var i = Number(btn.getAttribute('data-i'));
+        var j = i + Number(btn.getAttribute('data-pg-move'));
+        if (j < 0 || j >= pageEdit.blocks.length) return;
+        var x = pageEdit.blocks[i]; pageEdit.blocks[i] = pageEdit.blocks[j]; pageEdit.blocks[j] = x;
+        renderPageEditor();
+      });
+    });
+    el.querySelectorAll('[data-pg-remove]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        pageEdit.blocks.splice(Number(btn.getAttribute('data-pg-remove')), 1);
+        renderPageEditor();
+      });
+    });
+    renderPagePreview();
+  }
+
+  // The page as the app shows it (CustomPageScreen.tsx): pictures full width, gold headings, white text, grey notes, red buttons.
+  function renderPagePreview() {
+    if (!pageEdit) return;
+    var body = pageEdit.blocks.length ? pageEdit.blocks.map(function (b) {
+      if (b.type === 'image') {
+        return '<img class="pp-img" src="' + (b.localUrl || API + b.imageUrl) + '" alt="" />' +
+          (b.target ? '<div class="pp-opens" style="margin:4px 0 6px;">tapping it opens ' + escapeHtml(gameName(b.target)) + '</div>' : '');
+      }
+      if (b.type === 'button') {
+        return '<div class="pp-btn"><div>' + escapeHtml(b.label || 'BUTTON') + '</div></div>' +
+          '<div class="pp-opens">' + (b.target ? 'opens ' + escapeHtml(gameName(b.target)) : 'pick what it opens') + '</div>';
+      }
+      var cls = b.style === 'heading' ? 'pp-heading' : b.style === 'note' ? 'pp-note' : 'pp-text';
+      return '<div class="' + cls + '" style="text-align:' + (b.align === 'center' ? 'center' : 'left') + ';">' + escapeHtml(b.text || '') + '</div>';
+    }).join('') : '<div class="pp-empty">Your page shows here as you build it.</div>';
+    document.getElementById('pgPreview').innerHTML =
+      '<div class="pp-phone"><div class="pp-head"><span class="pp-back">&lsaquo;</span><span>' + escapeHtml(pageEdit.title || 'Page title') + '</span></div>' +
+      '<div class="pp-body">' + body + '</div></div>';
+  }
+
+  // A picture is shrunk to 1080 px wide (a long poster keeps its length, up to 12000 px) and saved as WebP under 2.8 MB.
+  function shrinkPagePicture(file) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () {
+        var srcW = img.naturalWidth, srcH = img.naturalHeight;
+        var w = Math.min(1080, srcW), h = Math.round(srcH * (w / srcW));
+        if (h > 12000) { h = 12000; w = Math.max(1, Math.round(srcW * (h / srcH))); }
+        var canvas = document.createElement('canvas');
+        var out = null;
+        for (var scale = 1; scale > 0.4 && !out; scale *= 0.8) {
+          canvas.width = Math.max(1, Math.round(w * scale));
+          canvas.height = Math.max(1, Math.round(h * scale));
+          var ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          [0.86, 0.76, 0.66].some(function (q) {
+            var dataUrl = canvas.toDataURL('image/webp', q);
+            if (dataUrl.indexOf('data:image/webp') !== 0) dataUrl = canvas.toDataURL('image/jpeg', Math.min(0.9, q + 0.03));
+            var b64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+            if (b64.length * 0.75 > 2.8 * 1024 * 1024) return false;
+            out = { dataUrl: dataUrl, base64: b64, mimeType: dataUrl.slice(5, dataUrl.indexOf(';')), width: canvas.width, height: canvas.height };
+            return true;
+          });
+        }
+        URL.revokeObjectURL(img.src);
+        if (out) resolve(out); else reject(new Error('That picture is too large, even made smaller. Try a smaller picture.'));
+      };
+      img.onerror = function () { reject(new Error('Could not read that picture.')); };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  document.getElementById('pgPicture').addEventListener('change', function () {
+    var files = Array.prototype.slice.call(this.files || []);
+    this.value = '';
+    var status = document.getElementById('pgStatus');
+    files.reduce(function (chain, file) {
+      return chain.then(function () {
+        status.textContent = 'Uploading ' + file.name + '…';
+        return shrinkPagePicture(file).then(function (pic) {
+          return api('/admin/pages/images', { method: 'POST', body: JSON.stringify({ imageBase64: pic.base64, mimeType: pic.mimeType, width: pic.width, height: pic.height }) })
+            .then(function (r) {
+              pageEdit.blocks.push({ type: 'image', imageId: r.id, imageUrl: r.imageUrl, width: r.width, height: r.height, target: '', localUrl: pic.dataUrl });
+              renderPageEditor();
+              status.textContent = 'Picture added (' + r.width + ' × ' + r.height + ', ' + Math.round(pic.base64.length * 0.75 / 1024) + ' KB). Press Save page to keep it.';
+            });
+        });
+      });
+    }, Promise.resolve()).catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; });
+  });
+
+  document.querySelectorAll('[data-pg-add]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var kind = btn.getAttribute('data-pg-add');
+      pageEdit.blocks.push(kind === 'button' ? { type: 'button', label: '', target: '' } : { type: 'text', text: '', style: kind, align: kind === 'heading' ? 'center' : 'left' });
+      renderPageEditor();
+      var first = document.querySelector('#pgBlocks [data-i="' + (pageEdit.blocks.length - 1) + '"][data-pg-field]');
+      if (first) first.focus();
+    });
+  });
+  document.getElementById('pgTitle').addEventListener('input', function () { pageEdit.title = this.value; renderPagePreview(); });
+  document.getElementById('pgNew').addEventListener('click', function () {
+    pageEdit = { id: null, title: '', active: true, blocks: [] };
+    document.getElementById('pgStatus').textContent = '';
+    renderPageEditor();
+  });
+
+  document.getElementById('pgSave').addEventListener('click', function () {
+    var btn = this;
+    var status = document.getElementById('pgStatus');
+    var title = pageEdit.title.trim();
+    if (!title) { status.textContent = 'Give the page a title.'; return; }
+    if (!pageEdit.blocks.length) { status.textContent = 'Add at least one picture, text or button.'; return; }
+    for (var i = 0; i < pageEdit.blocks.length; i++) {
+      var b = pageEdit.blocks[i];
+      if (b.type === 'text' && !b.text.trim()) { status.textContent = 'Block ' + (i + 1) + ' has no text. Write something or remove it.'; return; }
+      if (b.type === 'button' && !b.label.trim()) { status.textContent = 'Block ' + (i + 1) + ': the button has no text.'; return; }
+      if (b.type === 'button' && !b.target) { status.textContent = 'Block ' + (i + 1) + ': pick what the button opens.'; return; }
+    }
+    var blocks = pageEdit.blocks.map(function (b) {
+      if (b.type === 'image') return { type: 'image', imageId: b.imageId, target: b.target || null };
+      if (b.type === 'button') return { type: 'button', label: b.label.trim(), target: b.target };
+      return { type: 'text', text: b.text.trim(), style: b.style, align: b.align === 'center' ? 'center' : 'left' };
+    });
+    var isNew = !pageEdit.id;
+    btn.disabled = true;
+    status.textContent = 'Saving…';
+    (isNew
+      ? api('/admin/pages', { method: 'POST', body: JSON.stringify({ title: title, blocks: blocks }) })
+      : api('/admin/pages/' + pageEdit.id, { method: 'PUT', body: JSON.stringify({ title: title, blocks: blocks }) }))
+      .then(function (r) {
+        pageEdit.id = r.id;
+        status.textContent = isNew
+          ? 'Saved. To show it in the app, pick "Opens page: ' + title + '" as what a slide, a popup or a banner opens (its Button).'
+          : 'Saved. The app shows the new version the next time the page is opened.';
+        return loadPagesCache().then(function () { renderPageList(); renderPageEditor(); });
+      })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
+      .finally(function () { btn.disabled = false; });
+  });
 
   // ---------- App download link + latest version (Home slider) ----------
   function loadAppDownloadUrl() {

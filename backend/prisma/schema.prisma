@@ -1715,6 +1715,32 @@ model Popup {
   @@index([deletedAt, sortOrder])
 }
 
+/// A page the admin builds in Admin → Pages (owner's request, 2026-11-26: a banner should be able to open the admin's own page, not
+/// only a game). A banner, a popup, a Promotion card or a button on another page opens it in the app (target "page:<id>"). Its
+/// content is a list of blocks, top to bottom: pictures, text and buttons (customPageService.ts).
+model CustomPage {
+  id        String    @id @default(uuid())
+  title     String
+  /// [{ type: "image", imageId, target? } | { type: "text", text, style, align } | { type: "button", label, target }]
+  blocks    Json      @default("[]")
+  active    Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([deletedAt, createdAt])
+}
+
+/// A picture on a custom page, kept like the popups' pictures (the panel shrinks it before upload). Its URL never changes.
+model CustomPageImage {
+  id        String   @id @default(uuid())
+  image     Bytes
+  mimeType  String
+  width     Int
+  height    Int
+  createdAt DateTime @default(now())
+}
+
 // Rocket (JetX / Spaceman style crash): same shape as AviatorRound/AviatorBet.
 model RocketRound {
   id               String      @id @default(uuid())

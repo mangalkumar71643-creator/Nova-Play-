@@ -2,11 +2,11 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { Image, Linking, Modal, Platform, View, useWindowDimensions } from 'react-native';
+import { Image, Modal, Platform, View, useWindowDimensions } from 'react-native';
 import { Text } from './AppText';
 import { API_BASE_URL } from '../api/client';
 import { withPopupSound } from '../sound/ui';
-import { GAME_CATEGORIES } from './GameTile';
+import { DOWNLOAD_TARGET, opener } from '../utils/promoTarget';
 import PromoButton from './PromoButton';
 import TapPressable from './TapPressable';
 
@@ -16,7 +16,7 @@ type HomePopup = {
   width: number;
   height: number;
   imageUrl: string;
-  /** Optional button under the picture (Admin → Popups); buttonTarget is the game it opens, or DOWNLOAD_TARGET. */
+  /** Optional button under the picture (Admin → Popups); buttonTarget is what it opens: a game, Deposit, a custom page, or DOWNLOAD_TARGET. */
   buttonText?: string | null;
   buttonTarget?: string | null;
   /** For a "Download app" button: the link it opens. */
@@ -25,11 +25,7 @@ type HomePopup = {
 
 // A popup whose button downloads the app is for people on the website (the server sends those only to ?web=1);
 // anyone in the installed app has it already.
-const DOWNLOAD_TARGET = 'DOWNLOAD';
 const IS_WEB = Platform.OS === 'web';
-
-// Only screens that are real games can be opened from a popup.
-const GAME_SCREENS = new Set<string>(GAME_CATEGORIES.flatMap((c) => c.games));
 
 // { [popupId]: date the player ticked "Don't show again today" }
 const STORAGE_KEY = 'novaplay:popups:hiddenOn';
@@ -125,20 +121,16 @@ export default function HomePopups() {
   // Only over Home: a popup never comes up on top of a game the player opened.
   if (!current || !isFocused) return null;
 
-  // The popup's game (or, on the website, the app download): its button and its picture open it; this popup closes (its
-  // "Don't show again today" box still counts) and the ones after it are skipped for this launch.
-  const game = current.buttonTarget && GAME_SCREENS.has(current.buttonTarget) ? current.buttonTarget : null;
-  const downloadUrl = IS_WEB && current.buttonTarget === DOWNLOAD_TARGET ? current.buttonUrl : null;
-  const openAnd = (go: () => void) => () => {
-    close();
-    setQueue([]);
-    go();
-  };
-  const open = game
-    ? openAnd(() => (navigation as any).navigate(game))
-    : downloadUrl
-      ? openAnd(() => Linking.openURL(downloadUrl).catch(() => {}))
-      : undefined;
+  // What the popup opens (a game, Deposit, a custom page or, on the website, the app download): its button and its picture open
+  // it; this popup closes (its "Don't show again today" box still counts) and the ones after it are skipped for this launch.
+  const go = opener(navigation, current.buttonTarget, IS_WEB && current.buttonTarget === DOWNLOAD_TARGET ? current.buttonUrl : null);
+  const open = go
+    ? () => {
+        close();
+        setQueue([]);
+        go();
+      }
+    : undefined;
   const buttonText = current.buttonText?.trim();
 
   // Fit the image inside the screen, leaving room for the close button, the button (if any) and the checkbox row.

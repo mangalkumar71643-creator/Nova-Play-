@@ -39,6 +39,7 @@ import FishermansCatchScreen from '../screens/FishermansCatchScreen';
 import BookOfPharaohScreen from '../screens/BookOfPharaohScreen';
 import MoneyComingScreen from '../screens/MoneyComingScreen';
 import GiftCodeScreen from '../screens/GiftCodeScreen';
+import CustomPageScreen from '../screens/CustomPageScreen';
 import JhandiMundaScreen from '../screens/JhandiMundaScreen';
 import RouletteScreen from '../screens/RouletteScreen';
 import K3LotteryScreen from '../screens/K3LotteryScreen';
@@ -230,6 +231,7 @@ function MainNavigator() {
       <Stack.Screen name="BookOfPharaoh" component={BookOfPharaohScreenWithRefresh} />
       <Stack.Screen name="MoneyComing" component={MoneyComingScreenWithRefresh} />
       <Stack.Screen name="GiftCode" component={GiftCodeScreen} />
+      <Stack.Screen name="CustomPage" component={CustomPageScreen} />
       <Stack.Screen name="JhandiMunda" component={JhandiMundaScreenWithRefresh} />
       <Stack.Screen name="Roulette" component={RouletteScreenWithRefresh} />
       <Stack.Screen name="K3Lottery" component={K3LotteryScreenWithRefresh} />

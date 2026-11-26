@@ -12,6 +12,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useGameState } from '../state/GameStateContext';
 import { fonts } from '../theme';
 import TapPressable from '../components/TapPressable';
+import { opener } from '../utils/promoTarget';
 
 const SIDE = 12;
 const TILE_GAP = 10;
@@ -130,9 +131,8 @@ function CategoryBanners({ width }: { width: number }) {
 
   if (n === 0) return null;
 
-  const open = (b: Banner) => {
-    if (b.buttonTarget && GAME_SCREENS.has(b.buttonTarget)) (navigation as any).navigate(b.buttonTarget);
-  };
+  // A banner opens what the admin picked: a game, Deposit or a custom page (a "Download app" banner, website only, its link).
+  const openerOf = (b: Banner) => opener(navigation, b.buttonTarget, b.buttonUrl);
   const active = (pos - 1 + n) % n;
 
   return (
@@ -140,7 +140,7 @@ function CategoryBanners({ width }: { width: number }) {
       <View style={[styles.bannerFrame, { width, height }]} {...(n > 1 ? pan.panHandlers : {})}>
         <Animated.View style={{ flexDirection: 'row', width: width * pages.length, height, transform: [{ translateX: offset }] }}>
           {pages.map((b, i) => (
-            <TapPressable key={`${b.id}-${i}`} onPress={() => open(b)} disabled={!b.buttonTarget} style={{ width, height }} accessibilityLabel={b.title}>
+            <TapPressable key={`${b.id}-${i}`} onPress={() => openerOf(b)?.()} disabled={!openerOf(b)} style={{ width, height }} accessibilityLabel={b.title}>
               <Image source={{ uri: `${API_BASE_URL}${b.imageUrl}` }} style={{ width, height }} resizeMode="cover" />
               {!!b.buttonText && (
                 <LinearGradient colors={['#FF5A5A', RED, '#9A0A1A']} style={styles.bannerButton}>

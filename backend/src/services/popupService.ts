@@ -1,6 +1,7 @@
 import { prisma } from "../db/prismaClient";
 import { ApiError } from "../middleware/errorHandler";
 import { getAppDownloadUrl } from "./settingsService";
+import { liveTarget, livePageIds, pageIdOf } from "./customPageService";
 
 export const POPUP_MIME_TYPES = ["image/webp", "image/jpeg", "image/png"] as const;
 export type PopupMimeType = (typeof POPUP_MIME_TYPES)[number];
@@ -28,10 +29,12 @@ function decodeImage(base64: string): Buffer {
   return image;
 }
 
-/** What the app shows, in order. "Download app" buttons carry the download link. */
+/** What the app shows, in order. "Download app" buttons carry the download link; a custom page that is hidden or deleted is not
+ * opened (the target comes back empty). */
 export async function listLivePopups(kind: PopupKind = "POPUP") {
   const rows = await prisma.popup.findMany({ where: { deletedAt: null, active: true, kind }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: listSelect });
   const downloadUrl = rows.some((r) => r.buttonTarget === DOWNLOAD_TARGET) ? await getAppDownloadUrl() : null;
+  const pages = await livePageIds(rows.map((r) => pageIdOf(r.buttonTarget)).filter((x): x is string => !!x));
   return rows.map((r) => ({
     id: r.id,
     title: r.title,
@@ -39,7 +42,7 @@ export async function listLivePopups(kind: PopupKind = "POPUP") {
     height: r.height,
     imageUrl: imagePath(r),
     buttonText: r.buttonText,
-    buttonTarget: r.buttonTarget,
+    buttonTarget: liveTarget(r.buttonTarget, pages),
     buttonUrl: r.buttonTarget === DOWNLOAD_TARGET ? downloadUrl : null,
   }));
 }

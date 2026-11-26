@@ -1,9 +1,10 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, AppState, Easing, Image, Linking, PanResponder, Platform, View } from 'react-native';
+import { Animated, AppState, Easing, Image, PanResponder, Platform, View } from 'react-native';
 import { API_BASE_URL } from '../api/client';
-import { GAME_CATEGORIES } from './GameTile';
+import { DOWNLOAD_TARGET, opener } from '../utils/promoTarget';
 import PromoButton from './PromoButton';
+import TapPressable from './TapPressable';
 
 type Slide = {
   id: string;
@@ -11,7 +12,7 @@ type Slide = {
   width: number;
   height: number;
   imageUrl: string;
-  /** Optional button under the picture; buttonTarget is the game screen it opens, or DOWNLOAD_TARGET. */
+  /** Optional button under the picture; buttonTarget is what it (and the picture) opens: a game, Deposit, a custom page, or DOWNLOAD_TARGET. */
   buttonText?: string | null;
   buttonTarget?: string | null;
   /** For a "Download app" button: the link it opens. */
@@ -20,11 +21,7 @@ type Slide = {
 
 // "Download app" slides are for people playing on the website; anyone in the
 // installed app already has it, so those slides are left out there.
-const DOWNLOAD_TARGET = 'DOWNLOAD';
 const SHOW_DOWNLOAD_SLIDES = Platform.OS === 'web';
-
-// Only screens that are real games can be opened from a slide's button.
-const GAME_SCREENS = new Set<string>(GAME_CATEGORIES.flatMap((c) => c.games));
 
 const BUTTON_ASPECT = 2.9;
 const BUTTON_MAX_HEIGHT = 46;
@@ -166,13 +163,7 @@ export default function HomeSlider({ width, height, maxImageWidth, panel, button
 
   // The showing slide's button, under the stage (it changes with the slide).
   const current = slides[(pos - 1 + n) % n] ?? slides[0];
-  const buttonTarget = current.buttonTarget && GAME_SCREENS.has(current.buttonTarget) ? current.buttonTarget : null;
-  const downloadUrl = current.buttonTarget === DOWNLOAD_TARGET ? current.buttonUrl : null;
-  const onButtonPress = buttonTarget
-    ? () => (navigation as any).navigate(buttonTarget)
-    : downloadUrl
-      ? () => Linking.openURL(downloadUrl).catch(() => {})
-      : undefined;
+  const onButtonPress = opener(navigation, current.buttonTarget, current.buttonUrl) ?? undefined;
   const buttonHeight = Math.min(BUTTON_MAX_HEIGHT, buttonArea.height - 4);
   const buttonWidth = buttonHeight * BUTTON_ASPECT;
 
@@ -183,14 +174,20 @@ export default function HomeSlider({ width, height, maxImageWidth, panel, button
           {pages.map((s, i) => {
             const aspect = s.width / s.height;
             const h = Math.min(height, maxImageWidth / aspect);
+            // The picture opens what the slide's button opens (a swipe takes the touch over and opens nothing).
+            const open = opener(navigation, s.buttonTarget, s.buttonUrl);
+            const picture = (
+              <Image source={{ uri: `${API_BASE_URL}${s.imageUrl}` }} style={{ width: h * aspect, height: h }} resizeMode="contain" accessibilityLabel={s.title} />
+            );
             return (
               <View key={`${s.id}-${i}`} style={{ width, height, alignItems: 'center', justifyContent: 'flex-end' }}>
-                <Image
-                  source={{ uri: `${API_BASE_URL}${s.imageUrl}` }}
-                  style={{ width: h * aspect, height: h }}
-                  resizeMode="contain"
-                  accessibilityLabel={s.title}
-                />
+                {open ? (
+                  <TapPressable onPress={open} accessibilityRole="button" accessibilityLabel={s.title} testID="home-slide-picture">
+                    {picture}
+                  </TapPressable>
+                ) : (
+                  picture
+                )}
               </View>
             );
           })}

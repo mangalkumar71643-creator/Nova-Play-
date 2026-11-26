@@ -43,6 +43,7 @@ import * as aviatorService from "../services/aviatorService";
 import { getChickenRoadConfig } from "../services/chickenRoadService";
 import { getMinesConfig } from "../services/minesService";
 import * as popupService from "../services/popupService";
+import * as customPageService from "../services/customPageService";
 import * as giftCodeService from "../services/giftCodeService";
 import { getAppDownloadUrl, getAppVersionInfo, getGameSettings, getSupportTelegramUrl, MAX_MAX_PAYOUT, MIN_MAX_PAYOUT, setAppDownloadUrl, setLatestAppVersion, setMaxPayout, setSupportTelegramUrl } from "../services/settingsService";
 import { SOLO_GAME_KEYS, listSoloRules, setSoloRules } from "../services/soloRuleService";
@@ -1588,11 +1589,11 @@ router.get(
   })
 );
 
-// Empty text / target clears the button. The target is the app screen name
-// of a game (e.g. "Aviator"); the app ignores names it doesn't know.
+// Empty text / target clears the button. The target is the app screen name of a game (e.g. "Aviator"), "Deposit", "DOWNLOAD"
+// or a custom page ("page:<id>", Admin → Pages); the app ignores targets it doesn't know.
 const popupButtonSchema = {
   buttonText: z.string().trim().max(20).nullish().transform((v) => v || null),
-  buttonTarget: z.string().trim().regex(/^[A-Za-z0-9]{0,40}$/).nullish().transform((v) => v || null),
+  buttonTarget: z.union([z.literal(""), z.string().trim().regex(customPageService.TARGET_RE)]).nullish().transform((v) => v || null),
 };
 const createPopupSchema = z.object({
   title: z.string().trim().min(1).max(80),
@@ -1606,7 +1607,9 @@ const createPopupSchema = z.object({
 router.post(
   "/popups",
   asyncHandler(async (req, res) => {
-    res.status(201).json(await popupService.createPopup(createPopupSchema.parse(req.body)));
+    const input = createPopupSchema.parse(req.body);
+    await customPageService.checkTarget(input.buttonTarget);
+    res.status(201).json(await popupService.createPopup(input));
   })
 );
 
@@ -1619,7 +1622,9 @@ const updatePopupSchema = z.object({
 router.patch(
   "/popups/:id",
   asyncHandler(async (req, res) => {
-    res.json(await popupService.updatePopup(req.params.id, updatePopupSchema.parse(req.body)));
+    const input = updatePopupSchema.parse(req.body);
+    await customPageService.checkTarget(input.buttonTarget);
+    res.json(await popupService.updatePopup(req.params.id, input));
   })
 );
 
@@ -1637,6 +1642,51 @@ router.delete(
   asyncHandler(async (req, res) => {
     await popupService.deletePopup(req.params.id);
     res.status(204).end();
+  })
+);
+
+// --- Custom pages (Admin → Pages): what a banner, a popup or a page's button can open in the app ---
+
+router.get(
+  "/pages",
+  asyncHandler(async (_req, res) => {
+    res.json(await customPageService.listPages());
+  })
+);
+
+const pageSchema = z.object({ title: z.string().trim().min(1).max(80), blocks: customPageService.blocksSchema });
+router.post(
+  "/pages",
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await customPageService.createPage(pageSchema.parse(req.body)));
+  })
+);
+
+router.put(
+  "/pages/:id",
+  asyncHandler(async (req, res) => {
+    res.json(await customPageService.updatePage(req.params.id, pageSchema.partial().extend({ active: z.boolean().optional() }).parse(req.body)));
+  })
+);
+
+router.delete(
+  "/pages/:id",
+  asyncHandler(async (req, res) => {
+    await customPageService.deletePage(req.params.id);
+    res.status(204).end();
+  })
+);
+
+const pageImageSchema = z.object({
+  imageBase64: z.string().min(1),
+  mimeType: z.enum(customPageService.PAGE_IMAGE_MIME_TYPES),
+  width: z.number().int().min(50).max(2400),
+  height: z.number().int().min(20).max(12000),
+});
+router.post(
+  "/pages/images",
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await customPageService.uploadPageImage(pageImageSchema.parse(req.body)));
   })
 );
 

@@ -9,6 +9,7 @@ import { API_BASE_URL } from '../api/client';
 import ScreenContainer from '../components/ScreenContainer';
 import { colors, gradients, radius, spacing, typography } from '../theme';
 import TapPressable from '../components/TapPressable';
+import { DOWNLOAD_TARGET, opener } from '../utils/promoTarget';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -69,9 +70,9 @@ export default function PromotionScreen() {
         return navigation.navigate('Help');
     }
   };
-  // A banner opens its game (the admin's choice); "Download app" banners do nothing in the app.
+  // A banner opens what the admin picked (a game, Deposit or a custom page); "Download app" banners do nothing in the app.
   const openBanner = (b: PromoBanner) => {
-    if (b.buttonTarget && b.buttonTarget !== 'DOWNLOAD') navigation.navigate(b.buttonTarget);
+    if (b.buttonTarget !== DOWNLOAD_TARGET) opener(navigation, b.buttonTarget)?.();
   };
 
   return (
