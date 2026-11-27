@@ -74,5 +74,12 @@ node mobile/scripts/art/build.js redbutton/lcd   # one piece
   red-brown rim (the bevel darkens the lower edges to near black), and the Mines pieces' black drop shadows are turned red-brown. In the panel:
   button text **PLAY**, the game, "Remove background" on (checked through the real panel: nothing visible cleared, and each one alone on Home
   at 390 x 844 with its PLAY opening the game). Build one with `node scripts/art/build.js hot-slides/mines-2`, or all with `hot-slides`.
+* `cutout_white.py` turns a slide the owner had re-made sharper by an image tool (a JPG on white) into a transparent PNG for the Home
+  Slider: the white is un-blended away (glows and sparkles stay as see-through gold), while shapes stay solid (whatever a solid outline
+  encloses, small convex pieces such as chips and gems filled to their hull, lone white diamonds filled to theirs); shadows turn
+  red-brown and near-white edges get a faint tint so the panel's "Remove background" step leaves them. `assets/promo/mines-slide-1-hd.png`
+  is the owner's re-make of Mines 1 (`mines-slide-1-hd-source.jpg`) cut out this way, with its top ruby then moved 52 px down by hand
+  (smaller than the panel's speck limit, the panel's crop would have cut it in half). Checked through the real panel and on Home at
+  390 x 844: whole diamonds, solid chips, no white fringe (the JPG as sent leaves broken diamonds and a light rim round the board).
 * Size: the pictures are WEBP at quality 80 at most (`to_webp.py` caps what `build.js` writes; `shrink_webp.py` does the same for pictures that
   are already in `assets/`, and leaves a picture alone if it would look noticeably worse). The fonts are small subsets too, see `scripts/fonts/`.
