@@ -2,23 +2,43 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Text } from '../../components/AppText';
 import TapPressable from '../../components/TapPressable';
-import { PromoTone } from '../../components/PromoButton';
+import PromoButton, { PromoTone } from '../../components/PromoButton';
 import { colors, fonts, spacing, typography } from '../../theme';
 
 /*
  * The blocks of the admin's own pages (Admin → Promotion Pages / Pages; customPageService.ts on the server) that are more than a
- * picture or a button: text, list, table, notice box, countdown, code with Copy, questions & answers, divider and space.
+ * picture or a button: text, list, table, notice box, countdown, code with Copy, questions & answers, divider and space, and a
+ * picture with a heading, text and a button on it (hero).
  * CustomPageScreen lays them out top to bottom; the panel's preview (admin.html, renderPagePreview) draws them the same way.
  */
 
 export type TextColor = 'default' | 'gold' | 'white' | 'red' | 'green';
 export type PageBackground = 'dark' | 'red' | 'blue' | 'purple' | 'green';
 
+export type Shade = 'none' | 'light' | 'medium' | 'strong';
+export type PictureSize = 'full' | 'large' | 'medium' | 'small';
+
 export type Block =
-  | { type: 'image'; imageUrl: string; width: number; height: number; target: string | null }
+  | { type: 'image'; imageUrl: string; width: number; height: number; target: string | null; size?: PictureSize; rounded?: boolean }
+  | {
+      type: 'hero';
+      imageUrl: string;
+      width: number;
+      height: number;
+      heading: string;
+      /** its text (the server's `text` is the stand-in an older app shows) */
+      body?: string;
+      buttonLabel: string;
+      buttonTarget: string | null;
+      buttonColor?: PromoTone;
+      position: 'top' | 'middle' | 'bottom';
+      align: 'left' | 'center';
+      shade: Shade;
+      textColor: 'white' | 'gold';
+    }
   | { type: 'text'; text: string; style: 'heading' | 'body' | 'note'; align: 'left' | 'center'; color?: TextColor }
   | { type: 'button'; label: string; target: string; color?: PromoTone }
   | { type: 'list'; items: string[]; ordered: boolean }
@@ -37,6 +57,12 @@ export const BACKGROUNDS: Record<Exclude<PageBackground, 'dark'>, [string, strin
   purple: ['#2C0F55', '#130628'],
   green: ['#0B3A24', '#05180F'],
 };
+/** The colour a page's background picture fades into at its foot (about the middle of the page's background). */
+export const BACKGROUND_FADE: Record<PageBackground, string> = { dark: '#140507', red: '#36060E', blue: '#081536', purple: '#1E0A3E', green: '#082A1A' };
+/** How dark a shade makes a picture. */
+export const SHADE: Record<Shade, number> = { none: 0, light: 0.25, medium: 0.45, strong: 0.65 };
+/** A picture's width as a share of the page's. */
+export const PICTURE_WIDTH: Record<PictureSize, number> = { full: 1, large: 0.85, medium: 0.65, small: 0.45 };
 
 const TEXT_COLORS: Record<Exclude<TextColor, 'default'>, string> = {
   gold: '#FFD45E',
@@ -234,4 +260,45 @@ export function DividerBlock() {
 
 export function SpaceBlock({ b }: { b: Extract<Block, { type: 'space' }> }) {
   return <View style={{ height: b.size === 's' ? 8 : b.size === 'l' ? 40 : 20 }} />;
+}
+
+/** A picture with a heading, text and a button on it, at its top, middle or bottom, darkened towards the words. */
+export function HeroBlock({ b, width, uri, onButton, testID }: { b: Extract<Block, { type: 'hero' }>; width: number; uri: string; onButton: (() => void) | null; testID?: string }) {
+  const h = (width * b.height) / b.width;
+  const k = SHADE[b.shade] ?? SHADE.medium;
+  const dark = (a: number) => `rgba(12,3,5,${Math.min(0.92, a).toFixed(2)})`;
+  const overlay: [string, string, string] =
+    b.position === 'top' ? [dark(k + 0.2), dark(k * 0.6), 'rgba(12,3,5,0)'] : b.position === 'middle' ? [dark(k * 0.7), dark(k), dark(k * 0.7)] : ['rgba(12,3,5,0)', dark(k * 0.6), dark(k + 0.2)];
+  const ink = b.textColor === 'gold' ? '#FFD45E' : '#FFFFFF';
+  const center = b.align === 'center';
+  const body = b.body ?? '';
+  return (
+    <View style={{ width, minHeight: h }} testID={testID}>
+      <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" fadeDuration={150} />
+      {k > 0 ? <LinearGradient colors={overlay} style={StyleSheet.absoluteFill} pointerEvents="none" /> : null}
+      <View
+        style={{
+          minHeight: h,
+          justifyContent: b.position === 'top' ? 'flex-start' : b.position === 'middle' ? 'center' : 'flex-end',
+          alignItems: center ? 'center' : 'flex-start',
+          paddingHorizontal: spacing.xl,
+          paddingVertical: spacing.xl,
+        }}
+      >
+        {b.heading ? (
+          <Text style={{ color: ink, fontSize: 27, lineHeight: 33, fontFamily: fonts.black, textAlign: center ? 'center' : 'left', textShadowColor: 'rgba(0,0,0,0.75)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 5 }}>
+            {b.heading}
+          </Text>
+        ) : null}
+        {body ? (
+          <Text style={{ color: '#FFFFFF', fontSize: typography.md, lineHeight: 21, marginTop: spacing.xs, textAlign: center ? 'center' : 'left', textShadowColor: 'rgba(0,0,0,0.75)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
+            {body}
+          </Text>
+        ) : null}
+        {b.buttonLabel && onButton ? (
+          <PromoButton label={b.buttonLabel} tone={b.buttonColor} width={Math.min(280, width * 0.72)} height={46} onPress={onButton} style={{ marginTop: spacing.md }} testID={testID ? `${testID}-button` : undefined} />
+        ) : null}
+      </View>
+    </View>
+  );
 }

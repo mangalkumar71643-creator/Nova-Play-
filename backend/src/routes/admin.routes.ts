@@ -1667,6 +1667,8 @@ const pageSchema = z.object({
   title: z.string().trim().min(1, "Give the page a title.").max(80),
   blocks: customPageService.blocksSchema,
   background: z.enum(customPageService.PAGE_BACKGROUNDS).optional(),
+  bgImageId: z.string().uuid().nullable().optional(),
+  bgShade: z.enum(customPageService.SHADES).optional(),
 });
 router.post(
   "/pages",
@@ -1696,6 +1698,14 @@ const pageImageSchema = z.object({
   width: z.number().int().min(50).max(2400),
   height: z.number().int().min(20).max(12000),
 });
+// The banner's own picture as a page picture (Promotion Pages: its picture on top of its page)
+router.post(
+  "/pages/images/from-banner/:id",
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await customPageService.copyBannerPicture(req.params.id));
+  })
+);
+
 router.post(
   "/pages/images",
   asyncHandler(async (req, res) => {

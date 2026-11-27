@@ -12,6 +12,7 @@ import { RootStackParamList } from '../navigation/types';
 import { colors, spacing, typography } from '../theme';
 import { opener } from '../utils/promoTarget';
 import {
+  BACKGROUND_FADE,
   BACKGROUNDS,
   Block,
   BoxBlock,
@@ -19,8 +20,12 @@ import {
   CountdownBlock,
   DividerBlock,
   FaqBlock,
+  HeroBlock,
   ListBlock,
   PageBackground,
+  PICTURE_WIDTH,
+  SHADE,
+  Shade,
   SpaceBlock,
   TableBlock,
   TextBlock,
@@ -29,12 +34,14 @@ import {
 /*
  * One of the admin's own pages (Admin → Promotion Pages / Pages), opened from a banner, an app-open popup, a Promotion card, a
  * category banner or a button on another page. The page is the admin's: pictures shown full width (their own designs, like a
- * poster), text, lists, tables, notice boxes, a countdown, a code to copy, questions & answers and buttons, top to bottom, on the
- * background colour the admin picked; a button or a picture opens a game, Deposit, another page or a website
- * (utils/promoTarget.ts). Blocks this app doesn't know are left out.
+ * poster, full width or smaller, square or round-cornered), pictures with words and a button on them, text, lists, tables,
+ * notice boxes, a countdown, a code to copy, questions & answers and buttons, top to bottom, on the background colour the admin
+ * picked and, behind it all, the page's own background picture (it scrolls with the page); a button or a picture opens a game,
+ * Deposit, another page or a website (utils/promoTarget.ts). Blocks this app doesn't know are left out.
  */
 
-type Page = { id: string; title: string; background?: PageBackground; blocks: Block[] };
+type Picture = { imageUrl: string; width: number; height: number };
+type Page = { id: string; title: string; background?: PageBackground; backgroundImage?: Picture | null; backgroundShade?: Shade; blocks: Block[] };
 
 /** The widest the page is drawn (tablets and the website keep a phone's column, centred). */
 const MAX_WIDTH = 560;
@@ -50,7 +57,8 @@ export default function CustomPageScreen() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/pages/${encodeURIComponent(id ?? '')}`);
+      // v=2: this app draws pictures with words on them (older apps get them as a picture, text and a button)
+      const res = await fetch(`${API_BASE_URL}/pages/${encodeURIComponent(id ?? '')}?v=2`);
       if (res.status === 404) {
         setPage(null);
         setError('This page is not available any more.');
@@ -81,19 +89,31 @@ export default function CustomPageScreen() {
     switch (b.type) {
       case 'image': {
         const open = opener(navigation, b.target);
+        const share = PICTURE_WIDTH[b.size ?? 'full'] ?? 1;
+        const w = Math.round(contentW * share);
         const picture = (
-          <Image source={{ uri: `${API_BASE_URL}${b.imageUrl}` }} style={{ width: contentW, height: (contentW * b.height) / b.width }} resizeMode="cover" fadeDuration={150} />
+          <Image
+            source={{ uri: `${API_BASE_URL}${b.imageUrl}` }}
+            style={{ width: w, height: (w * b.height) / b.width, borderRadius: b.rounded ? 14 : 0 }}
+            resizeMode="cover"
+            fadeDuration={150}
+          />
         );
+        const around = { alignItems: 'center' as const, marginVertical: share < 1 || b.rounded ? spacing.sm : 0 };
         return open ? (
-          <TapPressable key={i} onPress={open} accessibilityRole="button" testID={`page-image-${i}`}>
-            {picture}
-          </TapPressable>
+          <View key={i} style={around}>
+            <TapPressable onPress={open} accessibilityRole="button" testID={`page-image-${i}`}>
+              {picture}
+            </TapPressable>
+          </View>
         ) : (
-          <View key={i} testID={`page-image-${i}`}>
+          <View key={i} style={around} testID={`page-image-${i}`}>
             {picture}
           </View>
         );
       }
+      case 'hero':
+        return <HeroBlock key={i} b={b} width={contentW} uri={`${API_BASE_URL}${b.imageUrl}`} onButton={opener(navigation, b.buttonTarget)} testID={`page-hero-${i}`} />;
       case 'button': {
         const open = opener(navigation, b.target);
         return (
@@ -127,6 +147,10 @@ export default function CustomPageScreen() {
   };
 
   const tint = page?.background && page.background !== 'dark' ? BACKGROUNDS[page.background] : null;
+  // the page's own background picture: full width at the top, scrolling with the page, fading into the background colour
+  const bg = page?.backgroundImage ?? null;
+  const bgH = bg ? (contentW * bg.height) / bg.width : 0;
+  const bgShade = SHADE[page?.backgroundShade ?? 'medium'] ?? SHADE.medium;
 
   return (
     <ScreenContainer scroll={false} contentStyle={{ paddingHorizontal: 0 }}>
@@ -146,7 +170,16 @@ export default function CustomPageScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.gold} />}
           showsVerticalScrollIndicator={false}
         >
-          <View style={{ width: contentW }}>{page.blocks.map(block)}</View>
+          <View style={{ width: contentW }}>
+            {bg ? (
+              <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: contentW, height: bgH }} testID="page-background-picture">
+                <Image source={{ uri: `${API_BASE_URL}${bg.imageUrl}` }} style={{ width: contentW, height: bgH }} resizeMode="cover" fadeDuration={150} />
+                {bgShade > 0 ? <View style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(12,3,5,${bgShade})` }]} /> : null}
+                <LinearGradient colors={['rgba(0,0,0,0)', BACKGROUND_FADE[page.background ?? 'dark'] ?? BACKGROUND_FADE.dark]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.min(180, bgH * 0.3) }} />
+              </View>
+            ) : null}
+            {page.blocks.map(block)}
+          </View>
         </ScrollView>
       ) : error ? (
         <ScrollView contentContainerStyle={styles.center} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.gold} />}>

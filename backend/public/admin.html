@@ -335,6 +335,34 @@
   .pw-sticky-prev { position: fixed; right: 14px; bottom: 16px; z-index: 30; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
   @media (max-width: 900px) { body.pw-building .pw-sticky-prev { display: block; } }
   @media (min-width: 901px) { #pwPreviewCard { position: sticky; top: 12px; } }
+  .pw-modes { display: flex; gap: 6px; margin: 16px 0 10px; }
+  .pw-mode { flex: 1; padding: 11px 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-alt); color: var(--text); font-weight: 800; font-size: 13px; }
+  .pw-mode.on { border-color: var(--amber); background: var(--amber-soft); color: var(--amber); }
+  .pw-bgpic-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .pw-bgpic-row img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+  #pwCanvasWrap .pp-phone { width: 100%; max-width: 400px; }
+  #pwCanvasWrap .pp-body { max-height: none; overflow: visible; }
+  .cv-hint { color: var(--text-secondary); font-size: 12.5px; text-align: center; margin: 0 0 8px; }
+  .cv-block { position: relative; }
+  .cv-block > .cv-view { position: relative; cursor: pointer; }
+  .cv-block > .cv-view:hover { outline: 1px dashed rgba(240,185,61,0.55); outline-offset: -1px; }
+  .cv-block.sel > .cv-view { outline: 2px solid #F0B93D; outline-offset: -2px; }
+  .cv-block.bad > .cv-view { outline: 2px solid #ef4444; outline-offset: -2px; }
+  .cv-panel { cursor: default; margin: 6px 8px 14px; padding: 10px; border-radius: 12px; background: #101614; border: 1.5px solid var(--amber); box-shadow: 0 8px 24px rgba(0,0,0,0.55); color: var(--text); font-size: 14px; }
+  .cv-panel .pw-block-head { color: var(--amber); }
+  .cv-panel label { color: var(--text-secondary); }
+  .cv-add { display: block; width: calc(100% - 32px); margin: 14px 16px; padding: 12px; border-radius: 12px; border: 1.5px dashed rgba(240,185,61,0.6); background: rgba(240,185,61,0.07); color: #FFDE8C; font-weight: 800; font-size: 13.5px; cursor: pointer; }
+  .cv-tools { margin: 6px 8px 12px; padding: 8px; border-radius: 12px; background: #101614; border: 1px solid var(--border); }
+  .cv-tools .pw-tools { margin: 0; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  .pp-body { position: relative; }
+  .pp-layer { position: relative; }
+  .pp-bgpic { position: absolute; left: 0; right: 0; top: 0; background-size: cover; background-position: top center; pointer-events: none; }
+  .pp-hero { position: relative; display: flex; flex-direction: column; background-size: cover; background-position: center; }
+  .pp-hero .sh { position: absolute; inset: 0; }
+  .pp-hero .in { position: relative; display: flex; flex-direction: column; padding: 20px; flex: 1; }
+  .pp-hero .h { font-size: 23px; font-weight: 900; line-height: 1.2; text-shadow: 0 2px 5px rgba(0,0,0,0.75); white-space: pre-wrap; }
+  .pp-hero .t { color: #fff; font-size: 13.5px; line-height: 1.5; margin-top: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.75); white-space: pre-wrap; }
+  .pp-hero .pp-btn { margin: 12px 0 0; width: 72%; }
   .pp-list { padding: 6px 16px; }
   .pp-list .li { display: flex; gap: 8px; align-items: flex-start; color: #fff; font-size: 14px; line-height: 1.5; margin: 6px 0; }
   .pp-list .dot { width: 7px; height: 7px; border-radius: 50%; background: #F0B93D; margin: 7px 4px 0; flex: none; }
@@ -891,16 +919,25 @@
               <div class="item-meta" id="pwStep2Note" style="margin:-6px 0 10px;"></div>
               <label for="pwPageTitle">Page title (shown at the top of the page)</label>
               <input id="pwPageTitle" maxlength="80" placeholder="e.g. Weekly Deposit Bonus" />
-              <label>Page background</label>
+              <label>Page background colour</label>
               <div class="pw-chips" id="pwBackground"></div>
+              <label>Background picture (behind the whole page)</label>
+              <div id="pwBgPic"></div>
               <div id="pwTemplatesWrap">
                 <label>Start quickly from a ready layout (you change every word)</label>
                 <div class="pw-templates" id="pwTemplates"></div>
               </div>
-              <label style="margin-top:16px;">The page, top to bottom</label>
-              <div id="pwBlocks"></div>
-              <label>Add to the page</label>
-              <div class="pw-tools" id="pwTools"></div>
+              <div class="pw-modes" id="pwModes"></div>
+              <div id="pwCanvasWrap">
+                <div class="cv-hint">Tap any part of the page to change it, move it or add something below it.</div>
+                <div id="pwCanvas"></div>
+              </div>
+              <div id="pwListWrap">
+                <label style="margin-top:16px;">The page, top to bottom</label>
+                <div id="pwBlocks"></div>
+                <label>Add to the page</label>
+                <div class="pw-tools" id="pwTools"></div>
+              </div>
               <input id="pwPicture" type="file" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" />
               <div class="form-row" style="margin-top:6px;">
                 <button class="btn" id="pwSave" style="flex:none;">Save page</button>
@@ -4561,12 +4598,12 @@
   // Owner, 2026-11-27: "first the banner, then its page, with every tool a page may need". The same builder edits any page
   // (Pages → Edit / + New page, "Edit page" on a slide or a popup): then there is no banner step.
   var PW_TOOLS = [
-    ['image', '&#128444;', 'Picture'], ['heading', 'H', 'Heading'], ['body', '&para;', 'Text'], ['note', '&#9998;', 'Small note'],
+    ['image', '&#128444;', 'Picture'], ['hero', '&#127912;', 'Picture + words on it'], ['heading', 'H', 'Heading'], ['body', '&para;', 'Text'], ['note', '&#9998;', 'Small note'],
     ['button', '&#9654;', 'Button'], ['list', '&#9776;', 'List'], ['table', '&#9638;', 'Table'], ['box', '&#9873;', 'Notice box'],
     ['countdown', '&#9201;', 'Countdown'], ['code', '#', 'Code to copy'], ['faq', '?', 'Questions &amp; answers'],
     ['divider', '&mdash;', 'Divider line'], ['space', '&#8597;', 'Space'],
   ];
-  var PW_NAMES = { image: 'PICTURE', heading: 'HEADING', body: 'TEXT', note: 'SMALL NOTE', button: 'BUTTON', list: 'LIST', table: 'TABLE', box: 'NOTICE BOX', countdown: 'COUNTDOWN', code: 'CODE TO COPY', faq: 'QUESTIONS & ANSWERS', divider: 'DIVIDER LINE', space: 'SPACE' };
+  var PW_NAMES = { image: 'PICTURE', hero: 'PICTURE + WORDS ON IT', heading: 'HEADING', body: 'TEXT', note: 'SMALL NOTE', button: 'BUTTON', list: 'LIST', table: 'TABLE', box: 'NOTICE BOX', countdown: 'COUNTDOWN', code: 'CODE TO COPY', faq: 'QUESTIONS & ANSWERS', divider: 'DIVIDER LINE', space: 'SPACE' };
   var PW_COLORS = [['gold', '#F0B93D', 'Gold'], ['red', '#E3162C', 'Red'], ['green', '#1DB36B', 'Green'], ['blue', '#2F7BFF', 'Blue'], ['purple', '#8B3DFF', 'Purple']];
   var PW_TEXT_COLORS = [['default', '', 'Normal'], ['gold', '#FFD45E', 'Gold'], ['white', '#FFFFFF', 'White'], ['red', '#FF5A6A', 'Red'], ['green', '#4BE39A', 'Green']];
   var PW_BACKGROUNDS = [['dark', '#170709', 'Dark'], ['red', '#4A0812', 'Red'], ['blue', '#0B1E4A', 'Blue'], ['purple', '#2C0F55', 'Purple'], ['green', '#0B3A24', 'Green']];
@@ -4605,7 +4642,9 @@
     ]; }],
   ];
 
-  var pw = null; // { mode: 'banner'|'page', step: 1|2, banner, page: { id, title, background, active, blocks }, pic, dirty, bad }
+  // { mode: 'banner'|'page', step: 1|2, banner, page: { id, title, background, active, blocks, bgImageId, bgShade, bgPic }, pic, dirty,
+  //   bad (a block to fix), view ('page': edit on the page | 'list'), sel (the block open on the page), adding (where tools add), pick }
+  var pw = null;
 
   function pwBannerPage(banner) {
     var id = banner && banner.buttonTarget && banner.buttonTarget.indexOf('page:') === 0 ? banner.buttonTarget.slice(5) : null;
@@ -4613,11 +4652,13 @@
   }
   // A copy of a saved page for the builder (what the server left out gets its default).
   function pwEditable(page) {
-    var copy = JSON.parse(JSON.stringify({ id: page.id, title: page.title, background: page.background || 'dark', active: page.active, blocks: page.blocks }));
+    var copy = JSON.parse(JSON.stringify({ id: page.id, title: page.title, background: page.background || 'dark', active: page.active, blocks: page.blocks, bgImageId: page.bgImageId || null, bgShade: page.backgroundShade || 'medium', bgPic: page.backgroundImage || null }));
     copy.blocks.forEach(function (b) {
       if (b.type === 'text') { b.color = b.color || 'default'; b.style = b.style || 'body'; }
       if (b.type === 'image' || b.type === 'button') b.target = b.target || '';
       if (b.type === 'button') b.color = b.color || 'red';
+      if (b.type === 'image') { b.size = b.size || 'full'; b.rounded = !!b.rounded; }
+      if (b.type === 'hero') { b.buttonTarget = b.buttonTarget || ''; b.heading = b.heading || ''; b.text = b.text || ''; b.buttonLabel = b.buttonLabel || ''; }
     });
     return copy;
   }
@@ -4839,6 +4880,8 @@
         pw.step = 2;
         pwRender();
         window.scrollTo(0, 0);
+        // a new page starts with the banner's own picture on top (the owner expects it there)
+        if (!pw.page.id && !pw.page.blocks.length) pwBannerPicture(0);
       });
     })
       .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; })
@@ -4846,18 +4889,28 @@
   });
 
   // ----- step 2: the page builder
+  // Two ways to build a page. "Edit on the page" (the default): the page as the app shows it; tap any part of it and its settings
+  // open right under it (move, copy, delete, "+ Add below"). "All blocks": every block's settings in a list, the preview beside it.
+  var PW_SIZES = [['full', '', 'Full width'], ['large', '', 'Large'], ['medium', '', 'Medium'], ['small', '', 'Small']];
+  var PW_SHADES = [['none', '', 'None'], ['light', '', 'Light'], ['medium', '', 'Medium'], ['strong', '', 'Strong']];
+  var PW_SHADE_K = { none: 0, light: 0.25, medium: 0.45, strong: 0.65 };
+  var PW_WIDTH = { full: 100, large: 85, medium: 65, small: 45 };
+  var PW_FADE = { dark: '#140507', red: '#36060E', blue: '#081536', purple: '#1E0A3E', green: '#082A1A' };
+
   function pwChips(name, items, value, i) {
     return '<div class="pw-chips">' + items.map(function (c) {
       return '<button type="button" class="pw-chip' + (c[0] === value ? ' on' : '') + '" data-pw-chip="' + name + '" data-v="' + c[0] + '"' + (i === undefined ? '' : ' data-i="' + i + '"') + '>' +
         (c[1] ? '<span class="sw" style="background:' + c[1] + ';"></span>' : '') + escapeHtml(c[2]) + '</button>';
     }).join('') + '</div>';
   }
-  function pwTargetHtml(i, value) {
+  // What a button / a picture opens; `field` is the block's field ("target", or "buttonTarget" for a picture with text on it).
+  function pwTargetHtml(i, value, field) {
+    field = field || 'target';
     var isUrl = value && value.indexOf('url:') === 0;
     var opts = targetOptionsHtml(isUrl ? '' : value, { noDownload: true, exceptPage: pw.page.id });
     opts = opts.replace('<option value="">Opens: nothing</option>', '<option value="">Opens: nothing</option><option value="' + PW_URL + '"' + (isUrl ? ' selected' : '') + '>Opens a website link (Telegram, WhatsApp…)</option>');
-    return '<select data-pw-target data-i="' + i + '">' + opts + '</select>' +
-      (isUrl ? '<input data-pw-url data-i="' + i + '" maxlength="490" placeholder="https://t.me/your_channel" value="' + escapeHtml(value.slice(4)) + '" />' : '');
+    return '<select data-pw-target data-f="' + field + '" data-i="' + i + '">' + opts + '</select>' +
+      (isUrl ? '<input data-pw-url data-f="' + field + '" data-i="' + i + '" maxlength="490" placeholder="https://t.me/your_channel" value="' + escapeHtml(value.slice(4)) + '" />' : '');
   }
   function pwToLocalInput(iso) {
     var d = new Date(iso);
@@ -4865,14 +4918,32 @@
     var pad = function (n) { return String(n).padStart(2, '0'); };
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
+  function pwSrc(x) { return x.localUrl || API + x.imageUrl; }
+  function pwPicRow(b, i, note) {
+    return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><img class="pg-thumb" src="' + pwSrc(b) + '" alt="" style="max-width:96px;max-height:120px;" />' +
+      '<div style="flex:1;min-width:150px;"><div class="hint" style="margin:0 0 6px;">' + b.width + ' × ' + b.height + (note ? ' · ' + note : '') + '</div>' +
+      '<button type="button" class="btn secondary small" data-pw-repic="' + i + '">Change picture</button></div></div>';
+  }
 
   function pwBlockBody(b, i) {
     var e = escapeHtml;
     switch (b.type) {
       case 'image':
-        return '<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;"><img class="pg-thumb" src="' + (b.localUrl || API + b.imageUrl) + '" alt="" />' +
-          '<div style="flex:1;min-width:180px;"><div class="hint" style="margin:0 0 6px;">' + b.width + ' × ' + b.height + ' · shown full width. Tapping it opens (optional):</div>' +
-          '<div class="pw-row" style="margin:0;">' + pwTargetHtml(i, b.target || '') + '</div></div></div>';
+        return pwPicRow(b, i, 'shown ' + (b.size === 'full' || !b.size ? 'full width' : (PW_WIDTH[b.size] + '% wide')) + (b.rounded ? ', round corners' : '')) +
+          '<label style="margin:10px 0 4px;">Size</label>' + pwChips('size', PW_SIZES, b.size || 'full', i) +
+          '<label style="display:flex;gap:8px;align-items:center;cursor:pointer;margin:8px 0 0;"><input type="checkbox" data-pw-rounded data-i="' + i + '"' + (b.rounded ? ' checked' : '') + ' style="width:auto;" /> Round corners</label>' +
+          '<label style="margin:10px 0 4px;">Tapping it opens (optional)</label><div class="pw-row" style="margin:0;">' + pwTargetHtml(i, b.target || '') + '</div>';
+      case 'hero':
+        return pwPicRow(b, i, 'the words and the button sit on the picture') +
+          '<label style="margin:10px 0 4px;">Heading on the picture</label><input data-pw-field="heading" data-i="' + i + '" maxlength="120" placeholder="e.g. DIWALI DHAMAKA" value="' + e(b.heading || '') + '" />' +
+          '<label style="margin:10px 0 4px;">Text on the picture (optional)</label><textarea data-pw-field="text" data-i="' + i + '" maxlength="600" placeholder="e.g. Deposit today and get extra" style="min-height:52px;">' + e(b.text || '') + '</textarea>' +
+          '<label style="margin:10px 0 4px;">Where the words sit</label>' + pwChips('position', [['top', '', 'Top'], ['middle', '', 'Middle'], ['bottom', '', 'Bottom']], b.position || 'bottom', i) +
+          pwChips('align', [['center', '', 'Centre'], ['left', '', 'Left']], b.align || 'center', i) +
+          '<label style="margin:10px 0 4px;">Darken the picture (so the words read well)</label>' + pwChips('shade', PW_SHADES, b.shade || 'medium', i) +
+          '<label style="margin:10px 0 4px;">Heading colour</label>' + pwChips('textColor', [['white', '#FFFFFF', 'White'], ['gold', '#FFD45E', 'Gold']], b.textColor || 'white', i) +
+          '<label style="margin:10px 0 4px;">Button on the picture (optional)</label>' +
+          '<div class="pw-row" style="margin:0;"><input data-pw-field="buttonLabel" data-i="' + i + '" maxlength="30" placeholder="e.g. DEPOSIT NOW (empty = no button)" value="' + e(b.buttonLabel || '') + '" /></div>' +
+          '<div class="pw-row">' + pwTargetHtml(i, b.buttonTarget || '', 'buttonTarget') + '</div>' + pwChips('buttonColor', PW_COLORS, b.buttonColor || 'red', i);
       case 'text':
         return '<textarea data-pw-field="text" data-i="' + i + '" maxlength="3000" placeholder="' + (b.style === 'heading' ? 'Heading, e.g. Diwali Dhamaka Offer' : b.style === 'note' ? 'A small grey note, e.g. T&C apply' : 'Your text. Press Enter for a new line.') + '">' + e(b.text || '') + '</textarea>' +
           '<div class="pw-row"><select data-pw-field="style" data-i="' + i + '">' +
@@ -4932,186 +5003,56 @@
     return '';
   }
   function pwKind(b) { return b.type === 'text' ? b.style : b.type; }
-
-  function pwRenderStep2() {
-    var page = pw.page;
-    document.getElementById('pwStep2Title').textContent = pw.mode === 'page' ? (page.id ? 'Edit page' : 'New page') : 'Step 2 · Its page';
-    var note = '';
-    if (pw.mode === 'banner') {
-      var t = pw.banner.buttonTarget;
-      note = !page.id && t && t.indexOf('page:') !== 0
-        ? 'This banner opens ' + escapeHtml(gameName(t)) + ' now. Saving the page makes it open this page instead.'
-        : page.id ? 'Tapping the banner "' + escapeHtml(pw.banner.title) + '" opens this page.' : 'Tapping the banner "' + escapeHtml(pw.banner.title) + '" will open this page once you save it.';
-    } else {
-      var uses = page.id ? pageUsers(page.id) : [];
-      note = page.id ? (uses.length ? 'Opened by ' + escapeHtml(uses.join(', ')) + '.' : 'Nothing opens this page yet: pick it as what a slide, a popup or a banner opens.') : 'A page of its own: once saved, pick it as what a slide, a popup or a banner opens.';
-    }
-    document.getElementById('pwStep2Note').innerHTML = note;
-    document.getElementById('pwToBanner').style.display = pw.mode === 'banner' ? 'inline-block' : 'none';
-    var titleEl = document.getElementById('pwPageTitle');
-    if (titleEl.value !== page.title) titleEl.value = page.title;
-    document.getElementById('pwBackground').innerHTML = pwChips('background', PW_BACKGROUNDS, page.background || 'dark').replace(/^<div class="pw-chips">|<\/div>$/g, '');
-    document.getElementById('pwTemplatesWrap').style.display = page.blocks.length ? 'none' : 'block';
-    document.getElementById('pwTemplates').innerHTML = PW_TEMPLATES.map(function (t) { return '<button type="button" class="btn secondary small" data-pw-template="' + t[0] + '" style="flex:none;">' + escapeHtml(t[1]) + '</button>'; }).join('');
-    document.getElementById('pwTools').innerHTML = PW_TOOLS.map(function (t) { return '<button type="button" class="pw-tool" data-pw-add="' + t[0] + '"><span class="ic">' + t[1] + '</span>' + t[2] + '</button>'; }).join('');
-    var n = page.blocks.length;
-    var el = document.getElementById('pwBlocks');
-    el.innerHTML = !n
-      ? '<div class="empty" style="padding:18px;">The page is empty. Pick a ready layout above, or add tools below; they show top to bottom.</div>'
-      : page.blocks.map(function (b, i) {
-        return '<div class="pw-block' + (pw.bad === i ? ' bad' : '') + '" data-pw-block="' + i + '">' +
-          '<div class="pw-block-head"><span class="grow">' + (i + 1) + '. ' + PW_NAMES[pwKind(b)] + '</span>' +
-            '<button class="btn secondary small" data-pw-move="-1" data-i="' + i + '"' + (i === 0 ? ' disabled' : '') + ' title="Move up">&uarr;</button>' +
-            '<button class="btn secondary small" data-pw-move="1" data-i="' + i + '"' + (i === n - 1 ? ' disabled' : '') + ' title="Move down">&darr;</button>' +
-            '<button class="btn secondary small" data-pw-copy="' + i + '" title="Duplicate">&#10697;</button>' +
-            '<button class="btn danger small" data-pw-remove="' + i + '" title="Remove">&times;</button></div>' +
-          pwBlockBody(b, i) + '</div>';
-      }).join('');
-    pwRenderPreview();
+  function pwToolsHtml(at) {
+    return '<div class="pw-tools">' + PW_TOOLS.map(function (t) {
+      return '<button type="button" class="pw-tool" data-pw-add="' + t[0] + '"' + (at === undefined ? '' : ' data-at="' + at + '"') + '><span class="ic">' + t[1] + '</span>' + t[2] + '</button>';
+    }).join('') + '</div>';
   }
 
-  function pwChanged(structural) {
-    pw.dirty = true;
-    if (structural) pwRenderStep2(); else pwRenderPreview();
-  }
-  function pwBlockAt(node) { return pw.page.blocks[Number(node.getAttribute('data-i'))]; }
-
-  // One set of listeners on the builder (its contents are redrawn often).
-  var pwBuilder = document.getElementById('pwBuilderCard');
-  pwBuilder.addEventListener('input', function (ev) {
-    var t = ev.target;
-    if (!pw || pw.step !== 2) return;
-    if (t.id === 'pwPageTitle') { pw.page.title = t.value; return pwChanged(false); }
-    var b = t.hasAttribute('data-i') ? pwBlockAt(t) : null;
-    if (!b) return;
-    if (t.hasAttribute('data-pw-field') && t.tagName !== 'SELECT') b[t.getAttribute('data-pw-field')] = t.value;
-    else if (t.hasAttribute('data-pw-list')) b.items = t.value.split('\n');
-    else if (t.hasAttribute('data-pw-cell')) b.rows[Number(t.getAttribute('data-r'))][Number(t.getAttribute('data-c'))] = t.value;
-    else if (t.hasAttribute('data-pw-q')) b.items[Number(t.getAttribute('data-k'))].q = t.value;
-    else if (t.hasAttribute('data-pw-a')) b.items[Number(t.getAttribute('data-k'))].a = t.value;
-    else if (t.hasAttribute('data-pw-url')) b.target = 'url:' + t.value.trim();
-    else if (t.hasAttribute('data-pw-ends')) { var d = new Date(t.value); b.endsAt = isNaN(d.getTime()) ? '' : d.toISOString(); }
-    else return;
-    pwChanged(false);
-  });
-  pwBuilder.addEventListener('change', function (ev) {
-    var t = ev.target;
-    if (!pw || pw.step !== 2 || !t.hasAttribute('data-i')) return;
-    var b = pwBlockAt(t);
-    if (t.tagName === 'SELECT' && t.hasAttribute('data-pw-field')) { b[t.getAttribute('data-pw-field')] = t.value; return pwChanged(t.getAttribute('data-pw-field') === 'style'); }
-    if (t.hasAttribute('data-pw-target')) { b.target = t.value === PW_URL ? 'url:' : t.value; return pwChanged(true); }
-    if (t.hasAttribute('data-pw-ordered')) { b.ordered = t.checked; return pwChanged(false); }
-    if (t.hasAttribute('data-pw-header')) { b.header = t.checked; return pwChanged(true); }
-  });
-  pwBuilder.addEventListener('click', function (ev) {
-    var t = ev.target.closest('button');
-    if (!t || !pw || pw.step !== 2) return;
-    var blocks = pw.page.blocks;
-    var i = Number(t.getAttribute('data-i'));
-    if (t.hasAttribute('data-pw-chip')) {
-      var name = t.getAttribute('data-pw-chip'), v = t.getAttribute('data-v');
-      if (name === 'background') { pw.page.background = v; return pwChanged(true); }
-      blocks[i][name] = v;
-      return pwChanged(true);
-    }
-    if (t.hasAttribute('data-pw-add')) return pwAdd(t.getAttribute('data-pw-add'));
-    if (t.hasAttribute('data-pw-template')) {
-      var tpl = PW_TEMPLATES.find(function (x) { return x[0] === t.getAttribute('data-pw-template'); });
-      if (tpl) { pw.page.blocks = tpl[2](); pw.bad = -1; pwChanged(true); }
-      return;
-    }
-    if (t.hasAttribute('data-pw-move')) {
-      var j = i + Number(t.getAttribute('data-pw-move'));
-      if (j < 0 || j >= blocks.length) return;
-      var x = blocks[i]; blocks[i] = blocks[j]; blocks[j] = x;
-      pw.bad = -1;
-      return pwChanged(true);
-    }
-    if (t.hasAttribute('data-pw-copy')) {
-      var k = Number(t.getAttribute('data-pw-copy'));
-      var copy = JSON.parse(JSON.stringify(blocks[k]));
-      blocks.splice(k + 1, 0, copy);
-      return pwChanged(true);
-    }
-    if (t.hasAttribute('data-pw-remove')) {
-      blocks.splice(Number(t.getAttribute('data-pw-remove')), 1);
-      pw.bad = -1;
-      return pwChanged(true);
-    }
-    if (t.hasAttribute('data-pw-table')) {
-      var rows = blocks[i].rows, op = t.getAttribute('data-pw-table');
-      if (op === 'row+' && rows.length < 40) rows.push(rows[0].map(function () { return ''; }));
-      if (op === 'row-' && rows.length > 1) rows.pop();
-      if (op === 'col+' && rows[0].length < 6) rows.forEach(function (r) { r.push(''); });
-      if (op === 'col-' && rows[0].length > 1) rows.forEach(function (r) { r.pop(); });
-      return pwChanged(true);
-    }
-    if (t.hasAttribute('data-pw-faq-add')) { blocks[i].items.push({ q: '', a: '' }); return pwChanged(true); }
-    if (t.hasAttribute('data-pw-faq-remove')) { blocks[i].items.splice(Number(t.getAttribute('data-k')), 1); return pwChanged(true); }
-  });
-
-  function pwAdd(kind) {
-    if (kind === 'image') { document.getElementById('pwPicture').click(); return; }
-    var b = kind === 'heading' || kind === 'body' || kind === 'note' ? { type: 'text', text: '', style: kind, align: kind === 'heading' ? 'center' : 'left', color: 'default' }
-      : kind === 'button' ? { type: 'button', label: '', target: '', color: 'red' }
-      : kind === 'list' ? { type: 'list', items: [''], ordered: false }
-      : kind === 'table' ? { type: 'table', rows: [['', ''], ['', ''], ['', '']], header: true }
-      : kind === 'box' ? { type: 'box', title: '', text: '', color: 'gold' }
-      : kind === 'countdown' ? { type: 'countdown', label: 'Offer ends in', endsAt: new Date(Date.now() + 2 * 86400000).toISOString(), endedText: 'This offer has ended.' }
-      : kind === 'code' ? { type: 'code', label: '', code: '' }
-      : kind === 'faq' ? { type: 'faq', items: [{ q: '', a: '' }] }
-      : kind === 'divider' ? { type: 'divider' }
-      : { type: 'space', size: 'm' };
-    pw.page.blocks.push(b);
-    pwChanged(true);
-    var card = document.querySelector('[data-pw-block="' + (pw.page.blocks.length - 1) + '"]');
-    if (card) {
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      var f = card.querySelector('textarea, input:not([type=checkbox])');
-      if (f) setTimeout(function () { f.focus(); }, 250);
-    }
-  }
-  document.getElementById('pwPicture').addEventListener('change', function () {
-    var files = Array.prototype.slice.call(this.files || []);
-    this.value = '';
-    var status = document.getElementById('pwStatus');
-    files.reduce(function (chain, file) {
-      return chain.then(function () {
-        status.textContent = 'Uploading ' + file.name + '…';
-        return shrinkPagePicture(file).then(function (pic) {
-          return api('/admin/pages/images', { method: 'POST', body: JSON.stringify({ imageBase64: pic.base64, mimeType: pic.mimeType, width: pic.width, height: pic.height }) })
-            .then(function (r) {
-              pw.page.blocks.push({ type: 'image', imageId: r.id, imageUrl: r.imageUrl, width: r.width, height: r.height, target: '', localUrl: pic.dataUrl });
-              pwChanged(true);
-              status.textContent = 'Picture added (' + r.width + ' × ' + r.height + '). Press Save page to keep it.';
-            });
-        });
-      });
-    }, Promise.resolve()).catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; });
-  });
-
-  // ----- the preview: the page as the app shows it (CustomPageScreen.tsx, screens/page/PageBlocks.tsx)
-  function pwPreviewBlock(b) {
+  // ----- the page as the app shows it (CustomPageScreen.tsx, screens/page/PageBlocks.tsx)
+  function pwTargetName(t) { return gameName(t); }
+  function pwBlockView(b) {
     var e = escapeHtml;
     switch (b.type) {
-      case 'image':
-        return '<img class="pp-img" src="' + (b.localUrl || API + b.imageUrl) + '" alt="" />' + (b.target ? '<div class="pp-opens" style="margin:4px 0 6px;">tapping it opens ' + e(pwTargetName(b.target)) + '</div>' : '');
+      case 'image': {
+        var wpc = PW_WIDTH[b.size || 'full'] || 100;
+        var st = wpc < 100 || b.rounded ? 'width:' + wpc + '%;margin:8px auto;' + (b.rounded ? 'border-radius:14px;' : '') : '';
+        return '<img class="pp-img" src="' + pwSrc(b) + '" alt="" style="' + st + '" />' + (b.target ? '<div class="pp-opens" style="margin:4px 0 6px;">tapping it opens ' + e(pwTargetName(b.target)) + '</div>' : '');
+      }
+      case 'hero': {
+        var k = PW_SHADE_K[b.shade || 'medium'];
+        if (k === undefined) k = 0.45;
+        var d = function (a) { return 'rgba(12,3,5,' + Math.min(0.92, a).toFixed(2) + ')'; };
+        var grad = b.position === 'top' ? 'linear-gradient(' + d(k + 0.2) + ',' + d(k * 0.6) + ',rgba(12,3,5,0))'
+          : b.position === 'middle' ? 'linear-gradient(' + d(k * 0.7) + ',' + d(k) + ',' + d(k * 0.7) + ')'
+          : 'linear-gradient(rgba(12,3,5,0),' + d(k * 0.6) + ',' + d(k + 0.2) + ')';
+        var just = b.position === 'top' ? 'flex-start' : b.position === 'middle' ? 'center' : 'flex-end';
+        var center = b.align !== 'left';
+        var ink = b.textColor === 'gold' ? '#FFD45E' : '#FFFFFF';
+        return '<div class="pp-hero" style="background-image:url(\'' + pwSrc(b) + '\');aspect-ratio:' + b.width + '/' + b.height + ';">' +
+          (k > 0 ? '<div class="sh" style="background:' + grad + ';"></div>' : '') +
+          '<div class="in" style="justify-content:' + just + ';align-items:' + (center ? 'center' : 'flex-start') + ';text-align:' + (center ? 'center' : 'left') + ';">' +
+            (b.heading ? '<div class="h" style="color:' + ink + ';">' + e(b.heading) + '</div>' : '') +
+            (b.text ? '<div class="t">' + e(b.text) + '</div>' : '') +
+            (b.buttonLabel ? '<div class="pp-btn tone-' + (b.buttonColor || 'red') + '"><div>' + e(b.buttonLabel) + '</div></div>' : '') +
+          '</div></div>';
+      }
       case 'text': {
         var cls = b.style === 'heading' ? 'pp-heading' : b.style === 'note' ? 'pp-note' : 'pp-text';
         var c = PW_TEXT_COLORS.find(function (x) { return x[0] === b.color; });
-        return '<div class="' + cls + '" style="text-align:' + (b.align === 'center' ? 'center' : 'left') + ';' + (c && c[1] ? 'color:' + c[1] + ';' : '') + '">' + (e(b.text || '') || '<span style="opacity:.45;">(empty)</span>') + '</div>';
+        return '<div class="' + cls + '" style="text-align:' + (b.align === 'center' ? 'center' : 'left') + ';' + (c && c[1] ? 'color:' + c[1] + ';' : '') + '">' + (e(b.text || '') || '<span style="opacity:.45;">(empty: tap to write)</span>') + '</div>';
       }
       case 'button':
         return '<div class="pp-btn tone-' + (b.color || 'red') + '"><div>' + e(b.label || 'BUTTON') + '</div></div><div class="pp-opens">' + (b.target && b.target !== 'url:' ? 'opens ' + e(pwTargetName(b.target)) : 'pick what it opens') + '</div>';
       case 'list': {
         var items = (b.items || []).filter(function (x) { return x.trim(); });
-        return '<div class="pp-list">' + (items.length ? items.map(function (x, k) { return '<div class="li">' + (b.ordered ? '<span class="num">' + (k + 1) + '</span>' : '<span class="dot"></span>') + '<span>' + e(x) + '</span></div>'; }).join('') : '<div class="li" style="opacity:.45;">(empty list)</div>') + '</div>';
+        return '<div class="pp-list">' + (items.length ? items.map(function (x, k) { return '<div class="li">' + (b.ordered ? '<span class="num">' + (k + 1) + '</span>' : '<span class="dot"></span>') + '<span>' + e(x) + '</span></div>'; }).join('') : '<div class="li" style="opacity:.45;">(empty list: tap to write)</div>') + '</div>';
       }
       case 'table':
         return '<table class="pp-table">' + b.rows.map(function (r, ri) { return '<tr class="' + (b.header && ri === 0 ? 'h' : ri % 2 ? 'z' : '') + '">' + r.map(function (c) { return '<td>' + e(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
       case 'box': {
-        var k = PW_BOX[b.color] || PW_BOX.gold;
-        return '<div class="pp-box" style="border-color:' + k[0] + ';background:' + k[1] + ';">' + (b.title ? '<div class="t" style="color:' + k[2] + ';">' + e(b.title) + '</div>' : '') + '<div class="x">' + (e(b.text || '') || '<span style="opacity:.45;">(empty)</span>') + '</div></div>';
+        var bx = PW_BOX[b.color] || PW_BOX.gold;
+        return '<div class="pp-box" style="border-color:' + bx[0] + ';background:' + bx[1] + ';">' + (b.title ? '<div class="t" style="color:' + bx[2] + ';">' + e(b.title) + '</div>' : '') + '<div class="x">' + (e(b.text || '') || '<span style="opacity:.45;">(empty: tap to write)</span>') + '</div></div>';
       }
       case 'countdown': {
         var secs = Math.max(0, Math.floor((Date.parse(b.endsAt) - Date.now()) / 1000));
@@ -5130,27 +5071,134 @@
     }
     return '';
   }
-  function pwTargetName(t) { return gameName(t); }
-  var pwTick = null;
-  function pwRenderPreview() {
-    if (!pw || pw.step !== 2) return;
+  // The settings of the block being changed on the page, right under it.
+  function pwPanelHtml(b, i) {
+    var n = pw.page.blocks.length;
+    return '<div class="cv-panel" data-cv-panel="' + i + '">' +
+      '<div class="pw-block-head"><span class="grow">' + (i + 1) + '. ' + PW_NAMES[pwKind(b)] + '</span>' +
+        '<button class="btn secondary small" data-pw-move="-1" data-i="' + i + '"' + (i === 0 ? ' disabled' : '') + ' title="Move up">&uarr;</button>' +
+        '<button class="btn secondary small" data-pw-move="1" data-i="' + i + '"' + (i === n - 1 ? ' disabled' : '') + ' title="Move down">&darr;</button>' +
+        '<button class="btn secondary small" data-pw-copy="' + i + '" title="Duplicate">&#10697;</button>' +
+        '<button class="btn danger small" data-pw-remove="' + i + '" title="Remove">&times;</button>' +
+        '<button class="btn small" data-pw-unselect title="Close">&#10003;</button></div>' +
+      pwBlockBody(b, i) +
+      '<button type="button" class="btn secondary small" data-pw-addbelow="' + i + '" style="margin-top:10px;width:100%;">' + (pw.adding === i + 1 ? '&times; Close the tools' : '+ Add something below this') + '</button>' +
+      (pw.adding === i + 1 ? '<div class="cv-tools">' + pwToolsHtml(i + 1) + '</div>' : '') +
+      '</div>';
+  }
+  // The phone: the page as the app shows it. `interactive`: each part can be tapped to change it (Edit on the page).
+  function pwPhoneHtml(interactive) {
     var page = pw.page;
     var bg = PW_BACKGROUNDS.find(function (x) { return x[0] === page.background; }) || PW_BACKGROUNDS[0];
     var grad = page.background && page.background !== 'dark' ? 'background:linear-gradient(' + bg[1] + ', #0a0306);' : '';
-    var open = [];
-    document.querySelectorAll('#pwPreview details').forEach(function (d, k) { if (d.open) open.push(k); });
-    document.getElementById('pwPreview').innerHTML =
-      '<div class="pp-phone" style="' + grad + '"><div class="pp-head"><span class="pp-back">&lsaquo;</span><span>' + escapeHtml(page.title || 'Page title') + '</span></div>' +
-      '<div class="pp-body">' + (page.blocks.length ? page.blocks.map(function (b, i) { return b.type === 'countdown' ? '<div data-pp-count="' + i + '">' + pwPreviewBlock(b) + '</div>' : pwPreviewBlock(b); }).join('') : '<div class="pp-empty">Your page shows here as you build it.</div>') + '</div></div>';
-    var details = document.querySelectorAll('#pwPreview details');
-    open.forEach(function (k) { if (details[k]) details[k].open = true; });
-    var counting = page.blocks.some(function (b) { return b.type === 'countdown'; });
+    var layer = '';
+    if (page.bgPic) {
+      var k = PW_SHADE_K[page.bgShade || 'medium'];
+      layer = '<div class="pp-bgpic" style="background-image:url(\'' + pwSrc(page.bgPic) + '\');aspect-ratio:' + page.bgPic.width + '/' + page.bgPic.height + ';">' +
+        (k ? '<div style="position:absolute;inset:0;background:rgba(12,3,5,' + k + ');"></div>' : '') +
+        '<div style="position:absolute;left:0;right:0;bottom:0;height:30%;background:linear-gradient(rgba(0,0,0,0),' + (PW_FADE[page.background || 'dark'] || PW_FADE.dark) + ');"></div></div>';
+    }
+    var body;
+    if (!interactive) {
+      body = page.blocks.length ? page.blocks.map(function (b, i) { return b.type === 'countdown' ? '<div data-pp-count="' + i + '">' + pwBlockView(b) + '</div>' : pwBlockView(b); }).join('') : '<div class="pp-empty">Your page shows here as you build it.</div>';
+    } else {
+      var firstPic = page.blocks.length && (page.blocks[0].type === 'image' || page.blocks[0].type === 'hero');
+      body = (pw.mode === 'banner' && pw.banner && !firstPic ? '<button type="button" class="cv-add" data-pw-bannerpic>&#128444; Put the banner picture at the top</button>' : '') +
+        (page.blocks.length ? '' : '<div class="pp-empty" style="padding:30px 20px;">The page is empty.<br/>Pick a ready layout above, or add below.</div>') +
+        page.blocks.map(function (b, i) {
+          var sel = pw.sel === i;
+          return '<div class="cv-block' + (sel ? ' sel' : '') + (pw.bad === i ? ' bad' : '') + '" data-cv="' + i + '"><div class="cv-view"' + (b.type === 'countdown' ? ' data-pp-count="' + i + '"' : '') + '>' + pwBlockView(b) + '</div>' + (sel ? pwPanelHtml(b, i) : '') + '</div>';
+        }).join('') +
+        '<button type="button" class="cv-add" data-pw-addend>' + (pw.adding === page.blocks.length && pw.sel < 0 ? '&times; Close the tools' : '+ Add to the page') + '</button>' +
+        (pw.adding === page.blocks.length && pw.sel < 0 ? '<div class="cv-tools">' + pwToolsHtml(page.blocks.length) + '</div>' : '');
+    }
+    return '<div class="pp-phone" style="' + grad + '"><div class="pp-head"><span class="pp-back">&lsaquo;</span><span data-pw-headtitle>' + escapeHtml(page.title || 'Page title') + '</span></div>' +
+      '<div class="pp-body">' + layer + '<div class="pp-layer">' + body + '</div></div></div>';
+  }
+
+  function pwRenderStep2() {
+    var page = pw.page;
+    if (!pw.view) pw.view = 'page';
+    if (pw.sel === undefined) pw.sel = -1;
+    if (pw.adding === undefined) pw.adding = -1;
+    document.getElementById('pwStep2Title').textContent = pw.mode === 'page' ? (page.id ? 'Edit page' : 'New page') : 'Step 2 · Its page';
+    var note = '';
+    if (pw.mode === 'banner') {
+      var t = pw.banner.buttonTarget;
+      note = !page.id && t && t.indexOf('page:') !== 0
+        ? 'This banner opens ' + escapeHtml(gameName(t)) + ' now. Saving the page makes it open this page instead.'
+        : page.id ? 'Tapping the banner "' + escapeHtml(pw.banner.title) + '" opens this page.' : 'Tapping the banner "' + escapeHtml(pw.banner.title) + '" will open this page once you save it.';
+    } else {
+      var uses = page.id ? pageUsers(page.id) : [];
+      note = page.id ? (uses.length ? 'Opened by ' + escapeHtml(uses.join(', ')) + '.' : 'Nothing opens this page yet: pick it as what a slide, a popup or a banner opens.') : 'A page of its own: once saved, pick it as what a slide, a popup or a banner opens.';
+    }
+    document.getElementById('pwStep2Note').innerHTML = note;
+    document.getElementById('pwToBanner').style.display = pw.mode === 'banner' ? 'inline-block' : 'none';
+    var titleEl = document.getElementById('pwPageTitle');
+    if (titleEl.value !== page.title) titleEl.value = page.title;
+    document.getElementById('pwBackground').innerHTML = pwChips('background', PW_BACKGROUNDS, page.background || 'dark').replace(/^<div class="pw-chips">|<\/div>$/g, '');
+    document.getElementById('pwBgPic').innerHTML = page.bgPic
+      ? '<div class="pw-bgpic-row"><img src="' + pwSrc(page.bgPic) + '" alt="" /><button type="button" class="btn secondary small" data-pw-bgpick>Change</button><button type="button" class="btn danger small" data-pw-bgremove>Remove</button></div>' +
+        '<label style="margin:8px 0 4px;">Darken it</label>' + pwChips('bgShade', PW_SHADES, page.bgShade || 'medium')
+      : '<button type="button" class="btn secondary small" data-pw-bgpick>+ Background picture</button><div class="hint">A big picture behind the whole page; it scrolls with the page and fades into the colour below it.</div>';
+    document.getElementById('pwModes').innerHTML =
+      '<button type="button" class="pw-mode' + (pw.view === 'page' ? ' on' : '') + '" data-pw-view="page">&#9998; Edit on the page</button>' +
+      '<button type="button" class="pw-mode' + (pw.view === 'list' ? ' on' : '') + '" data-pw-view="list">&#9776; All blocks (list)</button>';
+    // ready layouts while the page is empty, or holds only its banner picture (a layout keeps it on top)
+    var onlyPicture = page.blocks.length === 1 && page.blocks[0].type === 'image';
+    document.getElementById('pwTemplatesWrap').style.display = !page.blocks.length || onlyPicture ? 'block' : 'none';
+    document.getElementById('pwTemplates').innerHTML = PW_TEMPLATES.map(function (t) { return '<button type="button" class="btn secondary small" data-pw-template="' + t[0] + '" style="flex:none;">' + escapeHtml(t[1]) + '</button>'; }).join('');
+    var onPage = pw.view === 'page';
+    document.getElementById('pwCanvasWrap').style.display = onPage ? 'block' : 'none';
+    document.getElementById('pwListWrap').style.display = onPage ? 'none' : 'block';
+    document.getElementById('pwPreviewCard').style.display = onPage ? 'none' : 'block';
+    document.body.classList.toggle('pw-building', !onPage);
+    if (onPage) {
+      document.getElementById('pwCanvas').innerHTML = pwPhoneHtml(true);
+    } else {
+      document.getElementById('pwTools').innerHTML = pwToolsHtml().replace(/^<div class="pw-tools">|<\/div>$/g, '');
+      var n = page.blocks.length;
+      document.getElementById('pwBlocks').innerHTML = !n
+        ? '<div class="empty" style="padding:18px;">The page is empty. Pick a ready layout above, or add tools below; they show top to bottom.</div>'
+        : page.blocks.map(function (b, i) {
+          return '<div class="pw-block' + (pw.bad === i ? ' bad' : '') + '" data-pw-block="' + i + '">' +
+            '<div class="pw-block-head"><span class="grow">' + (i + 1) + '. ' + PW_NAMES[pwKind(b)] + '</span>' +
+              '<button class="btn secondary small" data-pw-move="-1" data-i="' + i + '"' + (i === 0 ? ' disabled' : '') + ' title="Move up">&uarr;</button>' +
+              '<button class="btn secondary small" data-pw-move="1" data-i="' + i + '"' + (i === n - 1 ? ' disabled' : '') + ' title="Move down">&darr;</button>' +
+              '<button class="btn secondary small" data-pw-copy="' + i + '" title="Duplicate">&#10697;</button>' +
+              '<button class="btn danger small" data-pw-remove="' + i + '" title="Remove">&times;</button></div>' +
+            pwBlockBody(b, i) + '</div>';
+        }).join('');
+    }
+    pwRenderPreview();
+  }
+
+  var pwTick = null;
+  // Redraws what shows the page: the preview beside the list, or (on the page) only the block being changed, so the box being
+  // typed in keeps its place.
+  function pwRenderPreview() {
+    if (!pw || pw.step !== 2) return;
+    if (pw.view === 'page') {
+      if (pw.sel >= 0) {
+        var v = document.querySelector('#pwCanvas .cv-block[data-cv="' + pw.sel + '"] > .cv-view');
+        if (v && pw.page.blocks[pw.sel]) v.innerHTML = pwBlockView(pw.page.blocks[pw.sel]);
+      }
+      var head = document.querySelector('#pwCanvas [data-pw-headtitle]');
+      if (head) head.textContent = pw.page.title || 'Page title';
+    } else {
+      var open = [];
+      document.querySelectorAll('#pwPreview details').forEach(function (d, k) { if (d.open) open.push(k); });
+      document.getElementById('pwPreview').innerHTML = pwPhoneHtml(false);
+      var details = document.querySelectorAll('#pwPreview details');
+      open.forEach(function (k) { if (details[k]) details[k].open = true; });
+    }
+    var counting = pw.page.blocks.some(function (b) { return b.type === 'countdown'; });
     if (counting && !pwTick) {
       pwTick = setInterval(function () {
         if (!pw || pw.step !== 2 || !document.getElementById('panel-promo-pages').classList.contains('active')) { clearInterval(pwTick); pwTick = null; return; }
-        document.querySelectorAll('#pwPreview [data-pp-count]').forEach(function (el) {
+        document.querySelectorAll('#pwPreview [data-pp-count], #pwCanvas [data-pp-count]').forEach(function (el) {
           var b = pw.page.blocks[Number(el.getAttribute('data-pp-count'))];
-          if (b && b.type === 'countdown') el.innerHTML = pwPreviewBlock(b);
+          if (b && b.type === 'countdown') el.innerHTML = pwBlockView(b);
         });
       }, 1000);
     }
@@ -5158,17 +5206,239 @@
   document.getElementById('pwStickyPrev').addEventListener('click', function () { document.getElementById('pwPreviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   document.getElementById('pwBackToEdit').addEventListener('click', function () { document.getElementById('pwBuilderCard').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 
+  function pwChanged(structural) {
+    pw.dirty = true;
+    if (structural) pwRenderStep2(); else pwRenderPreview();
+  }
+  function pwBlockAt(node) { return pw.page.blocks[Number(node.getAttribute('data-i'))]; }
+  // Selects a block on the page (its settings open under it) and brings it into view.
+  function pwSelect(i, focus) {
+    pw.sel = i;
+    pw.adding = -1;
+    pwRenderStep2();
+    var card = i >= 0 && document.querySelector('#pwCanvas .cv-block[data-cv="' + i + '"]');
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (focus) {
+        var f = card.querySelector('.cv-panel textarea, .cv-panel input:not([type=checkbox]):not([type=file])');
+        if (f) setTimeout(function () { f.focus(); }, 300);
+      }
+    }
+  }
+
+  // One set of listeners on the builder (its contents are redrawn often).
+  var pwBuilder = document.getElementById('pwBuilderCard');
+  pwBuilder.addEventListener('input', function (ev) {
+    var t = ev.target;
+    if (!pw || pw.step !== 2) return;
+    if (t.id === 'pwPageTitle') { pw.page.title = t.value; return pwChanged(false); }
+    var b = t.hasAttribute('data-i') ? pwBlockAt(t) : null;
+    if (!b) return;
+    if (t.hasAttribute('data-pw-field') && t.tagName !== 'SELECT') b[t.getAttribute('data-pw-field')] = t.value;
+    else if (t.hasAttribute('data-pw-list')) b.items = t.value.split('\n');
+    else if (t.hasAttribute('data-pw-cell')) b.rows[Number(t.getAttribute('data-r'))][Number(t.getAttribute('data-c'))] = t.value;
+    else if (t.hasAttribute('data-pw-q')) b.items[Number(t.getAttribute('data-k'))].q = t.value;
+    else if (t.hasAttribute('data-pw-a')) b.items[Number(t.getAttribute('data-k'))].a = t.value;
+    else if (t.hasAttribute('data-pw-url')) b[t.getAttribute('data-f') || 'target'] = 'url:' + t.value.trim();
+    else if (t.hasAttribute('data-pw-ends')) { var d = new Date(t.value); b.endsAt = isNaN(d.getTime()) ? '' : d.toISOString(); }
+    else return;
+    pwChanged(false);
+  });
+  pwBuilder.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (!pw || pw.step !== 2 || !t.hasAttribute('data-i')) return;
+    var b = pwBlockAt(t);
+    if (t.tagName === 'SELECT' && t.hasAttribute('data-pw-field')) { b[t.getAttribute('data-pw-field')] = t.value; return pwChanged(t.getAttribute('data-pw-field') === 'style'); }
+    if (t.hasAttribute('data-pw-target')) { b[t.getAttribute('data-f') || 'target'] = t.value === PW_URL ? 'url:' : t.value; return pwChanged(true); }
+    if (t.hasAttribute('data-pw-ordered')) { b.ordered = t.checked; return pwChanged(false); }
+    if (t.hasAttribute('data-pw-header')) { b.header = t.checked; return pwChanged(true); }
+    if (t.hasAttribute('data-pw-rounded')) { b.rounded = t.checked; return pwChanged(false); }
+  });
+  pwBuilder.addEventListener('click', function (ev) {
+    if (!pw || pw.step !== 2) return;
+    var t = ev.target.closest('button');
+    var blocks = pw.page.blocks;
+    // a tap on a part of the page (not on its settings): select it, or close it when it is the one open
+    if (!t || !t.closest('#pwBuilderCard')) {
+      var view = ev.target.closest('.cv-view');
+      if (view && !ev.target.closest('summary')) {
+        var ci = Number(view.parentNode.getAttribute('data-cv'));
+        pwSelect(pw.sel === ci ? -1 : ci, false);
+      }
+      return;
+    }
+    var i = Number(t.getAttribute('data-i'));
+    if (t.hasAttribute('data-pw-view')) { pw.view = t.getAttribute('data-pw-view'); pw.sel = -1; pw.adding = -1; return pwRenderStep2(); }
+    if (t.hasAttribute('data-pw-unselect')) return pwSelect(-1, false);
+    if (t.hasAttribute('data-pw-chip')) {
+      var name = t.getAttribute('data-pw-chip'), v = t.getAttribute('data-v');
+      if (name === 'background') { pw.page.background = v; return pwChanged(true); }
+      if (name === 'bgShade') { pw.page.bgShade = v; return pwChanged(true); }
+      blocks[i][name] = v;
+      return pwChanged(true);
+    }
+    if (t.hasAttribute('data-pw-add')) return pwAdd(t.getAttribute('data-pw-add'), t.hasAttribute('data-at') ? Number(t.getAttribute('data-at')) : blocks.length);
+    if (t.hasAttribute('data-pw-addbelow')) { var at = Number(t.getAttribute('data-pw-addbelow')) + 1; pw.adding = pw.adding === at ? -1 : at; return pwRenderStep2(); }
+    if (t.hasAttribute('data-pw-addend')) { pw.sel = -1; pw.adding = pw.adding === blocks.length ? -1 : blocks.length; pwRenderStep2(); var tools = document.querySelector('#pwCanvas .cv-tools'); if (tools) tools.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    if (t.hasAttribute('data-pw-bannerpic')) return pwBannerPicture(0, t);
+    if (t.hasAttribute('data-pw-repic')) { pw.pick = { kind: 'replace', i: Number(t.getAttribute('data-pw-repic')) }; document.getElementById('pwPicture').multiple = false; document.getElementById('pwPicture').click(); return; }
+    if (t.hasAttribute('data-pw-bgpick')) { pw.pick = { kind: 'bg' }; document.getElementById('pwPicture').multiple = false; document.getElementById('pwPicture').click(); return; }
+    if (t.hasAttribute('data-pw-bgremove')) { pw.page.bgImageId = null; pw.page.bgPic = null; return pwChanged(true); }
+    if (t.hasAttribute('data-pw-template')) {
+      var tpl = PW_TEMPLATES.find(function (x) { return x[0] === t.getAttribute('data-pw-template'); });
+      if (tpl) {
+        // a banner's own picture stays on top of a ready layout
+        var keep = blocks.length && blocks[0].type === 'image' ? [blocks[0]] : [];
+        pw.page.blocks = keep.concat(tpl[2]());
+        pw.bad = -1; pw.sel = -1; pw.adding = -1;
+        pwChanged(true);
+      }
+      return;
+    }
+    if (t.hasAttribute('data-pw-move')) {
+      var j = i + Number(t.getAttribute('data-pw-move'));
+      if (j < 0 || j >= blocks.length) return;
+      var x = blocks[i]; blocks[i] = blocks[j]; blocks[j] = x;
+      pw.bad = -1;
+      if (pw.sel === i) pw.sel = j;
+      pw.dirty = true;
+      return pw.view === 'page' ? pwSelect(pw.sel, false) : pwRenderStep2();
+    }
+    if (t.hasAttribute('data-pw-copy')) {
+      var k = Number(t.getAttribute('data-pw-copy'));
+      blocks.splice(k + 1, 0, JSON.parse(JSON.stringify(blocks[k])));
+      pw.dirty = true;
+      return pw.view === 'page' ? pwSelect(k + 1, false) : pwRenderStep2();
+    }
+    if (t.hasAttribute('data-pw-remove')) {
+      blocks.splice(Number(t.getAttribute('data-pw-remove')), 1);
+      pw.bad = -1; pw.sel = -1; pw.adding = -1;
+      return pwChanged(true);
+    }
+    if (t.hasAttribute('data-pw-table')) {
+      var rows = blocks[i].rows, op = t.getAttribute('data-pw-table');
+      if (op === 'row+' && rows.length < 40) rows.push(rows[0].map(function () { return ''; }));
+      if (op === 'row-' && rows.length > 1) rows.pop();
+      if (op === 'col+' && rows[0].length < 6) rows.forEach(function (r) { r.push(''); });
+      if (op === 'col-' && rows[0].length > 1) rows.forEach(function (r) { r.pop(); });
+      return pwChanged(true);
+    }
+    if (t.hasAttribute('data-pw-faq-add')) { blocks[i].items.push({ q: '', a: '' }); return pwChanged(true); }
+    if (t.hasAttribute('data-pw-faq-remove')) { blocks[i].items.splice(Number(t.getAttribute('data-k')), 1); return pwChanged(true); }
+  });
+
+  // Adds a block at `at` (the end when not given); a picture (or a picture with words on it) asks for the picture first.
+  function pwAdd(kind, at) {
+    if (at === undefined || at > pw.page.blocks.length) at = pw.page.blocks.length;
+    if (kind === 'image' || kind === 'hero') {
+      pw.pick = { kind: 'add', type: kind, at: at };
+      var input = document.getElementById('pwPicture');
+      input.multiple = kind === 'image';
+      input.click();
+      return;
+    }
+    var b = kind === 'heading' || kind === 'body' || kind === 'note' ? { type: 'text', text: '', style: kind, align: kind === 'heading' ? 'center' : 'left', color: 'default' }
+      : kind === 'button' ? { type: 'button', label: '', target: '', color: 'red' }
+      : kind === 'list' ? { type: 'list', items: [''], ordered: false }
+      : kind === 'table' ? { type: 'table', rows: [['', ''], ['', ''], ['', '']], header: true }
+      : kind === 'box' ? { type: 'box', title: '', text: '', color: 'gold' }
+      : kind === 'countdown' ? { type: 'countdown', label: 'Offer ends in', endsAt: new Date(Date.now() + 2 * 86400000).toISOString(), endedText: 'This offer has ended.' }
+      : kind === 'code' ? { type: 'code', label: '', code: '' }
+      : kind === 'faq' ? { type: 'faq', items: [{ q: '', a: '' }] }
+      : kind === 'divider' ? { type: 'divider' }
+      : { type: 'space', size: 'm' };
+    pw.page.blocks.splice(at, 0, b);
+    pw.dirty = true;
+    pw.adding = -1;
+    if (pw.view === 'page') return pwSelect(at, true);
+    pwRenderStep2();
+    var card = document.querySelector('[data-pw-block="' + at + '"]');
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var f = card.querySelector('textarea, input:not([type=checkbox])');
+      if (f) setTimeout(function () { f.focus(); }, 250);
+    }
+  }
+  function pwHeroBlock(pic) {
+    return { type: 'hero', imageId: pic.id, imageUrl: pic.imageUrl, width: pic.width, height: pic.height, localUrl: pic.localUrl, heading: '', text: '', buttonLabel: '', buttonTarget: '', buttonColor: 'red', position: 'bottom', align: 'center', shade: 'medium', textColor: 'white' };
+  }
+  function pwImageBlock(pic) {
+    return { type: 'image', imageId: pic.id, imageUrl: pic.imageUrl, width: pic.width, height: pic.height, localUrl: pic.localUrl, target: '', size: 'full', rounded: false };
+  }
+  // The banner's own picture, copied as the first picture of its page.
+  function pwBannerPicture(at, btn) {
+    if (!pw || !pw.banner) return Promise.resolve();
+    var status = document.getElementById('pwStatus');
+    if (btn) btn.disabled = true;
+    status.textContent = 'Adding the banner picture…';
+    return api('/admin/pages/images/from-banner/' + pw.banner.id, { method: 'POST' })
+      .then(function (r) {
+        pw.page.blocks.splice(at, 0, pwImageBlock({ id: r.id, imageUrl: r.imageUrl, width: r.width, height: r.height }));
+        pw.dirty = true;
+        pw.sel = -1;
+        pwRenderStep2();
+        status.textContent = 'The banner picture is on top of the page. Press Save page to keep it.';
+      })
+      .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; if (btn) btn.disabled = false; });
+  }
+  document.getElementById('pwPicture').addEventListener('change', function () {
+    var files = Array.prototype.slice.call(this.files || []);
+    this.value = '';
+    var pick = pw && pw.pick;
+    if (!pick || !files.length) return;
+    pw.pick = null;
+    var status = document.getElementById('pwStatus');
+    var upload = function (file) {
+      status.textContent = 'Uploading ' + file.name + '…';
+      return shrinkPagePicture(file).then(function (pic) {
+        return api('/admin/pages/images', { method: 'POST', body: JSON.stringify({ imageBase64: pic.base64, mimeType: pic.mimeType, width: pic.width, height: pic.height }) })
+          .then(function (r) { return { id: r.id, imageUrl: r.imageUrl, width: r.width, height: r.height, localUrl: pic.dataUrl }; });
+      });
+    };
+    var done = function (msg) { pw.dirty = true; status.textContent = msg + ' Press Save page to keep it.'; };
+    var chain;
+    if (pick.kind === 'bg') {
+      chain = upload(files[0]).then(function (p) { pw.page.bgImageId = p.id; pw.page.bgPic = p; pwRenderStep2(); done('Background picture set (' + p.width + ' × ' + p.height + ').'); });
+    } else if (pick.kind === 'replace') {
+      chain = upload(files[0]).then(function (p) {
+        var b = pw.page.blocks[pick.i];
+        if (!b) return;
+        b.imageId = p.id; b.imageUrl = p.imageUrl; b.width = p.width; b.height = p.height; b.localUrl = p.localUrl;
+        pwRenderStep2();
+        done('Picture changed (' + p.width + ' × ' + p.height + ').');
+      });
+    } else {
+      var at = pick.at;
+      chain = files.reduce(function (c, file) {
+        return c.then(function () {
+          return upload(file).then(function (p) {
+            pw.page.blocks.splice(at, 0, pick.type === 'hero' ? pwHeroBlock(p) : pwImageBlock(p));
+            at++;
+          });
+        });
+      }, Promise.resolve()).then(function () {
+        pw.adding = -1;
+        if (pw.view === 'page') pwSelect(at - 1, pick.type === 'hero'); else pwRenderStep2();
+        done(pick.type === 'hero' ? 'Picture added: now write the words that go on it.' : 'Picture added.');
+      });
+    }
+    chain.catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; });
+  });
+
   // ----- saving the page
   function pwCheck() {
     var page = pw.page;
     if (!page.title.trim()) return [-1, 'Write the page title (the first box): it shows at the top of the page.'];
     if (!page.blocks.length) return [-1, 'Add something to the page: a picture, text, a button…'];
+    var badUrl = function (t) { return t && t.indexOf('url:') === 0 && !/^url:https?:\/\/[^\s"'<>]+\.[^\s"'<>]+$/i.test(t); };
     for (var i = 0; i < page.blocks.length; i++) {
       var b = page.blocks[i], n = (i + 1) + '. ' + PW_NAMES[pwKind(b)].toLowerCase() + ': ';
       if (b.type === 'text' && !(b.text || '').trim()) return [i, n + 'write something, or remove it.'];
       if (b.type === 'button' && !(b.label || '').trim()) return [i, n + 'write the button text.'];
       if (b.type === 'button' && !b.target) return [i, n + 'pick what the button opens.'];
-      if ((b.type === 'button' || b.type === 'image') && b.target && b.target.indexOf('url:') === 0 && !/^url:https?:\/\/[^\s"'<>]+\.[^\s"'<>]+$/i.test(b.target)) return [i, n + 'write the full website link, starting with https://'];
+      if ((b.type === 'button' || b.type === 'image') && badUrl(b.target)) return [i, n + 'write the full website link, starting with https://'];
+      if (b.type === 'hero' && (b.buttonLabel || '').trim() && !b.buttonTarget) return [i, n + 'pick what the button on the picture opens (or leave its text empty).'];
+      if (b.type === 'hero' && badUrl(b.buttonTarget)) return [i, n + 'write the full website link, starting with https://'];
       if (b.type === 'list' && !b.items.some(function (x) { return x.trim(); })) return [i, n + 'write at least one point.'];
       if (b.type === 'table' && !b.rows.some(function (r) { return r.some(function (c) { return c.trim(); }); })) return [i, n + 'fill in the table.'];
       if (b.type === 'box' && !(b.text || '').trim()) return [i, n + 'write what the box says.'];
@@ -5181,7 +5451,8 @@
   function pwPayload(b) {
     var t = function (s) { return (s || '').trim(); };
     switch (b.type) {
-      case 'image': return { type: 'image', imageId: b.imageId, target: b.target || null };
+      case 'image': return { type: 'image', imageId: b.imageId, target: b.target || null, size: b.size || 'full', rounded: !!b.rounded };
+      case 'hero': return { type: 'hero', imageId: b.imageId, heading: t(b.heading), text: t(b.text), buttonLabel: t(b.buttonLabel), buttonTarget: t(b.buttonLabel) ? b.buttonTarget || null : null, buttonColor: b.buttonColor || 'red', position: b.position || 'bottom', align: b.align || 'center', shade: b.shade || 'medium', textColor: b.textColor || 'white' };
       case 'text': return { type: 'text', text: t(b.text), style: b.style, align: b.align === 'center' ? 'center' : 'left', color: b.color || 'default' };
       case 'button': return { type: 'button', label: t(b.label), target: b.target, color: b.color || 'red' };
       case 'list': return { type: 'list', items: b.items.map(t).filter(Boolean), ordered: !!b.ordered };
@@ -5201,16 +5472,17 @@
     var bad = pwCheck();
     if (bad) {
       pw.bad = bad[0];
+      if (pw.view === 'page' && bad[0] >= 0) pw.sel = bad[0];
       pwRenderStep2();
       status.textContent = bad[1];
-      var target = bad[0] >= 0 ? document.querySelector('[data-pw-block="' + bad[0] + '"]') : document.getElementById('pwPageTitle');
+      var target = bad[0] >= 0 ? document.querySelector(pw.view === 'page' ? '#pwCanvas .cv-block[data-cv="' + bad[0] + '"]' : '[data-pw-block="' + bad[0] + '"]') : document.getElementById('pwPageTitle');
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (bad[0] < 0 && !pw.page.title.trim()) { var tt = document.getElementById('pwPageTitle'); tt.style.borderColor = '#ef4444'; tt.addEventListener('input', function clear() { tt.style.borderColor = ''; tt.removeEventListener('input', clear); }); }
       return Promise.resolve(false);
     }
     pw.bad = -1;
     var page = pw.page;
-    var body = { title: page.title.trim(), blocks: page.blocks.map(pwPayload), background: page.background || 'dark' };
+    var body = { title: page.title.trim(), blocks: page.blocks.map(pwPayload), background: page.background || 'dark', bgImageId: page.bgImageId || null, bgShade: page.bgShade || 'medium' };
     var isNew = !page.id;
     btn.disabled = true;
     status.textContent = 'Saving…';
@@ -5230,13 +5502,17 @@
         if (saved) {
           // keep the pictures shown from this browser (no reload flash)
           var local = {};
-          page.blocks.forEach(function (b) { if (b.type === 'image' && b.localUrl) local[b.imageId] = b.localUrl; });
+          page.blocks.forEach(function (b) { if (b.localUrl) local[b.imageId] = b.localUrl; });
+          var bgLocal = page.bgPic && page.bgPic.localUrl;
+          var sel = pw.sel;
           pw.page = pwEditable(saved);
-          pw.page.blocks.forEach(function (b) { if (b.type === 'image' && local[b.imageId]) b.localUrl = local[b.imageId]; });
+          pw.page.blocks.forEach(function (b) { if (local[b.imageId]) b.localUrl = local[b.imageId]; });
+          if (bgLocal && pw.page.bgPic) pw.page.bgPic.localUrl = bgLocal;
+          pw.sel = sel < pw.page.blocks.length ? sel : -1;
         }
         pwRenderStep2();
         status.textContent = pw.mode === 'banner'
-          ? 'Saved ✓ Tapping the banner "' + pw.banner.title + '" in the app opens this page (app 1.0.136+ shows every tool).'
+          ? 'Saved ✓ Tapping the banner "' + pw.banner.title + '" in the app opens this page (app 1.0.137+ shows every tool).'
           : isNew ? 'Saved ✓ Now pick "Opens page: ' + page.title + '" as what a slide, a popup or a banner opens.' : 'Saved ✓ The app shows the new version the next time the page is opened.';
         return true;
       })

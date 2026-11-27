@@ -1721,11 +1721,15 @@ model Popup {
 model CustomPage {
   id        String    @id @default(uuid())
   title     String
-  /// [{ type: "image", imageId, target? } | { type: "text", text, style, align, color } | { type: "button", label, target, color }
-  ///  | list | table | box | countdown | code | faq | divider | space] (customPageService.ts)
+  /// [{ type: "image", imageId, target?, size, rounded } | { type: "text", text, style, align, color } | { type: "button", label, target, color }
+  ///  | hero | list | table | box | countdown | code | faq | divider | space] (customPageService.ts)
   blocks     Json      @default("[]")
   /// "dark" | "red" | "blue" | "purple" | "green": the page's background in the app
   background String    @default("dark")
+  /// A picture behind the whole page (a CustomPageImage id), scrolling with it, darkened by bgShade
+  bgImageId  String?
+  /// "none" | "light" | "medium" | "strong"
+  bgShade    String    @default("medium")
   active    Boolean   @default(true)
   deletedAt DateTime?
   createdAt DateTime  @default(now())

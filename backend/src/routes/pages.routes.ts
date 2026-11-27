@@ -20,7 +20,8 @@ router.get(
   "/:id",
   asyncHandler(async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    res.json(await getLivePage(req.params.id));
+    // ?v=2: the app draws pictures with words on them (1.0.137+); older apps get them as a picture, text and a button
+    res.json(await getLivePage(req.params.id, { v: Number(req.query.v) || 1 }));
   })
 );
 

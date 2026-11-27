@@ -17,6 +17,11 @@ import { ApiError } from "../middleware/errorHandler";
  * pages with these blocks: picture, text (heading / text / note, a colour), button (a colour), list, table, notice box, countdown,
  * code (with Copy), questions & answers, divider and space; a page also has a background colour. An app older than 1.0.136 shows
  * the newer blocks as plain text (each carries a `text` fallback) and leaves out what it can't show.
+ *
+ * Owner, 2026-11-28 ("where is my picture; text on the picture; a big background picture"; app 1.0.137): a picture has a size
+ * (full width, large, medium, small) and can have round corners; "hero" is a picture with a heading, text and a button on it
+ * (at its top, middle or bottom, with a shade); a page can have a background picture (behind everything, scrolling with the
+ * page) with a shade; a banner's own picture can be copied into its page (copyBannerPicture).
  */
 
 export const PAGE_TARGET_PREFIX = "page:";
@@ -50,6 +55,10 @@ export const PAGE_COLORS = ["gold", "red", "green", "blue", "purple"] as const;
 export const TEXT_COLORS = ["default", "gold", "white", "red", "green"] as const;
 /** The page's background (the app draws each as a dark gradient of that colour). */
 export const PAGE_BACKGROUNDS = ["dark", "red", "blue", "purple", "green"] as const;
+/** How wide a picture is drawn: the whole width, or 85 / 65 / 45 % of it, centred. */
+export const PICTURE_SIZES = ["full", "large", "medium", "small"] as const;
+/** How much a picture with text on it (or a page's background picture) is darkened. */
+export const SHADES = ["none", "light", "medium", "strong"] as const;
 
 const target = targetSchema;
 const line = (max: number, what: string) => z.string().trim().min(1, what).max(max);
@@ -59,6 +68,21 @@ export const blockSchema = z.discriminatedUnion("type", [
     imageId: z.string().uuid(),
     // tapping the picture (optional)
     target: z.union([z.literal(""), target]).nullish().transform((v) => v || null),
+    size: z.enum(PICTURE_SIZES).default("full"),
+    rounded: z.boolean().default(false),
+  }),
+  z.object({
+    type: z.literal("hero"),
+    imageId: z.string().uuid(),
+    heading: z.string().trim().max(120).default(""),
+    text: z.string().trim().max(600).default(""),
+    buttonLabel: z.string().trim().max(30).default(""),
+    buttonTarget: z.union([z.literal(""), target]).nullish().transform((v) => v || null),
+    buttonColor: z.enum(PAGE_COLORS).default("red"),
+    position: z.enum(["top", "middle", "bottom"]).default("bottom"),
+    align: z.enum(["left", "center"]).default("center"),
+    shade: z.enum(SHADES).default("medium"),
+    textColor: z.enum(["white", "gold"]).default("white"),
   }),
   z.object({
     type: z.literal("text"),
@@ -106,15 +130,23 @@ export const blockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("divider") }),
   z.object({ type: z.literal("space"), size: z.enum(["s", "m", "l"]).default("m") }),
 ]);
-export const blocksSchema = z.array(blockSchema).max(MAX_BLOCKS, `A page can have at most ${MAX_BLOCKS} blocks.`);
+export const blocksSchema = z
+  .array(blockSchema)
+  .max(MAX_BLOCKS, `A page can have at most ${MAX_BLOCKS} blocks.`)
+  .refine((blocks) => blocks.every((b) => b.type !== "hero" || !b.buttonLabel || !!b.buttonTarget), "A picture's button needs something to open.");
 export type PageBlock = z.infer<typeof blockSchema>;
 export type PageBackground = (typeof PAGE_BACKGROUNDS)[number];
-const blocksWithTarget = (blocks: PageBlock[]) => blocks.flatMap((b) => (b.type === "image" || b.type === "button" ? [b.target] : []));
+const blocksWithTarget = (blocks: PageBlock[]) =>
+  blocks.flatMap((b) => (b.type === "image" || b.type === "button" ? [b.target] : b.type === "hero" ? [b.buttonTarget] : []));
+/** The pictures a page's blocks show. */
+const blockImageIds = (blocks: PageBlock[]) => blocks.flatMap((b) => (b.type === "image" || b.type === "hero" ? [b.imageId] : []));
 /** A block as the apps get it: a picture also carries its URL and size; the newer blocks carry a plain `text` too, which an app older
  * than 1.0.136 shows instead (it shows any block it doesn't know as text). */
+type Pictured = { imageUrl: string; width: number; height: number };
 type ShownBlock =
-  | Exclude<PageBlock, { type: "image" }>
-  | (Extract<PageBlock, { type: "image" }> & { imageUrl: string; width: number; height: number })
+  | Exclude<PageBlock, { type: "image" | "hero" }>
+  | (Extract<PageBlock, { type: "image" }> & Pictured)
+  | (Extract<PageBlock, { type: "hero" }> & Pictured & { text: string })
   | (PageBlock & { text?: string });
 
 const IST = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
@@ -135,6 +167,8 @@ export function fallbackText(b: PageBlock): string | undefined {
       return b.label ? `${b.label}: ${b.code}` : b.code;
     case "faq":
       return b.items.map((x) => `${x.q}\n${x.a}`).join("\n\n");
+    case "hero":
+      return [b.heading, b.text].filter(Boolean).join("\n");
     default:
       return undefined;
   }
@@ -169,22 +203,45 @@ function storedBlocks(raw: unknown): PageBlock[] {
 
 /** The blocks with what the app needs to lay the pictures out before they load (size and URL). */
 async function withImages(blocks: PageBlock[]): Promise<ShownBlock[]> {
-  const ids = blocks.flatMap((b) => (b.type === "image" ? [b.imageId] : []));
+  const ids = blockImageIds(blocks);
   const rows = ids.length ? await prisma.customPageImage.findMany({ where: { id: { in: ids } }, select: { id: true, width: true, height: true } }) : [];
   const size = new Map(rows.map((r) => [r.id, r]));
   return blocks.flatMap((b): ShownBlock[] => {
-    if (b.type !== "image") return [b];
+    if (b.type !== "image" && b.type !== "hero") return [b];
     const s = size.get(b.imageId);
-    return s ? [{ ...b, imageUrl: imageUrl(b.imageId), width: s.width, height: s.height }] : [];
+    if (!s) return [];
+    return [{ ...b, imageUrl: imageUrl(b.imageId), width: s.width, height: s.height } as ShownBlock];
   });
+}
+
+/** A page's background picture, as the apps get it. */
+async function backgroundPicture(id: string | null | undefined) {
+  if (!id) return null;
+  const row = await prisma.customPageImage.findUnique({ where: { id }, select: { id: true, width: true, height: true } });
+  return row ? { imageUrl: imageUrl(row.id), width: row.width, height: row.height } : null;
+}
+function shadeOf(v: unknown): (typeof SHADES)[number] {
+  return (SHADES as readonly string[]).includes(v as string) ? (v as (typeof SHADES)[number]) : "medium";
 }
 
 function backgroundOf(v: unknown): PageBackground {
   return (PAGE_BACKGROUNDS as readonly string[]).includes(v as string) ? (v as PageBackground) : "dark";
 }
 
-/** A shown page, for the app. Buttons that lead to a page that is hidden or gone are left out, pictures then lead nowhere. */
-export async function getLivePage(id: string) {
+/** For an app that can't draw a picture with words on it (older than 1.0.137, which asks with ?v=2): the picture, then its heading,
+ * its text and its button, one under the other. */
+function heroForOlderApps(b: ShownBlock): ShownBlock[] {
+  const h = b as unknown as Extract<PageBlock, { type: "hero" }> & Pictured;
+  const out: ShownBlock[] = [{ type: "image", imageId: h.imageId, imageUrl: h.imageUrl, width: h.width, height: h.height, target: h.buttonTarget ?? null, size: "full", rounded: false }];
+  if (h.heading) out.push({ type: "text", text: h.heading, style: "heading", align: "center", color: h.textColor === "gold" ? "gold" : "default" });
+  if (h.text) out.push({ type: "text", text: h.text, style: "body", align: h.align, color: "default" });
+  if (h.buttonLabel && h.buttonTarget) out.push({ type: "button", label: h.buttonLabel, target: h.buttonTarget, color: h.buttonColor });
+  return out;
+}
+
+/** A shown page, for the app. Buttons that lead to a page that is hidden or gone are left out, pictures then lead nowhere.
+ * `v` is what the app can draw: 2 (app 1.0.137+) gets pictures with words on them as they are. */
+export async function getLivePage(id: string, opts: { v?: number } = {}) {
   const row = await prisma.customPage.findFirst({ where: { id, deletedAt: null, active: true } });
   if (!row) throw new ApiError(404, "This page is not available any more.");
   const blocks = await withImages(storedBlocks(row.blocks));
@@ -196,10 +253,25 @@ export async function getLivePage(id: string) {
       return t ? [{ ...b, target: t }] : [];
     }
     if (b.type === "image") return [{ ...b, target: liveTarget(b.target, live) }];
+    if (b.type === "hero") {
+      const t = liveTarget(b.buttonTarget, live);
+      const shown = { ...b, buttonTarget: t, buttonLabel: t ? b.buttonLabel : "" };
+      if ((opts.v ?? 1) < 2) return heroForOlderApps(shown as ShownBlock);
+      // the app reads `heading` and `body`; `text` (heading and text) is a stand-in for anything that can only show text
+      return [{ ...shown, body: b.text, text: fallbackText(b) ?? "" } as unknown as ShownBlock];
+    }
     const text = fallbackText(b);
     return [text === undefined ? b : { ...b, text }];
   });
-  return { id: row.id, title: row.title, background: backgroundOf(row.background), updatedAt: row.updatedAt, blocks: shown };
+  return {
+    id: row.id,
+    title: row.title,
+    background: backgroundOf(row.background),
+    backgroundImage: await backgroundPicture(row.bgImageId),
+    backgroundShade: shadeOf(row.bgShade),
+    updatedAt: row.updatedAt,
+    blocks: shown,
+  };
 }
 
 export async function getPageImage(id: string) {
@@ -213,13 +285,24 @@ export async function getPageImage(id: string) {
 export async function listPages() {
   const rows = await prisma.customPage.findMany({ where: { deletedAt: null }, orderBy: { createdAt: "desc" } });
   return Promise.all(
-    rows.map(async (r) => ({ id: r.id, title: r.title, active: r.active, background: backgroundOf(r.background), createdAt: r.createdAt, updatedAt: r.updatedAt, blocks: await withImages(storedBlocks(r.blocks)) }))
+    rows.map(async (r) => ({
+      id: r.id,
+      title: r.title,
+      active: r.active,
+      background: backgroundOf(r.background),
+      bgImageId: r.bgImageId,
+      backgroundImage: await backgroundPicture(r.bgImageId),
+      backgroundShade: shadeOf(r.bgShade),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      blocks: await withImages(storedBlocks(r.blocks)),
+    }))
   );
 }
 
 /** Every picture must have been uploaded, and every page a block opens must exist (not deleted). */
-async function checkBlocks(blocks: PageBlock[]) {
-  const imageIds = [...new Set(blocks.flatMap((b) => (b.type === "image" ? [b.imageId] : [])))];
+async function checkBlocks(blocks: PageBlock[], bgImageId?: string | null) {
+  const imageIds = [...new Set([...blockImageIds(blocks), ...(bgImageId ? [bgImageId] : [])])];
   if (imageIds.length) {
     const found = await prisma.customPageImage.count({ where: { id: { in: imageIds } } });
     if (found !== imageIds.length) throw new ApiError(400, "A picture on the page was not found. Upload it again.");
@@ -239,16 +322,20 @@ export async function checkTarget(t: string | null | undefined) {
   if (!found) throw new ApiError(400, "That page was deleted. Pick another one.");
 }
 
-export async function createPage(input: { title: string; blocks: PageBlock[]; background?: PageBackground }) {
-  await checkBlocks(input.blocks);
-  const row = await prisma.customPage.create({ data: { title: input.title, blocks: input.blocks, background: input.background ?? "dark" } });
+type PageLook = { background?: PageBackground; bgImageId?: string | null; bgShade?: (typeof SHADES)[number] };
+
+export async function createPage(input: { title: string; blocks: PageBlock[] } & PageLook) {
+  await checkBlocks(input.blocks, input.bgImageId);
+  const row = await prisma.customPage.create({
+    data: { title: input.title, blocks: input.blocks, background: input.background ?? "dark", bgImageId: input.bgImageId ?? null, bgShade: input.bgShade ?? "medium" },
+  });
   return { id: row.id };
 }
 
-export async function updatePage(id: string, input: { title?: string; blocks?: PageBlock[]; active?: boolean; background?: PageBackground }) {
+export async function updatePage(id: string, input: { title?: string; blocks?: PageBlock[]; active?: boolean } & PageLook) {
   const found = await prisma.customPage.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
   if (!found) throw new ApiError(404, "Page not found");
-  if (input.blocks) await checkBlocks(input.blocks);
+  if (input.blocks || input.bgImageId) await checkBlocks(input.blocks ?? [], input.bgImageId);
   await prisma.customPage.update({
     where: { id },
     data: {
@@ -256,6 +343,8 @@ export async function updatePage(id: string, input: { title?: string; blocks?: P
       ...(input.blocks ? { blocks: input.blocks } : {}),
       ...(input.active !== undefined ? { active: input.active } : {}),
       ...(input.background !== undefined ? { background: input.background } : {}),
+      ...(input.bgImageId !== undefined ? { bgImageId: input.bgImageId } : {}),
+      ...(input.bgShade !== undefined ? { bgShade: input.bgShade } : {}),
     },
   });
   return { id };
@@ -266,6 +355,14 @@ export async function deletePage(id: string) {
   const found = await prisma.customPage.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
   if (!found) throw new ApiError(404, "Page not found");
   await prisma.customPage.update({ where: { id }, data: { deletedAt: new Date(), active: false } });
+}
+
+/** A banner's (or popup's) own picture, copied for a page (Promotion Pages: "the banner picture on top of its page"). */
+export async function copyBannerPicture(popupId: string) {
+  const p = await prisma.popup.findFirst({ where: { id: popupId, deletedAt: null }, select: { image: true, mimeType: true, width: true, height: true } });
+  if (!p || !p.image || p.image.length === 0) throw new ApiError(404, "That banner's picture was not found.");
+  const row = await prisma.customPageImage.create({ data: { image: p.image, mimeType: p.mimeType, width: p.width, height: p.height }, select: { id: true, width: true, height: true } });
+  return { id: row.id, imageUrl: imageUrl(row.id), width: row.width, height: row.height };
 }
 
 export async function uploadPageImage(input: { imageBase64: string; mimeType: PageImageMimeType; width: number; height: number }) {
