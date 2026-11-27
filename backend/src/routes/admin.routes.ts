@@ -1589,11 +1589,11 @@ router.get(
   })
 );
 
-// Empty text / target clears the button. The target is the app screen name of a game (e.g. "Aviator"), "Deposit", "DOWNLOAD"
-// or a custom page ("page:<id>", Admin → Pages); the app ignores targets it doesn't know.
+// Empty text / target clears the button. The target is the app screen name of a game (e.g. "Aviator"), "Deposit", "DOWNLOAD",
+// a custom page ("page:<id>", Admin → Pages) or a website ("url:https://..."); the app ignores targets it doesn't know.
 const popupButtonSchema = {
   buttonText: z.string().trim().max(20).nullish().transform((v) => v || null),
-  buttonTarget: z.union([z.literal(""), z.string().trim().regex(customPageService.TARGET_RE)]).nullish().transform((v) => v || null),
+  buttonTarget: z.union([z.literal(""), customPageService.targetSchema]).nullish().transform((v) => v || null),
 };
 const createPopupSchema = z.object({
   title: z.string().trim().min(1).max(80),
@@ -1613,12 +1613,21 @@ router.post(
   })
 );
 
-const updatePopupSchema = z.object({
-  title: z.string().trim().min(1).max(80).optional(),
-  active: z.boolean().optional(),
-  buttonText: popupButtonSchema.buttonText.optional(),
-  buttonTarget: popupButtonSchema.buttonTarget.optional(),
-});
+const updatePopupSchema = z
+  .object({
+    title: z.string().trim().min(1).max(80).optional(),
+    active: z.boolean().optional(),
+    buttonText: popupButtonSchema.buttonText.optional(),
+    buttonTarget: popupButtonSchema.buttonTarget.optional(),
+    // a new picture (Admin → Promotion Pages: "Change picture"); all four together
+    imageBase64: z.string().min(1).optional(),
+    mimeType: z.enum(popupService.POPUP_MIME_TYPES).optional(),
+    width: z.number().int().min(50).max(4000).optional(),
+    height: z.number().int().min(50).max(4000).optional(),
+  })
+  .refine((v) => [v.imageBase64, v.mimeType, v.width, v.height].every((x) => x === undefined) || [v.imageBase64, v.mimeType, v.width, v.height].every((x) => x !== undefined), {
+    message: "A new picture needs its data, type, width and height.",
+  });
 router.patch(
   "/popups/:id",
   asyncHandler(async (req, res) => {
@@ -1654,7 +1663,11 @@ router.get(
   })
 );
 
-const pageSchema = z.object({ title: z.string().trim().min(1).max(80), blocks: customPageService.blocksSchema });
+const pageSchema = z.object({
+  title: z.string().trim().min(1, "Give the page a title.").max(80),
+  blocks: customPageService.blocksSchema,
+  background: z.enum(customPageService.PAGE_BACKGROUNDS).optional(),
+});
 router.post(
   "/pages",
   asyncHandler(async (req, res) => {

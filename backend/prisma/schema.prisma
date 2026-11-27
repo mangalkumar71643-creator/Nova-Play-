@@ -1721,8 +1721,11 @@ model Popup {
 model CustomPage {
   id        String    @id @default(uuid())
   title     String
-  /// [{ type: "image", imageId, target? } | { type: "text", text, style, align } | { type: "button", label, target }]
-  blocks    Json      @default("[]")
+  /// [{ type: "image", imageId, target? } | { type: "text", text, style, align, color } | { type: "button", label, target, color }
+  ///  | list | table | box | countdown | code | faq | divider | space] (customPageService.ts)
+  blocks     Json      @default("[]")
+  /// "dark" | "red" | "blue" | "purple" | "green": the page's background in the app
+  background String    @default("dark")
   active    Boolean   @default(true)
   deletedAt DateTime?
   createdAt DateTime  @default(now())

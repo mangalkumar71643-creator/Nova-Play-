@@ -82,10 +82,15 @@ export async function createPopup(input: { title: string; imageBase64: string; m
   return { ...row, imageUrl: imagePath(row) };
 }
 
-export async function updatePopup(id: string, input: { title?: string; active?: boolean } & PopupButton) {
+type NewPicture = { imageBase64?: string; mimeType?: PopupMimeType; width?: number; height?: number };
+
+/** A new picture (all of imageBase64, mimeType, width, height) gets a new URL: imagePath() is versioned by updatedAt. */
+export async function updatePopup(id: string, input: { title?: string; active?: boolean } & PopupButton & NewPicture) {
   const found = await prisma.popup.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
   if (!found) throw new ApiError(404, "Popup not found");
-  const row = await prisma.popup.update({ where: { id }, data: input, select: listSelect });
+  const { imageBase64, mimeType, width, height, ...rest } = input;
+  const picture = imageBase64 && mimeType && width && height ? { image: decodeImage(imageBase64), mimeType, width, height } : {};
+  const row = await prisma.popup.update({ where: { id }, data: { ...rest, ...picture }, select: listSelect });
   return { ...row, imageUrl: imagePath(row) };
 }
 

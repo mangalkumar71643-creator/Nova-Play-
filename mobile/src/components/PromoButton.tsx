@@ -5,8 +5,21 @@ import { Text } from './AppText';
 import { fonts } from '../theme';
 import TapPressable from './TapPressable';
 
+/** The button's colour (a custom page's button can be any of these; banners and popups use red). */
+export type PromoTone = 'red' | 'gold' | 'green' | 'blue' | 'purple';
+
+const FACE: Record<PromoTone, [string, string, string, string]> = {
+  red: ['#FF6B6B', '#E3162C', '#A1081C', '#C4102A'],
+  gold: ['#FFF1B8', '#F2C14E', '#C88A16', '#E0A830'],
+  green: ['#6EE7A8', '#1DB36B', '#0B7A45', '#15924F'],
+  blue: ['#7DB8FF', '#2F7BFF', '#1446B8', '#2160D8'],
+  purple: ['#C99BFF', '#8B3DFF', '#5A16B0', '#7428D8'],
+};
+
 type Props = {
   label: string;
+  /** Its colour; red when not given. */
+  tone?: PromoTone;
   width: number;
   height: number;
   onPress?: () => void;
@@ -17,10 +30,12 @@ type Props = {
 };
 
 /**
- * The red button with a gold rim that the admin can put under a Home Slider picture or an app-open popup ("PLAY").
- * Drawn here (not a picture), so its edges are smooth at any screen size.
+ * The red button with a gold rim that the admin can put under a Home Slider picture or an app-open popup ("PLAY"), and in
+ * other colours on a custom page. Drawn here (not a picture), so its edges are smooth at any screen size.
  */
-export default function PromoButton({ label, width, height, onPress, disabled, style, testID }: Props) {
+export default function PromoButton({ label, tone = 'red', width, height, onPress, disabled, style, testID }: Props) {
+  const face = FACE[tone] ?? FACE.red;
+  const dark = tone === 'gold';
   return (
     <TapPressable
       onPress={onPress}
@@ -37,7 +52,7 @@ export default function PromoButton({ label, width, height, onPress, disabled, s
         style={{ width, height, borderRadius: height / 2, padding: 2 }}
       >
         <LinearGradient
-          colors={['#FF6B6B', '#E3162C', '#A1081C', '#C4102A']}
+          colors={face}
           locations={[0, 0.45, 0.55, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
@@ -51,12 +66,12 @@ export default function PromoButton({ label, width, height, onPress, disabled, s
           <Text
             numberOfLines={1}
             style={{
-              color: '#FFFFFF',
+              color: dark ? '#4A2A00' : '#FFFFFF',
               fontSize: height * 0.38,
               fontFamily: fonts.extra,
               letterSpacing: 0.5,
               paddingHorizontal: width * 0.1,
-              textShadowColor: 'rgba(60,0,0,0.75)',
+              textShadowColor: dark ? 'rgba(255,246,210,0.7)' : 'rgba(60,0,0,0.75)',
               textShadowOffset: { width: 0, height: 1.5 },
               textShadowRadius: 3,
             }}

@@ -92,8 +92,8 @@ android {
         applicationId 'com.anonymous.novaplayhub'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 136
-        versionName "1.0.135"
+        versionCode 137
+        versionName "1.0.136"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
