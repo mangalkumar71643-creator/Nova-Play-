@@ -3896,16 +3896,19 @@
               ? '<div class="item-meta" style="color:#f5a524;">⚠ Not shown in the app: its button is "Download app", which only people on the website need. To show it in the app, press Button and pick a game (or Opens: nothing).</div>'
               : '') +
             '<div class="item-meta">' + buttonMeta(p, kind) + '</div>' +
-            '<div class="form-row" data-button-editor="' + p.id + '" style="display:none;margin-top:8px;">' +
-              '<input data-button-text maxlength="20" placeholder="Button text, e.g. ' + (kind === 'POPUP' ? 'PLAY' : 'Play') + '" value="' + escapeHtml(p.buttonText || '') + '" />' +
+            '<div class="form-row" data-button-editor="' + p.id + '" style="display:none;margin-top:8px;flex-wrap:wrap;">' +
+              '<input data-button-title maxlength="80" placeholder="' + (kind === 'PROMOTION' ? 'Name players see under the card' : 'Name (only you see this)') + '" value="' + escapeHtml(p.title) + '" />' +
+              '<input data-button-text maxlength="20" placeholder="' + (kind === 'PROMOTION' ? '(optional) note, only you see it' : kind === 'CATEGORY_SLIDER' ? 'Corner text (optional)' : 'Button text, e.g. ' + (kind === 'POPUP' ? 'PLAY' : 'Play')) + '" value="' + escapeHtml(p.buttonText || '') + '" />' +
               '<select data-button-target>' + gameOptionsHtml(p.buttonTarget || '') + '</select>' +
               '<button class="btn small" data-button-save data-id="' + p.id + '" style="flex:none;min-width:0;">Save</button>' +
             '</div>' +
+            '<div data-page-box="' + p.id + '" style="display:none;margin-top:8px;"></div>' +
             '<div class="item-actions">' +
               '<button class="btn secondary small" data-popup-move="-1" data-id="' + p.id + '"' + (i === 0 ? ' disabled' : '') + '>&uarr; Up</button>' +
               '<button class="btn secondary small" data-popup-move="1" data-id="' + p.id + '"' + (i === rows.length - 1 ? ' disabled' : '') + '>&darr; Down</button>' +
               '<button class="btn secondary small" data-popup-toggle data-id="' + p.id + '">' + (p.active ? 'Hide' : 'Show') + '</button>' +
-              '<button class="btn secondary small" data-button-edit data-id="' + p.id + '">Button</button>' +
+              '<button class="btn secondary small" data-button-edit data-id="' + p.id + '">Name &amp; button</button>' +
+              '<button class="btn secondary small" data-page-open data-id="' + p.id + '">Big page</button>' +
               (p.buttonTarget && p.buttonTarget.indexOf('page:') === 0 && pagesCache.some(function (pg) { return 'page:' + pg.id === p.buttonTarget; })
                 ? '<button class="btn secondary small" data-edit-page="' + escapeHtml(p.buttonTarget.slice(5)) + '">Edit page</button>' : '') +
               '<button class="btn danger small" data-popup-delete data-id="' + p.id + '">Delete</button>' +
@@ -3946,13 +3949,79 @@
     el.querySelectorAll('[data-button-save]').forEach(function (b) {
       b.addEventListener('click', function () {
         var row = b.parentNode;
+        var p = rows.find(function (x) { return x.id === b.getAttribute('data-id'); });
+        var title = row.querySelector('[data-button-title]').value.trim();
+        if (!title) { showAlert('Give it a name.'); return; }
+        var target = row.querySelector('[data-button-target]').value;
         b.disabled = true;
-        api('/admin/popups/' + b.getAttribute('data-id'), { method: 'PATCH', body: JSON.stringify({
+        // a page that only this banner opens carries the banner's name on top: it is renamed with it
+        var pageId = target.indexOf('page:') === 0 ? target.slice(5) : null;
+        var page = pageId ? pagesCache.find(function (pg) { return pg.id === pageId; }) : null;
+        var renamePage = page && title !== p.title && page.title === p.title && pageUsers(page.id).length <= 1;
+        api('/admin/popups/' + p.id, { method: 'PATCH', body: JSON.stringify({
+          title: title,
           buttonText: row.querySelector('[data-button-text]').value.trim(),
-          buttonTarget: row.querySelector('[data-button-target]').value,
+          buttonTarget: target,
         }) })
+          .then(function () { return renamePage ? api('/admin/pages/' + page.id, { method: 'PUT', body: JSON.stringify({ title: title }) }) : null; })
           .then(loadPopups)
           .catch(function (err) { if (err.authError) doLogout(); else { showAlert(err.message); loadPopups(); } });
+      });
+    });
+    // "Big page": add a page to a banner (its pictures and an optional button), or change the pictures of the page it opens
+    el.querySelectorAll('[data-page-open]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var p = rows.find(function (x) { return x.id === b.getAttribute('data-id'); });
+        var holder = el.querySelector('[data-page-box="' + p.id + '"]');
+        if (holder.style.display !== 'none') { holder.style.display = 'none'; return; }
+        holder.style.display = 'block';
+        if (holder.childNodes.length) return;
+        var pageId = p.buttonTarget && p.buttonTarget.indexOf('page:') === 0 ? p.buttonTarget.slice(5) : null;
+        var page = pageId ? pagesCache.find(function (pg) { return pg.id === pageId; }) : null;
+        if (page && page.blocks.some(function (x) { return x.type === 'text'; })) {
+          // a page with text was made in Pages: it is changed there
+          holder.innerHTML = '<div class="item-meta" style="margin-bottom:6px;">Its page "' + escapeHtml(page.title) + '" has text on it too: change it in Pages.</div>' +
+            '<button class="btn secondary small" data-goto-page>Edit page</button>';
+          holder.querySelector('[data-goto-page]').addEventListener('click', function () { openPageInEditor(page.id); });
+          return;
+        }
+        var statusEl = document.createElement('div');
+        statusEl.className = 'item-meta';
+        var initial = page ? {
+          pageId: page.id,
+          pics: page.blocks.filter(function (x) { return x.type === 'image'; }).map(function (x) { return { imageId: x.imageId, imageUrl: x.imageUrl, width: x.width, height: x.height }; }),
+          button: page.blocks.find(function (x) { return x.type === 'button'; }) || null,
+        } : null;
+        var box = buildPageBox(initial, statusEl);
+        box.el.style.marginBottom = '8px';
+        holder.appendChild(box.el);
+        if (!page && p.buttonTarget) {
+          var note = document.createElement('div');
+          note.className = 'item-meta';
+          note.style.marginBottom = '6px';
+          note.textContent = 'Saving makes the banner open this page instead of ' + gameName(p.buttonTarget) + '.';
+          holder.appendChild(note);
+        }
+        var save = document.createElement('button');
+        save.className = 'btn small';
+        save.style.flex = 'none';
+        save.textContent = 'Save page';
+        holder.appendChild(save);
+        holder.appendChild(statusEl);
+        save.addEventListener('click', function () {
+          if (!box.count()) { statusEl.textContent = 'Add the page picture(s) first (+ Page picture).'; return; }
+          save.disabled = true;
+          statusEl.textContent = 'Saving…';
+          box.blocks()
+            .then(function (blocks) {
+              if (page) return api('/admin/pages/' + page.id, { method: 'PUT', body: JSON.stringify({ blocks: blocks }) });
+              return api('/admin/pages', { method: 'POST', body: JSON.stringify({ title: p.title, blocks: blocks }) })
+                .then(function (r) { return api('/admin/popups/' + p.id, { method: 'PATCH', body: JSON.stringify({ buttonTarget: 'page:' + r.id }) }); });
+            })
+            .then(function () { statusEl.textContent = 'Saved. Tapping the banner opens its page.'; return loadPopups(); })
+            .catch(function (err) { if (err.authError) doLogout(); else statusEl.textContent = err.message; })
+            .finally(function () { save.disabled = false; });
+        });
       });
     });
     el.querySelectorAll('[data-edit-page]').forEach(function (b) {
@@ -4066,6 +4135,67 @@
   // Slider page adds slides. Each shrinks the picked image to at most 900px
   // wide and re-encodes it (WebP where the browser can, else JPEG) so uploads
   // stay small and load fast in the app.
+  // A banner's big page: its pictures (top to bottom) and an optional button at the bottom. `initial` (a page made from pictures
+  // and a button) fills it in for a change; pictures already on the server keep their id, new ones are shrunk now and uploaded by
+  // blocks(), which resolves the page's blocks.
+  function buildPageBox(initial, statusEl) {
+    var pics = initial ? initial.pics.slice() : [];
+    var el = document.createElement('div');
+    el.className = 'pg-block';
+    el.innerHTML =
+      '<div class="pg-block-head"><span class="grow">ITS BIG PAGE</span></div>' +
+      '<div class="item-meta" style="margin-bottom:8px;">Opens when the banner is tapped: the banner\'s name on top, then these pictures, full width, top to bottom (make them tall, like a poster).</div>' +
+      '<label class="btn secondary small" style="margin:0 0 8px;cursor:pointer;display:inline-block;">+ Page picture<input type="file" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" /></label>' +
+      '<div data-own-pics style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>' +
+      '<div class="item-meta" style="margin-bottom:6px;">Button at the bottom of the page (optional):</div>' +
+      '<div class="form-row" style="margin:0;"><input data-own-btn-text maxlength="30" placeholder="e.g. DEPOSIT NOW (empty = no button)" />' +
+      '<select data-own-btn-target>' + targetOptionsHtml(initial && initial.button ? initial.button.target : 'Deposit', { noDownload: true, exceptPage: initial && initial.pageId }) + '</select></div>';
+    var picsEl = el.querySelector('[data-own-pics]');
+    var textEl = el.querySelector('[data-own-btn-text]');
+    var targetEl = el.querySelector('[data-own-btn-target]');
+    if (initial && initial.button) textEl.value = initial.button.label;
+    function render() {
+      picsEl.innerHTML = pics.map(function (pic, i) {
+        return '<div style="position:relative;"><img class="pg-thumb" src="' + (pic.dataUrl || API + pic.imageUrl) + '" alt="" style="max-width:90px;max-height:120px;" />' +
+          '<button class="btn danger small" data-own-remove="' + i + '" style="position:absolute;top:2px;right:2px;padding:2px 7px;">&times;</button></div>';
+      }).join('') || '<div class="item-meta">No picture yet.</div>';
+      picsEl.querySelectorAll('[data-own-remove]').forEach(function (x) {
+        x.addEventListener('click', function () { pics.splice(Number(x.getAttribute('data-own-remove')), 1); render(); });
+      });
+    }
+    render();
+    el.querySelector('input[type=file]').addEventListener('change', function () {
+      var files = Array.prototype.slice.call(this.files || []);
+      this.value = '';
+      files.reduce(function (chain, file) {
+        return chain.then(function () { return shrinkPagePicture(file).then(function (pic) { pics.push(pic); render(); }); });
+      }, Promise.resolve()).catch(function (err) { statusEl.textContent = err.message; });
+    });
+    return {
+      el: el,
+      count: function () { return pics.length; },
+      reset: function () { pics = []; textEl.value = ''; render(); },
+      blocks: function () {
+        var blocks = [];
+        var fresh = pics.filter(function (pic) { return !pic.imageId; }).length;
+        var n = 0;
+        return pics.reduce(function (chain, pic) {
+          return chain.then(function () {
+            if (pic.imageId) { blocks.push({ type: 'image', imageId: pic.imageId, target: null }); return; }
+            n++;
+            statusEl.textContent = 'Uploading page picture ' + n + ' of ' + fresh + '…';
+            return api('/admin/pages/images', { method: 'POST', body: JSON.stringify({ imageBase64: pic.base64, mimeType: pic.mimeType, width: pic.width, height: pic.height }) })
+              .then(function (r) { pic.imageId = r.id; pic.imageUrl = r.imageUrl; blocks.push({ type: 'image', imageId: r.id, target: null }); });
+          });
+        }, Promise.resolve()).then(function () {
+          var label = textEl.value.trim();
+          if (label) blocks.push({ type: 'button', label: label, target: targetEl.value || 'Deposit' });
+          return blocks;
+        });
+      },
+    };
+  }
+
   function setupImageForm(prefix, kind) {
     var upload = null; // { base64, mimeType, width, height } of the chosen file, already shrunk
     var titleEl = document.getElementById(prefix + 'Title');
@@ -4076,39 +4206,11 @@
     var buttonTargetEl = document.getElementById(prefix + 'ButtonTarget');
 
     // Its own big page: pictures (shrunk now, uploaded on Add) and an optional button at the bottom of the page.
-    var ownPics = [];
-    var ownBox = document.createElement('div');
-    ownBox.className = 'pg-block';
-    ownBox.style.marginBottom = '12px';
-    ownBox.innerHTML =
-      '<div class="pg-block-head"><span class="grow">ITS BIG PAGE</span></div>' +
-      '<div class="item-meta" style="margin-bottom:8px;">Opens when the banner is tapped: the banner\'s name on top, then these pictures, full width, top to bottom (make them tall, like a poster).</div>' +
-      '<label class="btn secondary small" style="margin:0 0 8px;cursor:pointer;display:inline-block;">+ Page picture<input type="file" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" /></label>' +
-      '<div data-own-pics style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>' +
-      '<div class="item-meta" style="margin-bottom:6px;">Button at the bottom of the page (optional):</div>' +
-      '<div class="form-row" style="margin:0;"><input data-own-btn-text maxlength="30" placeholder="e.g. DEPOSIT NOW (empty = no button)" />' +
-      '<select data-own-btn-target>' + targetOptionsHtml('Deposit', { noDownload: true }) + '</select></div>';
-    var ownPicsEl = ownBox.querySelector('[data-own-pics]');
-    function renderOwnPics() {
-      ownPicsEl.innerHTML = ownPics.map(function (pic, i) {
-        return '<div style="position:relative;"><img class="pg-thumb" src="' + pic.dataUrl + '" alt="" style="max-width:90px;max-height:120px;" />' +
-          '<button class="btn danger small" data-own-remove="' + i + '" style="position:absolute;top:2px;right:2px;padding:2px 7px;">&times;</button></div>';
-      }).join('') || '<div class="item-meta">No picture yet.</div>';
-      ownPicsEl.querySelectorAll('[data-own-remove]').forEach(function (x) {
-        x.addEventListener('click', function () { ownPics.splice(Number(x.getAttribute('data-own-remove')), 1); renderOwnPics(); });
-      });
-    }
-    renderOwnPics();
-    ownBox.querySelector('input[type=file]').addEventListener('change', function () {
-      var files = Array.prototype.slice.call(this.files || []);
-      this.value = '';
-      files.reduce(function (chain, file) {
-        return chain.then(function () { return shrinkPagePicture(file).then(function (pic) { ownPics.push(pic); renderOwnPics(); }); });
-      }, Promise.resolve()).catch(function (err) { status.textContent = err.message; });
-    });
+    var own = buildPageBox(null, status);
+    own.el.style.marginBottom = '12px';
     if (buttonTargetEl) {
-      buttonTargetEl.closest('.form-row').insertAdjacentElement('afterend', ownBox);
-      var showOwn = function () { ownBox.style.display = buttonTargetEl.value === OWN_PAGE ? 'block' : 'none'; };
+      buttonTargetEl.closest('.form-row').insertAdjacentElement('afterend', own.el);
+      var showOwn = function () { own.el.style.display = buttonTargetEl.value === OWN_PAGE ? 'block' : 'none'; };
       buttonTargetEl.addEventListener('change', showOwn);
       showOwn();
       // the list of targets is redrawn when the pages change: keep the box in step
@@ -4116,16 +4218,7 @@
     }
     // Uploads the pictures and makes the page; resolves the page's id.
     function makeOwnPage(title) {
-      var blocks = [];
-      return ownPics.reduce(function (chain, pic, i) {
-        return chain.then(function () {
-          status.textContent = 'Uploading page picture ' + (i + 1) + ' of ' + ownPics.length + '…';
-          return api('/admin/pages/images', { method: 'POST', body: JSON.stringify({ imageBase64: pic.base64, mimeType: pic.mimeType, width: pic.width, height: pic.height }) })
-            .then(function (r) { blocks.push({ type: 'image', imageId: r.id, target: null }); });
-        });
-      }, Promise.resolve()).then(function () {
-        var label = ownBox.querySelector('[data-own-btn-text]').value.trim();
-        if (label) blocks.push({ type: 'button', label: label, target: ownBox.querySelector('[data-own-btn-target]').value || 'Deposit' });
+      return own.blocks().then(function (blocks) {
         return api('/admin/pages', { method: 'POST', body: JSON.stringify({ title: title, blocks: blocks }) });
       }).then(function (r) { return r.id; });
     }
@@ -4139,13 +4232,14 @@
       preview.style.display = 'none';
       status.textContent = '';
       if (!file) return;
-      if (!titleEl.value.trim()) titleEl.value = file.name.replace(/\.[^.]+$/, '').slice(0, 80);
+      // a Promotion card's name is what players read under it: the admin writes it (other kinds: only the admin sees the name)
+      if (!titleEl.value.trim() && kind !== 'PROMOTION') titleEl.value = file.name.replace(/\.[^.]+$/, '').slice(0, 80);
       var img = new Image();
       img.onload = function () {
         var cleanBox = document.getElementById(prefix + 'Clean');
         var src = cleanBox && cleanBox.checked ? cleanSlideImage(img) : img;
         var srcW = src.naturalWidth || src.width, srcH = src.naturalHeight || src.height;
-        var w = Math.min(900, srcW);
+        var w = Math.min(1080, srcW);
         var h = Math.round(srcH * (w / srcW));
         var canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
@@ -4170,7 +4264,7 @@
       if (!upload) { status.textContent = 'Choose the banner picture first.'; return; }
       if (!title) { status.textContent = 'Give it a name.'; titleEl.focus(); return; }
       var target = buttonTargetEl ? buttonTargetEl.value : '';
-      if (target === OWN_PAGE && !ownPics.length) { status.textContent = 'Add the picture(s) of its big page (+ Page picture), or pick something else it opens.'; return; }
+      if (target === OWN_PAGE && !own.count()) { status.textContent = 'Add the picture(s) of its big page (+ Page picture), or pick something else it opens.'; return; }
       btn.disabled = true;
       status.textContent = 'Uploading…';
       var madePage = null;
@@ -4189,9 +4283,7 @@
           if (buttonTextEl) buttonTextEl.value = '';
           if (buttonTargetEl) buttonTargetEl.value = kind === 'PROMOTION' ? OWN_PAGE : '';
           if (buttonTargetEl) buttonTargetEl.dispatchEvent(new Event('change'));
-          ownPics = [];
-          renderOwnPics();
-          ownBox.querySelector('[data-own-btn-text]').value = '';
+          own.reset();
           fileEl.value = '';
           preview.style.display = 'none';
           status.textContent = target === 'DOWNLOAD'

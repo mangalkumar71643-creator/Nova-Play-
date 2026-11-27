@@ -134,6 +134,7 @@ const styles = StyleSheet.create({
   tile: { width: '25%', alignItems: 'center', paddingVertical: spacing.sm },
   tileIcon: { width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   tileLabel: { color: colors.textSecondary, fontSize: typography.xs, textAlign: 'center', marginTop: 6, paddingHorizontal: 2 },
-  banner: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  // nearly the full width (the owner found the cards small with wider margins)
+  banner: { marginHorizontal: spacing.sm, marginTop: spacing.md, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   bannerTitle: { color: colors.textPrimary, fontSize: typography.md, fontWeight: '800', padding: spacing.md },
 });
