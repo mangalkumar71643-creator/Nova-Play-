@@ -59,5 +59,20 @@ node mobile/scripts/art/build.js redbutton/lcd   # one piece
   chips 0-9 (WinGoScreen.tsx's colours) stand over it in an arch with the 7 lit, the name runs along a green ribbon with gold edges, and a gold
   burst gives the game's top pay ("NUMBER 9X"). In the panel: button text **PLAY**, game **Win Go**, "Remove background" on (checked through
   the real panel and on Home at 360 x 640, 411 x 783 and 430 x 932). Build: `node scripts/art/build.js wingo-slide`.
+* `hot-slides/` draws three **Home Slider** pictures each for the hot games Dragon Tiger, Mines and Aviator, for the owner to pick from:
+  `assets/promo/<dragon-tiger|mines|aviator>-slide-<1|2|3>.webp` (900 x 640, transparent, lossless; `.png` for uploading). Dragon Tiger:
+  1 face-off (the game's dragon and tiger heads across its VS emblem, "TIE PAYS 12.74x"), 2 cards (a king and a queen with the beasts on
+  them and a lightning strike, "A ROUND EVERY 20s"), 3 medallion (split sapphire / ruby with a crack, "BIGGER CARD WINS · 2.12x"). Mines (the
+  game's own tiles, diamond and bomb from `mines/tiles.js`): 1 board (a tilted 5 x 5 board and the 3-mine payouts 1.16x-1.81x), 2 diamond (a
+  big side-view brilliant, bombs in red glows, "CASH OUT AFTER ANY GEM": the server asks for one revealed tile first), 3 climb (open tiles as
+  stairs with the 3-mine payouts 1.02x-2.13x). Aviator (our own jet in `_jet.js`, not the game's plane art): 1 climb (the rising curve, an
+  example 2.40x on it), 2 sky window (the jet breaking out of a gold-rimmed night sky, "AUTO CASH-OUT FROM 1.01x"), 3 gauge (a needle on a
+  scale that fades on past 50x: the game has no fixed top). Every figure comes from the live `/dragon-tiger/config`, `/mines/config` and
+  `/aviator/config`. `_lib.js` keeps them safe from the panel's "Remove background" step, which takes the average colour of a picture's border
+  as its background (black for a transparent border) and clears what is near it from the outside: `svg()` fades the outer 30 px out so the
+  border is always fully transparent, shadows are red-brown (`SHADOW`, never black), free-standing lettering (`bigText`) has an unbevelled
+  red-brown rim (the bevel darkens the lower edges to near black), and the Mines pieces' black drop shadows are turned red-brown. In the panel:
+  button text **PLAY**, the game, "Remove background" on (checked through the real panel: nothing visible cleared, and each one alone on Home
+  at 390 x 844 with its PLAY opening the game). Build one with `node scripts/art/build.js hot-slides/mines-2`, or all with `hot-slides`.
 * Size: the pictures are WEBP at quality 80 at most (`to_webp.py` caps what `build.js` writes; `shrink_webp.py` does the same for pictures that
   are already in `assets/`, and leaves a picture alone if it would look noticeably worse). The fonts are small subsets too, see `scripts/fonts/`.
