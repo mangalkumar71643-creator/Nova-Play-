@@ -23,8 +23,10 @@ node mobile/scripts/art/build.js redbutton/lcd   # one piece
 * `turbosevens/` draws the symbols of the reels (`symbols.js`, build it first: the board and the icon embed them), the machine's top
   (`board.js`: marquee, paytable with its lit digits, the bonus-reel panel), the reel window (`reels.js`), the steel frame (`frame.js`),
   the control deck and the buttons; the reels, the WIN and balance digits and the lights are live.
-* `garuda/` draws Garuda Gold: the temple at sunset (`scene.js`), the golden Garuda over it (`hero.js`: feather fans for the wings, the
-  bevel applied outside the mirror so both wings are lit alike), the symbols (`symbols.js`: letters on sandstone tiles, the gems in gold
+* `garuda/` draws Garuda Gold: the temple at sunset (`scene.js`), the golden Garuda over it (since app 1.0.139 the owner's own Garuda:
+  `owner_hero.py` cuts `owner-garuda-source.jpg` out of its black background into `assets/garuda/hero.webp`, the picture's bottom
+  under the name plate; `python3 -I scripts/art/garuda/owner_hero.py`. The drawn Garuda, `hero.js`: feather fans for the wings, the
+  bevel applied outside the mirror so both wings are lit alike, still makes the popup and the slide, and builds to `garuda/drawn/`), the symbols (`symbols.js`: letters on sandstone tiles, the gems in gold
   tiles, the WILD mask on red; cells of 98 x 76), the multiplier coins (`coins.js`), the reel housing (`frame.js`: frame, backings, the
   centre window), the name plate and NUDGE lamp (`title.js`), the deck (`panel.js`), the buttons and the EX switch (`buttons.js`), the
   backdrop (`bg.js`) and the Home tile (`icon.js`, built last: it uses the scene, the hero, a ruby and the 500x coin). All of it is our own

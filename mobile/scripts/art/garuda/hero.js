@@ -199,7 +199,9 @@ module.exports = {
   width: W,
   height: H,
   scale: 2.5,
-  out: 'assets/garuda/hero.webp',
+  // The game shows the owner's own Garuda now (owner_hero.py writes assets/garuda/hero.webp); this drawing is still used by the
+  // popup and the slide (their svg()), and building it on its own puts it here, away from the game's picture.
+  out: 'scripts/art/garuda/drawn/hero.webp',
   quality: 88,
   svg: () =>
     L.svg(
