@@ -319,7 +319,7 @@
   .pw-block-head .grow { flex: 1; }
   .pw-block-head .btn { padding: 5px 9px; }
   .pw-block textarea { width: 100%; min-height: 64px; }
-  .pw-block .hint { font-size: 11.5px; color: var(--text-muted); margin: 4px 0 0; }
+  .pw-block .hint, #pwBgPic .hint, .cv-panel .hint { font-size: 11.5px; color: var(--text-muted); margin: 4px 0 0; }
   .pw-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
   .pw-row > input, .pw-row > select { flex: 1; min-width: 140px; }
   .pw-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
@@ -353,6 +353,8 @@
   .cv-panel label { color: var(--text-secondary); }
   .cv-add { display: block; width: calc(100% - 32px); margin: 14px 16px; padding: 12px; border-radius: 12px; border: 1.5px dashed rgba(240,185,61,0.6); background: rgba(240,185,61,0.07); color: #FFDE8C; font-weight: 800; font-size: 13.5px; cursor: pointer; }
   .cv-tools { margin: 6px 8px 12px; padding: 8px; border-radius: 12px; background: #101614; border: 1px solid var(--border); }
+  .cv-add.cv-design { background: linear-gradient(135deg, rgba(240,185,61,0.22), rgba(139,61,255,0.22)); border-style: solid; font-size: 15px; padding: 16px 12px; }
+  .cv-add.cv-design span { display: block; font-size: 12px; font-weight: 600; color: #CBB4B8; margin-top: 4px; }
   .cv-tools .pw-tools { margin: 0; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
   .pp-body { position: relative; }
   .pp-layer { position: relative; }
@@ -400,6 +402,11 @@
   .pp-btn.tone-blue > div { background: linear-gradient(#7DB8FF 0%, #2F7BFF 45%, #1446B8 55%, #2160D8 100%); }
   .pp-btn.tone-purple > div { background: linear-gradient(#C99BFF 0%, #8B3DFF 45%, #5A16B0 55%, #7428D8 100%); }
 </style>
+<!-- the design editor (Promotion Pages): its fonts and its code -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@400;600;700;800;900&family=Pacifico&family=Playfair+Display:wght@700;900&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<script src="/admin-design-editor.js?v=1"></script>
 </head>
 <body>
 
@@ -887,7 +894,7 @@
 
       <div class="panel" id="panel-promo-pages">
         <h1 class="page-title">Promotion Pages</h1>
-        <div class="page-sub">Your promotions on the app's Promotion page, step by step. <b>Step 1:</b> the banner (the picture card players see, with its name under it). <b>Step 2:</b> the big page that opens when they tap it, built from tools: pictures, headings, text, buttons, lists, tables, notice boxes, a countdown, a code to copy, questions &amp; answers, lines and space. The phone preview shows the page as the app does. New tools need app 1.0.136 or newer (older apps show them as plain text).</div>
+        <div class="page-sub">Your promotions on the app's Promotion page, step by step. <b>Step 1:</b> the banner (the picture card players see, with its name under it). <b>Step 2:</b> the big page that opens when they tap it: design it freely in the design editor (like a phone editor app: the page's height, and text, pictures, buttons and shapes anywhere on it), or build it from ready blocks: pictures, headings, text, buttons, lists, tables, notice boxes, a countdown, a code to copy, questions &amp; answers. The phone preview shows the page as the app does. A free design shows with its tap areas in app 1.0.138 or newer (older apps show its picture with a button for each thing it opens).</div>
 
         <div class="card" id="pwListCard" style="max-width:820px;">
           <div class="card-head"><h2>Your promotions</h2><button class="btn small" id="pwNewBtn" style="flex:none;">+ New promotion</button></div>
@@ -917,6 +924,7 @@
             <div class="card" id="pwBuilderCard">
               <div class="card-head"><h2 id="pwStep2Title">Step 2 · Its page</h2></div>
               <div class="item-meta" id="pwStep2Note" style="margin:-6px 0 10px;"></div>
+              <div id="pwDesignCta"></div>
               <label for="pwPageTitle">Page title (shown at the top of the page)</label>
               <input id="pwPageTitle" maxlength="80" placeholder="e.g. Weekly Deposit Bonus" />
               <label>Page background colour</label>
@@ -4598,12 +4606,12 @@
   // Owner, 2026-11-27: "first the banner, then its page, with every tool a page may need". The same builder edits any page
   // (Pages → Edit / + New page, "Edit page" on a slide or a popup): then there is no banner step.
   var PW_TOOLS = [
-    ['image', '&#128444;', 'Picture'], ['hero', '&#127912;', 'Picture + words on it'], ['heading', 'H', 'Heading'], ['body', '&para;', 'Text'], ['note', '&#9998;', 'Small note'],
+    ['canvas', '&#128396;', 'Free design (editor)'], ['image', '&#128444;', 'Picture'], ['hero', '&#127912;', 'Picture + words on it'], ['heading', 'H', 'Heading'], ['body', '&para;', 'Text'], ['note', '&#9998;', 'Small note'],
     ['button', '&#9654;', 'Button'], ['list', '&#9776;', 'List'], ['table', '&#9638;', 'Table'], ['box', '&#9873;', 'Notice box'],
     ['countdown', '&#9201;', 'Countdown'], ['code', '#', 'Code to copy'], ['faq', '?', 'Questions &amp; answers'],
     ['divider', '&mdash;', 'Divider line'], ['space', '&#8597;', 'Space'],
   ];
-  var PW_NAMES = { image: 'PICTURE', hero: 'PICTURE + WORDS ON IT', heading: 'HEADING', body: 'TEXT', note: 'SMALL NOTE', button: 'BUTTON', list: 'LIST', table: 'TABLE', box: 'NOTICE BOX', countdown: 'COUNTDOWN', code: 'CODE TO COPY', faq: 'QUESTIONS & ANSWERS', divider: 'DIVIDER LINE', space: 'SPACE' };
+  var PW_NAMES = { canvas: 'FREE DESIGN', image: 'PICTURE', hero: 'PICTURE + WORDS ON IT', heading: 'HEADING', body: 'TEXT', note: 'SMALL NOTE', button: 'BUTTON', list: 'LIST', table: 'TABLE', box: 'NOTICE BOX', countdown: 'COUNTDOWN', code: 'CODE TO COPY', faq: 'QUESTIONS & ANSWERS', divider: 'DIVIDER LINE', space: 'SPACE' };
   var PW_COLORS = [['gold', '#F0B93D', 'Gold'], ['red', '#E3162C', 'Red'], ['green', '#1DB36B', 'Green'], ['blue', '#2F7BFF', 'Blue'], ['purple', '#8B3DFF', 'Purple']];
   var PW_TEXT_COLORS = [['default', '', 'Normal'], ['gold', '#FFD45E', 'Gold'], ['white', '#FFFFFF', 'White'], ['red', '#FF5A6A', 'Red'], ['green', '#4BE39A', 'Green']];
   var PW_BACKGROUNDS = [['dark', '#170709', 'Dark'], ['red', '#4A0812', 'Red'], ['blue', '#0B1E4A', 'Blue'], ['purple', '#2C0F55', 'Purple'], ['green', '#0B3A24', 'Green']];
@@ -4659,6 +4667,7 @@
       if (b.type === 'button') b.color = b.color || 'red';
       if (b.type === 'image') { b.size = b.size || 'full'; b.rounded = !!b.rounded; }
       if (b.type === 'hero') { b.buttonTarget = b.buttonTarget || ''; b.heading = b.heading || ''; b.text = b.text || ''; b.buttonLabel = b.buttonLabel || ''; }
+      if (b.type === 'canvas') { b.links = b.links || []; b.imageIds = b.imageIds || []; b.parts = b.parts || []; }
     });
     return copy;
   }
@@ -4999,6 +5008,9 @@
         return '<div class="hint" style="margin:0;">A thin gold line between two parts of the page.</div>';
       case 'space':
         return pwChips('size', [['s', '', 'Small'], ['m', '', 'Medium'], ['l', '', 'Large']], b.size || 'm', i);
+      case 'canvas':
+        return '<button type="button" class="btn" data-pw-design="' + i + '" style="width:100%;">&#128396; Open the design editor</button>' +
+          '<div class="hint">' + (b.imageIds && b.imageIds.length ? 'A free design: ' + b.design.els.length + ' part' + (b.design.els.length === 1 ? '' : 's') + ', ' + Math.round(b.design.h) + ' tall' + (b.links.length ? ', ' + b.links.length + ' tap area' + (b.links.length === 1 ? '' : 's') : '') + '.' : 'Not saved yet: open the editor and press Save.') + '</div>';
     }
     return '';
   }
@@ -5068,6 +5080,14 @@
         return '<div class="pp-divider"></div>';
       case 'space':
         return '<div style="height:' + (b.size === 's' ? 8 : b.size === 'l' ? 40 : 20) + 'px;"></div>';
+      case 'canvas': {
+        if (!b.imageIds || !b.imageIds.length) return '<div class="pp-empty" style="padding:26px 16px;">&#128396; A free design, not saved yet. Tap to open the editor.</div>';
+        var dw = b.design.w || 360;
+        // the design's picture, in its parts one under the other
+        return '<div style="position:relative;line-height:0;">' + (b.parts || []).map(function (p) { return '<img class="pp-img" src="' + pwSrc(p) + '" alt="" style="display:block;margin:0;" />'; }).join('') +
+          (b.links || []).map(function (l) { return '<div title="opens ' + e(pwTargetName(l.target)) + '" style="position:absolute;left:' + (l.x / dw * 100) + '%;top:' + (l.y / b.design.h * 100) + '%;width:' + (l.w / dw * 100) + '%;height:' + (l.h / b.design.h * 100) + '%;outline:1.5px dashed rgba(34,197,94,0.85);outline-offset:-1px;"></div>'; }).join('') +
+          '</div>';
+      }
     }
     return '';
   }
@@ -5102,8 +5122,10 @@
     if (!interactive) {
       body = page.blocks.length ? page.blocks.map(function (b, i) { return b.type === 'countdown' ? '<div data-pp-count="' + i + '">' + pwBlockView(b) + '</div>' : pwBlockView(b); }).join('') : '<div class="pp-empty">Your page shows here as you build it.</div>';
     } else {
-      var firstPic = page.blocks.length && (page.blocks[0].type === 'image' || page.blocks[0].type === 'hero');
-      body = (pw.mode === 'banner' && pw.banner && !firstPic ? '<button type="button" class="cv-add" data-pw-bannerpic>&#128444; Put the banner picture at the top</button>' : '') +
+      var firstPic = page.blocks.length && (page.blocks[0].type === 'image' || page.blocks[0].type === 'hero' || page.blocks[0].type === 'canvas');
+      var hasDesign = page.blocks.some(function (b) { return b.type === 'canvas'; });
+      body = (!hasDesign ? '<button type="button" class="cv-add cv-design" data-pw-design-new>&#128396; Design this page freely, like an editor app<span>Set the page\'s height; put text, pictures, buttons and shapes anywhere</span></button>' : '') +
+        (pw.mode === 'banner' && pw.banner && !firstPic ? '<button type="button" class="cv-add" data-pw-bannerpic>&#128444; Put the banner picture at the top</button>' : '') +
         (page.blocks.length ? '' : '<div class="pp-empty" style="padding:30px 20px;">The page is empty.<br/>Pick a ready layout above, or add below.</div>') +
         page.blocks.map(function (b, i) {
           var sel = pw.sel === i;
@@ -5133,6 +5155,12 @@
       note = page.id ? (uses.length ? 'Opened by ' + escapeHtml(uses.join(', ')) + '.' : 'Nothing opens this page yet: pick it as what a slide, a popup or a banner opens.') : 'A page of its own: once saved, pick it as what a slide, a popup or a banner opens.';
     }
     document.getElementById('pwStep2Note').innerHTML = note;
+    // the design editor first: a free design like in a phone editor app (or the page's design, when it has one)
+    var di = -1;
+    page.blocks.some(function (b, k) { if (b.type === 'canvas') { di = k; return true; } return false; });
+    document.getElementById('pwDesignCta').innerHTML = di < 0
+      ? '<button type="button" class="cv-add cv-design" data-pw-design-new style="width:100%;margin:0 0 14px;">&#128396; Design this page freely, like an editor app<span>Set the page\'s height; put text, pictures, buttons and shapes anywhere. Or build it from ready blocks below.</span></button>'
+      : '<button type="button" class="cv-add cv-design" data-pw-design="' + di + '" style="width:100%;margin:0 0 14px;">&#128396; Open the design editor<span>Change your free design: everything on it, and the page\'s height.</span></button>';
     document.getElementById('pwToBanner').style.display = pw.mode === 'banner' ? 'inline-block' : 'none';
     var titleEl = document.getElementById('pwPageTitle');
     if (titleEl.value !== page.title) titleEl.value = page.title;
@@ -5263,10 +5291,13 @@
       var view = ev.target.closest('.cv-view');
       if (view && !ev.target.closest('summary')) {
         var ci = Number(view.parentNode.getAttribute('data-cv'));
+        if (pw.page.blocks[ci] && pw.page.blocks[ci].type === 'canvas') return pwOpenDesign(ci);
         pwSelect(pw.sel === ci ? -1 : ci, false);
       }
       return;
     }
+    if (t.hasAttribute('data-pw-design')) return pwOpenDesign(Number(t.getAttribute('data-pw-design')));
+    if (t.hasAttribute('data-pw-design-new')) return pwDesignNew();
     var i = Number(t.getAttribute('data-i'));
     if (t.hasAttribute('data-pw-view')) { pw.view = t.getAttribute('data-pw-view'); pw.sel = -1; pw.adding = -1; return pwRenderStep2(); }
     if (t.hasAttribute('data-pw-unselect')) return pwSelect(-1, false);
@@ -5330,6 +5361,12 @@
   // Adds a block at `at` (the end when not given); a picture (or a picture with words on it) asks for the picture first.
   function pwAdd(kind, at) {
     if (at === undefined || at > pw.page.blocks.length) at = pw.page.blocks.length;
+    if (kind === 'canvas') {
+      pw.page.blocks.splice(at, 0, { type: 'canvas', design: NovaDesignEditor.starter(null), imageIds: [], parts: [], links: [] });
+      pw.adding = -1;
+      pw.dirty = true;
+      return pwOpenDesign(at, true);
+    }
     if (kind === 'image' || kind === 'hero') {
       pw.pick = { kind: 'add', type: kind, at: at };
       var input = document.getElementById('pwPicture');
@@ -5425,6 +5462,89 @@
     chain.catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; });
   });
 
+  // ----- the design editor (admin-design-editor.js) on a "free design" block
+  // A picture from the phone: the picker first (resolves null when it is closed without one), then the upload.
+  function pwChooseFile() {
+    return new Promise(function (resolve) {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/png,image/jpeg,image/webp';
+      var done = false;
+      var finish = function (f) { if (done) return; done = true; window.removeEventListener('focus', onFocus); resolve(f); };
+      var onFocus = function () { setTimeout(function () { if (!input.files || !input.files.length) finish(null); }, 900); };
+      input.addEventListener('change', function () { finish(input.files && input.files[0] ? input.files[0] : null); });
+      input.addEventListener('cancel', function () { finish(null); });
+      window.addEventListener('focus', onFocus);
+      input.click();
+    });
+  }
+  function pwUploadFile(file) {
+    return shrinkPagePicture(file).then(function (pic) {
+      return api('/admin/pages/images', { method: 'POST', body: JSON.stringify({ imageBase64: pic.base64, mimeType: pic.mimeType, width: pic.width, height: pic.height }) })
+        .then(function (r) { return { id: r.id, imageUrl: r.imageUrl, width: r.width, height: r.height, localUrl: pic.dataUrl }; });
+    });
+  }
+  function pwBannerCopy() {
+    return api('/admin/pages/images/from-banner/' + pw.banner.id, { method: 'POST' }).then(function (r) { return { id: r.id, imageUrl: r.imageUrl, width: r.width, height: r.height }; });
+  }
+  // A new free design for the page: it starts with the banner picture (the page's, when it is all the page has) and a few parts.
+  function pwDesignNew() {
+    var blocks = pw.page.blocks;
+    var onlyPic = blocks.length === 1 && blocks[0].type === 'image';
+    var start = onlyPic ? Promise.resolve({ id: blocks[0].imageId, width: blocks[0].width, height: blocks[0].height })
+      : pw.mode === 'banner' && pw.banner ? pwBannerCopy().catch(function () { return null; }) : Promise.resolve(null);
+    var status = document.getElementById('pwStatus');
+    status.textContent = 'Opening the editor…';
+    return start.then(function (pic) {
+      status.textContent = '';
+      var block = { type: 'canvas', design: NovaDesignEditor.starter(pic), imageIds: [], parts: [], links: [] };
+      if (onlyPic) pw.page.blocks = [block]; else pw.page.blocks.unshift(block);
+      pw.dirty = true;
+      pw.sel = -1;
+      return pwOpenDesign(0, true);
+    });
+  }
+  // Opens the editor on block i; on Save the design's picture (its parts, top to bottom) is uploaded and the page saved. `fresh`: a
+  // design that was never saved goes away again when the editor is closed without saving.
+  function pwOpenDesign(i, fresh) {
+    var b = pw.page.blocks[i];
+    if (!b || b.type !== 'canvas' || !window.NovaDesignEditor) return;
+    var status = document.getElementById('pwStatus');
+    return NovaDesignEditor.open({
+      design: b.design,
+      title: pw.page.title || 'Design',
+      imageUrl: function (id) { return API + '/pages/images/' + id; },
+      choosePicture: pwChooseFile,
+      uploadPicture: pwUploadFile,
+      bannerPicture: pw.mode === 'banner' && pw.banner ? pwBannerCopy : null,
+      targetOptionsHtml: function (v) { return targetOptionsHtml(v, { noDownload: true, exceptPage: pw.page.id }); },
+    }).then(function (res) {
+      if (!res) {
+        if (fresh && !(b.imageIds && b.imageIds.length)) { pw.page.blocks.splice(pw.page.blocks.indexOf(b), 1); }
+        pwRenderStep2();
+        return false;
+      }
+      var parts = [];
+      return res.exported.reduce(function (chain, x, k) {
+        return chain.then(function () {
+          status.textContent = res.exported.length > 1 ? 'Saving the design (part ' + (k + 1) + ' of ' + res.exported.length + ')…' : 'Saving the design…';
+          return api('/admin/pages/images', { method: 'POST', body: JSON.stringify({ imageBase64: x.base64, mimeType: x.mimeType, width: x.width, height: x.height }) })
+            .then(function (r) { parts.push({ id: r.id, imageUrl: r.imageUrl, width: r.width, height: r.height, localUrl: x.dataUrl }); });
+        });
+      }, Promise.resolve())
+        .then(function () {
+          b.design = res.design;
+          b.imageIds = parts.map(function (p) { return p.id; });
+          b.parts = parts;
+          b.links = res.links;
+          pw.dirty = true;
+          pwRenderStep2();
+          return pwSave();
+        })
+        .catch(function (err) { if (err.authError) doLogout(); else status.textContent = err.message; return false; });
+    });
+  }
+
   // ----- saving the page
   function pwCheck() {
     var page = pw.page;
@@ -5445,6 +5565,7 @@
       if (b.type === 'countdown' && !b.endsAt) return [i, n + 'pick when it ends.'];
       if (b.type === 'code' && !(b.code || '').trim()) return [i, n + 'write the code.'];
       if (b.type === 'faq' && b.items.some(function (x) { return !x.q.trim() || !x.a.trim(); })) return [i, n + 'every question needs its answer (or remove it).'];
+      if (b.type === 'canvas' && !(b.imageIds && b.imageIds.length)) return [i, n + 'open the editor and press Save (or remove it).'];
     }
     return null;
   }
@@ -5463,6 +5584,7 @@
       case 'faq': return { type: 'faq', items: b.items.map(function (x) { return { q: t(x.q), a: t(x.a) }; }) };
       case 'divider': return { type: 'divider' };
       case 'space': return { type: 'space', size: b.size || 'm' };
+      case 'canvas': return { type: 'canvas', design: b.design, imageIds: b.imageIds, links: b.links || [] };
     }
     return b;
   }
@@ -5502,17 +5624,23 @@
         if (saved) {
           // keep the pictures shown from this browser (no reload flash)
           var local = {};
-          page.blocks.forEach(function (b) { if (b.localUrl) local[b.imageId] = b.localUrl; });
+          page.blocks.forEach(function (b) {
+            if (b.localUrl) local[b.imageId] = b.localUrl;
+            (b.parts || []).forEach(function (p) { if (p.localUrl && p.id) local[p.id] = p.localUrl; });
+          });
           var bgLocal = page.bgPic && page.bgPic.localUrl;
           var sel = pw.sel;
           pw.page = pwEditable(saved);
-          pw.page.blocks.forEach(function (b) { if (local[b.imageId]) b.localUrl = local[b.imageId]; });
+          pw.page.blocks.forEach(function (b) {
+            if (local[b.imageId]) b.localUrl = local[b.imageId];
+            if (b.type === 'canvas') (b.parts || []).forEach(function (p, k) { var id = b.imageIds[k]; p.id = id; if (local[id]) p.localUrl = local[id]; });
+          });
           if (bgLocal && pw.page.bgPic) pw.page.bgPic.localUrl = bgLocal;
           pw.sel = sel < pw.page.blocks.length ? sel : -1;
         }
         pwRenderStep2();
         status.textContent = pw.mode === 'banner'
-          ? 'Saved ✓ Tapping the banner "' + pw.banner.title + '" in the app opens this page (app 1.0.137+ shows every tool).'
+          ? 'Saved ✓ Tapping the banner "' + pw.banner.title + '" in the app opens this page.'
           : isNew ? 'Saved ✓ Now pick "Opens page: ' + page.title + '" as what a slide, a popup or a banner opens.' : 'Saved ✓ The app shows the new version the next time the page is opened.';
         return true;
       })

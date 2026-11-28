@@ -37,7 +37,8 @@ import {
  * poster, full width or smaller, square or round-cornered), pictures with words and a button on them, text, lists, tables,
  * notice boxes, a countdown, a code to copy, questions & answers and buttons, top to bottom, on the background colour the admin
  * picked and, behind it all, the page's own background picture (it scrolls with the page); a button or a picture opens a game,
- * Deposit, another page or a website (utils/promoTarget.ts). Blocks this app doesn't know are left out.
+ * Deposit, another page or a website (utils/promoTarget.ts); a free design from the admin's design editor is its picture with the
+ * areas that open something on it. Blocks this app doesn't know are left out.
  */
 
 type Picture = { imageUrl: string; width: number; height: number };
@@ -57,8 +58,9 @@ export default function CustomPageScreen() {
 
   const load = useCallback(async () => {
     try {
-      // v=2: this app draws pictures with words on them (older apps get them as a picture, text and a button)
-      const res = await fetch(`${API_BASE_URL}/pages/${encodeURIComponent(id ?? '')}?v=2`);
+      // v=3: this app draws pictures with words on them and free designs with their tap areas (older apps get them as pictures,
+      // text and buttons)
+      const res = await fetch(`${API_BASE_URL}/pages/${encodeURIComponent(id ?? '')}?v=3`);
       if (res.status === 404) {
         setPage(null);
         setError('This page is not available any more.');
@@ -114,6 +116,43 @@ export default function CustomPageScreen() {
       }
       case 'hero':
         return <HeroBlock key={i} b={b} width={contentW} uri={`${API_BASE_URL}${b.imageUrl}`} onButton={opener(navigation, b.buttonTarget)} testID={`page-hero-${i}`} />;
+      case 'canvas': {
+        // the design's picture, full width, its parts one under the other (each a little taller so no hairline shows between
+        // two), with its tap areas on it (scaled from the design's units)
+        const k = contentW / (b.designWidth || 360);
+        const px = contentW / (b.width || 1080);
+        let top = 0;
+        return (
+          <View key={i} style={{ width: contentW, height: b.height * px, overflow: 'hidden' }} testID={`page-canvas-${i}`}>
+            {b.parts.map((p, j) => {
+              const at = top;
+              top += p.height * px;
+              return (
+                <Image
+                  key={j}
+                  source={{ uri: `${API_BASE_URL}${p.imageUrl}` }}
+                  style={{ position: 'absolute', left: 0, top: at, width: contentW, height: p.height * px + (j < b.parts.length - 1 ? 1 : 0) }}
+                  resizeMode="cover"
+                  fadeDuration={0}
+                />
+              );
+            })}
+            {b.links.map((l, j) => {
+              const open = opener(navigation, l.target);
+              return open ? (
+                <TapPressable
+                  key={j}
+                  onPress={open}
+                  accessibilityRole="button"
+                  accessibilityLabel={l.label || 'Open'}
+                  testID={`page-link-${i}-${j}`}
+                  style={{ position: 'absolute', left: l.x * k, top: l.y * k, width: l.w * k, height: l.h * k }}
+                />
+              ) : null;
+            })}
+          </View>
+        );
+      }
       case 'button': {
         const open = opener(navigation, b.target);
         return (

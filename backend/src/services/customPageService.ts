@@ -22,6 +22,14 @@ import { ApiError } from "../middleware/errorHandler";
  * (full width, large, medium, small) and can have round corners; "hero" is a picture with a heading, text and a button on it
  * (at its top, middle or bottom, with a shade); a page can have a background picture (behind everything, scrolling with the
  * page) with a shade; a banner's own picture can be copied into its page (copyBannerPicture).
+ *
+ * Owner, 2026-11-28 ("an editor app in the admin: the page's height and everything on it, edited freely"; app 1.0.138): "canvas" is
+ * a free design made in the panel's design editor (admin-design-editor.js): a canvas 360 units wide and as tall as the admin
+ * sets, with text, pictures, buttons and shapes placed anywhere. The panel saves the design (to edit it again), the picture it
+ * draws of it (1080 px wide, in parts at most 2400 px tall, one under the other: an older or smaller phone can't draw one very
+ * tall picture) and the areas that open something when tapped. An app that asks with ?v=3 shows the parts with those areas on
+ * them; an older app gets the parts as plain pictures (opening the one thing, when there is one) and a button under them for each
+ * thing it opens when there are more.
  */
 
 export const PAGE_TARGET_PREFIX = "page:";
@@ -59,9 +67,68 @@ export const PAGE_BACKGROUNDS = ["dark", "red", "blue", "purple", "green"] as co
 export const PICTURE_SIZES = ["full", "large", "medium", "small"] as const;
 /** How much a picture with text on it (or a page's background picture) is darkened. */
 export const SHADES = ["none", "light", "medium", "strong"] as const;
+/** The design editor's canvas width (a phone's width, in the editor's units) and the fonts it offers. */
+export const DESIGN_WIDTH = 360;
+export const DESIGN_FONTS = ["Montserrat", "Poppins", "Bebas Neue", "Anton", "Playfair Display", "Pacifico"] as const;
 
 const target = targetSchema;
 const line = (max: number, what: string) => z.string().trim().min(1, what).max(max);
+
+// ----- the design editor's canvas
+const num = (min: number, max: number) => z.number().finite().min(min).max(max);
+const COLOR = z.string().regex(/^(#[0-9a-fA-F]{6}|transparent)$/, "A colour is not valid.");
+const optColor = z.union([z.literal(""), COLOR]).nullish().transform((v) => v || null);
+const optTarget = z.union([z.literal(""), target]).nullish().transform((v) => v || null);
+const designBase = {
+  id: z.string().max(40),
+  x: num(-4000, 4000),
+  y: num(-4000, 12000),
+  w: num(1, 8000),
+  h: num(1, 12000),
+  rot: num(-360, 360).default(0),
+  opacity: num(0, 1).default(1),
+  target: optTarget,
+};
+const designElement = z.discriminatedUnion("kind", [
+  z.object({
+    ...designBase,
+    kind: z.literal("text"),
+    text: z.string().max(2000),
+    font: z.enum(DESIGN_FONTS).default("Montserrat"),
+    size: num(4, 400),
+    weight: z.enum(["400", "600", "700", "800", "900"]).default("800"),
+    color: COLOR.default("#FFFFFF"),
+    align: z.enum(["left", "center", "right"]).default("center"),
+    lineHeight: num(0.5, 4).default(1.2),
+    shadow: z.boolean().default(false),
+    stroke: optColor,
+    strokeWidth: num(0, 40).default(0),
+  }),
+  z.object({ ...designBase, kind: z.literal("image"), imageId: z.string().uuid(), fit: z.enum(["cover", "contain"]).default("cover"), radius: num(0, 4000).default(0) }),
+  z.object({ ...designBase, kind: z.literal("button"), label: z.string().max(40), tone: z.enum(PAGE_COLORS).default("red"), textColor: optColor, radius: num(0, 4000).default(999) }),
+  z.object({
+    ...designBase,
+    kind: z.literal("shape"),
+    shape: z.enum(["rect", "circle"]).default("rect"),
+    fill: optColor,
+    radius: num(0, 4000).default(0),
+    border: optColor,
+    borderWidth: num(0, 80).default(0),
+  }),
+]);
+export const designSchema = z.object({
+  w: z.literal(DESIGN_WIDTH),
+  h: num(100, 4000),
+  bg: z.object({
+    color: COLOR.default("#170709"),
+    color2: optColor,
+    imageId: z.string().uuid().nullish().transform((v) => v || null),
+    fit: z.enum(["cover", "width"]).default("cover"),
+    shade: num(0, 0.95).default(0),
+  }),
+  els: z.array(designElement).max(150, "A design can have at most 150 parts."),
+});
+const designLink = z.object({ x: num(-10, 400), y: num(-10, 4100), w: num(1, 400), h: num(1, 4100), target, label: z.string().max(60).default("") });
 export const blockSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("image"),
@@ -129,6 +196,13 @@ export const blockSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("divider") }),
   z.object({ type: z.literal("space"), size: z.enum(["s", "m", "l"]).default("m") }),
+  z.object({
+    type: z.literal("canvas"),
+    design: designSchema,
+    // the design's picture, in parts top to bottom
+    imageIds: z.array(z.string().uuid()).min(1, "A design was not saved.").max(12),
+    links: z.array(designLink).max(80).default([]),
+  }),
 ]);
 export const blocksSchema = z
   .array(blockSchema)
@@ -137,12 +211,30 @@ export const blocksSchema = z
 export type PageBlock = z.infer<typeof blockSchema>;
 export type PageBackground = (typeof PAGE_BACKGROUNDS)[number];
 const blocksWithTarget = (blocks: PageBlock[]) =>
-  blocks.flatMap((b) => (b.type === "image" || b.type === "button" ? [b.target] : b.type === "hero" ? [b.buttonTarget] : []));
-/** The pictures a page's blocks show. */
-const blockImageIds = (blocks: PageBlock[]) => blocks.flatMap((b) => (b.type === "image" || b.type === "hero" ? [b.imageId] : []));
+  blocks.flatMap((b) =>
+    b.type === "image" || b.type === "button"
+      ? [b.target]
+      : b.type === "hero"
+        ? [b.buttonTarget]
+        : b.type === "canvas"
+          ? [...b.links.map((l) => l.target), ...b.design.els.map((e) => e.target)]
+          : []
+  );
+/** The pictures a page's blocks show (a design: the parts of its own picture). */
+const blockImageIds = (blocks: PageBlock[]) =>
+  blocks.flatMap((b) => (b.type === "image" || b.type === "hero" ? [b.imageId] : b.type === "canvas" ? b.imageIds : []));
+/** Every picture a page needs to exist: also the ones a design is made of. */
+const allImageIds = (blocks: PageBlock[]) =>
+  blocks.flatMap((b) =>
+    b.type === "canvas"
+      ? [...b.imageIds, ...b.design.els.flatMap((e) => (e.kind === "image" ? [e.imageId] : [])), ...(b.design.bg.imageId ? [b.design.bg.imageId] : [])]
+      : blockImageIds([b])
+  );
 /** A block as the apps get it: a picture also carries its URL and size; the newer blocks carry a plain `text` too, which an app older
  * than 1.0.136 shows instead (it shows any block it doesn't know as text). */
 type Pictured = { imageUrl: string; width: number; height: number };
+/** A design as shown: its picture's parts, top to bottom (and the whole picture's size). */
+type ShownCanvas = Extract<PageBlock, { type: "canvas" }> & { parts: Pictured[]; width: number; height: number };
 type ShownBlock =
   | Exclude<PageBlock, { type: "image" | "hero" }>
   | (Extract<PageBlock, { type: "image" }> & Pictured)
@@ -207,11 +299,38 @@ async function withImages(blocks: PageBlock[]): Promise<ShownBlock[]> {
   const rows = ids.length ? await prisma.customPageImage.findMany({ where: { id: { in: ids } }, select: { id: true, width: true, height: true } }) : [];
   const size = new Map(rows.map((r) => [r.id, r]));
   return blocks.flatMap((b): ShownBlock[] => {
+    if (b.type === "canvas") {
+      const parts = b.imageIds.map((id) => size.get(id)).filter((s): s is NonNullable<typeof s> => !!s);
+      if (!parts.length || parts.length !== b.imageIds.length) return [];
+      const shown: ShownCanvas = {
+        ...b,
+        parts: parts.map((s) => ({ imageUrl: imageUrl(s.id), width: s.width, height: s.height })),
+        width: parts[0].width,
+        height: parts.reduce((t, s) => t + s.height, 0),
+      };
+      return [shown as unknown as ShownBlock];
+    }
     if (b.type !== "image" && b.type !== "hero") return [b];
     const s = size.get(b.imageId);
     if (!s) return [];
     return [{ ...b, imageUrl: imageUrl(b.imageId), width: s.width, height: s.height } as ShownBlock];
   });
+}
+
+/** A design, for an app that asks with ?v=3: its picture's parts and the areas that open something (the design itself stays here).
+ * For an older app: the parts as pictures, one under the other (opening the one thing the design opens, when there is one), then a
+ * button for each thing when there are more. */
+function canvasForApps(b: ShownBlock, v: number, live: Set<string>): ShownBlock[] {
+  const c = b as unknown as ShownCanvas;
+  const links = c.links.filter((l) => !!liveTarget(l.target, live));
+  if (v >= 3) {
+    return [{ type: "canvas", parts: c.parts, width: c.width, height: c.height, designWidth: c.design.w, designHeight: c.design.h, links } as unknown as ShownBlock];
+  }
+  const out: ShownBlock[] = c.parts.map(
+    (p, k): ShownBlock => ({ type: "image", imageId: c.imageIds[k], ...p, target: links.length === 1 ? links[0].target : null, size: "full", rounded: false })
+  );
+  if (links.length > 1) links.forEach((l) => out.push({ type: "button", label: (l.label || "OPEN").slice(0, 30), target: l.target, color: "red" }));
+  return out;
 }
 
 /** A page's background picture, as the apps get it. */
@@ -253,6 +372,7 @@ export async function getLivePage(id: string, opts: { v?: number } = {}) {
       return t ? [{ ...b, target: t }] : [];
     }
     if (b.type === "image") return [{ ...b, target: liveTarget(b.target, live) }];
+    if (b.type === "canvas") return canvasForApps(b, opts.v ?? 1, live);
     if (b.type === "hero") {
       const t = liveTarget(b.buttonTarget, live);
       const shown = { ...b, buttonTarget: t, buttonLabel: t ? b.buttonLabel : "" };
@@ -302,7 +422,7 @@ export async function listPages() {
 
 /** Every picture must have been uploaded, and every page a block opens must exist (not deleted). */
 async function checkBlocks(blocks: PageBlock[], bgImageId?: string | null) {
-  const imageIds = [...new Set([...blockImageIds(blocks), ...(bgImageId ? [bgImageId] : [])])];
+  const imageIds = [...new Set([...allImageIds(blocks), ...(bgImageId ? [bgImageId] : [])])];
   if (imageIds.length) {
     const found = await prisma.customPageImage.count({ where: { id: { in: imageIds } } });
     if (found !== imageIds.length) throw new ApiError(400, "A picture on the page was not found. Upload it again.");

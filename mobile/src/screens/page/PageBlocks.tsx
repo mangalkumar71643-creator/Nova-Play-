@@ -24,6 +24,17 @@ export type PictureSize = 'full' | 'large' | 'medium' | 'small';
 export type Block =
   | { type: 'image'; imageUrl: string; width: number; height: number; target: string | null; size?: PictureSize; rounded?: boolean }
   | {
+      /** a free design from the panel's design editor: its picture, and the areas (in the design's units) a tap opens */
+      type: 'canvas';
+      /** the design's picture, in parts top to bottom (all as wide as the picture) */
+      parts: { imageUrl: string; width: number; height: number }[];
+      width: number;
+      height: number;
+      designWidth: number;
+      designHeight: number;
+      links: { x: number; y: number; w: number; h: number; target: string; label?: string }[];
+    }
+  | {
       type: 'hero';
       imageUrl: string;
       width: number;
